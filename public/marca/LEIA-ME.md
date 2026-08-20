@@ -1,19 +1,23 @@
-# Arquivos oficiais da marca
+# Identidade visual Interlig
 
-Coloque aqui os arquivos originais da logomarca quando os tiver em mãos:
+Arquivos oficiais (fornecidos pela empresa):
 
-- `logo-fundo-escuro.png` (ou .svg) — versão branca, para o cabeçalho e o login
-- `logo-fundo-claro.png` (ou .svg) — versão azul, para documentos e fundos claros
+- `LOGO OFICIAL.png` — logomarca branca sobre o azul oficial #043792
+- `LOGO - FUNDO BRANCO.png` — logomarca azul sobre branco
+- `grafico.png` — imagem institucional de rede de fibra (fundo do login)
 
-Hoje a marca é desenhada pelo componente `components/marca/logo-interlig.tsx`
-(recriação vetorial fiel). Com os arquivos oficiais nesta pasta, basta trocar o
-conteúdo do componente por um `<Image>` apontando para eles — nenhuma tela muda.
+Derivados gerados a partir deles (transparentes, recortados — usados pelo app
+via `components/marca/logo-interlig.tsx`):
 
-Paleta oficial usada na plataforma (tailwind.config.ts → cores `interlig`):
+- `logo-fundo-escuro.png` — letras brancas, para cabeçalho e fundos escuros
+- `logo-fundo-claro.png` — letras azuis, para fundos claros
+
+Paleta oficial (extraída da logomarca; em `tailwind.config.ts` → `interlig.*`):
 
 | Nome | Hex | Uso |
 |---|---|---|
-| marinho | `#0F1D4D` | fundo do cabeçalho e do login |
-| azul | `#1D3D9A` | cor primária (botões, links, item ativo) |
-| ceu | `#1E88E5` | destaques, subtítulo da marca, anel de foco |
-| claro | `#7FB8F2` | detalhes e quadradinhos da marca |
+| azul | `#043792` | cor primária oficial (botões, links, item ativo) |
+| ceu | `#047CDD` | subtítulo "INTERNET FIBRA", destaques, anel de foco |
+| medio | `#419CE3` | quadradinho médio da marca |
+| claro | `#77BAEE` | quadradinho claro da marca |
+| marinho | `#0A1638` | fundo escuro institucional (cabeçalho e login) |

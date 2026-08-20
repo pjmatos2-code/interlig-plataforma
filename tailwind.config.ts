@@ -46,10 +46,11 @@ const config: Config = {
         },
         // identidade visual Interlig (logomarca oficial)
         interlig: {
-          marinho: "#0F1D4D",
-          azul: "#1D3D9A",
-          ceu: "#1E88E5",
-          claro: "#7FB8F2",
+          marinho: "#0A1638",   // fundo escuro institucional (cabeçalho/login)
+          azul: "#043792",      // azul oficial da logomarca
+          ceu: "#047CDD",       // azul do subtítulo "INTERNET FIBRA"
+          medio: "#419CE3",     // quadradinho médio
+          claro: "#77BAEE",     // quadradinho claro
         },
         // faróis da seção 3.7 do PRD
         farol: {
