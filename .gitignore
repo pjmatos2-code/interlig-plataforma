@@ -1,0 +1,29 @@
+# dependências
+node_modules/
+.pnp
+.pnp.js
+
+# build
+.next/
+out/
+build/
+dist/
+
+# ambiente
+.env
+.env.local
+.env*.local
+
+# logs e sistema
+npm-debug.log*
+yarn-error.log*
+.DS_Store
+*.pem
+
+# editores
+.vscode/
+.idea/
+
+# supabase local
+supabase/.branches
+supabase/.temp
