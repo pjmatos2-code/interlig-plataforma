@@ -37,3 +37,17 @@ para `/api/webhooks/szchat` com o header `x-szchat-secret`; (2) passo de
 requisição externa dentro do construtor de Fluxo, disparado na transferência
 para a equipe comercial; (3) fallback: polling via Integrações → API.
 Pendente: prints de dentro das telas REST e API para fechar o payload real.
+
+**Atualização 20/08/2026 (documentação Fortics confirmada):** o mecanismo da
+integração será o **componente REST dentro do construtor de Fluxo** do SZ.chat
+— ele executa requisições HTTP/S para endereços externos no meio do fluxo de
+atendimento, com método POST, headers customizados e corpo JSON usando
+variáveis do fluxo (`@{{PARAM}}`); resposta disponível em
+`@{{REST_HTTP_STATUS}}` / `@{{REST_HTTP_RESPONSE}}` (timeout 20s).
+Plano da Fase 3: inserir o passo REST no ponto de transferência para a equipe
+comercial de cada fluxo habilitado, chamando `POST /api/webhooks/szchat` com o
+header `x-szchat-secret` e o payload de docs/szchat-samples/transferencia.json
+(adaptado às variáveis reais do fluxo). Não há webhook nativo de eventos — e
+não precisa. A API (Integrações → API, token `api_key`) fica para o fallback
+de polling e a importação de transcrições (Fase 4).
+Fontes: fortics.sz.chat/docs/pt-br/modules/rest e docs.fortics.com.br/chat.
