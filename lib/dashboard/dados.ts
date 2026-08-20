@@ -1,0 +1,285 @@
+import { criarClienteServidor } from "@/lib/supabase/server";
+import {
+  vendasDoPeriodo,
+  receitaContratada,
+  ticketMedio,
+  percentualMeta,
+  pace,
+  projecaoFechamento,
+  farolProjecao,
+  ativacoesPendentes,
+  pendentesAssinatura,
+  mediaUltimosNDiasUteis,
+  type ContratoIndicador,
+} from "@/lib/indicadores/regras";
+import {
+  hojeIso,
+  primeiroDiaDoMes,
+  ultimoDiaDoMes,
+  somarDias,
+  type Periodo,
+} from "@/lib/datas";
+import type { CategoriaOrigem } from "@/lib/tipos";
+
+export type ContratoDashboard = ContratoIndicador & {
+  pop_id: string | null;
+  plano_id: string | null;
+  origem_cadastro: CategoriaOrigem | null;
+};
+
+export type DadosDashboard = {
+  hoje: string;
+  // KPIs (regras 5.1–5.8)
+  vendasPeriodo: number;
+  vendasPeriodoAnterior: number;
+  receitaPeriodo: number;
+  ticketMedioPeriodo: number;
+  metaMensal: number | null;
+  vendasMes: number;
+  percentualMeta: number;
+  paceNecessario: number;
+  projecao: number;
+  farol: "verde" | "amarelo" | "vermelho";
+  ativacoesPendentes: { total: number; emAlerta: number };
+  pendentesAssinatura: { total: number; emAlerta: number };
+  // gráficos
+  vendasDiarias: { dia: string; vendas: number }[];
+  metaDiaria: number | null;
+  vendasPorPop: { pop: string; vendas: number; receita: number }[];
+  mixPlanos: { plano: string; vendas: number; receita: number }[];
+  origemDistribuicao: { origem: CategoriaOrigem; vendas: number }[];
+  origemSemanal: { semana: string; [origem: string]: number | string }[];
+  projecaoSerie: {
+    dia: string;
+    realizado: number | null;
+    projetado: number | null;
+    meta: number | null;
+  }[];
+  pops: { id: string; nome: string }[];
+};
+
+/**
+ * Carrega e calcula tudo que o Dashboard Geral (PRD 3.1) mostra.
+ * As consultas passam pela RLS: gestor recebe tudo, supervisor só a POP dele.
+ * O volume é pequeno (centenas de contratos) — agregação em memória com as
+ * funções testadas de lib/indicadores. Quando o sync real crescer a base,
+ * a troca é por views materializadas (PRD 7.2) sem mudar as regras.
+ */
+export async function carregarDashboard(
+  periodo: Periodo,
+  popId: string | null
+): Promise<DadosDashboard> {
+  const supabase = criarClienteServidor();
+  const hoje = hojeIso();
+  const inicioMes = primeiroDiaDoMes(hoje);
+  const fimMes = ultimoDiaDoMes(hoje);
+
+  // intervalo que cobre período, comparativo e mês corrente
+  const menorData = [periodo.deAnterior, periodo.de, inicioMes].sort()[0];
+
+  let consulta = supabase
+    .from("contratos")
+    .select(
+      "data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, pop_id, plano_id, origem_cadastro"
+    )
+    .gte("data_venda", menorData)
+    .limit(5000);
+  if (popId) consulta = consulta.eq("pop_id", popId);
+
+  // pendências (5.7/5.8) não dependem do filtro de data — pegam o estoque atual
+  let consultaPendencias = supabase
+    .from("contratos")
+    .select(
+      "data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade"
+    )
+    .or("data_assinatura.is.null,data_ativacao.is.null")
+    .neq("status", "cancelado")
+    .limit(5000);
+  if (popId) consultaPendencias = consultaPendencias.eq("pop_id", popId);
+
+  const [
+    { data: contratosBrutos },
+    { data: contratosPendentes },
+    { data: diasCalendario },
+    { data: popsData },
+    { data: planosData },
+    { data: metasData },
+  ] = await Promise.all([
+    consulta,
+    consultaPendencias,
+    supabase
+      .from("calendario")
+      .select("data, dia_util")
+      .gte("data", inicioMes)
+      .lte("data", fimMes)
+      .order("data"),
+    supabase.from("pops").select("id, nome").order("nome"),
+    supabase.from("planos").select("id, nome, valor_referencia").order("valor_referencia"),
+    supabase
+      .from("metas")
+      .select("escopo, referencia_id, quantidade_vendas")
+      .eq("mes_ano", inicioMes),
+  ]);
+
+  const contratos = (contratosBrutos ?? []) as ContratoDashboard[];
+  const pops = popsData ?? [];
+  const nomePop = new Map(pops.map((p) => [p.id, p.nome]));
+  const nomePlano = new Map((planosData ?? []).map((p) => [p.id, p.nome]));
+
+  // ---------- meta do escopo ----------
+  // com filtro de POP (ou supervisor): meta da POP; sem filtro: meta global.
+  const metas = metasData ?? [];
+  let metaMensal: number | null = null;
+  if (popId) {
+    metaMensal =
+      metas.find((m) => m.escopo === "pop" && m.referencia_id === popId)
+        ?.quantidade_vendas ?? null;
+  } else {
+    metaMensal =
+      metas.find((m) => m.escopo === "global")?.quantidade_vendas ??
+      (pops.length === 1
+        ? metas.find((m) => m.escopo === "pop" && m.referencia_id === pops[0].id)
+            ?.quantidade_vendas ?? null
+        : null);
+  }
+
+  // ---------- 5.1–5.3: período e comparativo ----------
+  const vendasP = vendasDoPeriodo(contratos, periodo.de, periodo.ate);
+  const vendasAnt = vendasDoPeriodo(contratos, periodo.deAnterior, periodo.ateAnterior);
+  const receitaP = receitaContratada(vendasP);
+
+  // ---------- 5.4–5.6: mês corrente ----------
+  const vendasM = vendasDoPeriodo(contratos, inicioMes, hoje);
+  const diasUteisMes = (diasCalendario ?? []).filter((d) => d.dia_util).map((d) => d.data);
+  const diasUteisDecorridos = diasUteisMes.filter((d) => d <= hoje);
+  const diasUteisRestantes = diasUteisMes.filter((d) => d >= hoje).length; // inclusive hoje (5.5)
+
+  const vendasPorDiaMes = new Map<string, number>();
+  for (const c of vendasM) {
+    vendasPorDiaMes.set(c.data_venda, (vendasPorDiaMes.get(c.data_venda) ?? 0) + 1);
+  }
+
+  const media7 = mediaUltimosNDiasUteis(vendasPorDiaMes, diasUteisDecorridos, 7);
+  const mediaMes =
+    diasUteisDecorridos.length === 0 ? 0 : vendasM.length / diasUteisDecorridos.length;
+  const projecao = projecaoFechamento({
+    acumuladoMes: vendasM.length,
+    mediaUltimos7DiasUteis: media7,
+    mediaDiariaMes: mediaMes,
+    // dias úteis DEPOIS de hoje: o realizado de hoje já está no acumulado
+    diasUteisRestantes: diasUteisMes.filter((d) => d > hoje).length,
+  });
+
+  // ---------- 5.7 / 5.8 ----------
+  const pendencias = (contratosPendentes ?? []) as ContratoIndicador[];
+  const ativ = ativacoesPendentes(pendencias, hoje);
+  const assin = pendentesAssinatura(pendencias, hoje);
+
+  // ---------- gráficos ----------
+  const vendasDiarias: { dia: string; vendas: number }[] = [];
+  const porDiaPeriodo = new Map<string, number>();
+  for (const c of vendasP) {
+    porDiaPeriodo.set(c.data_venda, (porDiaPeriodo.get(c.data_venda) ?? 0) + 1);
+  }
+  for (let d = periodo.de; d <= periodo.ate; d = somarDias(d, 1)) {
+    vendasDiarias.push({ dia: d, vendas: porDiaPeriodo.get(d) ?? 0 });
+  }
+
+  const porPop = new Map<string, { vendas: number; receita: number }>();
+  const porPlano = new Map<string, { vendas: number; receita: number }>();
+  const porOrigem = new Map<string, number>();
+  const porSemanaOrigem = new Map<string, Map<string, number>>();
+
+  for (const c of vendasP) {
+    const kp = c.pop_id ? nomePop.get(c.pop_id) ?? "Sem POP" : "Não atribuída";
+    const vp = porPop.get(kp) ?? { vendas: 0, receita: 0 };
+    vp.vendas += 1;
+    vp.receita += c.valor_mensalidade;
+    porPop.set(kp, vp);
+
+    const kpl = c.plano_id ? nomePlano.get(c.plano_id) ?? "Sem plano" : "Sem plano";
+    const vpl = porPlano.get(kpl) ?? { vendas: 0, receita: 0 };
+    vpl.vendas += 1;
+    vpl.receita += c.valor_mensalidade;
+    porPlano.set(kpl, vpl);
+
+    const ko = c.origem_cadastro ?? "outro";
+    porOrigem.set(ko, (porOrigem.get(ko) ?? 0) + 1);
+
+    const seg = new Date(`${c.data_venda}T00:00:00Z`);
+    const dow = seg.getUTCDay();
+    const inicioSem = somarDias(c.data_venda, dow === 0 ? -6 : 1 - dow);
+    if (!porSemanaOrigem.has(inicioSem)) porSemanaOrigem.set(inicioSem, new Map());
+    const m = porSemanaOrigem.get(inicioSem)!;
+    m.set(ko, (m.get(ko) ?? 0) + 1);
+  }
+
+  // mix de planos na ordem de valor (rampa ordinal do gráfico segue essa ordem)
+  const ordemPlanos = (planosData ?? []).map((p) => p.nome);
+  const mixPlanos = ordemPlanos
+    .filter((nome) => porPlano.has(nome))
+    .map((nome) => ({ plano: nome, ...porPlano.get(nome)! }));
+
+  const origemSemanal = [...porSemanaOrigem.keys()].sort().map((semana) => {
+    const m = porSemanaOrigem.get(semana)!;
+    return {
+      semana,
+      venda_externa: m.get("venda_externa") ?? 0,
+      trafego_pago: m.get("trafego_pago") ?? 0,
+      presencial: m.get("presencial") ?? 0,
+      indicacao: m.get("indicacao") ?? 0,
+      outro: m.get("outro") ?? 0,
+    };
+  });
+
+  // ---------- série da projeção (mês corrente) ----------
+  const projecaoSerie: DadosDashboard["projecaoSerie"] = [];
+  let acumulado = 0;
+  const ritmo = 0.7 * media7 + 0.3 * mediaMes;
+  let projAcum = vendasM.length;
+  for (const d of diasCalendario ?? []) {
+    const dia = d.data as string;
+    if (dia <= hoje) {
+      acumulado += vendasPorDiaMes.get(dia) ?? 0;
+      projecaoSerie.push({
+        dia,
+        realizado: acumulado,
+        projetado: dia === hoje ? acumulado : null,
+        meta: metaMensal,
+      });
+    } else {
+      if (d.dia_util) projAcum += ritmo;
+      projecaoSerie.push({ dia, realizado: null, projetado: projAcum, meta: metaMensal });
+    }
+  }
+
+  return {
+    hoje,
+    vendasPeriodo: vendasP.length,
+    vendasPeriodoAnterior: vendasAnt.length,
+    receitaPeriodo: receitaP,
+    ticketMedioPeriodo: ticketMedio(vendasP),
+    metaMensal,
+    vendasMes: vendasM.length,
+    percentualMeta: metaMensal ? percentualMeta(vendasM.length, metaMensal) : 0,
+    paceNecessario: metaMensal ? pace(metaMensal, vendasM.length, diasUteisRestantes) : 0,
+    projecao,
+    farol: metaMensal ? farolProjecao(projecao, metaMensal) : "vermelho",
+    ativacoesPendentes: { total: ativ.length, emAlerta: ativ.filter((p) => p.alerta).length },
+    pendentesAssinatura: { total: assin.length, emAlerta: assin.filter((p) => p.alerta).length },
+    vendasDiarias,
+    metaDiaria: metaMensal && diasUteisMes.length > 0 ? metaMensal / diasUteisMes.length : null,
+    vendasPorPop: [...porPop.entries()]
+      .map(([pop, v]) => ({ pop, ...v }))
+      .sort((a, b) => b.vendas - a.vendas),
+    mixPlanos,
+    origemDistribuicao: (
+      ["venda_externa", "trafego_pago", "presencial", "indicacao", "outro"] as CategoriaOrigem[]
+    )
+      .map((origem) => ({ origem, vendas: porOrigem.get(origem) ?? 0 }))
+      .filter((o) => o.vendas > 0),
+    origemSemanal,
+    projecaoSerie,
+    pops,
+  };
+}

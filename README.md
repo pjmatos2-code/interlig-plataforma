@@ -5,8 +5,10 @@ com visão por perfil (gestor, supervisor, vendedora).
 
 Especificação: [`docs/PRD.md`](docs/PRD.md) · Regras para o Claude Code: [`CLAUDE.md`](CLAUDE.md)
 
-**Estado atual: Fundação (Prompt 1).** Banco completo com RLS, autenticação com os 3 perfis,
-navegação por perfil e massa de teste fictícia. As telas de indicador entram na Fase 1.
+**Estado atual: Dashboard Geral (Prompt 2).** Fundação completa (banco + RLS + auth + seed +
+identidade visual oficial) e o Dashboard Geral do PRD 3.1 no ar: KPIs com as regras 5.1–5.8,
+pace e projeção testados (`npm test`), filtro global de período e POP, e gráficos de vendas
+diárias, POPs, mix de planos, origem e projeção do mês.
 
 ---
 
@@ -123,8 +125,8 @@ scripts/
   criar-usuarios.mjs cria os 3 usuários de teste e faz os vínculos
 ```
 
-## Próximo passo (Prompt 2)
+## Próximo passo (Prompt 3 do roteiro)
 
-Fase 0 do PRD: `scripts/sgp-discovery.ts` e o cliente do SGP atrás da interface
-(`SgpApiClient` / `SgpMockClient`, selecionados por `SGP_MODE`), com as amostras de resposta
-salvas em `docs/sgp-samples/`. Só depois disso as telas de indicador da Fase 1.
+Painel por Vendedora (PRD 3.2) + cadastro/gestão de metas (PRD 3.7, sem simulador), incluindo
+a visão da vendedora logada vendo apenas os próprios números. Para conferir os números do
+dashboard contra o banco a qualquer momento: `node scripts/conferir-dashboard.mjs`.

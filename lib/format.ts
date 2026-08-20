@@ -34,8 +34,15 @@ export const formatarNumero = (valor: number | null | undefined) =>
 export const formatarPercentual = (fracao: number | null | undefined, casas = 1) =>
   `${((fracao ?? 0) * 100).toFixed(casas).replace(".", ",")}%`;
 
-export const formatarData = (valor: string | Date | null | undefined) =>
-  valor ? dataCurta.format(new Date(valor)) : "—";
+export const formatarData = (valor: string | Date | null | undefined) => {
+  if (!valor) return "—";
+  // Data pura (aaaa-mm-dd): formatar como dia civil, sem deslocamento de fuso.
+  if (typeof valor === "string" && /^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+    const [a, m, d] = valor.split("-");
+    return `${d}/${m}/${a}`;
+  }
+  return dataCurta.format(new Date(valor));
+};
 
 export const formatarDataHora = (valor: string | Date | null | undefined) =>
   valor ? dataHora.format(new Date(valor)) : "—";
