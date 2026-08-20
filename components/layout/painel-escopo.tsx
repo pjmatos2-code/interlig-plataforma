@@ -26,7 +26,7 @@ export async function PainelEscopo({ usuario }: { usuario: Usuario }) {
   let escopo = "todas as POPs";
   if (usuario.perfil === "supervisor" && usuario.pop_id) {
     const { data } = await supabase.from("pops").select("nome").eq("id", usuario.pop_id).maybeSingle();
-    escopo = `POP ${data?.nome ?? "sem POP vinculada"}`;
+    escopo = data?.nome ?? "sem POP vinculada"; // nome já inclui "POP"
   } else if (usuario.perfil === "vendedora") {
     const { data } = usuario.vendedor_id
       ? await supabase.from("vendedores").select("nome").eq("id", usuario.vendedor_id).maybeSingle()
