@@ -51,3 +51,20 @@ header `x-szchat-secret` e o payload de docs/szchat-samples/transferencia.json
 não precisa. A API (Integrações → API, token `api_key`) fica para o fallback
 de polling e a importação de transcrições (Fase 4).
 Fontes: fortics.sz.chat/docs/pt-br/modules/rest e docs.fortics.com.br/chat.
+
+**Status da integração SZ Chat (madrugada de 20/08/2026):**
+- Aplicativo REST **"Interlig CRM - Ticket Altamira"** criado e salvo no SZ.chat
+  (Integrações → REST → Aplicativos customizados), apontando para
+  `POST https://interlig-plataforma.vercel.app/api/webhooks/szchat` com o header
+  `x-szchat-secret` e corpo JSON com `@{{PROTOCOLO}}`/`@{{NOME_CONTATO}}`/
+  `@{{TELEFONE_CONTATO}}` (nomes de variáveis a confirmar na instância).
+- As 9 equipes comerciais estão habilitadas em `sz_equipes_habilitadas`
+  (Altamira, Belterra, Brasil Novo, Campo Verde, Divinópolis, Placas + as 3 do seed).
+- **PENDENTE:** inserir o componente RPA no fluxo correto — há muitos fluxos
+  ativos e o Paulo vai confirmar com a equipe de sistemas da empresa qual é o
+  fluxo do comercial de Altamira. Depois: publicar e testar com mensagem real
+  (o ticket deve nascer no /crm em segundos).
+- **Descoberta importante:** o SZ.chat da Interlig já tem aplicativos REST
+  integrados ao SGP ("SGP | Consultar Cliente", "Consultar Fatura", "Pré-cadastro"
+  etc.) — dentro deles devem estar a URL e o token do SGP, o que pode
+  antecipar a Fase 0 (basta abrir um deles em Ações → Editar e copiar).
