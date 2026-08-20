@@ -1,0 +1,16 @@
+[
+  {
+    "sgp_plano_id": "PL-200",
+    "nome": "Fibra 200 Mega",
+    "velocidade": "200 Mbps",
+    "valor_referencia": 79.9,
+    "ativo": true
+  },
+  {
+    "sgp_plano_id": "PL-600",
+    "nome": "Fibra 600 Mega",
+    "velocidade": "600 Mbps",
+    "valor_referencia": 119.9,
+    "ativo": true
+  }
+]

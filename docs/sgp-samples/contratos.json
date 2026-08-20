@@ -1,0 +1,47 @@
+[
+  {
+    "sgp_contrato_id": "97001",
+    "sgp_cliente_id": "90001",
+    "sgp_plano_id": "PL-600",
+    "sgp_vendedor_id": "SGP-V001",
+    "valor_mensalidade": 119.9,
+    "valor_instalacao": 0,
+    "status_sgp": "AGUARDANDO_INSTALACAO",
+    "origem_cadastro_sgp": "VENDA EXTERNA",
+    "data_venda": "2026-08-19",
+    "data_assinatura": "2026-08-20",
+    "data_ativacao": null,
+    "data_cancelamento": null,
+    "motivo_cancelamento": null
+  },
+  {
+    "sgp_contrato_id": "97002",
+    "sgp_cliente_id": "90002",
+    "sgp_plano_id": "PL-200",
+    "sgp_vendedor_id": "SGP-V005",
+    "valor_mensalidade": 79.9,
+    "valor_instalacao": 99.9,
+    "status_sgp": "ATIVO",
+    "origem_cadastro_sgp": "FACEBOOK ADS",
+    "data_venda": "2026-08-18",
+    "data_assinatura": "2026-08-18",
+    "data_ativacao": "2026-08-20",
+    "data_cancelamento": null,
+    "motivo_cancelamento": null
+  },
+  {
+    "sgp_contrato_id": "97003",
+    "sgp_cliente_id": "90003",
+    "sgp_plano_id": "PL-200",
+    "sgp_vendedor_id": "SGP-V999",
+    "valor_mensalidade": 79.9,
+    "valor_instalacao": 0,
+    "status_sgp": "PENDENTE_ASSINATURA",
+    "origem_cadastro_sgp": "INDICACAO",
+    "data_venda": "2026-08-20",
+    "data_assinatura": null,
+    "data_ativacao": null,
+    "data_cancelamento": null,
+    "motivo_cancelamento": null
+  }
+]

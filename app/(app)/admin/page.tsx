@@ -3,6 +3,7 @@ import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { EmConstrucao } from "@/components/layout/em-construcao";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { GestaoMotivos } from "./motivos";
+import { BotaoSincronizar } from "./botao-sync";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatarDataHora, haQuantoTempo } from "@/lib/format";
@@ -37,6 +38,14 @@ export default async function AdminPage() {
           <CardTitle>Status das sincronizações</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <BotaoSincronizar />
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Em produção o cron chama /api/sync a cada 10 minutos (vercel.json). Modo atual do
+              SGP: <code>{process.env.SGP_MODE ?? "mock"}</code> — com as credenciais reais, basta
+              preencher o .env e trocar para <code>real</code>.
+            </p>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>

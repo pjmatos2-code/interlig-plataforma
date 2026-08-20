@@ -28,3 +28,12 @@ pelo webhook — registradas em log para auditoria, sem criar ticket.
 (Altamira, Belterra, Brasil Novo, Campo Verde, Divinópolis, Placas…). O
 cadastro de POPs/cidades precisa cobrir essas praças quando os dados reais
 entrarem — confirmar a lista oficial com o Paulo na Fase 0/3.
+
+**Atualização 20/08/2026:** o Paulo tem acesso de administrador no SZ Chat e o
+menu **Integrações** expõe: API, Central telefônica, RD Station e REST. Ou
+seja, não depende de terceiros para configurar a integração. Na Fase 3,
+investigar nesta ordem: (1) Integrações → REST como webhook de saída apontando
+para `/api/webhooks/szchat` com o header `x-szchat-secret`; (2) passo de
+requisição externa dentro do construtor de Fluxo, disparado na transferência
+para a equipe comercial; (3) fallback: polling via Integrações → API.
+Pendente: prints de dentro das telas REST e API para fechar o payload real.

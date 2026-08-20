@@ -1,0 +1,29 @@
+[
+  {
+    "sgp_cliente_id": "90001",
+    "nome": "Rosa Menezes do Carmo",
+    "cpf": "421.888.777-66",
+    "telefone": "(93) 99711-2233",
+    "bairro": "Aparecida",
+    "cidade": "Santarém",
+    "origem_cadastro_sgp": "VENDA EXTERNA"
+  },
+  {
+    "sgp_cliente_id": "90002",
+    "nome": "Jonas Pereira Lima",
+    "cpf": "388.555.444-33",
+    "telefone": "(93) 99844-5566",
+    "bairro": "Bela Vista",
+    "cidade": "Itaituba",
+    "origem_cadastro_sgp": "FACEBOOK ADS"
+  },
+  {
+    "sgp_cliente_id": "90003",
+    "nome": "Marta Sousa Andrade",
+    "cpf": "265.222.111-00",
+    "telefone": "(93) 99933-7788",
+    "bairro": "Centro",
+    "cidade": "Oriximiná",
+    "origem_cadastro_sgp": "INDICACAO"
+  }
+]

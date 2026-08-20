@@ -1,0 +1,11 @@
+[
+  {
+    "sgp_titulo_id": "95001",
+    "sgp_contrato_id": "97002",
+    "numero_parcela": 1,
+    "valor": 79.9,
+    "vencimento": "2026-09-20",
+    "data_pagamento": null,
+    "status": "aberto"
+  }
+]

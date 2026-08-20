@@ -1,0 +1,15 @@
+{
+  "evento_id": "sz-evt-000123",
+  "tipo": "transferencia_equipe",
+  "equipe": "Comercial Santarém",
+  "conversa_id": "SZ-CONV-778899",
+  "contato": {
+    "nome": "Beatriz Farias Solimões",
+    "telefone": "+55 93 99666-1122"
+  },
+  "atendente": {
+    "id": "SZ-AT-001",
+    "nome": "Ana Paula Ferreira"
+  },
+  "timestamp": "2026-08-20T14:32:00-03:00"
+}

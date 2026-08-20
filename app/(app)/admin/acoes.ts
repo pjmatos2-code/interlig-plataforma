@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { exigirPerfil } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { executarSync, type ResultadoSync } from "@/lib/sync/worker";
 
 export type EstadoAdmin = { erro?: string; ok?: boolean };
 
@@ -37,4 +38,19 @@ export async function alternarMotivo(id: string, ativo: boolean): Promise<Estado
   if (error) return { erro: error.message };
   revalidatePath("/admin");
   return { ok: true };
+}
+
+export type EstadoSync = { erro?: string; resultado?: ResultadoSync };
+
+/** Dispara o worker de sync manualmente (gestor). O cron faz o mesmo a cada 10 min. */
+export async function sincronizarAgora(): Promise<EstadoSync> {
+  await exigirPerfil(["gestor"]);
+  try {
+    const resultado = await executarSync();
+    revalidatePath("/admin");
+    revalidatePath("/dashboard");
+    return { resultado };
+  } catch (e) {
+    return { erro: e instanceof Error ? e.message : String(e) };
+  }
 }

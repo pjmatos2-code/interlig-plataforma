@@ -1,7 +1,9 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const ROTAS_PUBLICAS = ["/login", "/auth"];
+// /api/sync e /api/webhooks têm autenticação própria por segredo (CRON_SECRET
+// e SZCHAT_WEBHOOK_SECRET) — não passam pela sessão de usuário.
+const ROTAS_PUBLICAS = ["/login", "/auth", "/api/sync", "/api/webhooks"];
 
 export async function atualizarSessao(request: NextRequest) {
   let response = NextResponse.next({ request });
