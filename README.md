@@ -5,10 +5,11 @@ com visão por perfil (gestor, supervisor, vendedora).
 
 Especificação: [`docs/PRD.md`](docs/PRD.md) · Regras para o Claude Code: [`CLAUDE.md`](CLAUDE.md)
 
-**Estado atual: Painel por Vendedora + Metas (Prompt 3).** Fundação completa (banco + RLS + auth + seed +
-identidade visual oficial) e o Dashboard Geral do PRD 3.1 no ar: KPIs com as regras 5.1–5.8,
-pace e projeção testados (`npm test`), filtro global de período e POP, e gráficos de vendas
-diárias, POPs, mix de planos, origem e projeção do mês.
+**Estado atual: EM PRODUÇÃO — roteiro de 7 prompts concluído.**
+App: https://interlig-plataforma.vercel.app · repositório conectado à Vercel (deploy por push
+na `main`). Módulos no ar: fundação (banco + RLS + auth + identidade), Dashboard Geral (3.1),
+Painel por Vendedora + Metas (3.2/3.7), Esteira de Ativação (3.5), CRM Comercial (3.9) e worker
+de sync em modo mock + webhook SZ Chat (7.1).
 
 ---
 
