@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { ItemNav } from "@/lib/nav";
 import { ROTULO_PERFIL, type Usuario } from "@/lib/tipos";
+import { LogoInterlig } from "@/components/marca/logo-interlig";
 
 const ICONES: Record<string, LucideIcon> = {
   LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare, Target, ShieldCheck, Settings,
@@ -58,27 +59,37 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-muted/30">
-      {/* Barra superior — mobile-first (CLAUDE.md) */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background px-4 lg:px-6">
+      {/* Barra superior — mobile-first (CLAUDE.md), no marinho da marca */}
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-white/10 bg-interlig-marinho px-4 text-white lg:px-6">
         <Button
           variant="ghost"
           size="icon"
-          className="lg:hidden"
+          className="text-white hover:bg-white/10 hover:text-white lg:hidden"
           onClick={() => setAberto((v) => !v)}
           aria-label="Abrir menu"
         >
           {aberto ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
 
-        <Link href="/" className="font-semibold tracking-tight">
-          Interlig <span className="text-muted-foreground font-normal">· Inteligência Comercial</span>
+        <Link href="/" className="flex items-center" aria-label="Início">
+          <LogoInterlig variante="clara" tamanho="sm" />
         </Link>
+        <span className="hidden text-sm text-white/60 md:inline">· Inteligência Comercial</span>
 
         <div className="ml-auto flex items-center gap-3">
-          <span className="hidden text-xs text-muted-foreground sm:inline">{atualizadoEm}</span>
-          <Badge variant="secondary">{ROTULO_PERFIL[usuario.perfil]}</Badge>
+          <span className="hidden text-xs text-white/60 sm:inline">{atualizadoEm}</span>
+          <Badge className="border-transparent bg-interlig-ceu/25 text-interlig-claro">
+            {ROTULO_PERFIL[usuario.perfil]}
+          </Badge>
           <form action="/api/sair" method="post">
-            <Button variant="ghost" size="icon" type="submit" aria-label="Sair" title="Sair">
+            <Button
+              variant="ghost"
+              size="icon"
+              type="submit"
+              aria-label="Sair"
+              title="Sair"
+              className="text-white/80 hover:bg-white/10 hover:text-white"
+            >
               <LogOut className="h-4 w-4" />
             </Button>
           </form>

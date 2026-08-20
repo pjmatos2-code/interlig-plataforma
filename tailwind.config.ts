@@ -44,6 +44,13 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // identidade visual Interlig (logomarca oficial)
+        interlig: {
+          marinho: "#0F1D4D",
+          azul: "#1D3D9A",
+          ceu: "#1E88E5",
+          claro: "#7FB8F2",
+        },
         // faróis da seção 3.7 do PRD
         farol: {
           verde: "hsl(142 71% 40% / <alpha-value>)",

@@ -17,6 +17,7 @@ A especificação completa está em `docs/PRD.md`. **Sempre consulte o PRD antes
 
 ## Convenções
 - UI 100% em português do Brasil. Moeda em R$, datas dd/mm/aaaa, fuso America/Santarem.
+- **Identidade visual Interlig:** paleta em `tailwind.config.ts` (cores `interlig.*`: marinho #0F1D4D, azul #1D3D9A, céu #1E88E5, claro #7FB8F2); logomarca via `components/marca/logo-interlig.tsx` (ver `public/marca/LEIA-ME.md`). Cabeçalho e login em marinho; não introduzir outras cores de marca.
 - Nomes de tabelas e campos conforme seção 7.2 do PRD (em português).
 - Mobile-first: gestor e vendedoras acessam muito pelo celular; modo TV é desktop.
 - Commits pequenos por módulo, mensagens em português.

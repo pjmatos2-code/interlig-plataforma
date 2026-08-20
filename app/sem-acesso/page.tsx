@@ -8,7 +8,7 @@ export default function SemAcesso({ searchParams }: { searchParams: { motivo?: s
   const inativo = searchParams.motivo === "inativo";
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+    <main className="flex min-h-screen items-center justify-center bg-interlig-marinho p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>{inativo ? "Acesso desativado" : "Sem permissão"}</CardTitle>
