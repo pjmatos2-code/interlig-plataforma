@@ -1,0 +1,237 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { exigirUsuario } from "@/lib/auth";
+import { carregarTicket } from "@/lib/crm/dados";
+import { podeReabrir } from "@/lib/indicadores/crm";
+import { criarClienteServidor } from "@/lib/supabase/server";
+import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatarData, formatarDataHora } from "@/lib/format";
+import { ROTULO_ETAPA, ROTULO_ORIGEM } from "@/lib/tipos";
+import {
+  BarraEtapas,
+  BotaoReabrir,
+  FormularioFechamento,
+  FormularioFollowup,
+  FormularioNota,
+  FormularioReatribuir,
+} from "./painel-acoes";
+
+export const dynamic = "force-dynamic";
+
+const ROTULO_EVENTO: Record<string, string> = {
+  criacao: "Ticket criado",
+  mudanca_etapa: "Mudança de etapa",
+  nota: "Nota",
+  reatribuicao: "Reatribuição",
+  fechamento: "Fechamento",
+  reabertura: "Reabertura",
+  webhook_sz: "Evento do SZ Chat",
+  reconciliacao: "Reconciliação com o SGP",
+};
+
+export default async function TicketPage({ params }: { params: { id: string } }) {
+  const usuario = await exigirUsuario();
+  const t = await carregarTicket(params.id);
+  if (!t) notFound();
+
+  const supabase = criarClienteServidor();
+  const [{ data: planos }, { data: motivos }, { data: vendedoras }] = await Promise.all([
+    supabase.from("planos").select("id, nome").eq("ativo", true).order("valor_referencia"),
+    supabase
+      .from("motivos_nao_conversao")
+      .select("id, nome")
+      .eq("ativo", true)
+      .order("ordem"),
+    usuario.perfil === "vendedora"
+      ? Promise.resolve({ data: [] as { id: string; nome: string }[] })
+      : supabase.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
+  ]);
+
+  const fechado = t.etapa === "fechado";
+  const reabrivel = podeReabrir(t, new Date().toISOString());
+  const podeReatribuir = usuario.perfil !== "vendedora";
+
+  return (
+    <>
+      <div className="mb-1 text-sm">
+        <Link href="/crm" className="text-muted-foreground hover:text-foreground">
+          ← CRM
+        </Link>
+      </div>
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <CabecalhoPagina titulo={t.cliente_nome} />
+        <Badge variant={fechado ? (t.desfecho === "convertido" ? "verde" : "vermelho") : "secondary"}>
+          {fechado
+            ? t.desfecho === "convertido"
+              ? "Convertido"
+              : t.fechado_por === "auto_inatividade"
+                ? "Não convertido · fechado por inatividade"
+                : "Não convertido"
+            : ROTULO_ETAPA[t.etapa]}
+        </Badge>
+        {t.origem_criacao === "sz_auto" && <Badge variant="outline">via SZ Chat</Badge>}
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        {/* Coluna 1: dados */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>Dados</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p><span className="text-muted-foreground">Telefone:</span> {t.telefone ?? "—"}</p>
+            <p><span className="text-muted-foreground">CPF:</span> {t.cpf ?? "—"}</p>
+            <p><span className="text-muted-foreground">Vendedora:</span> {t.vendedora ?? "Não atribuído"}</p>
+            <p><span className="text-muted-foreground">POP:</span> {t.pop ?? "—"}</p>
+            <p><span className="text-muted-foreground">Criado em:</span> {formatarDataHora(t.criado_em)}</p>
+            <p>
+              <span className="text-muted-foreground">1ª tratativa:</span>{" "}
+              {t.primeira_tratativa_em ? formatarDataHora(t.primeira_tratativa_em) : "ainda não houve"}
+            </p>
+            {t.followup_em && (
+              <p>
+                <span className="text-muted-foreground">Retorno combinado:</span>{" "}
+                {formatarData(t.followup_em.slice(0, 10))}
+              </p>
+            )}
+            {t.sz_conversa_id && (
+              <p>
+                <span className="text-muted-foreground">Conversa SZ:</span> {t.sz_conversa_id}
+              </p>
+            )}
+            {fechado && (
+              <>
+                <hr className="my-2" />
+                <p><span className="text-muted-foreground">Fechado em:</span> {formatarDataHora(t.fechado_em)}</p>
+                {t.desfecho === "convertido" ? (
+                  <>
+                    <p><span className="text-muted-foreground">Plano vendido:</span> {t.plano ?? "—"}</p>
+                    <p>
+                      <span className="text-muted-foreground">Origem:</span>{" "}
+                      {t.origem_cadastro ? ROTULO_ORIGEM[t.origem_cadastro] : "—"}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Contrato SGP:</span>{" "}
+                      {t.contrato_id ? (
+                        <Badge variant="verde">reconciliado</Badge>
+                      ) : (
+                        <Badge variant="amarelo">aguardando reconciliação</Badge>
+                      )}
+                    </p>
+                  </>
+                ) : (
+                  <p><span className="text-muted-foreground">Motivo:</span> {t.motivo ?? "—"}</p>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Coluna 2: ações */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>{fechado ? "Ticket fechado" : "Tratativa"}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!fechado && (
+              <>
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">Etapa</p>
+                  <BarraEtapas ticketId={t.id} etapaAtual={t.etapa} />
+                </div>
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">Nota rápida</p>
+                  <FormularioNota ticketId={t.id} />
+                </div>
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">Follow-up</p>
+                  <FormularioFollowup ticketId={t.id} atual={t.followup_em} />
+                </div>
+                {podeReatribuir && (
+                  <div>
+                    <p className="mb-1.5 text-xs font-medium text-muted-foreground">Reatribuir</p>
+                    <FormularioReatribuir
+                      ticketId={t.id}
+                      vendedoras={vendedoras ?? []}
+                      atualId={t.vendedor_id}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            {fechado && (
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  Ticket fechado é imutável — e não pode ser excluído por ninguém (PRD 3.9).
+                </p>
+                {reabrivel ? (
+                  <BotaoReabrir ticketId={t.id} />
+                ) : (
+                  t.desfecho === "nao_convertido" && (
+                    <p className="text-xs">Janela de reabertura (30 dias) expirada.</p>
+                  )
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Coluna 3: fechamento */}
+        {!fechado && (
+          <Card className="border-primary/30">
+            <CardHeader className="pb-2">
+              <CardTitle>Fechar com desfecho</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FormularioFechamento
+                ticketId={t.id}
+                telefone={t.telefone}
+                cpf={t.cpf}
+                planos={planos ?? []}
+                motivos={motivos ?? []}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Timeline */}
+        <Card className={fechado ? "xl:col-span-1" : "xl:col-span-3"}>
+          <CardHeader className="pb-2">
+            <CardTitle>Histórico ({t.eventos.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ol className="space-y-2.5 text-sm">
+              {t.eventos.map((e) => (
+                <li key={e.id} className="flex gap-3">
+                  <span className="w-32 shrink-0 text-xs tabular-nums text-muted-foreground">
+                    {formatarDataHora(e.criado_em)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-medium">
+                      {ROTULO_EVENTO[e.tipo] ?? e.tipo}
+                      {e.usuario && (
+                        <span className="font-normal text-muted-foreground"> · {e.usuario}</span>
+                      )}
+                    </p>
+                    {typeof e.dados.texto === "string" && (
+                      <p className="text-muted-foreground">{e.dados.texto}</p>
+                    )}
+                    {typeof e.dados.de === "string" && typeof e.dados.para === "string" && (
+                      <p className="text-xs text-muted-foreground">
+                        {ROTULO_ETAPA[e.dados.de as keyof typeof ROTULO_ETAPA] ?? e.dados.de} →{" "}
+                        {ROTULO_ETAPA[e.dados.para as keyof typeof ROTULO_ETAPA] ?? e.dados.para}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      </div>
+    </>
+  );
+}

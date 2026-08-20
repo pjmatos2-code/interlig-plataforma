@@ -2,6 +2,7 @@ import { exigirPerfil } from "@/lib/auth";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { EmConstrucao } from "@/components/layout/em-construcao";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { GestaoMotivos } from "./motivos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatarDataHora, haQuantoTempo } from "@/lib/format";
@@ -12,10 +13,16 @@ export default async function AdminPage() {
   await exigirPerfil(["gestor"]);
 
   const supabase = criarClienteServidor();
-  const { data: syncs } = await supabase
-    .from("vw_ultima_sync")
-    .select("entidade, finalizado_em, registros, status, erro")
-    .order("entidade");
+  const [{ data: syncs }, { data: motivos }] = await Promise.all([
+    supabase
+      .from("vw_ultima_sync")
+      .select("entidade, finalizado_em, registros, status, erro")
+      .order("entidade"),
+    supabase
+      .from("motivos_nao_conversao")
+      .select("id, nome, ativo")
+      .order("ordem"),
+  ]);
 
   return (
     <>
@@ -68,14 +75,23 @@ export default async function AdminPage() {
         </CardContent>
       </Card>
 
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Motivos de não conversão (CRM)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <GestaoMotivos motivos={motivos ?? []} />
+        </CardContent>
+      </Card>
+
       <EmConstrucao
         fase="Fase 1 (básico) e Fase 3 (SZ Chat)"
         entrega={[
           "Convite de usuários, perfis e vínculo usuário ↔ vendedora do SGP",
           "POPs, cidades e seus supervisores",
-          "Metas e regras de comissão com vigência (histórico preservado)",
-          "De/para de origem de cadastro e motivos de não conversão",
-          "Mapeamento atendente do SZ Chat ↔ vendedora e parâmetros do CRM",
+          "Regras de comissão com vigência (histórico preservado)",
+          "De/para de origem de cadastro",
+          "Equipes habilitadas do SZ Chat (docs/decisoes.md D1) e atendente ↔ vendedora",
         ]}
       />
     </>

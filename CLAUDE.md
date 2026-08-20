@@ -1,7 +1,7 @@
 # Plataforma de Inteligência Comercial — Interlig
 
 ## Fonte da verdade
-A especificação completa está em `docs/PRD.md`. **Sempre consulte o PRD antes de implementar qualquer tela ou cálculo.** Em caso de dúvida entre este arquivo e o PRD, o PRD vence.
+A especificação completa está em `docs/PRD.md`. **Sempre consulte o PRD antes de implementar qualquer tela ou cálculo.** Em caso de dúvida entre este arquivo e o PRD, o PRD vence — exceto o que estiver em `docs/decisoes.md`, que registra decisões posteriores ao PRD e vence sobre ele.
 
 ## Regras inegociáveis
 - **Indicadores:** implementar EXATAMENTE as regras da seção 5 do PRD (pace, projeção, churn precoce, conversão real etc.). Nunca inventar fórmula. Cada regra da seção 5 deve ter teste automatizado.
