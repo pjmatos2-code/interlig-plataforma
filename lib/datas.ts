@@ -26,6 +26,15 @@ export function primeiroDiaDoMes(iso: string): string {
   return `${iso.slice(0, 7)}-01`;
 }
 
+/** Primeiro dia do mês N meses atrás (n=0 → mês da data). */
+export function mesAtras(iso: string, n: number): string {
+  const [ano, mes] = iso.slice(0, 7).split("-").map(Number);
+  const total = ano * 12 + (mes - 1) - n;
+  const a = Math.floor(total / 12);
+  const m = (total % 12) + 1;
+  return `${a}-${String(m).padStart(2, "0")}-01`;
+}
+
 export function ultimoDiaDoMes(iso: string): string {
   const d = new Date(`${primeiroDiaDoMes(iso)}T00:00:00Z`);
   d.setUTCMonth(d.getUTCMonth() + 1);

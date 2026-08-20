@@ -1,7 +1,8 @@
 # PRD — Plataforma de Inteligência Comercial Interlig
 
-**Versão:** 1.1 | **Data:** 20/08/2026 | **Owner:** Paulo (Gerência Comercial)
-**Changelog v1.1:** adicionado módulo CRM Comercial integrado ao SZ Chat (seção 3.10), substituindo o RD Station; novos KPIs 5.14–5.17; tabelas do CRM na seção 7; fases reorganizadas.
+**Versão:** 1.2 | **Data:** 20/08/2026 | **Owner:** Paulo (Gerência Comercial)
+**Changelog v1.1:** adicionado módulo CRM Comercial integrado ao SZ Chat (seção 3.9), substituindo o RD Station; novos KPIs 5.14–5.17; tabelas do CRM na seção 7; fases reorganizadas.
+**Changelog v1.2:** adicionado módulo Follow-up Diário com IA (seção 3.10) — análise automática das conversas do SZ Chat com fila de ações por vendedora às 07:30; Anexo A com a taxonomia e o método de condução; KPIs 5.18–5.19.
 **Uso deste documento:** especificação de produto pronta para desenvolvimento via Claude Code + GitHub. Cada seção foi escrita para ser referenciada diretamente em prompts de implementação.
 
 ---
@@ -41,6 +42,9 @@ Plataforma web de inteligência comercial que centraliza vendas, metas, comissio
 | CRM: visão do pipeline e conversão | ✅ completa | ✅ do time | ✅ (só a própria) |
 | CRM: cadastro de motivos de não conversão | ✅ | ❌ | ❌ |
 | CRM: painel de reconciliação com SGP | ✅ | ✅ (da POP) | ❌ |
+| Follow-up: fila de ações do dia | ✅ (todas) | ✅ (do time) | ✅ (só a própria) |
+| Follow-up: painel consolidado + leitura do dia | ✅ | ✅ (da POP) | ❌ |
+| Follow-up: editar argumentos/régua de condução | ✅ | ❌ | ❌ |
 | Cadastro de metas e regras de comissão | ✅ | ❌ | ❌ |
 | Gestão de usuários e vínculo vendedora ↔ SGP | ✅ | ❌ | ❌ |
 | Exportação (fase 2) | ✅ | ✅ | ❌ |
@@ -135,7 +139,27 @@ Filtro global de período (hoje / semana / mês / personalizado) e de POP/cidade
 
 **Migração do RD Station:** convivência durante a implantação; importação opcional do histórico (CSV de negociações) para não perder base de comparação; desligamento do RD após 1 mês de operação estável do CRM.
 
-### 3.10 Administração (gestor)
+### 3.10 Follow-up Diário com IA (evolução do projeto CSV do Paulo)
+
+**Conceito:** substitui o fluxo manual de exportar CSV do SZ Chat e analisar fora da plataforma. Toda madrugada, um job lê as conversas do dia anterior dos tickets abertos (via integração SZ Chat), analisa cada negociação com IA (API da Anthropic) e gera a **fila de ações do dia por vendedora** — disponível às **07:30 (America/Santarem)** na home de cada uma.
+
+**Pipeline noturno (job às 05:00, com folga até as 07:30):**
+1. Coleta: para cada ticket aberto (etapas novo → aguardando), buscar as mensagens do dia anterior na API do SZ Chat; agrupar por conversa/protocolo e consolidar o mesmo lead (mesmo telefone) em uma análise única.
+2. Análise por IA conforme o **Anexo A** (taxonomia, "onde parou", método de condução). Regras estruturais aplicadas por código antes da IA: ignorar mensagens do bot (LigIA) e a mensagem automática de encerramento; última fala humana define com quem está a bola (agente → cliente sumiu; cliente → time devendo resposta).
+3. Persistência: cada análise vira um registro em `followups` vinculado ao ticket, com onde parou, prioridade, motivo, abordagem recomendada e próximo passo. A IA pode também sugerir atualização de etapa/motivo do ticket — a confirmação é sempre humana.
+4. Publicação: às 07:30 cada vendedora vê sua fila; o gestor vê o consolidado.
+
+**Fila da vendedora (home dela):** cards ordenados por prioridade (ALTA → MÉDIA → BAIXA), cada um com lead, telefone (clique abre o WhatsApp via wa.me), onde parou, motivo, abordagem recomendada e próximo passo. A vendedora marca o desfecho de cada ação: feito (com resultado: avançou / assinou / sem resposta / perdido) ou adiado. **Follow-up não executado no dia rola para o dia seguinte com selo de atraso** — nada some da fila.
+
+**Painel do gestor:** KPIs do dia (follow-ups gerados, executados, conversões pós-follow-up), "leitura do dia" gerada pela IA (3–5 insights executivos: padrões de objeção, gargalos, alerta operacional), distribuição por vendedora e por motivo, e taxa de conversão sobre leads viáveis (fórmula em 5.14/Anexo A — exclui sem cobertura, em espera, atenção, encerrado).
+
+**Parametrização (admin, sem mexer em código):** os argumentos comerciais usados pela IA ficam em `config_comercial` editável pelo gestor — velocidade média vs praça, SVAs (Interlig Play, ENSY Cursos, Wi-Fi Mesh), planos e preços vigentes, combos LigChip, regra de desconto (último recurso, só com aprovação) e regras regionais (ex.: prêmio Melhor Provedor só em material de Altamira). Preço mudou? Atualiza no admin e a análise da próxima madrugada já usa o novo.
+
+**Relação com o CRM (3.9):** o CRM é o registro (o que aconteceu e desfecho); o follow-up é o motor de ação (o que fazer hoje, com qual abordagem). A execução do follow-up alimenta o ticket automaticamente (evento em `ticket_eventos`), e o fechamento continua obrigatório no CRM.
+
+**Contingência e privacidade:** se o job falhar, a fila exibe a última análise disponível com aviso de defasagem + alerta ao gestor. Dados sensíveis (telefone, CPF) ficam restritos pela RLS — cada vendedora só vê os próprios leads; exportações deste módulo carregam aviso de documento restrito.
+
+### 3.11 Administração (gestor)
 - Usuários e perfis; vínculo usuário ↔ vendedora do SGP; POPs/cidades e seus supervisores.
 - Mapeamento atendente SZ Chat ↔ vendedora (`sz_atendentes_map`).
 - Metas e regras de comissão com vigência (histórico preservado).
@@ -179,6 +203,8 @@ Convenções: `período` = filtro ativo; `mês` = mês-calendário; **dias útei
 | 5.15 | Tempo de 1ª tratativa | Mediana de (primeira interação da vendedora − criação do ticket), em minutos |
 | 5.16 | Tempo de ciclo de negociação | Mediana de (fechamento − criação do ticket), em dias, separado por desfecho |
 | 5.17 | Taxa de reconciliação | Tickets convertidos com contrato SGP vinculado em ≤ 7 dias ÷ tickets convertidos. Meta: ≥ 95%; abaixo disso há venda registrada errado em uma das pontas |
+| 5.18 | Taxa de execução de follow-up | Follow-ups marcados como executados no dia ÷ follow-ups na fila do dia (por vendedora). Atrasados contam contra |
+| 5.19 | Conversão pós-follow-up | Tickets convertidos em ≤ 7 dias após follow-up executado ÷ follow-ups executados — mede se a régua de condução funciona |
 
 **Regra de ouro:** venda "conta" na data da venda; receita recorrente "conta" na ativação. Os dois números convivem no dashboard com rótulos distintos ("receita contratada" vs "receita ativada").
 
@@ -269,7 +295,20 @@ ticket_eventos  (id, ticket_id, tipo[criacao|mudanca_etapa|nota|reatribuicao|fec
                  reabertura|webhook_sz|reconciliacao], dados JSONB, usuario_id?, criado_em)
 motivos_nao_conversao (id, nome, ativo, ordem)
 sz_atendentes_map     (id, sz_atendente_id UNIQUE, vendedor_id)
+
+-- Follow-up Diário com IA
+followups       (id, ticket_id, vendedor_id, data_referencia, onde_parou,
+                 prioridade[alta|media|baixa], motivo, abordagem_recomendada,
+                 proximo_passo, status[pendente|executado|adiado|atrasado],
+                 resultado[avancou|assinou|sem_resposta|perdido]?, executado_em?, analise_run_id)
+analise_runs    (id, data_referencia, iniciado_em, finalizado_em, tickets_analisados,
+                 followups_gerados, leitura_do_dia TEXT, tokens_usados, status, erro?)
+config_comercial (id, chave, valor JSONB, atualizado_em, atualizado_por)
+                 -- chaves: argumentos_valor, planos_precos, combos, regra_desconto,
+                 --         regras_regionais, script_por_motivo
 ```
+
+Variáveis de ambiente adicionais: `ANTHROPIC_API_KEY` (análise de follow-up), `SZCHAT_API_TOKEN` (API receptiva — solicitar ao suporte Fortics).
 
 Views materializadas para agregações quentes: `mv_vendas_diarias` (dia × vendedora × pop × origem × plano), `mv_safras_churn`, `mv_funil` — atualizadas ao fim de cada sync.
 
@@ -303,7 +342,10 @@ Kanban de tickets com criação manual, fechamento obrigatório com desfecho, mo
 **Fase 3 — Integração SZ Chat + motivação**
 Webhook/polling do SZ Chat criando tickets automáticos + mapeamento de atendentes; início da convivência CRM × RD Station rumo ao desligamento do RD. Ranking gamificado + streaks (3.3); regras de comissão + simulador + fechamento com snapshot (6); Mapa de calor por bairro (3.6); modo TV.
 
-**Fase 4 — Qualidade e estratégia**
+**Fase 4 — Follow-up Diário com IA (3.10)**
+Depende da integração SZ Chat (Fase 3) e do token da API receptiva (Fortics). Job noturno de coleta + análise (Anexo A), fila por vendedora às 07:30, painel consolidado do gestor, `config_comercial` no admin, KPIs 5.18–5.19. Piloto de 1 semana com 2 vendedoras antes de abrir para o time (calibrar prioridades e abordagens com feedback real).
+
+**Fase 5 — Qualidade e estratégia**
 Churn precoce e inadimplência por safra (3.8); alertas automáticos; exportações; transcrição de conversas do SZ no ticket; CAC por canal e comparativo YoY.
 
 ---
@@ -333,3 +375,43 @@ Churn precoce e inadimplência por safra (3.8); alertas automáticos; exportaç�
 | Vendedora fecha como "não convertido" e a venda existe no SGP | Reconciliação (3.9) sinaliza contrato sem ticket convertido — auditável pelo gestor |
 | Ticket "aguardando cliente" eterno para não registrar perda | Fechamento automático por inatividade em N dias como "não convertido — sem resposta" |
 | Migração do RD Station perder histórico | Importação CSV opcional + convivência de 1 mês antes do desligamento |
+| Custo da análise por IA crescer com o volume | Analisar só tickets abertos com movimento no dia; registrar `tokens_usados` por run; teto diário configurável |
+| IA classificar errado prioridade/motivo | Sugestão é sempre revisável pela vendedora; mudanças de etapa do ticket exigem confirmação humana; piloto de calibração na Fase 4 |
+| Conversa baseada em áudio/anexo (teor indisponível na API) | Sinalizar no card "teor do áudio não disponível" — nunca inventar conteúdo |
+| Job noturno falhar e a fila das 07:30 não sair | Retry automático; fila exibe última análise com aviso de defasagem + alerta ao gestor |
+
+---
+
+## Anexo A — Motor de Análise de Follow-up (especificação do prompt)
+
+Base do system prompt do job noturno (seção 3.10). Os valores comerciais (velocidades, preços, SVAs, prêmios) NÃO ficam fixos no prompt — são injetados de `config_comercial` a cada execução.
+
+**Papel e tom:** assistente de follow-up comercial da Interlig (provedor 100% fibra, sede em Altamira/PA). Estilo: direto, dados antes de narrativa, sem floreio, linguagem executiva. Objetivo: transformar as conversas do time comercial em lista de ação que conduza cada lead até a assinatura.
+
+**Entrada (via integração SZ Chat, por ticket):** mensagens ordenadas por data, com origem (Contato / Agente / Atendimento automático), agente, protocolo(s), telefone, datas de 1º contato e última interação. Mesmo lead em vários protocolos = uma análise só (protocolos listados separados por /).
+
+**Regras de análise:**
+1. Ignorar mensagens do bot (LigIA) na determinação do ponto de parada; a mensagem automática de encerramento mascara onde a conversa realmente parou.
+2. **Onde parou:** última mensagem humana real. Se foi do AGENTE → cliente sumiu (bola com o cliente). Se foi do CLIENTE → time devendo resposta. Ler o miolo da conversa para entender o motivo real.
+3. CPF: extrair apenas se o cliente digitou no texto (formatado ou 11 dígitos isolados); anexos/imagens/áudios não têm teor disponível → marcar "—" e sinalizar quando a conversa girou em torno de um áudio.
+
+**Taxonomia de Status:** A FAZER (follow-up em aberto) · ASSINOU · PERDIDO (perda comercial) · SEM COBERTURA (inviável técnico) · EM ESPERA (sem vaga técnica) · ATENÇÃO (encerrado sem resposta / falha de processo) · ENCERRADO (duplicado / sem ação).
+
+**Prioridade (só para A FAZER):** ALTA = quente (escolheu o plano, cadastro travado, vai à loja, cliente atual com objeção) · MÉDIA = morno · BAIXA. Resolvidos = "—".
+
+**Motivos típicos:** Cliente sumiu · Cadastro travado (débito) · Objeção de preço · Pediu para pensar · Aguardando cadastro/crédito · Foi pra loja (presencial) · Perdido p/ concorrente · Decisor recusou · Sem vaga técnica · Sem cobertura · Duplicado. (Sincronizar com `motivos_nao_conversao` do CRM.)
+
+**Método de condução (base da Abordagem Recomendada) — diagnóstico e valor antes de desconto:**
+- Passo 0 — Diagnóstico (sempre): entender por que parou antes de empurrar oferta.
+- Passo 1 — Reforço de valor: argumentos de `config_comercial.argumentos_valor` (ex.: velocidade média vs praça, 100% fibra, SVAs, suporte local; prêmio Melhor Provedor **somente** para Altamira).
+- Passo 2 — Quebra da objeção específica (preço / fidelidade / cobertura) — nunca desconto genérico.
+- Passo 3 — Fechamento assistido: remover atrito do cadastro, prazo/garantia, urgência legítima (vaga/rota), conduzir até assinar.
+- **Regra de ouro:** desconto é último recurso e só com aprovação do gestor. Abrir por desconto queima ticket.
+
+**Saída por lead (grava em `followups`):** onde parou · prioridade · motivo · abordagem recomendada (aplicando o método) · próximo passo objetivo (uma frase acionável).
+
+**Saída consolidada (grava em `analise_runs.leitura_do_dia`):** 3–5 insights executivos do dia — padrões de objeção, gargalos de processo, alerta operacional.
+
+**Fórmula de conversão sobre leads viáveis:** ASSINOU ÷ (ASSINOU + A FAZER + PERDIDO) — exclui sem cobertura, em espera, atenção e encerrado.
+
+**Privacidade:** saídas contêm telefone e CPF reais — documento restrito, acesso conforme RLS (cada vendedora só vê os próprios leads).

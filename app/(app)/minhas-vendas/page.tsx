@@ -1,30 +1,51 @@
 import { exigirUsuario } from "@/lib/auth";
+import { resolverPeriodo } from "@/lib/datas";
+import { detalheVendedora } from "@/lib/vendedoras/dados";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
-import { PainelEscopo } from "@/components/layout/painel-escopo";
-import { EmConstrucao } from "@/components/layout/em-construcao";
+import { FiltrosDashboard } from "@/components/dashboard/filtros";
+import { PainelDetalheVendedora } from "@/components/vendedoras/painel-detalhe";
+import { Card, CardContent } from "@/components/ui/card";
+import { formatarData } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-export default async function MinhasVendasPage() {
+export default async function MinhasVendasPage({
+  searchParams,
+}: {
+  searchParams: { periodo?: string; de?: string; ate?: string };
+}) {
   const usuario = await exigirUsuario();
+  const periodo = resolverPeriodo(searchParams);
+
+  // A vendedora vê apenas os próprios números (PRD seção 2). Gestor e
+  // supervisor sem vínculo de vendedora caem no aviso abaixo.
+  if (!usuario.vendedor_id) {
+    return (
+      <>
+        <CabecalhoPagina
+          titulo="Minhas vendas"
+          descricao="Seu resultado do mês, sua meta e seu pace."
+        />
+        <Card>
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">
+            Seu usuário não está vinculado a uma vendedora do SGP. Para acompanhar o time,
+            use o Painel por Vendedora; o vínculo é feito pelo gestor na Administração.
+          </CardContent>
+        </Card>
+      </>
+    );
+  }
+
+  const detalhe = await detalheVendedora(usuario.vendedor_id, periodo);
 
   return (
     <>
       <CabecalhoPagina
         titulo="Minhas vendas"
-        descricao="Seu resultado do mês, sua meta e seu pace."
-        referencia="PRD 3.2 e 3.7"
+        descricao={`${detalhe?.pop ?? ""} · ${formatarData(periodo.de)} a ${formatarData(periodo.ate)} · meta e pace do mês corrente`}
       />
-      <PainelEscopo usuario={usuario} />
-      <EmConstrucao
-        fase="Fase 1 (MVP)"
-        entrega={[
-          "Vendas do mês, receita contratada e ticket médio próprios (5.1 a 5.3)",
-          "% da meta e pace — quantas vendas por dia faltam até o fim do mês (5.4 e 5.5)",
-          "Lista das próprias vendas com status na esteira de ativação",
-          "Simulador de comissão e streak entram na Fase 3 (seção 6 e regra 5.13)",
-        ]}
-      />
+      <FiltrosDashboard pops={[]} mostrarPop={false} de={periodo.de} ate={periodo.ate} />
+      {detalhe && <PainelDetalheVendedora detalhe={detalhe} />}
     </>
   );
 }

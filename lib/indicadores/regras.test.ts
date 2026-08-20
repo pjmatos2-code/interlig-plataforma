@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   ehVendaContavel,
+  metaDiariaIndividual,
+  tendencia,
   vendasDoPeriodo,
   receitaContratada,
   ticketMedio,
@@ -223,5 +225,24 @@ describe("5.8 — pendentes de assinatura", () => {
     expect(pendentes).toHaveLength(2);
     expect(pendentes[0].alerta).toBe(false);
     expect(pendentes[1].alerta).toBe(true);
+  });
+});
+
+describe("meta diária individual (5.13 / PRD 3.7)", () => {
+  it("meta mensal ÷ dias úteis do mês", () => {
+    expect(metaDiariaIndividual(26, 26)).toBe(1);
+    expect(metaDiariaIndividual(28, 26)).toBeCloseTo(1.0769, 3);
+  });
+  it("sem dias úteis → 0", () => {
+    expect(metaDiariaIndividual(20, 0)).toBe(0);
+  });
+});
+
+describe("tendência (PRD 3.2)", () => {
+  it("últimos 7 dias vs 7 anteriores", () => {
+    expect(tendencia(8, 5)).toBe("sobe");
+    expect(tendencia(3, 5)).toBe("desce");
+    expect(tendencia(5, 5)).toBe("estavel");
+    expect(tendencia(0, 0)).toBe("estavel");
   });
 });

@@ -151,3 +151,25 @@ export function mediaUltimosNDiasUteis(
   const total = ultimos.reduce((soma, dia) => soma + (vendasPorDia.get(dia) ?? 0), 0);
   return total / ultimos.length;
 }
+
+/**
+ * Meta diária individual (base da 5.13 e da meta derivada do PRD 3.7):
+ * meta mensal ÷ dias úteis do mês. A meta semanal é a diária × dias úteis
+ * da semana em questão.
+ */
+export function metaDiariaIndividual(metaMensal: number, diasUteisMes: number): number {
+  return diasUteisMes <= 0 ? 0 : metaMensal / diasUteisMes;
+}
+
+/**
+ * Tendência da vendedora (PRD 3.2): compara os últimos 7 dias com os 7 dias
+ * imediatamente anteriores. Empate (ou 0 × 0) → estável.
+ */
+export function tendencia(
+  vendasUltimos7: number,
+  vendas7Anteriores: number
+): "sobe" | "desce" | "estavel" {
+  if (vendasUltimos7 > vendas7Anteriores) return "sobe";
+  if (vendasUltimos7 < vendas7Anteriores) return "desce";
+  return "estavel";
+}
