@@ -1,0 +1,179 @@
+import { criarClienteServidor } from "@/lib/supabase/server";
+import {
+  vendasDoPeriodo,
+  ativacoesPendentes,
+  pendentesAssinatura,
+  taxaInstalacaoEfetiva,
+  tempoMedioVendaAtivacao,
+  ALERTA_ATIVACAO_DIAS,
+  ALERTA_ASSINATURA_DIAS,
+  type ContratoIndicador,
+} from "@/lib/indicadores/regras";
+import { hojeIso, type Periodo } from "@/lib/datas";
+
+export type ItemEsteira = {
+  id: string;
+  cliente: string;
+  vendedora: string;
+  pop: string;
+  plano: string;
+  valor: number;
+  dataVenda: string;
+  idadeDias: number;
+  alerta: boolean;
+};
+
+export type DadosEsteira = {
+  hoje: string;
+  kpis: {
+    pendentesAssinatura: { total: number; emAlerta: number };
+    aguardandoInstalacao: { total: number; emAlerta: number };
+    taxaInstalacao: { taxa: number | null; base: number; instaladas: number };
+    tempoMedioDias: number | null;
+    instaladasNoPeriodo: number;
+  };
+  colunas: {
+    pendenteAssinatura: ItemEsteira[];
+    aguardandoInstalacao: ItemEsteira[];
+    instaladas: ItemEsteira[];
+  };
+  tempoPorPop: { nome: string; dias: number; ativacoes: number }[];
+  tempoPorVendedora: { nome: string; dias: number; ativacoes: number }[];
+};
+
+type Bruto = ContratoIndicador & {
+  id: string;
+  vendedor_id: string | null;
+  pop_id: string | null;
+  clientes: { nome: string } | null;
+  planos: { nome: string } | null;
+  vendedores: { nome: string } | null;
+  pops: { nome: string } | null;
+};
+
+const CAMPOS =
+  "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, pop_id, clientes(nome), planos(nome), vendedores(nome), pops(nome)";
+
+function dias(deIso: string, ateIso: string) {
+  return Math.round(
+    (Date.parse(`${ateIso}T00:00:00Z`) - Date.parse(`${deIso}T00:00:00Z`)) / 86_400_000
+  );
+}
+
+/**
+ * Esteira de Ativação (PRD 3.5). O kanban mostra o ESTOQUE atual de pendências
+ * (independe do filtro de data); taxa de instalação (5.9), tempo médio e
+ * "instaladas" seguem o período filtrado. RLS limita o escopo por perfil.
+ */
+export async function carregarEsteira(
+  periodo: Periodo,
+  popId: string | null
+): Promise<DadosEsteira> {
+  const supabase = criarClienteServidor();
+  const hoje = hojeIso();
+
+  // estoque de pendências (sem filtro de data)
+  let consultaPendencias = supabase
+    .from("contratos")
+    .select(CAMPOS)
+    .neq("status", "cancelado")
+    .or("data_assinatura.is.null,data_ativacao.is.null")
+    .limit(3000);
+  if (popId) consultaPendencias = consultaPendencias.eq("pop_id", popId);
+
+  // vendas do período (para 5.9) e ativações do período (tempo médio + coluna)
+  let consultaVendas = supabase
+    .from("contratos")
+    .select(CAMPOS)
+    .gte("data_venda", periodo.de)
+    .lte("data_venda", periodo.ate)
+    .limit(3000);
+  if (popId) consultaVendas = consultaVendas.eq("pop_id", popId);
+
+  let consultaAtivadas = supabase
+    .from("contratos")
+    .select(CAMPOS)
+    .gte("data_ativacao", periodo.de)
+    .lte("data_ativacao", periodo.ate)
+    .limit(3000);
+  if (popId) consultaAtivadas = consultaAtivadas.eq("pop_id", popId);
+
+  const [{ data: pendenciasBrutas }, { data: vendasBrutas }, { data: ativadasBrutas }] =
+    await Promise.all([consultaPendencias, consultaVendas, consultaAtivadas]);
+
+  const pendencias = (pendenciasBrutas ?? []) as unknown as Bruto[];
+  const vendas = (vendasBrutas ?? []) as unknown as Bruto[];
+  const ativadas = (ativadasBrutas ?? []) as unknown as Bruto[];
+
+  const paraItem = (c: Bruto, idadeDias: number, alerta: boolean): ItemEsteira => ({
+    id: c.id,
+    cliente: c.clientes?.nome ?? "—",
+    vendedora: c.vendedores?.nome ?? "Não atribuída",
+    pop: c.pops?.nome ?? "—",
+    plano: c.planos?.nome ?? "—",
+    valor: c.valor_mensalidade,
+    dataVenda: c.data_venda,
+    idadeDias,
+    alerta,
+  });
+
+  // 5.8 — sem assinatura; idade desde a venda; alerta ≥ 48h
+  const semAssinatura = pendentesAssinatura(pendencias, hoje)
+    .map((p) => paraItem(p.contrato as Bruto, p.idadeDias, p.alerta))
+    .sort((a, b) => b.idadeDias - a.idadeDias);
+
+  // 5.7 — assinados sem ativação; idade desde a assinatura; alerta > 7 dias
+  const semAtivacao = ativacoesPendentes(pendencias, hoje)
+    .map((p) => paraItem(p.contrato as Bruto, p.idadeDias, p.alerta))
+    .sort((a, b) => b.idadeDias - a.idadeDias);
+
+  // instaladas no período (idade = venda → ativação; nunca alerta)
+  const instaladas = ativadas
+    .map((c) => paraItem(c, dias(c.data_venda, c.data_ativacao!), false))
+    .sort((a, b) => (a.dataVenda < b.dataVenda ? 1 : -1));
+
+  // ---------- tempo médio por POP e por vendedora ----------
+  const agrupar = (chave: (c: Bruto) => string) => {
+    const grupos = new Map<string, Bruto[]>();
+    for (const c of ativadas) {
+      const k = chave(c);
+      if (!grupos.has(k)) grupos.set(k, []);
+      grupos.get(k)!.push(c);
+    }
+    return [...grupos.entries()]
+      .map(([nome, lista]) => ({
+        nome,
+        dias: tempoMedioVendaAtivacao(lista) ?? 0,
+        ativacoes: lista.length,
+      }))
+      .sort((a, b) => a.dias - b.dias);
+  };
+
+  const vendasContaveis = vendasDoPeriodo(vendas, periodo.de, periodo.ate);
+
+  return {
+    hoje,
+    kpis: {
+      pendentesAssinatura: {
+        total: semAssinatura.length,
+        emAlerta: semAssinatura.filter((i) => i.alerta).length,
+      },
+      aguardandoInstalacao: {
+        total: semAtivacao.length,
+        emAlerta: semAtivacao.filter((i) => i.alerta).length,
+      },
+      taxaInstalacao: taxaInstalacaoEfetiva(vendasContaveis, hoje),
+      tempoMedioDias: tempoMedioVendaAtivacao(ativadas),
+      instaladasNoPeriodo: instaladas.length,
+    },
+    colunas: {
+      pendenteAssinatura: semAssinatura,
+      aguardandoInstalacao: semAtivacao,
+      instaladas,
+    },
+    tempoPorPop: agrupar((c) => c.pops?.nome ?? "—"),
+    tempoPorVendedora: agrupar((c) => c.vendedores?.nome ?? "Não atribuída"),
+  };
+}
+
+export { ALERTA_ATIVACAO_DIAS, ALERTA_ASSINATURA_DIAS };

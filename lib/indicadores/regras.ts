@@ -173,3 +173,38 @@ export function tendencia(
   if (vendasUltimos7 < vendas7Anteriores) return "desce";
   return "estavel";
 }
+
+const dias = (deIso: string, ateIso: string) =>
+  Math.round((Date.parse(`${ateIso}T00:00:00Z`) - Date.parse(`${deIso}T00:00:00Z`)) / 86_400_000);
+
+/**
+ * 5.9 — taxa de instalação efetiva: vendas do período ativadas em ≤ N dias ÷
+ * vendas do período, contando SÓ vendas com a janela fechada (15+ dias de
+ * idade). Vendas recentes demais ficam fora da base — não dá para saber ainda.
+ */
+export function taxaInstalacaoEfetiva(
+  vendas: ContratoIndicador[],
+  hoje: string,
+  janelaDias = 15
+): { taxa: number | null; base: number; instaladas: number } {
+  const janelaFechada = vendas.filter((c) => dias(c.data_venda, hoje) >= janelaDias);
+  const instaladas = janelaFechada.filter(
+    (c) => c.data_ativacao !== null && dias(c.data_venda, c.data_ativacao) <= janelaDias
+  ).length;
+  return {
+    taxa: janelaFechada.length === 0 ? null : instaladas / janelaFechada.length,
+    base: janelaFechada.length,
+    instaladas,
+  };
+}
+
+/**
+ * Tempo médio venda → ativação, em dias (PRD 3.5). Considera apenas
+ * contratos já ativados; null quando não há nenhum.
+ */
+export function tempoMedioVendaAtivacao(contratos: ContratoIndicador[]): number | null {
+  const ativados = contratos.filter((c) => c.data_ativacao !== null);
+  if (ativados.length === 0) return null;
+  const soma = ativados.reduce((acc, c) => acc + dias(c.data_venda, c.data_ativacao!), 0);
+  return soma / ativados.length;
+}

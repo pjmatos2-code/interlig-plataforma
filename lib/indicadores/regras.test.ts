@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   ehVendaContavel,
+  taxaInstalacaoEfetiva,
+  tempoMedioVendaAtivacao,
   metaDiariaIndividual,
   tendencia,
   vendasDoPeriodo,
@@ -244,5 +246,52 @@ describe("tendência (PRD 3.2)", () => {
     expect(tendencia(3, 5)).toBe("desce");
     expect(tendencia(5, 5)).toBe("estavel");
     expect(tendencia(0, 0)).toBe("estavel");
+  });
+});
+
+describe("5.9 — taxa de instalação efetiva", () => {
+  it("só conta vendas com janela de 15 dias fechada", () => {
+    const lista = [
+      // vendida há 20 dias, ativada em 10 → conta como instalada
+      contrato({ data_venda: "2026-07-31", data_ativacao: "2026-08-10", status: "ativo" }),
+      // vendida há 20 dias, ativada em 18 → na base, mas fora da janela
+      contrato({ data_venda: "2026-07-31", data_ativacao: "2026-08-18", status: "ativo" }),
+      // vendida há 20 dias, nunca ativada → na base como não instalada
+      contrato({ data_venda: "2026-07-31", status: "aguardando_ativacao" }),
+      // vendida há 5 dias → janela aberta, fora da base
+      contrato({ data_venda: "2026-08-15", status: "aguardando_ativacao" }),
+    ];
+    const r = taxaInstalacaoEfetiva(lista, "2026-08-20");
+    expect(r.base).toBe(3);
+    expect(r.instaladas).toBe(1);
+    expect(r.taxa).toBeCloseTo(1 / 3);
+  });
+
+  it("sem vendas com janela fechada → taxa null, nunca 0 enganoso", () => {
+    const lista = [contrato({ data_venda: "2026-08-19" })];
+    expect(taxaInstalacaoEfetiva(lista, "2026-08-20").taxa).toBeNull();
+  });
+
+  it("ativada exatamente no 15º dia conta (≤ 15)", () => {
+    const lista = [
+      contrato({ data_venda: "2026-08-01", data_ativacao: "2026-08-16", status: "ativo" }),
+    ];
+    const r = taxaInstalacaoEfetiva(lista, "2026-08-20");
+    expect(r.taxa).toBe(1);
+  });
+});
+
+describe("tempo médio venda → ativação (PRD 3.5)", () => {
+  it("média em dias dos contratos ativados", () => {
+    const lista = [
+      contrato({ data_venda: "2026-08-01", data_ativacao: "2026-08-05", status: "ativo" }), // 4
+      contrato({ data_venda: "2026-08-01", data_ativacao: "2026-08-11", status: "ativo" }), // 10
+      contrato({ data_venda: "2026-08-01", status: "aguardando_ativacao" }), // ignorado
+    ];
+    expect(tempoMedioVendaAtivacao(lista)).toBeCloseTo(7);
+  });
+
+  it("nenhum ativado → null", () => {
+    expect(tempoMedioVendaAtivacao([contrato({})])).toBeNull();
   });
 });
