@@ -3,6 +3,7 @@ import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { EmConstrucao } from "@/components/layout/em-construcao";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { GestaoMotivos } from "./motivos";
+import { GestaoUsuarios, GestaoOrigens, GestaoSzChat } from "./cadastros";
 import { BotaoSincronizar } from "./botao-sync";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,16 +15,36 @@ export default async function AdminPage() {
   await exigirPerfil(["gestor"]);
 
   const supabase = criarClienteServidor();
-  const [{ data: syncs }, { data: motivos }] = await Promise.all([
+  const [
+    { data: syncs },
+    { data: motivos },
+    { data: usuarios },
+    { data: pops },
+    { data: vendedoras },
+    { data: origens },
+    { data: atendentes },
+    { data: equipes },
+  ] = await Promise.all([
     supabase
       .from("vw_ultima_sync")
       .select("entidade, finalizado_em, registros, status, erro")
       .order("entidade"),
+    supabase.from("motivos_nao_conversao").select("id, nome, ativo").order("ordem"),
     supabase
-      .from("motivos_nao_conversao")
-      .select("id, nome, ativo")
-      .order("ordem"),
+      .from("usuarios")
+      .select("id, nome, email, perfil, ativo, pops!usuarios_pop_id_fkey(nome), vendedores!usuarios_vendedor_fk(nome)")
+      .order("nome"),
+    supabase.from("pops").select("id, nome").order("nome"),
+    supabase.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
+    supabase.from("origem_map").select("id, valor_sgp, categoria").order("valor_sgp"),
+    supabase
+      .from("sz_atendentes_map")
+      .select("id, sz_atendente_id, sz_atendente_nome, vendedores(nome)")
+      .order("sz_atendente_id"),
+    supabase.from("sz_equipes_habilitadas").select("id, nome, ativo, pops(nome)").order("nome"),
   ]);
+
+  type Rel = { nome: string } | null;
 
   return (
     <>
@@ -86,6 +107,60 @@ export default async function AdminPage() {
 
       <Card className="mb-6">
         <CardHeader>
+          <CardTitle>Usuários e perfis</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <GestaoUsuarios
+            usuarios={(usuarios ?? []).map((u) => ({
+              id: u.id,
+              nome: u.nome,
+              email: u.email,
+              perfil: u.perfil,
+              ativo: u.ativo,
+              pop: (u.pops as unknown as Rel)?.nome ?? null,
+              vendedora: (u.vendedores as unknown as Rel)?.nome ?? null,
+            }))}
+            pops={pops ?? []}
+            vendedoras={vendedoras ?? []}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>De/para de origem de cadastro (SGP → plataforma)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <GestaoOrigens origens={origens ?? []} />
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>SZ Chat — mapeamentos da integração</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <GestaoSzChat
+            atendentes={(atendentes ?? []).map((a) => ({
+              id: a.id,
+              sz_atendente_id: a.sz_atendente_id,
+              sz_atendente_nome: a.sz_atendente_nome,
+              vendedora: (a.vendedores as unknown as Rel)?.nome ?? "—",
+            }))}
+            equipes={(equipes ?? []).map((e) => ({
+              id: e.id,
+              nome: e.nome,
+              ativo: e.ativo,
+              pop: (e.pops as unknown as Rel)?.nome ?? null,
+            }))}
+            vendedoras={vendedoras ?? []}
+            pops={pops ?? []}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
           <CardTitle>Motivos de não conversão (CRM)</CardTitle>
         </CardHeader>
         <CardContent>
@@ -93,14 +168,27 @@ export default async function AdminPage() {
         </CardContent>
       </Card>
 
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Parâmetros do CRM</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          <p>
+            Fechamento automático por inatividade: <strong>{process.env.CRM_DIAS_INATIVIDADE ?? 15} dias</strong> ·
+            janela de reabertura: <strong>{process.env.CRM_DIAS_REABERTURA ?? 30} dias</strong> ·
+            janela de reconciliação: <strong>{process.env.CRM_DIAS_RECONCILIACAO ?? 7} dias</strong>
+          </p>
+          <p className="mt-1 text-xs">
+            Definidos por variáveis de ambiente (Vercel → Settings → Environment Variables).
+          </p>
+        </CardContent>
+      </Card>
+
       <EmConstrucao
-        fase="Fase 1 (básico) e Fase 3 (SZ Chat)"
+        fase="próxima iteração"
         entrega={[
-          "Convite de usuários, perfis e vínculo usuário ↔ vendedora do SGP",
-          "POPs, cidades e seus supervisores",
-          "Regras de comissão com vigência (histórico preservado)",
-          "De/para de origem de cadastro",
-          "Equipes habilitadas do SZ Chat (docs/decisoes.md D1) e atendente ↔ vendedora",
+          "Cadastro de POPs/cidades pela tela (hoje via seed/SQL)",
+          "Edição de regras de comissão pela tela (hoje parametrizadas no banco)",
         ]}
       />
     </>

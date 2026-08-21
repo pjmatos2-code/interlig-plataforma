@@ -1,31 +1,28 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import planos from "@/docs/sgp-samples/planos.json";
+import clientes from "@/docs/sgp-samples/clientes.json";
+import contratos from "@/docs/sgp-samples/contratos.json";
+import titulos from "@/docs/sgp-samples/titulos.json";
 import type { SgpClient, SgpCliente, SgpContrato, SgpPlano, SgpTitulo } from "./tipos";
 
 /**
- * SgpMockClient — lê fixtures de docs/sgp-samples/ (CLAUDE.md).
- * As fixtures têm o MESMO formato que o SgpApiClient devolve depois de
- * normalizar a resposta real; trocar de modo não muda nenhuma tela.
+ * SgpMockClient — fixtures de docs/sgp-samples/ (CLAUDE.md), importadas
+ * estaticamente para irem juntas no bundle serverless (a leitura dinâmica de
+ * arquivo quebrava no deploy da Vercel). As fixtures têm o MESMO formato que
+ * o SgpApiClient devolve depois de normalizar; trocar de modo não muda tela.
  */
 export class SgpMockClient implements SgpClient {
   modo = "mock" as const;
 
-  private async ler<T>(arquivo: string): Promise<T[]> {
-    const caminho = path.join(process.cwd(), "docs", "sgp-samples", arquivo);
-    const conteudo = await readFile(caminho, "utf8");
-    return JSON.parse(conteudo) as T[];
+  async listarPlanos(): Promise<SgpPlano[]> {
+    return planos as SgpPlano[];
   }
-
-  listarPlanos() {
-    return this.ler<SgpPlano>("planos.json");
+  async listarClientes(): Promise<SgpCliente[]> {
+    return clientes as SgpCliente[];
   }
-  listarClientes() {
-    return this.ler<SgpCliente>("clientes.json");
+  async listarContratos(): Promise<SgpContrato[]> {
+    return contratos as SgpContrato[];
   }
-  listarContratos() {
-    return this.ler<SgpContrato>("contratos.json");
-  }
-  listarTitulos() {
-    return this.ler<SgpTitulo>("titulos.json");
+  async listarTitulos(): Promise<SgpTitulo[]> {
+    return titulos as SgpTitulo[];
   }
 }

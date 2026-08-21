@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { exigirPerfil } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { executarSync, type ResultadoSync } from "@/lib/sync/worker";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
 
 export type EstadoAdmin = { erro?: string; ok?: boolean };
 
@@ -53,4 +54,149 @@ export async function sincronizarAgora(): Promise<EstadoSync> {
   } catch (e) {
     return { erro: e instanceof Error ? e.message : String(e) };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Usuários (PRD 3.10) — convite pelo gestor, sem autocadastro
+// ---------------------------------------------------------------------------
+export async function criarUsuario(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
+  await exigirPerfil(["gestor"]);
+  const nome = String(dados.get("nome") ?? "").trim();
+  const email = String(dados.get("email") ?? "").trim().toLowerCase();
+  const senha = String(dados.get("senha") ?? "");
+  const perfil = String(dados.get("perfil") ?? "");
+  const popId = String(dados.get("pop_id") ?? "") || null;
+  const vendedorId = String(dados.get("vendedor_id") ?? "") || null;
+
+  if (!nome || !email) return { erro: "Informe nome e e-mail." };
+  if (senha.length < 8) return { erro: "Senha provisória precisa de 8+ caracteres." };
+  if (!["gestor", "supervisor", "vendedora"].includes(perfil)) return { erro: "Perfil inválido." };
+  if (perfil === "supervisor" && !popId) return { erro: "Supervisor precisa de POP." };
+  if (perfil === "vendedora" && !vendedorId)
+    return { erro: "Vendedora precisa do vínculo com a vendedora do SGP." };
+
+  const admin = criarClienteAdmin();
+  const { data: novo, error: erroAuth } = await admin.auth.admin.createUser({
+    email,
+    password: senha,
+    email_confirm: true,
+    user_metadata: { nome },
+  });
+  if (erroAuth) return { erro: `Auth: ${erroAuth.message}` };
+
+  let popFinal = popId;
+  if (vendedorId) {
+    const { data: v } = await admin.from("vendedores").select("pop_id").eq("id", vendedorId).maybeSingle();
+    popFinal = v?.pop_id ?? popFinal;
+  }
+  const { error } = await admin.from("usuarios").insert({
+    id: novo.user.id,
+    nome,
+    email,
+    perfil,
+    pop_id: perfil === "gestor" ? null : popFinal,
+    vendedor_id: perfil === "vendedora" ? vendedorId : null,
+    ativo: true,
+  });
+  if (error) {
+    await admin.auth.admin.deleteUser(novo.user.id); // rollback
+    return { erro: error.message };
+  }
+  if (perfil === "vendedora" && vendedorId) {
+    await admin.from("vendedores").update({ usuario_id: novo.user.id }).eq("id", vendedorId);
+  }
+  if (perfil === "supervisor" && popFinal) {
+    await admin.from("pops").update({ supervisor_id: novo.user.id }).eq("id", popFinal);
+  }
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function alternarUsuario(id: string, ativo: boolean): Promise<EstadoAdmin> {
+  const usuario = await exigirPerfil(["gestor"]);
+  if (id === usuario.id) return { erro: "Você não pode desativar a si mesmo." };
+  const supabase = criarClienteServidor();
+  const { error } = await supabase.from("usuarios").update({ ativo }).eq("id", id);
+  if (error) return { erro: error.message };
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// De/para de origem (PRD 3.10)
+// ---------------------------------------------------------------------------
+export async function salvarOrigem(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
+  await exigirPerfil(["gestor"]);
+  const valorSgp = String(dados.get("valor_sgp") ?? "").trim().toUpperCase();
+  const categoria = String(dados.get("categoria") ?? "");
+  if (!valorSgp) return { erro: "Informe o valor como vem do SGP." };
+  const supabase = criarClienteServidor();
+  const { error } = await supabase
+    .from("origem_map")
+    .upsert({ valor_sgp: valorSgp, categoria }, { onConflict: "valor_sgp" });
+  if (error) return { erro: error.message };
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function excluirOrigem(id: string): Promise<EstadoAdmin> {
+  await exigirPerfil(["gestor"]);
+  const supabase = criarClienteServidor();
+  const { error } = await supabase.from("origem_map").delete().eq("id", id);
+  if (error) return { erro: error.message };
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// SZ Chat: atendentes ↔ vendedoras e equipes habilitadas (D1)
+// ---------------------------------------------------------------------------
+export async function salvarAtendente(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
+  await exigirPerfil(["gestor"]);
+  const szId = String(dados.get("sz_atendente_id") ?? "").trim();
+  const szNome = String(dados.get("sz_atendente_nome") ?? "").trim() || null;
+  const vendedorId = String(dados.get("vendedor_id") ?? "");
+  if (!szId || !vendedorId) return { erro: "Informe o ID da atendente no SZ e a vendedora." };
+  const supabase = criarClienteServidor();
+  const { error } = await supabase
+    .from("sz_atendentes_map")
+    .upsert(
+      { sz_atendente_id: szId, sz_atendente_nome: szNome, vendedor_id: vendedorId },
+      { onConflict: "sz_atendente_id" }
+    );
+  if (error) return { erro: error.message };
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function excluirAtendente(id: string): Promise<EstadoAdmin> {
+  await exigirPerfil(["gestor"]);
+  const supabase = criarClienteServidor();
+  const { error } = await supabase.from("sz_atendentes_map").delete().eq("id", id);
+  if (error) return { erro: error.message };
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function salvarEquipe(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
+  await exigirPerfil(["gestor"]);
+  const nome = String(dados.get("nome") ?? "").trim();
+  const popId = String(dados.get("pop_id") ?? "") || null;
+  if (!nome) return { erro: "Informe o nome EXATO da equipe no SZ Chat." };
+  const supabase = criarClienteServidor();
+  const { error } = await supabase
+    .from("sz_equipes_habilitadas")
+    .upsert({ nome, pop_id: popId, ativo: true }, { onConflict: "nome" });
+  if (error) return { erro: error.message };
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+export async function alternarEquipe(id: string, ativo: boolean): Promise<EstadoAdmin> {
+  await exigirPerfil(["gestor"]);
+  const supabase = criarClienteServidor();
+  const { error } = await supabase.from("sz_equipes_habilitadas").update({ ativo }).eq("id", id);
+  if (error) return { erro: error.message };
+  revalidatePath("/admin");
+  return { ok: true };
 }
