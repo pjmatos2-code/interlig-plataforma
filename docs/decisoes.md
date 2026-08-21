@@ -127,3 +127,11 @@ Vitória do Xingu e Brasil Novo** (filtro por `endereco.cidade`, sem acento).
    CRM (reconciliação define a origem no contrato — já implementado).
 5. **Mensalidade não vem no contrato** → usamos o valor do título mais
    recente não cancelado do contrato.
+
+**Carga inicial executada em 21/08/2026:** 14.925 clientes, 16.476 contratos
+(9.391 ativos, 6.175 cancelados, 910 suspensos), 285.404 títulos e 167 planos
+reais dos 3 POPs. A URA não devolve contratos cancelados no consultacliente;
+as datas/motivos reais de cancelamento (abr–ago/2026, 1.184 contratos) vieram
+do relatório "Contratos Cancelados" do SGP via scripts/importar-cancelados.py
++ aplicar-cancelados.mjs — repetir a importação periodicamente (ou descobrir
+rota/admin API) para manter o churn fiel.
