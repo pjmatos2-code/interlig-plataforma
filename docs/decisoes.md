@@ -68,3 +68,26 @@ Fontes: fortics.sz.chat/docs/pt-br/modules/rest e docs.fortics.com.br/chat.
   integrados ao SGP ("SGP | Consultar Cliente", "Consultar Fatura", "Pré-cadastro"
   etc.) — dentro deles devem estar a URL e o token do SGP, o que pode
   antecipar a Fase 0 (basta abrir um deles em Ações → Editar e copiar).
+
+## D2 — Agente de follow-up com IA sobre as conversas do SZ Chat (21/08/2026)
+
+**Pedido do Paulo (novo — não consta no PRD v1.1):** um agente que analisa as
+conversas do SZ Chat dos tickets em aberto e, no dia seguinte, entrega à
+vendedora o direcionamento da tratativa ideal para cada cliente (próxima ação
+sugerida, tom, objeção a tratar).
+
+**Status:** NÃO implementado. Pré-requisitos e desenho proposto:
+1. **Transcrições**: token da API do SZ Chat (Integrações → API — o Paulo tem
+   acesso admin) e o endpoint de histórico de conversas; importar a transcrição
+   para o ticket (já previsto como Fase 4 no PRD 3.9/backlog #7).
+2. **Agente**: rotina noturna (cron) que, para cada ticket aberto com conversa,
+   envia transcrição + contexto do ticket (etapa, idade, plano de interesse,
+   histórico) para a API da Anthropic (Claude) e grava a sugestão como evento
+   do tipo nota estruturada no ticket ("Sugestão de tratativa — IA").
+3. **Entrega à vendedora**: bloco "Direcionamentos de hoje" na home do CRM,
+   junto dos lembretes de follow-up; supervisor vê os do time.
+4. **Custo**: consumo da API da Anthropic por conversa analisada (estimar com
+   volume real de tickets/dia antes de ligar para todo mundo).
+
+**Ordem sugerida:** depende só do token da API do SZ (independe do fluxo/RPA
+da D1) — pode ser o próximo módulo após as integrações de dados.
