@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { exigirPerfil } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { comissoesDoMes } from "@/lib/comissao/dados";
 
 export type EstadoMeta = { erro?: string; ok?: boolean };
 
@@ -51,4 +52,52 @@ export async function excluirMeta(id: string): Promise<EstadoMeta> {
   if (error) return { erro: error.message };
   revalidatePath("/metas");
   return { ok: true };
+}
+
+export type EstadoFechamento = { erro?: string; fechadas?: number; total?: number };
+
+/**
+ * Fechamento de comissão do mês (PRD seção 6): gera snapshot IMUTÁVEL por
+ * vendedora em comissoes_fechadas. Recalcular exige refazer explicitamente.
+ */
+export async function fecharComissoes(mesAno: string): Promise<EstadoFechamento> {
+  const usuario = await exigirPerfil(["gestor"]);
+  if (!/^\d{4}-\d{2}-01$/.test(mesAno)) return { erro: "Mês inválido." };
+
+  const supabase = criarClienteServidor();
+  const comissoes = await comissoesDoMes(mesAno);
+  const calculaveis = comissoes.filter((c) => c.resultado !== null);
+  if (calculaveis.length === 0)
+    return { erro: "Nenhuma vendedora com meta e regra vigente neste mês." };
+
+  let fechadas = 0;
+  for (const c of calculaveis) {
+    const { error } = await supabase.from("comissoes_fechadas").upsert(
+      {
+        vendedor_id: c.vendedorId,
+        mes_ano: mesAno,
+        snapshot: {
+          regra_id: c.regra!.id,
+          meta: c.metaMensal,
+          resultado: c.resultado,
+          fechado_em: new Date().toISOString(),
+        },
+        valor_total: c.resultado!.total,
+        fechado_por: usuario.id,
+      },
+      { onConflict: "vendedor_id,mes_ano", ignoreDuplicates: true }
+    );
+    if (!error) fechadas += 1;
+  }
+  revalidatePath("/metas");
+  return { fechadas, total: calculaveis.length };
+}
+
+/** Recálculo retroativo: só por ação explícita do gestor (PRD 6). */
+export async function refazerFechamento(mesAno: string): Promise<EstadoFechamento> {
+  await exigirPerfil(["gestor"]);
+  const supabase = criarClienteServidor();
+  const { error } = await supabase.from("comissoes_fechadas").delete().eq("mes_ano", mesAno);
+  if (error) return { erro: error.message };
+  return fecharComissoes(mesAno);
 }
