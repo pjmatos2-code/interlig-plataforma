@@ -20,6 +20,7 @@ export const ITENS_NAV: ItemNav[] = [
   { href: "/crm",           rotulo: "CRM",         icone: "MessagesSquare",  perfis: ["gestor", "supervisor", "vendedora"] },
   { href: "/metas",         rotulo: "Metas e comissão", icone: "Target",     perfis: ["gestor", "supervisor", "vendedora"] },
   { href: "/qualidade",     rotulo: "Qualidade",   icone: "ShieldCheck",     perfis: ["gestor", "supervisor"] },
+  { href: "/mapa",          rotulo: "Mapa",        icone: "Map",             perfis: ["gestor", "supervisor"] },
   { href: "/admin",         rotulo: "Administração", icone: "Settings",      perfis: ["gestor"] },
 ];
 
