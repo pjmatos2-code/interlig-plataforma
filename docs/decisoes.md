@@ -217,3 +217,40 @@ vendedora (ex.: 10 suspensos → meta efetiva +10). Implementado no motor
 (coluna "Débito 90d" no time; aviso "meta efetiva" no simulador). O sync
 ficou incremental de verdade: janela de 8 páginas por execução + verificação
 de 25 assinaturas + títulos recentes (o histórico veio na carga inicial).
+
+## D6 — Atribuição venda→vendedor: investigação e caminhos (21/08/2026)
+
+**Campo correto:** o dropdown **"Vendedor"** em Contratos → Dados de Acesso do
+serviço (ex.: "Dâmely Sibely Pereira Costa - damely.costa"). NÃO usar o
+"Usuário/responsável" da ocorrência de instalação: para venda EXTERNA, o
+coordenador é quem lança (com a agente selecionada no campo Vendedor), então o
+criador da ocorrência seria o coordenador — atribuição errada.
+
+**Confirmado NÃO exposto pela API token+app** (investigação exaustiva):
+- `/api/ura/clientes/` (embed contratos), `/api/ura/consultacliente/` (54
+  campos), `/api/os/list/` e `/api/ura/ocorrencias/` (traz `oc_id`, `os_id`,
+  protocolo — mas SEM o campo "usuario"/vendedor).
+- Testados params: vendedor, vendedor_id, expand, incluir_vendedor, completo,
+  detalhado, extra_fields, usuario, oc_id — todos ignorados.
+- OPTIONS autenticado: schema fixo, sem vendedor. Índice DRF `/api/` → 404.
+- Docs TSMX (tsmx.net.br/developers) e bookstack: sem endpoint de vendedor.
+- **Conclusão:** o campo Vendedor vive atrás do LOGIN DO PAINEL (sessão/cookie),
+  não da API de integração.
+
+**Caminho escolhido (pendente de credencial):** bot de leitura com um usuário
+somente-leitura do painel. Paulo não pode criar usuário, mas pode REATIVAR e
+editar um usuário desativado — trará depois (não hoje). Ao ter o login: logar
+no painel, descobrir o endpoint interno que a tela de serviço usa para carregar
+o Vendedor e ligar ao sync (atribui contratos recentes a cada ciclo). Guardar
+credencial cifrada; usuário de leitura garante zero risco de escrita.
+
+**A investigar sem depender do usuário (tarefa em aberto):**
+1. Endpoint de contratos da categoria "central" da doc SGP (usa CPF+senha da
+   central do cliente) — verificar se expõe vendedor.
+2. Relatórios do SGP: descobrir se algum relatório (ex.: comissão/vendas) tem
+   endpoint de export via token+app com a coluna Vendedor.
+3. Pedido formal à TSMX (desenvolvimento@sgp.net.br) para expor o campo
+   Vendedor no retorno da API URA — solução nativa definitiva.
+
+**Ponte imediata:** relatório xlsx do SGP com coluna Vendedor →
+scripts/importar-vendedores.py + aplicar-vendedores.mjs (já prontos).
