@@ -8,9 +8,11 @@ import type { SgpClient } from "./tipos";
  * Seleção do cliente SGP. O modo e as credenciais vêm do módulo de
  * Integrações (banco), com fallback nas variáveis de ambiente (CLAUDE.md).
  */
-export async function criarClienteSgp(): Promise<SgpClient> {
+export async function criarClienteSgp(
+  janela?: import("./api").JanelaVarredura
+): Promise<SgpClient> {
   const config = await lerConfigSgp();
-  if (config.modo === "real") return new SgpApiClient(config);
+  if (config.modo === "real") return new SgpApiClient(config, janela);
   return new SgpMockClient();
 }
 

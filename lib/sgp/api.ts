@@ -58,11 +58,22 @@ const dataBr = (s: string | undefined | null): string | null => {
   return iso ? iso[1] : null;
 };
 
+export type JanelaVarredura = {
+  /** offset inicial (em registros) e nº máximo de páginas por execução */
+  offset: number;
+  maxPaginas: number;
+};
+
 export class SgpApiClient implements SgpClient {
   modo = "real" as const;
   private varredura: Promise<BrutoCliente[]> | null = null;
+  /** preenchido após a varredura: onde a janela parou e o total da instância */
+  public progresso: { proximoOffset: number; total: number; completou: boolean } | null = null;
 
-  constructor(private cfg: ConfigSgp) {}
+  constructor(
+    private cfg: ConfigSgp,
+    private janela?: JanelaVarredura
+  ) {}
 
   private get config() {
     const { base_url, token, app } = this.cfg;
@@ -95,13 +106,19 @@ export class SgpApiClient implements SgpClient {
     throw new Error("inalcançável");
   }
 
-  /** Varre todos os clientes (memoizado por execução) e filtra o escopo. */
+  /**
+   * Varre os clientes (memoizado por execução) e filtra o escopo.
+   * Com `janela`, varre só um trecho — o worker roda janelas sucessivas a
+   * cada sync (cursor persistido) para caber no tempo do serverless.
+   */
   private escanear(): Promise<BrutoCliente[]> {
     this.varredura ??= (async () => {
       const todos: BrutoCliente[] = [];
-      let offset = 0;
+      let offset = this.janela?.offset ?? 0;
+      const limitePaginas = this.janela?.maxPaginas ?? Infinity;
+      let paginas = 0;
       let total = Infinity;
-      while (offset < total) {
+      while (offset < total && paginas < limitePaginas) {
         const pagina = await this.chamar<{
           paginacao: { total: number };
           clientes: BrutoCliente[];
@@ -109,7 +126,13 @@ export class SgpApiClient implements SgpClient {
         total = pagina.paginacao.total;
         todos.push(...pagina.clientes);
         offset += PAGINA;
+        paginas += 1;
       }
+      this.progresso = {
+        proximoOffset: offset >= total ? 0 : offset,
+        total: Number.isFinite(total) ? total : 0,
+        completou: offset >= total,
+      };
       return todos.filter((c) => CIDADES_ESCOPO.has(semAcento(c.endereco?.cidade)));
     })();
     return this.varredura;

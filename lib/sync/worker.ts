@@ -59,7 +59,21 @@ export type ResultadoSync = {
 
 export async function executarSync(): Promise<ResultadoSync> {
   const admin = criarClienteAdmin();
-  const sgp = await criarClienteSgp();
+
+  // cursor da varredura incremental (cabe no tempo do serverless; a base
+  // inteira se renova em janelas sucessivas a cada execução do cron)
+  const { lerConfigSgp } = await import("@/lib/integracoes/config");
+  const cfgSgp = await lerConfigSgp();
+  const { data: cfgBruta } = await admin
+    .from("integracoes_config")
+    .select("config")
+    .eq("sistema", "sgp")
+    .maybeSingle();
+  const cursor = Number((cfgBruta?.config as Record<string, unknown>)?.scan_offset ?? 0) || 0;
+
+  const sgp = await criarClienteSgp(
+    cfgSgp.modo === "real" ? { offset: cursor, maxPaginas: 35 } : undefined
+  );
   const execucoes: ResultadoSync["execucoes"] = [];
 
   // de/para de origem (PRD 3.10)
@@ -268,7 +282,7 @@ export async function executarSync(): Promise<ResultadoSync> {
         .gte("data_venda", corte)
         .or("termo_adesao_assinado.is.null,termo_adesao_assinado.eq.false,fidelidade_assinada.is.null,fidelidade_assinada.eq.false")
         .order("data_venda", { ascending: false })
-        .limit(200);
+        .limit(60);
 
       let verificados = 0;
       const { lerConfigSgp } = await import("@/lib/integracoes/config");
@@ -319,6 +333,19 @@ export async function executarSync(): Promise<ResultadoSync> {
       const msg = e instanceof Error ? e.message : String(e);
       await finalizarRun(admin, run, "erro", 0, msg);
       execucoes.push({ entidade: "assinaturas" as Entidade, registros: 0, status: "erro", erro: msg });
+    }
+  }
+
+  // avança o cursor da varredura para a próxima execução
+  if (sgp.modo === "real") {
+    const progresso = (sgp as unknown as { progresso: { proximoOffset: number } | null }).progresso;
+    if (progresso) {
+      const atual = (cfgBruta?.config as Record<string, unknown>) ?? {};
+      await admin.from("integracoes_config").upsert({
+        sistema: "sgp",
+        config: { ...atual, scan_offset: progresso.proximoOffset },
+        atualizado_em: new Date().toISOString(),
+      });
     }
   }
 
