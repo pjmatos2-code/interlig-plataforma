@@ -181,3 +181,28 @@ tipos de regra próprios.
 **Pendência-chave que segue aberta:** atribuição venda→vendedora (a comissão
 real só ganha valor quando as vendas forem atribuídas — via CRM ou relatório
 do SGP com coluna Vendedor).
+
+## D5 — Critério de validação da venda e liberação da comissão (21/08/2026)
+
+**Definido com o Paulo, automatizado em tempo quase real (sync + rotinas):**
+
+**A venda PONTUA (meta/ranking)** quando o cadastro entra no SGP atribuído à
+vendedora. Atribuição automática: reconciliação do CRM carimba o
+`vendedor_id` do ticket convertido no contrato (nunca sobrescreve atribuição
+existente). Venda sem ticket = "não atribuída" no painel de reconciliação.
+
+**A COMISSÃO só LIBERA quando (os 6 critérios):**
+1. Ticket no CRM próprio fechado como **convertido** ("negociação vendida");
+2. Ticket **reconciliado** com o número do contrato do SGP;
+3. **Plano do ticket = plano do contrato** no SGP;
+4. **Termo de Adesão assinado** (assinatura eletrônica — tag do SGP);
+5. **Contrato de Fidelidade assinado** (tag do SGP);
+6. Serviço com **status ativo** (suspenso/inativo seguram; cancelado ≤90d estorna).
+
+**Implementação:** flags de assinatura na tabela contratos, alimentadas pelo
+verificador de tags no sync (consultacliente por contrato recente, lotes de
+200/execução); /api/sync roda a reconciliação no mesmo ciclo; o motor de
+comissão separa "pontua a meta" (todas as vendas válidas) de "recebe comissão"
+(só liberadas) e expõe vendasPendentes + totalSeLiberar; telas mostram a
+coluna Pendentes e o aviso no simulador. A esteira volta a ser real: sem as
+duas assinaturas, o contrato aparece como "pendente de assinatura".

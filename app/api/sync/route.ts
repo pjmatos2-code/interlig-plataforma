@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { executarSync } from "@/lib/sync/worker";
+import { executarRotinasCrm } from "@/lib/crm/rotinas";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -19,8 +20,11 @@ export async function GET(request: Request) {
   }
 
   const resultado = await executarSync();
+  // reconciliação + fechamento por inatividade logo após o sync: a atribuição
+  // venda→vendedora acontece no mesmo ciclo (critério D5, tempo quase real)
+  const rotinas = await executarRotinasCrm();
   const houveErro = resultado.execucoes.some((e) => e.status === "erro");
-  return NextResponse.json(resultado, { status: houveErro ? 500 : 200 });
+  return NextResponse.json({ ...resultado, rotinas }, { status: houveErro ? 500 : 200 });
 }
 
 export const POST = GET;

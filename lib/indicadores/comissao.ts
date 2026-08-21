@@ -23,17 +23,27 @@ export type VendaComissao = {
   plano: string | null;
   /** venda estornada: cancelada dentro da janela de estorno (casa com churn) */
   estornada: boolean;
+  /**
+   * Comissão liberada? A venda PONTUA a meta assim que cadastrada, mas a
+   * comissão só é paga com Termo de Adesão + Contrato de Fidelidade assinados
+   * e serviço ativo (critério do gestor). Ausente = liberada.
+   */
+  liberada?: boolean;
 };
 
 export type ResultadoComissao = {
   atingimentoPct: number;
   degrau: DegrauComissao | null;
   vendasComissionaveis: number;
+  /** vendas válidas ainda sem comissão liberada (assinaturas/ativação pendentes) */
+  vendasPendentes: number;
   estornos: number;
   valorBase: number;
   bonusFixo: number;
   gatilhos: { descricao: string; adicional: number }[];
   total: number;
+  /** quanto a comissão vale se as pendentes forem liberadas */
+  totalSeLiberar: number;
 };
 
 /**
@@ -51,6 +61,50 @@ export function encontrarDegrau(
   return alcancados.length > 0 ? alcancados[alcancados.length - 1] : null;
 }
 
+function calcularNucleo(
+  validas: VendaComissao[],
+  comissionaveis: VendaComissao[],
+  metaMensal: number,
+  degraus: DegrauComissao[],
+  gatilhos: GatilhoComissao[]
+) {
+  // a meta é PONTUADA por toda venda válida; a comissão sai só das liberadas
+  const atingimentoPct = metaMensal <= 0 ? 0 : (validas.length / metaMensal) * 100;
+  const degrau = encontrarDegrau(degraus, atingimentoPct);
+  const receita = comissionaveis.reduce((s, v) => s + v.valor_mensalidade, 0);
+  const ticketMedio = comissionaveis.length === 0 ? 0 : receita / comissionaveis.length;
+
+  let valorBase = 0;
+  if (degrau) {
+    valorBase =
+      degrau.tipo === "valor_por_venda"
+        ? degrau.valor * comissionaveis.length
+        : (degrau.valor / 100) * receita;
+  }
+  const bonusFixo = degrau?.bonus_fixo ?? 0;
+
+  const gatilhosAplicados: ResultadoComissao["gatilhos"] = [];
+  for (const g of gatilhos) {
+    if (g.condicao === "ticket_medio_min") {
+      if (comissionaveis.length > 0 && ticketMedio >= g.valor) {
+        gatilhosAplicados.push({
+          descricao: `Ticket médio ≥ R$ ${g.valor.toFixed(2)}`,
+          adicional: g.adicional,
+        });
+      }
+    } else if (g.condicao === "plano_premium") {
+      const qtd = comissionaveis.filter((v) => v.plano === g.plano).length;
+      if (qtd > 0) {
+        gatilhosAplicados.push({ descricao: `${qtd}× plano ${g.plano}`, adicional: g.adicional * qtd });
+      }
+    }
+  }
+
+  const total =
+    valorBase + bonusFixo + gatilhosAplicados.reduce((s, g) => s + g.adicional, 0);
+  return { atingimentoPct, degrau, valorBase, bonusFixo, gatilhos: gatilhosAplicados, total };
+}
+
 export function calcularComissao(entrada: {
   vendas: VendaComissao[];
   metaMensal: number;
@@ -59,54 +113,22 @@ export function calcularComissao(entrada: {
 }): ResultadoComissao {
   const validas = entrada.vendas.filter((v) => !v.estornada);
   const estornos = entrada.vendas.length - validas.length;
-  const receita = validas.reduce((s, v) => s + v.valor_mensalidade, 0);
-  const ticketMedio = validas.length === 0 ? 0 : receita / validas.length;
+  const liberadas = validas.filter((v) => v.liberada !== false);
 
-  const atingimentoPct =
-    entrada.metaMensal <= 0 ? 0 : (validas.length / entrada.metaMensal) * 100;
-  const degrau = encontrarDegrau(entrada.degraus, atingimentoPct);
-
-  let valorBase = 0;
-  if (degrau) {
-    valorBase =
-      degrau.tipo === "valor_por_venda"
-        ? degrau.valor * validas.length
-        : (degrau.valor / 100) * receita;
-  }
-  const bonusFixo = degrau?.bonus_fixo ?? 0;
-
-  const gatilhosAplicados: ResultadoComissao["gatilhos"] = [];
-  for (const g of entrada.gatilhos) {
-    if (g.condicao === "ticket_medio_min") {
-      if (validas.length > 0 && ticketMedio >= g.valor) {
-        gatilhosAplicados.push({
-          descricao: `Ticket médio ≥ R$ ${g.valor.toFixed(2)}`,
-          adicional: g.adicional,
-        });
-      }
-    } else if (g.condicao === "plano_premium") {
-      const qtd = validas.filter((v) => v.plano === g.plano).length;
-      if (qtd > 0) {
-        gatilhosAplicados.push({
-          descricao: `${qtd}× plano ${g.plano}`,
-          adicional: g.adicional * qtd,
-        });
-      }
-    }
-  }
-
-  const total =
-    valorBase + bonusFixo + gatilhosAplicados.reduce((s, g) => s + g.adicional, 0);
+  const nucleo = calcularNucleo(
+    validas, liberadas, entrada.metaMensal, entrada.degraus, entrada.gatilhos
+  );
+  // cenário "tudo liberado": mostra quanto está preso nas pendências
+  const cenarioCheio = calcularNucleo(
+    validas, validas, entrada.metaMensal, entrada.degraus, entrada.gatilhos
+  );
 
   return {
-    atingimentoPct,
-    degrau,
-    vendasComissionaveis: validas.length,
+    ...nucleo,
+    vendasComissionaveis: liberadas.length,
+    vendasPendentes: validas.length - liberadas.length,
     estornos,
-    valorBase,
-    bonusFixo,
-    gatilhos: gatilhosAplicados,
-    total,
+    totalSeLiberar: cenarioCheio.total,
   };
 }
 

@@ -25,6 +25,12 @@ const venda = (valor: number, plano: string | null = null, estornada = false): V
   plano,
   estornada,
 });
+const pendente = (valor: number): VendaComissao => ({
+  valor_mensalidade: valor,
+  plano: null,
+  estornada: false,
+  liberada: false,
+});
 
 describe("degraus por atingimento", () => {
   it("seleciona pelo % da meta, inclusive nas bordas", () => {
@@ -131,5 +137,44 @@ describe("simulador (PRD 3.7)", () => {
     expect(
       proximoDegrau({ ...base, vendas: Array.from({ length: 12 }, () => venda(100)) })
     ).toBeNull();
+  });
+});
+
+describe("comissão pendente (assinaturas/ativação)", () => {
+  it("venda pendente PONTUA a meta mas não entra na comissão", () => {
+    // meta 10: 8 liberadas + 2 pendentes → atingimento 100% (degrau 55 + bônus 300)
+    // mas a base paga só considera as 8 liberadas
+    const vendas = [
+      ...Array.from({ length: 8 }, () => venda(100)),
+      pendente(100),
+      pendente(100),
+    ];
+    const r = calcularComissao({ vendas, metaMensal: 10, degraus: DEGRAUS, gatilhos: [] });
+    expect(r.atingimentoPct).toBe(100);
+    expect(r.vendasComissionaveis).toBe(8);
+    expect(r.vendasPendentes).toBe(2);
+    expect(r.valorBase).toBe(8 * 55);
+    expect(r.total).toBe(8 * 55 + 300);
+    expect(r.totalSeLiberar).toBe(10 * 55 + 300);
+  });
+
+  it("percentual da receita: receita pendente fica fora", () => {
+    const vendas = [venda(100), pendente(200)];
+    const r = calcularComissao({
+      vendas,
+      metaMensal: 2,
+      degraus: [{ atingimento_min: 0, atingimento_max: null, tipo: "percentual_receita", valor: 10 }],
+      gatilhos: [],
+    });
+    expect(r.valorBase).toBeCloseTo(10);
+    expect(r.totalSeLiberar).toBeCloseTo(30);
+  });
+
+  it("estornada não pontua nem libera; pendente pontua", () => {
+    const vendas = [venda(100), pendente(100), venda(100, null, true)];
+    const r = calcularComissao({ vendas, metaMensal: 10, degraus: DEGRAUS, gatilhos: [] });
+    expect(r.estornos).toBe(1);
+    expect(r.vendasPendentes).toBe(1);
+    expect(r.atingimentoPct).toBe(20); // 2 válidas de meta 10
   });
 });

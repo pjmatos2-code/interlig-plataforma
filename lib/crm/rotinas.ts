@@ -69,7 +69,7 @@ export async function reconciliarTickets(): Promise<number> {
 
   const { data: pendentes } = await admin
     .from("tickets")
-    .select("id, cpf, telefone, criado_em, fechado_em, origem_cadastro")
+    .select("id, cpf, telefone, criado_em, fechado_em, origem_cadastro, vendedor_id")
     .eq("etapa", "fechado")
     .eq("desfecho", "convertido")
     .is("contrato_id", null)
@@ -118,12 +118,20 @@ export async function reconciliarTickets(): Promise<number> {
     if (error) continue;
     reconciliados += 1;
 
-    // origem do ticket vira a origem oficial do cadastro (PRD 3.9)
-    if (t.origem_cadastro) {
+    // origem do ticket vira a origem oficial do cadastro (PRD 3.9) e a
+    // vendedora do ticket é ATRIBUÍDA à venda (critério D5) — sem sobrescrever
+    // atribuição já existente (manual ou anterior)
+    const atualizacao: Record<string, unknown> = {};
+    if (t.origem_cadastro) atualizacao.origem_cadastro = t.origem_cadastro;
+    if (Object.keys(atualizacao).length > 0) {
+      await admin.from("contratos").update(atualizacao).eq("id", escolhido.id);
+    }
+    if (t.vendedor_id) {
       await admin
         .from("contratos")
-        .update({ origem_cadastro: t.origem_cadastro })
-        .eq("id", escolhido.id);
+        .update({ vendedor_id: t.vendedor_id })
+        .eq("id", escolhido.id)
+        .is("vendedor_id", null);
     }
   }
   return reconciliados;

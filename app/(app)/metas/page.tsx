@@ -199,8 +199,9 @@ export default async function MetasPage({
                     <th className="px-3 py-2.5 text-right font-medium">Vendas válidas</th>
                     <th className="px-3 py-2.5 text-right font-medium">Atingimento</th>
                     <th className="px-3 py-2.5 text-right font-medium">Degrau</th>
+                    <th className="px-3 py-2.5 text-right font-medium">Pendentes</th>
                     <th className="px-3 py-2.5 text-right font-medium">Estornos</th>
-                    <th className="px-3 py-2.5 text-right font-medium">Comissão</th>
+                    <th className="px-3 py-2.5 text-right font-medium">Comissão liberada</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -223,6 +224,15 @@ export default async function MetasPage({
                               : "—"}
                           </td>
                           <td className="px-3 py-2.5 text-right tabular-nums">
+                            {c.resultado.vendasPendentes > 0 ? (
+                              <Badge variant="amarelo" title="Aguardando assinaturas/ativação/CRM">
+                                {c.resultado.vendasPendentes}
+                              </Badge>
+                            ) : (
+                              "0"
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums">
                             {c.resultado.estornos > 0 ? (
                               <Badge variant="vermelho">{c.resultado.estornos}</Badge>
                             ) : (
@@ -234,7 +244,7 @@ export default async function MetasPage({
                           </td>
                         </>
                       ) : (
-                        <td colSpan={5} className="px-3 py-2.5 text-right text-xs text-muted-foreground">
+                        <td colSpan={6} className="px-3 py-2.5 text-right text-xs text-muted-foreground">
                           {c.metaMensal === null ? "sem meta cadastrada" : "sem regra de comissão vigente"}
                         </td>
                       )}
@@ -245,7 +255,7 @@ export default async function MetasPage({
                   <tfoot>
                     <tr className="bg-muted/30 text-sm font-semibold">
                       <td className="px-4 py-2.5">Total do time</td>
-                      <td colSpan={4} />
+                      <td colSpan={5} />
                       <td className="px-3 py-2.5 text-right tabular-nums">
                         {formatarMoeda(
                           comissoes.reduce((s, c) => s + (c.resultado?.total ?? 0), 0)

@@ -12,7 +12,7 @@ import type { SgpContrato } from "@/lib/sgp/tipos";
 
 type Admin = ReturnType<typeof criarClienteAdmin>;
 
-const ENTIDADES = ["planos", "clientes", "contratos", "titulos"] as const;
+const ENTIDADES = ["planos", "clientes", "contratos", "titulos", "assinaturas"] as const;
 export type Entidade = (typeof ENTIDADES)[number];
 
 async function iniciarRun(admin: Admin, entidade: string) {
@@ -144,7 +144,7 @@ export async function executarSync(): Promise<ResultadoSync> {
             admin.from("vendedores").select("id, sgp_vendedor_id, pop_id"),
             admin
               .from("contratos")
-              .select("sgp_contrato_id, data_cancelamento, vendedor_id")
+              .select("sgp_contrato_id, data_cancelamento, vendedor_id, data_assinatura, assinaturas_verificadas_em")
               .not("sgp_contrato_id", "is", null)
               .limit(20000),
           ]);
@@ -173,6 +173,10 @@ export async function executarSync(): Promise<ResultadoSync> {
               ? (antes.data_cancelamento as string)
               : c.data_cancelamento;
           const vendedorFinal = vendedor?.id ?? (antes?.vendedor_id as string | null) ?? null;
+          // assinatura governada pelo verificador de tags depois de verificada
+          const dataAssinatura = antes?.assinaturas_verificadas_em
+            ? ((antes.data_assinatura as string | null) ?? null)
+            : c.data_assinatura;
           const { error } = await admin.from("contratos").upsert(
             {
               sgp_contrato_id: c.sgp_contrato_id,
@@ -185,7 +189,7 @@ export async function executarSync(): Promise<ResultadoSync> {
               status: normalizarStatus(c),
               origem_cadastro: origem(c.origem_cadastro_sgp),
               data_venda: c.data_venda,
-              data_assinatura: c.data_assinatura,
+              data_assinatura: dataAssinatura,
               data_ativacao: c.data_ativacao,
               data_cancelamento: dataCancelamento,
               motivo_cancelamento: c.motivo_cancelamento,
@@ -247,6 +251,74 @@ export async function executarSync(): Promise<ResultadoSync> {
       const msg = e instanceof Error ? e.message : String(e);
       await finalizarRun(admin, run, "erro", 0, msg);
       execucoes.push({ entidade: "titulos", registros: 0, status: "erro", erro: msg });
+    }
+  }
+
+  // ---------- assinaturas eletrônicas (tags do contrato no SGP) ----------
+  // Critério D5: comissão só libera com Termo de Adesão + Fidelidade assinados.
+  // Verifica os contratos recentes ainda não confirmados, em lotes por execução.
+  if (sgp.modo === "real") {
+    const run = await iniciarRun(admin, "assinaturas");
+    try {
+      const corte = new Date(Date.now() - 120 * 86_400_000).toISOString().slice(0, 10);
+      const { data: pendentes } = await admin
+        .from("contratos")
+        .select("id, sgp_contrato_id, data_assinatura, data_venda")
+        .neq("status", "cancelado")
+        .gte("data_venda", corte)
+        .or("termo_adesao_assinado.is.null,termo_adesao_assinado.eq.false,fidelidade_assinada.is.null,fidelidade_assinada.eq.false")
+        .order("data_venda", { ascending: false })
+        .limit(200);
+
+      let verificados = 0;
+      const { lerConfigSgp } = await import("@/lib/integracoes/config");
+      const cfg = await lerConfigSgp();
+      const base = (cfg.base_url ?? "").replace(/\/+$/, "").replace(/\/admin$/, "");
+      for (const c of pendentes ?? []) {
+        try {
+          const resposta = await fetch(`${base}/api/ura/consultacliente/`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: cfg.token, app: cfg.app, contrato: Number(c.sgp_contrato_id) }),
+            signal: AbortSignal.timeout(20_000),
+            cache: "no-store",
+          });
+          if (!resposta.ok) continue;
+          const detalhe = (await resposta.json()) as {
+            contratos?: { contratoId?: number; tags?: { tag?: string }[] }[];
+          };
+          const contrato =
+            (detalhe.contratos ?? []).find((x) => String(x.contratoId) === c.sgp_contrato_id) ??
+            (detalhe.contratos ?? [])[0];
+          if (!contrato) continue;
+          const tags = (contrato.tags ?? []).map((t) => (t.tag ?? "").toUpperCase());
+          const adesao = tags.some((t) => t.includes("ADESÃO") || t.includes("ADESAO"));
+          const fidelidade = tags.some((t) => t.includes("FIDELIDADE"));
+          await admin
+            .from("contratos")
+            .update({
+              termo_adesao_assinado: adesao,
+              fidelidade_assinada: fidelidade,
+              assinaturas_verificadas_em: new Date().toISOString(),
+              // esteira real: sem as duas assinaturas, o contrato volta a
+              // "pendente de assinatura"; com as duas, mantém/assume a data
+              data_assinatura:
+                adesao && fidelidade
+                  ? c.data_assinatura ?? new Date().toISOString().slice(0, 10)
+                  : null,
+            })
+            .eq("id", c.id);
+          verificados += 1;
+        } catch {
+          // contrato inacessível nesta rodada: tenta na próxima
+        }
+      }
+      await finalizarRun(admin, run, "sucesso", verificados);
+      execucoes.push({ entidade: "assinaturas" as Entidade, registros: verificados, status: "sucesso" });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await finalizarRun(admin, run, "erro", 0, msg);
+      execucoes.push({ entidade: "assinaturas" as Entidade, registros: 0, status: "erro", erro: msg });
     }
   }
 

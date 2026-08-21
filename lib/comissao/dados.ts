@@ -21,7 +21,11 @@ export type RegraComissao = {
 };
 
 type ContratoC = ContratoIndicador & {
+  id: string;
   vendedor_id: string | null;
+  plano_id: string | null;
+  termo_adesao_assinado: boolean | null;
+  fidelidade_assinada: boolean | null;
   planos: { nome: string } | null;
 };
 
@@ -80,13 +84,13 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
   const fim = ultimoDiaDoMes(mes);
   const ateData = fim < hoje ? fim : hoje;
 
-  const [{ data: vendedoras }, { data: contratosBrutos }, { data: metas }, regras] =
+  const [{ data: vendedoras }, { data: contratosBrutos }, { data: metas }, regras, { data: ticketsConvertidos }] =
     await Promise.all([
       supabase.from("vendedores").select("id, nome, pop_id").eq("ativo", true).order("nome"),
       supabase
         .from("contratos")
         .select(
-          "data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, planos(nome)"
+          "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, plano_id, termo_adesao_assinado, fidelidade_assinada, planos(nome)"
         )
         .gte("data_venda", mes)
         .lte("data_venda", fim)
@@ -97,7 +101,20 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
         .eq("escopo", "vendedora")
         .eq("mes_ano", mes),
       regrasVigentes(mes),
+      supabase
+        .from("tickets")
+        .select("contrato_id, vendedor_id, plano_id")
+        .eq("etapa", "fechado")
+        .eq("desfecho", "convertido")
+        .not("contrato_id", "is", null)
+        .limit(3000),
     ]);
+
+  // critério D5: liberação exige ticket convertido reconciliado com o MESMO
+  // plano e a MESMA vendedora do contrato
+  const ticketPorContrato = new Map(
+    (ticketsConvertidos ?? []).map((t) => [t.contrato_id as string, t])
+  );
 
   const contratos = (contratosBrutos ?? []) as unknown as ContratoC[];
   const metaPor = new Map(
@@ -123,15 +140,27 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
       mes,
       ateData
     );
-    const vendas: VendaComissao[] = proprias.map((c) => {
+    const vendas: VendaComissao[] = proprias.map((contrato) => {
+      const c = contrato as ContratoC;
       const referencia = c.data_ativacao ?? c.data_venda;
       const estornada =
         c.data_cancelamento !== null &&
         dias(referencia, c.data_cancelamento) <= regra.estorno_dias;
+
+      // ---- liberação da comissão (critério D5) ----
+      const ticket = ticketPorContrato.get(c.id);
+      const crmOk =
+        ticket !== undefined &&
+        ticket.vendedor_id === c.vendedor_id &&
+        (ticket.plano_id === null || c.plano_id === null || ticket.plano_id === c.plano_id);
+      const assinaturasOk = c.termo_adesao_assinado === true && c.fidelidade_assinada === true;
+      const liberada = crmOk && assinaturasOk && c.status === "ativo";
+
       return {
         valor_mensalidade: c.valor_mensalidade,
-        plano: (c as ContratoC).planos?.nome ?? null,
+        plano: c.planos?.nome ?? null,
         estornada,
+        liberada,
       };
     });
 

@@ -41,10 +41,16 @@ export function SimuladorComissao({
             <p className="text-xs text-muted-foreground">Comissão acumulada no mês</p>
             <p className="text-2xl font-semibold tabular-nums">{formatarMoeda(atual.total)}</p>
             <p className="text-xs text-muted-foreground">
-              {formatarNumero(atual.vendasComissionaveis)} venda(s) ·{" "}
+              {formatarNumero(atual.vendasComissionaveis)} venda(s) liberada(s) ·{" "}
               {atual.atingimentoPct.toFixed(0)}% da meta
               {atual.estornos > 0 && ` · ${atual.estornos} estornada(s)`}
             </p>
+            {atual.vendasPendentes > 0 && (
+              <p className="mt-1 rounded bg-farol-amarelo/10 px-2 py-1 text-xs text-yellow-700">
+                ⏳ {atual.vendasPendentes} venda(s) com comissão pendente (assinaturas/ativação/CRM)
+                — libera até {formatarMoeda(atual.totalSeLiberar)}
+              </p>
+            )}
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Se eu vender mais…</p>
