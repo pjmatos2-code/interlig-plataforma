@@ -35,12 +35,20 @@ export default async function VendedorasPage({
         descricao={`${formatarData(periodo.de)} a ${formatarData(periodo.ate)} · % da meta e pace referem-se sempre ao mês corrente`}
       />
 
-      <FiltrosDashboard
-        pops={pops ?? []}
-        mostrarPop={usuario.perfil === "gestor"}
-        de={periodo.de}
-        ate={periodo.ate}
-      />
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <FiltrosDashboard
+          pops={pops ?? []}
+          mostrarPop={usuario.perfil === "gestor"}
+          de={periodo.de}
+          ate={periodo.ate}
+        />
+        <Link
+          href="/vendedoras/atribuir"
+          className="mb-5 rounded-md border px-3 py-2 text-sm font-medium hover:border-interlig-ceu"
+        >
+          Atribuir vendas →
+        </Link>
+      </div>
 
       <Card>
         <CardContent className="p-0">
