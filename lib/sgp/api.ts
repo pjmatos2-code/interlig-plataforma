@@ -2,59 +2,219 @@ import type { ConfigSgp } from "@/lib/integracoes/config";
 import type { SgpClient, SgpCliente, SgpContrato, SgpPlano, SgpTitulo } from "./tipos";
 
 /**
- * SgpApiClient — cliente REAL da API do SGP (bookstack.sgp.net.br).
- * Autenticação por token + app enviados no corpo (PRD 7.1).
+ * SgpApiClient — API URA real da instância da Interlig (docs/decisoes.md D3).
+ * Fonte única: varredura paginada de /api/ura/clientes/ (contratos e títulos
+ * vêm embutidos). A varredura é feita UMA vez por execução de sync e
+ * memoizada para alimentar os quatro listar*.
  *
- * ATENÇÃO (Fase 0): os caminhos de endpoint e o mapeamento campo-a-campo
- * abaixo são o esqueleto padrão do SGP e serão confirmados contra a instância
- * da Interlig pelo scripts/sgp-discovery.mjs assim que as credenciais
- * existirem. Até lá, use SGP_MODE=mock.
+ * Aproximações da D3: sem vendedor, datas de assinatura/ativação assumem o
+ * cadastro, mensalidade = título mais recente. Escopo: só os POPs abaixo.
  */
+
+const CIDADES_ESCOPO = new Map([
+  ["ALTAMIRA", "Altamira"],
+  ["VITORIA DO XINGU", "Vitória do Xingu"],
+  ["BRASIL NOVO", "Brasil Novo"],
+]);
+const PAGINA = 100; // limite máximo aceito pela API
+
+type BrutoCliente = {
+  id: number;
+  nome: string;
+  cpfcnpj: string | null;
+  endereco?: { bairro?: string; cidade?: string; latitude?: string; longitude?: string };
+  contatos?: { telefones?: string[]; celulares?: string[] };
+  contratos?: BrutoContrato[];
+  titulos?: BrutoTitulo[];
+};
+type BrutoContrato = {
+  id: number;
+  status?: string;
+  motivo_status?: string;
+  dataCadastro?: string;
+  servicos?: { tipo?: string; plano?: { id?: number; descricao?: string } }[];
+};
+type BrutoTitulo = {
+  id: number;
+  clientecontrato_id: number;
+  status?: string;
+  valor?: number | string;
+  valorCorrigido?: number | string;
+  dataVencimento?: string;
+  dataPagamento?: string;
+};
+
+const semAcento = (s: string | undefined) =>
+  (s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().trim();
+const num = (v: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+const dataBr = (s: string | undefined | null): string | null => {
+  if (!s) return null;
+  const br = String(s).match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  const iso = String(s).match(/^(\d{4}-\d{2}-\d{2})/);
+  return iso ? iso[1] : null;
+};
+
 export class SgpApiClient implements SgpClient {
   modo = "real" as const;
+  private varredura: Promise<BrutoCliente[]> | null = null;
 
   constructor(private cfg: ConfigSgp) {}
 
   private get config() {
     const { base_url, token, app } = this.cfg;
     if (!base_url || !token || !app) {
-      throw new Error(
-        "Modo real exige URL, token e app do SGP — cadastre em Admin → Integrações."
-      );
+      throw new Error("Modo real exige URL, token e app do SGP — cadastre em Admin → Integrações.");
     }
-    return { base: base_url.replace(/\/$/, ""), token, app };
+    // a API mora na raiz do domínio (sem /admin)
+    const base = base_url.replace(/\/+$/, "").replace(/\/admin$/, "");
+    return { base, token, app };
   }
 
   private async chamar<T>(rota: string, corpo: Record<string, unknown> = {}): Promise<T> {
     const { base, token, app } = this.config;
-    const resposta = await fetch(`${base}${rota}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, app, ...corpo }),
-      cache: "no-store",
-    });
-    if (!resposta.ok) {
-      throw new Error(`SGP ${rota} respondeu ${resposta.status}`);
+    for (let tentativa = 0; tentativa < 3; tentativa++) {
+      try {
+        const resposta = await fetch(`${base}${rota}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, app, ...corpo }),
+          signal: AbortSignal.timeout(45_000),
+          cache: "no-store",
+        });
+        if (!resposta.ok) throw new Error(`SGP ${rota} respondeu ${resposta.status}`);
+        return (await resposta.json()) as T;
+      } catch (e) {
+        if (tentativa === 2) throw e;
+        await new Promise((r) => setTimeout(r, 1200));
+      }
     }
-    return (await resposta.json()) as T;
+    throw new Error("inalcançável");
+  }
+
+  /** Varre todos os clientes (memoizado por execução) e filtra o escopo. */
+  private escanear(): Promise<BrutoCliente[]> {
+    this.varredura ??= (async () => {
+      const todos: BrutoCliente[] = [];
+      let offset = 0;
+      let total = Infinity;
+      while (offset < total) {
+        const pagina = await this.chamar<{
+          paginacao: { total: number };
+          clientes: BrutoCliente[];
+        }>("/api/ura/clientes/", { limit: PAGINA, offset });
+        total = pagina.paginacao.total;
+        todos.push(...pagina.clientes);
+        offset += PAGINA;
+      }
+      return todos.filter((c) => CIDADES_ESCOPO.has(semAcento(c.endereco?.cidade)));
+    })();
+    return this.varredura;
   }
 
   async listarPlanos(): Promise<SgpPlano[]> {
-    // TODO Fase 0: confirmar rota e formato na instância da Interlig
-    const bruto = await this.chamar<{ planos?: unknown[] }>("/api/ura/planos/");
-    void bruto;
-    throw new Error(
-      "Mapeamento real do SGP pendente da Fase 0 (rodar scripts/sgp-discovery.mjs com as credenciais)."
-    );
+    const clientes = await this.escanear();
+    const planos = new Map<string, SgpPlano>();
+    for (const c of clientes) {
+      for (const ct of c.contratos ?? []) {
+        const servico = (ct.servicos ?? []).find((s) => s.tipo !== "tv") ?? (ct.servicos ?? [])[0];
+        if (servico?.plano?.id && !planos.has(String(servico.plano.id))) {
+          planos.set(String(servico.plano.id), {
+            sgp_plano_id: String(servico.plano.id),
+            nome: servico.plano.descricao ?? `Plano ${servico.plano.id}`,
+            velocidade: null,
+            valor_referencia: 0,
+            ativo: true,
+          });
+        }
+      }
+    }
+    return [...planos.values()];
   }
 
   async listarClientes(): Promise<SgpCliente[]> {
-    throw new Error("Mapeamento real do SGP pendente da Fase 0.");
+    const clientes = await this.escanear();
+    return clientes.map((c) => ({
+      sgp_cliente_id: String(c.id),
+      nome: c.nome ?? "—",
+      cpf: c.cpfcnpj ?? null,
+      telefone: c.contatos?.celulares?.[0] ?? c.contatos?.telefones?.[0] ?? null,
+      bairro: c.endereco?.bairro ?? null,
+      cidade: CIDADES_ESCOPO.get(semAcento(c.endereco?.cidade)) ?? null,
+      origem_cadastro_sgp: null, // não exposto pela URA (D3)
+    }));
   }
+
   async listarContratos(): Promise<SgpContrato[]> {
-    throw new Error("Mapeamento real do SGP pendente da Fase 0.");
+    const clientes = await this.escanear();
+    const contratos: SgpContrato[] = [];
+    for (const c of clientes) {
+      const titulosPorContrato = new Map<string, BrutoTitulo[]>();
+      for (const t of c.titulos ?? []) {
+        const k = String(t.clientecontrato_id);
+        if (!titulosPorContrato.has(k)) titulosPorContrato.set(k, []);
+        titulosPorContrato.get(k)!.push(t);
+      }
+      for (const ct of c.contratos ?? []) {
+        const dataVenda = dataBr(ct.dataCadastro);
+        if (!dataVenda) continue;
+        const st = semAcento(ct.status);
+        const cancelado = st.includes("CANCEL");
+        const servico = (ct.servicos ?? []).find((s) => s.tipo !== "tv") ?? (ct.servicos ?? [])[0];
+        const recentes = (titulosPorContrato.get(String(ct.id)) ?? [])
+          .filter((t) => t.status !== "cancelado" && dataBr(t.dataVencimento))
+          .sort((a, b) => (dataBr(a.dataVencimento)! < dataBr(b.dataVencimento)! ? 1 : -1));
+        contratos.push({
+          sgp_contrato_id: String(ct.id),
+          sgp_cliente_id: String(c.id),
+          sgp_plano_id: servico?.plano?.id ? String(servico.plano.id) : null,
+          sgp_vendedor_id: null, // não exposto pela URA (D3)
+          valor_mensalidade: num(recentes[0]?.valorCorrigido ?? recentes[0]?.valor),
+          valor_instalacao: 0,
+          status_sgp: ct.status ?? "",
+          origem_cadastro_sgp: null,
+          data_venda: dataVenda,
+          data_assinatura: dataVenda, // aproximação D3
+          data_ativacao: dataVenda, // aproximação D3
+          data_cancelamento: cancelado ? dataVenda : null, // o worker preserva data melhor
+          motivo_cancelamento: cancelado ? ct.motivo_status || null : null,
+        });
+      }
+    }
+    return contratos;
   }
+
   async listarTitulos(): Promise<SgpTitulo[]> {
-    throw new Error("Mapeamento real do SGP pendente da Fase 0.");
+    const clientes = await this.escanear();
+    const titulos: SgpTitulo[] = [];
+    for (const c of clientes) {
+      const porContrato = new Map<string, BrutoTitulo[]>();
+      for (const t of c.titulos ?? []) {
+        const k = String(t.clientecontrato_id);
+        if (!porContrato.has(k)) porContrato.set(k, []);
+        porContrato.get(k)!.push(t);
+      }
+      for (const [contratoId, lista] of porContrato) {
+        const ordenados = lista
+          .filter((t) => dataBr(t.dataVencimento))
+          .sort((a, b) => (dataBr(a.dataVencimento)! < dataBr(b.dataVencimento)! ? -1 : 1));
+        ordenados.forEach((t, i) => {
+          titulos.push({
+            sgp_titulo_id: String(t.id),
+            sgp_contrato_id: contratoId,
+            numero_parcela: i + 1,
+            valor: num(t.valorCorrigido ?? t.valor),
+            vencimento: dataBr(t.dataVencimento)!,
+            data_pagamento: dataBr(t.dataPagamento),
+            status:
+              t.status === "pago" ? "liquidado" : t.status === "cancelado" ? "cancelado" : "aberto",
+          });
+        });
+      }
+    }
+    return titulos;
   }
 }

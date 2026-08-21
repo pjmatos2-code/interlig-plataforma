@@ -137,12 +137,21 @@ export async function executarSync(): Promise<ResultadoSync> {
 
       if (contratos.length > 0) {
         // resolve FKs por id do SGP
-        const [{ data: clientes }, { data: planos }, { data: vendedores }] = await Promise.all([
-          admin.from("clientes").select("id, sgp_cliente_id, cidade"),
-          admin.from("planos").select("id, sgp_plano_id"),
-          admin.from("vendedores").select("id, sgp_vendedor_id, pop_id"),
-        ]);
+        const [{ data: clientes }, { data: planos }, { data: vendedores }, { data: existentes }] =
+          await Promise.all([
+            admin.from("clientes").select("id, sgp_cliente_id, cidade"),
+            admin.from("planos").select("id, sgp_plano_id"),
+            admin.from("vendedores").select("id, sgp_vendedor_id, pop_id"),
+            admin
+              .from("contratos")
+              .select("sgp_contrato_id, data_cancelamento, vendedor_id")
+              .not("sgp_contrato_id", "is", null)
+              .limit(20000),
+          ]);
         const { data: pops } = await admin.from("pops").select("id, cidade");
+        const anterior = new Map(
+          (existentes ?? []).map((e) => [e.sgp_contrato_id as string, e])
+        );
 
         const clientePorSgp = new Map((clientes ?? []).map((c) => [c.sgp_cliente_id, c]));
         const planoPorSgp = new Map((planos ?? []).map((p) => [p.sgp_plano_id, p.id]));
@@ -157,11 +166,18 @@ export async function executarSync(): Promise<ResultadoSync> {
           }
           // vendedor não mapeado → null: aparece como "não atribuída", nunca some (PRD seção 2)
           const vendedor = c.sgp_vendedor_id ? vendedorPorSgp.get(c.sgp_vendedor_id) : undefined;
+          const antes = anterior.get(c.sgp_contrato_id);
+          // não regride: mantém data de cancelamento enriquecida e atribuição manual
+          const dataCancelamento =
+            c.data_cancelamento && antes?.data_cancelamento
+              ? (antes.data_cancelamento as string)
+              : c.data_cancelamento;
+          const vendedorFinal = vendedor?.id ?? (antes?.vendedor_id as string | null) ?? null;
           const { error } = await admin.from("contratos").upsert(
             {
               sgp_contrato_id: c.sgp_contrato_id,
               cliente_id: cliente.id,
-              vendedor_id: vendedor?.id ?? null,
+              vendedor_id: vendedorFinal,
               plano_id: c.sgp_plano_id ? planoPorSgp.get(c.sgp_plano_id) ?? null : null,
               pop_id: vendedor?.pop_id ?? popPorCidade.get(cliente.cidade ?? "") ?? null,
               valor_mensalidade: c.valor_mensalidade,
@@ -171,7 +187,7 @@ export async function executarSync(): Promise<ResultadoSync> {
               data_venda: c.data_venda,
               data_assinatura: c.data_assinatura,
               data_ativacao: c.data_ativacao,
-              data_cancelamento: c.data_cancelamento,
+              data_cancelamento: dataCancelamento,
               motivo_cancelamento: c.motivo_cancelamento,
               sync_updated_at: new Date().toISOString(),
             },

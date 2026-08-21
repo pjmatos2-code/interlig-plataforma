@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { executarSync } from "@/lib/sync/worker";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * Rota do worker de sync (PRD 7.1) — chamada pelo cron (Vercel Cron a cada
