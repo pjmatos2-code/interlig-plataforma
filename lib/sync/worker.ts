@@ -59,7 +59,7 @@ export type ResultadoSync = {
 
 export async function executarSync(): Promise<ResultadoSync> {
   const admin = criarClienteAdmin();
-  const sgp = criarClienteSgp();
+  const sgp = await criarClienteSgp();
   const execucoes: ResultadoSync["execucoes"] = [];
 
   // de/para de origem (PRD 3.10)

@@ -1,3 +1,4 @@
+import type { ConfigSgp } from "@/lib/integracoes/config";
 import type { SgpClient, SgpCliente, SgpContrato, SgpPlano, SgpTitulo } from "./tipos";
 
 /**
@@ -12,16 +13,16 @@ import type { SgpClient, SgpCliente, SgpContrato, SgpPlano, SgpTitulo } from "./
 export class SgpApiClient implements SgpClient {
   modo = "real" as const;
 
+  constructor(private cfg: ConfigSgp) {}
+
   private get config() {
-    const base = process.env.SGP_BASE_URL;
-    const token = process.env.SGP_TOKEN;
-    const app = process.env.SGP_APP;
-    if (!base || !token || !app) {
+    const { base_url, token, app } = this.cfg;
+    if (!base_url || !token || !app) {
       throw new Error(
-        "SGP_MODE=real exige SGP_BASE_URL, SGP_TOKEN e SGP_APP no ambiente (.env.local)."
+        "Modo real exige URL, token e app do SGP — cadastre em Admin → Integrações."
       );
     }
-    return { base: base.replace(/\/$/, ""), token, app };
+    return { base: base_url.replace(/\/$/, ""), token, app };
   }
 
   private async chamar<T>(rota: string, corpo: Record<string, unknown> = {}): Promise<T> {

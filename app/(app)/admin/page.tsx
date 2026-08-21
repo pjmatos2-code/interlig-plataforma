@@ -105,6 +105,21 @@ export default async function AdminPage() {
         </CardContent>
       </Card>
 
+      <Card className="mb-6 border-interlig-ceu/50">
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardTitle>Integrações (SGP e SZ Chat)</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+          <p>
+            Módulo de autosserviço para o responsável pela integração: credenciais, teste de
+            conexão, descoberta de endpoints e evento de teste do webhook.
+          </p>
+          <a href="/admin/integracoes" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            Abrir módulo de integrações →
+          </a>
+        </CardContent>
+      </Card>
+
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Usuários e perfis</CardTitle>

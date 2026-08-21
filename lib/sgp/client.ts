@@ -1,15 +1,16 @@
+import "server-only";
 import { SgpApiClient } from "./api";
 import { SgpMockClient } from "./mock";
+import { lerConfigSgp } from "@/lib/integracoes/config";
 import type { SgpClient } from "./tipos";
 
 /**
- * Seleção do cliente SGP via SGP_MODE=mock|real (CLAUDE.md).
- * Quando as credenciais chegarem: preencher o .env e trocar o modo —
- * nenhuma tela muda.
+ * Seleção do cliente SGP. O modo e as credenciais vêm do módulo de
+ * Integrações (banco), com fallback nas variáveis de ambiente (CLAUDE.md).
  */
-export function criarClienteSgp(): SgpClient {
-  const modo = (process.env.SGP_MODE ?? "mock").toLowerCase();
-  if (modo === "real") return new SgpApiClient();
+export async function criarClienteSgp(): Promise<SgpClient> {
+  const config = await lerConfigSgp();
+  if (config.modo === "real") return new SgpApiClient(config);
   return new SgpMockClient();
 }
 

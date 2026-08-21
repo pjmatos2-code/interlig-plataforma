@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
+import { lerConfigSzchat } from "@/lib/integracoes/config";
 import { normalizarTelefone } from "@/lib/indicadores/crm";
 
 export const dynamic = "force-dynamic";
@@ -26,8 +27,8 @@ type PayloadSz = {
 };
 
 export async function POST(request: Request) {
-  // ---------- segredo ----------
-  const segredo = process.env.SZCHAT_WEBHOOK_SECRET;
+  // ---------- segredo (banco via Admin → Integrações; fallback env) ----------
+  const segredo = (await lerConfigSzchat()).webhook_secret;
   if (!segredo) {
     return NextResponse.json(
       { erro: "SZCHAT_WEBHOOK_SECRET não configurado no servidor" },
