@@ -152,3 +152,32 @@ POP Altamira.
    "Vendedor" (exportar e importaremos) ou daqui em diante via CRM.
 3. Metas reais por vendedora/POP (tela /metas) — sem metas, % e pace ficam
    "sem meta cadastrada" de propósito.
+
+## D4 — Comissionamento Multissetorial (documento oficial, 21/08/2026)
+
+Fonte: "Diretrizes de Configuração - Comissionamento Multisetorial.docx"
+(pasta Anotaçoes/Comissoes Mensais do Paulo). Modelo escalonado com GATILHO DE
+ATIVAÇÃO (abaixo do piso, comissão zero — o motor cobre isso não tendo degrau
+abaixo do piso).
+
+**Aplicado na plataforma (regras por vendedora, vigência 08/2026):**
+- **Time Interno (SZ Chat/CRM)** — Damely e Karoline · meta 70/mês ·
+  80–100%: 7% · 101–120%: 8% · 121–142%: 10% · ≥143%: 15% (VTV) · <80%: zero.
+- **Time Externo (PAP)** — Andrea, Janaína, Tamiris e Ivanilda VTX (Vitória
+  do Xingu) · meta 25/mês · faixas por quantidade convertidas em %:
+  16–19 vendas (64%): 10% · 20–23 (80%): 15% · 24–39 (96%): 20% · ≥40 (160%): 25%.
+- Estorno por early churn 90 dias já coberto pelo motor.
+- Metas por POP derivadas da soma das vendedoras da praça.
+
+**Setores do documento AINDA NÃO modelados (evolução futura):**
+3. Refidelização (Talia e Klebiana — % sobre ticket de planos renovados);
+4. Retenção (Breno — piso R$ 10/salvo + duplo gatilho taxa×volume, clawback 30d);
+5. Coordenações (Carlos: 10% do VTV do trio de Altamira; Aline: 3% do VTV da
+   praça Brasil Novo);
+6. Override gerencial (3 gatilhos simultâneos, downgrade e risco de zerar).
+Esses exigem novas fontes de dados (renovações, atendimentos de retenção) e
+tipos de regra próprios.
+
+**Pendência-chave que segue aberta:** atribuição venda→vendedora (a comissão
+real só ganha valor quando as vendas forem atribuídas — via CRM ou relatório
+do SGP com coluna Vendedor).

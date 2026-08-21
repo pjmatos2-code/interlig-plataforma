@@ -12,6 +12,7 @@ import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { comissoesDoMes } from "@/lib/comissao/dados";
 import { SimuladorComissao } from "@/components/comissao/simulador";
 import { PainelFechamento } from "@/components/comissao/fechamento";
+import { GestaoRegrasComissao, type RegraListada } from "@/components/comissao/gestao-regras";
 import { formatarMoeda } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { CartaoKpi } from "@/components/dashboard/cartao-kpi";
@@ -122,6 +123,25 @@ export default async function MetasPage({
     ? comissoes.find((c) => c.vendedorId === usuario.vendedor_id) ?? null
     : null;
   const mesAnterior = mesAtras(mesAtual, 1);
+  const { data: regrasBrutas } = ehGestor
+    ? await supabase
+        .from("regras_comissao")
+        .select("id, escopo, referencia_id, vigencia_inicio, vigencia_fim, degraus, gatilhos, estorno_dias")
+        .order("vigencia_inicio", { ascending: false })
+    : { data: [] };
+  const regrasListadas: RegraListada[] = (regrasBrutas ?? []).map((r) => ({
+    id: r.id,
+    escopo: r.escopo,
+    referencia:
+      r.escopo === "global"
+        ? "Toda a operação"
+        : nomes.get(r.referencia_id as string) ?? "—",
+    vigencia_inicio: r.vigencia_inicio,
+    vigencia_fim: r.vigencia_fim,
+    degraus: r.degraus,
+    gatilhos: r.gatilhos,
+    estorno_dias: r.estorno_dias,
+  }));
   const { data: fechadas } = await supabase
     .from("comissoes_fechadas")
     .select("vendedor_id, mes_ano, valor_total, fechado_em, vendedores(nome)")
@@ -236,6 +256,22 @@ export default async function MetasPage({
                 )}
               </table>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {ehGestor && (
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle>Regras de comissão — por vendedora, equipe ou global</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <GestaoRegrasComissao
+              regras={regrasListadas}
+              pops={pops ?? []}
+              vendedoras={vendedoras ?? []}
+              mesAtual={mesAtual.slice(0, 7)}
+            />
           </CardContent>
         </Card>
       )}
@@ -362,8 +398,8 @@ export default async function MetasPage({
       </Card>
 
       <p className="mt-4 text-xs text-muted-foreground">
-        Regra de comissão vigente: degraus e gatilhos parametrizados no banco (regras_comissao),
-        estorno casado com o churn precoce. Edição de regras pela tela entra com o Admin completo.
+        Metas e regras de comissão são parametrizáveis por vendedora, equipe (POP) e global,
+        com vigência e histórico preservados (PRD 3.7 e seção 6).
       </p>
     </>
   );
