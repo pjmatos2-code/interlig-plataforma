@@ -135,3 +135,20 @@ as datas/motivos reais de cancelamento (abr–ago/2026, 1.184 contratos) vieram
 do relatório "Contratos Cancelados" do SGP via scripts/importar-cancelados.py
 + aplicar-cancelados.mjs — repetir a importação periodicamente (ou descobrir
 rota/admin API) para manter o churn fiel.
+
+**Limpeza pós-carga (21/08/2026):** removidos todos os dados fictícios
+restantes (8 vendedoras, POPs Santarém/Itaituba/Oriximiná, metas do seed,
+mapeamentos SZ de demonstração). Regra de comissão substituída pela REAL da
+planilha interna "COMISSÃO VENDEDORES internos": 7% da receita até 100% da
+meta, 8% de 101–120%, 10% acima de 121% (validar com o Paulo; sem gatilhos por
+ora). Centroides de 299 bairros calculados a partir das coordenadas reais de
+9.148 clientes — mapa funcional. Usuários de teste supervisores movidos para o
+POP Altamira.
+
+**Pendências que dependem do Paulo (dados reais):**
+1. Quadro REAL de vendedoras ativas (nomes) — não existe rota na API URA; a
+   única confirmada em relatório é "Damely" (Altamira). Cadastrar via Admin.
+2. Fonte da atribuição venda→vendedora: relatório do SGP com coluna
+   "Vendedor" (exportar e importaremos) ou daqui em diante via CRM.
+3. Metas reais por vendedora/POP (tela /metas) — sem metas, % e pace ficam
+   "sem meta cadastrada" de propósito.
