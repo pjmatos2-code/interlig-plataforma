@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   ehVendaContavel,
+  churnPrecoce,
+  safraFechada,
+  inadimplenciaPrimeiraFatura,
   taxaInstalacaoEfetiva,
   tempoMedioVendaAtivacao,
   metaDiariaIndividual,
@@ -293,5 +296,73 @@ describe("tempo médio venda → ativação (PRD 3.5)", () => {
 
   it("nenhum ativado → null", () => {
     expect(tempoMedioVendaAtivacao([contrato({})])).toBeNull();
+  });
+});
+
+describe("5.10 — churn precoce (90 dias)", () => {
+  it("só conta ativados com janela de 90 dias fechada", () => {
+    const lista = [
+      // ativado há 120d, cancelado no dia 60 → churn precoce
+      contrato({ data_ativacao: "2026-04-01", data_cancelamento: "2026-05-31", status: "cancelado" }),
+      // ativado há 120d, cancelado no dia 100 → cancelou, mas NÃO é precoce
+      contrato({ data_ativacao: "2026-04-01", data_cancelamento: "2026-07-10", status: "cancelado" }),
+      // ativado há 120d, segue ativo → base
+      contrato({ data_ativacao: "2026-04-01", status: "ativo" }),
+      // ativado há 30d → janela aberta, fora da base
+      contrato({ data_ativacao: "2026-07-21", status: "ativo" }),
+    ];
+    const r = churnPrecoce(lista, "2026-08-20");
+    expect(r.base).toBe(3);
+    expect(r.cancelados).toBe(1);
+    expect(r.taxa).toBeCloseTo(1 / 3);
+  });
+
+  it("cancelamento exatamente no dia 90 conta (≤ 90)", () => {
+    const lista = [
+      contrato({ data_ativacao: "2026-04-01", data_cancelamento: "2026-06-30", status: "cancelado" }),
+    ];
+    expect(churnPrecoce(lista, "2026-08-20").cancelados).toBe(1);
+  });
+
+  it("sem base → taxa null", () => {
+    expect(churnPrecoce([contrato({})], "2026-08-20").taxa).toBeNull();
+  });
+});
+
+describe("5.10 — safra fechada", () => {
+  it("safra fecha quando o último dia do mês tem 90+ dias", () => {
+    expect(safraFechada("2026-05-01", "2026-08-30")).toBe(true);  // 31/05 + 91d
+    expect(safraFechada("2026-06-01", "2026-08-20")).toBe(false); // 30/06 + 51d
+  });
+});
+
+describe("5.11 — inadimplência de 1ª fatura", () => {
+  const t = (venc: string, pag: string | null, status: string) => ({
+    vencimento: venc,
+    data_pagamento: pag,
+    status,
+  });
+
+  it("não liquidado até vencimento + 10 conta; janela aberta fica fora", () => {
+    const lista = [
+      t("2026-07-01", "2026-07-05", "liquidado"),  // pagou no prazo
+      t("2026-07-01", null, "aberto"),             // nunca pagou → inadimplente
+      t("2026-07-01", "2026-07-20", "liquidado"),  // pagou 19 dias depois → inadimplente
+      t("2026-08-15", null, "aberto"),             // venc + 10 ainda não passou → fora
+    ];
+    const r = inadimplenciaPrimeiraFatura(lista, "2026-08-20");
+    expect(r.base).toBe(3);
+    expect(r.inadimplentes).toBe(2);
+    expect(r.taxa).toBeCloseTo(2 / 3);
+  });
+
+  it("título cancelado não julga a venda", () => {
+    const lista = [t("2026-07-01", null, "cancelado")];
+    expect(inadimplenciaPrimeiraFatura(lista, "2026-08-20").taxa).toBeNull();
+  });
+
+  it("pagamento exatamente no dia venc+10 é adimplente", () => {
+    const lista = [t("2026-07-01", "2026-07-11", "liquidado")];
+    expect(inadimplenciaPrimeiraFatura(lista, "2026-08-20").inadimplentes).toBe(0);
   });
 });

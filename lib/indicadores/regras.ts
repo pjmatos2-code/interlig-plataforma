@@ -208,3 +208,66 @@ export function tempoMedioVendaAtivacao(contratos: ContratoIndicador[]): number 
   const soma = ativados.reduce((acc, c) => acc + dias(c.data_venda, c.data_ativacao!), 0);
   return soma / ativados.length;
 }
+
+/**
+ * 5.10 — churn precoce: cancelados em ≤ 90 dias da ativação ÷ ativados com a
+ * janela de 90 dias já fechada. Contratos ativados há menos de 90 dias ficam
+ * fora da base (ainda não deu tempo de "churnar").
+ */
+export function churnPrecoce(
+  contratos: ContratoIndicador[],
+  hoje: string,
+  janelaDias = 90
+): { taxa: number | null; base: number; cancelados: number } {
+  const janelaFechada = contratos.filter(
+    (c) => c.data_ativacao !== null && dias(c.data_ativacao, hoje) >= janelaDias
+  );
+  const cancelados = janelaFechada.filter(
+    (c) =>
+      c.data_cancelamento !== null &&
+      dias(c.data_ativacao!, c.data_cancelamento) <= janelaDias
+  ).length;
+  return {
+    taxa: janelaFechada.length === 0 ? null : cancelados / janelaFechada.length,
+    base: janelaFechada.length,
+    cancelados,
+  };
+}
+
+/** Safra (mês de ativação) fechada: o último dia do mês já tem 90+ dias. */
+export function safraFechada(mesIso: string, hoje: string, janelaDias = 90): boolean {
+  const [ano, mes] = mesIso.slice(0, 7).split("-").map(Number);
+  const ultimoDia = new Date(Date.UTC(ano, mes, 0)).toISOString().slice(0, 10);
+  return dias(ultimoDia, hoje) >= janelaDias;
+}
+
+export type TituloPrimeiraFatura = {
+  vencimento: string;
+  data_pagamento: string | null;
+  status: string;
+};
+
+/**
+ * 5.11 — inadimplência de 1ª fatura: primeiros títulos NÃO liquidados até
+ * vencimento + 10 dias ÷ primeiros títulos com essa janela já vencida.
+ * Pagamento depois da carência conta como inadimplência de 1ª fatura
+ * (o indicador mede a qualidade da venda, não o caixa final).
+ */
+export function inadimplenciaPrimeiraFatura(
+  titulos: TituloPrimeiraFatura[],
+  hoje: string,
+  carenciaDias = 10
+): { taxa: number | null; base: number; inadimplentes: number } {
+  const julgaveis = titulos.filter((t) => dias(t.vencimento, hoje) > carenciaDias);
+  const inadimplentes = julgaveis.filter((t) => {
+    if (t.status === "cancelado") return false; // título cancelado não julga a venda
+    if (t.status !== "liquidado" || t.data_pagamento === null) return true;
+    return dias(t.vencimento, t.data_pagamento) > carenciaDias;
+  }).length;
+  const base = julgaveis.filter((t) => t.status !== "cancelado").length;
+  return {
+    taxa: base === 0 ? null : inadimplentes / base,
+    base,
+    inadimplentes,
+  };
+}
