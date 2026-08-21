@@ -116,20 +116,20 @@ export async function executarSync(): Promise<ResultadoSync> {
     const run = await iniciarRun(admin, "clientes");
     try {
       const clientes = await sgp.listarClientes();
-      if (clientes.length > 0) {
-        const { error } = await admin.from("clientes").upsert(
-          clientes.map((c) => ({
-            sgp_cliente_id: c.sgp_cliente_id,
-            nome: c.nome,
-            cpf: c.cpf,
-            telefone: c.telefone,
-            bairro: c.bairro,
-            cidade: c.cidade,
-            origem_cadastro: origem(c.origem_cadastro_sgp),
-            sync_updated_at: new Date().toISOString(),
-          })),
-          { onConflict: "sgp_cliente_id" }
-        );
+      const linhasClientes = clientes.map((c) => ({
+        sgp_cliente_id: c.sgp_cliente_id,
+        nome: c.nome,
+        cpf: c.cpf,
+        telefone: c.telefone,
+        bairro: c.bairro,
+        cidade: c.cidade,
+        origem_cadastro: origem(c.origem_cadastro_sgp),
+        sync_updated_at: new Date().toISOString(),
+      }));
+      for (let i = 0; i < linhasClientes.length; i += 500) {
+        const { error } = await admin
+          .from("clientes")
+          .upsert(linhasClientes.slice(i, i + 500), { onConflict: "sgp_cliente_id" });
         if (error) throw new Error(error.message);
       }
       await finalizarRun(admin, run, "sucesso", clientes.length);
@@ -172,6 +172,7 @@ export async function executarSync(): Promise<ResultadoSync> {
         const vendedorPorSgp = new Map((vendedores ?? []).map((v) => [v.sgp_vendedor_id, v]));
         const popPorCidade = new Map((pops ?? []).map((p) => [p.cidade, p.id]));
 
+        const linhas = [];
         for (const c of contratos) {
           const cliente = clientePorSgp.get(c.sgp_cliente_id);
           if (!cliente) {
@@ -181,38 +182,39 @@ export async function executarSync(): Promise<ResultadoSync> {
           // vendedor não mapeado → null: aparece como "não atribuída", nunca some (PRD seção 2)
           const vendedor = c.sgp_vendedor_id ? vendedorPorSgp.get(c.sgp_vendedor_id) : undefined;
           const antes = anterior.get(c.sgp_contrato_id);
-          // não regride: mantém data de cancelamento enriquecida e atribuição manual
+          // não regride: mantém cancelamento enriquecido, atribuição e assinaturas
           const dataCancelamento =
             c.data_cancelamento && antes?.data_cancelamento
               ? (antes.data_cancelamento as string)
               : c.data_cancelamento;
           const vendedorFinal = vendedor?.id ?? (antes?.vendedor_id as string | null) ?? null;
-          // assinatura governada pelo verificador de tags depois de verificada
           const dataAssinatura = antes?.assinaturas_verificadas_em
             ? ((antes.data_assinatura as string | null) ?? null)
             : c.data_assinatura;
-          const { error } = await admin.from("contratos").upsert(
-            {
-              sgp_contrato_id: c.sgp_contrato_id,
-              cliente_id: cliente.id,
-              vendedor_id: vendedorFinal,
-              plano_id: c.sgp_plano_id ? planoPorSgp.get(c.sgp_plano_id) ?? null : null,
-              pop_id: vendedor?.pop_id ?? popPorCidade.get(cliente.cidade ?? "") ?? null,
-              valor_mensalidade: c.valor_mensalidade,
-              valor_instalacao: c.valor_instalacao,
-              status: normalizarStatus(c),
-              origem_cadastro: origem(c.origem_cadastro_sgp),
-              data_venda: c.data_venda,
-              data_assinatura: dataAssinatura,
-              data_ativacao: c.data_ativacao,
-              data_cancelamento: dataCancelamento,
-              motivo_cancelamento: c.motivo_cancelamento,
-              sync_updated_at: new Date().toISOString(),
-            },
-            { onConflict: "sgp_contrato_id" }
-          );
-          if (error) pendencias.push(`contrato ${c.sgp_contrato_id}: ${error.message}`);
-          else gravados += 1;
+          linhas.push({
+            sgp_contrato_id: c.sgp_contrato_id,
+            cliente_id: cliente.id,
+            vendedor_id: vendedorFinal,
+            plano_id: c.sgp_plano_id ? planoPorSgp.get(c.sgp_plano_id) ?? null : null,
+            pop_id: vendedor?.pop_id ?? popPorCidade.get(cliente.cidade ?? "") ?? null,
+            valor_mensalidade: c.valor_mensalidade,
+            valor_instalacao: c.valor_instalacao,
+            status: normalizarStatus(c),
+            origem_cadastro: origem(c.origem_cadastro_sgp),
+            data_venda: c.data_venda,
+            data_assinatura: dataAssinatura,
+            data_ativacao: c.data_ativacao,
+            data_cancelamento: dataCancelamento,
+            motivo_cancelamento: c.motivo_cancelamento,
+            sync_updated_at: new Date().toISOString(),
+          });
+        }
+        for (let i = 0; i < linhas.length; i += 500) {
+          const { error } = await admin
+            .from("contratos")
+            .upsert(linhas.slice(i, i + 500), { onConflict: "sgp_contrato_id" });
+          if (error) pendencias.push(`lote de contratos: ${error.message}`);
+          else gravados += Math.min(500, linhas.length - i);
         }
       }
 
@@ -238,25 +240,32 @@ export async function executarSync(): Promise<ResultadoSync> {
       const titulos = await sgp.listarTitulos();
       let gravados = 0;
       if (titulos.length > 0) {
-        const { data: contratos } = await admin.from("contratos").select("id, sgp_contrato_id");
-        const contratoPorSgp = new Map((contratos ?? []).map((c) => [c.sgp_contrato_id, c.id]));
-        for (const t of titulos) {
-          const contratoId = contratoPorSgp.get(t.sgp_contrato_id);
-          if (!contratoId) continue;
-          const { error } = await admin.from("titulos").upsert(
-            {
-              sgp_titulo_id: t.sgp_titulo_id,
-              contrato_id: contratoId,
-              numero_parcela: t.numero_parcela,
-              valor: t.valor,
-              vencimento: t.vencimento,
-              data_pagamento: t.data_pagamento,
-              status: t.status,
-              sync_updated_at: new Date().toISOString(),
-            },
-            { onConflict: "sgp_titulo_id" }
-          );
-          if (!error) gravados += 1;
+        const sgpIds = [...new Set(titulos.map((t) => t.sgp_contrato_id))];
+        const contratoPorSgp = new Map<string, string>();
+        for (let i = 0; i < sgpIds.length; i += 400) {
+          const { data: parte } = await admin
+            .from("contratos")
+            .select("id, sgp_contrato_id")
+            .in("sgp_contrato_id", sgpIds.slice(i, i + 400));
+          for (const c of parte ?? []) contratoPorSgp.set(c.sgp_contrato_id as string, c.id as string);
+        }
+        const linhas = titulos
+          .filter((t) => contratoPorSgp.has(t.sgp_contrato_id))
+          .map((t) => ({
+            sgp_titulo_id: t.sgp_titulo_id,
+            contrato_id: contratoPorSgp.get(t.sgp_contrato_id)!,
+            numero_parcela: t.numero_parcela,
+            valor: t.valor,
+            vencimento: t.vencimento,
+            data_pagamento: t.data_pagamento,
+            status: t.status,
+            sync_updated_at: new Date().toISOString(),
+          }));
+        for (let i = 0; i < linhas.length; i += 500) {
+          const { error } = await admin
+            .from("titulos")
+            .upsert(linhas.slice(i, i + 500), { onConflict: "sgp_titulo_id" });
+          if (!error) gravados += Math.min(500, linhas.length - i);
         }
       }
       await finalizarRun(admin, run, "sucesso", gravados);
