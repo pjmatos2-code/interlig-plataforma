@@ -271,3 +271,30 @@ export function inadimplenciaPrimeiraFatura(
     inadimplentes,
   };
 }
+
+/**
+ * 5.13 — streak: dias úteis consecutivos com vendas ≥ meta diária individual
+ * (meta mensal ÷ dias úteis do mês). O dia corrente só entra se a meta do dia
+ * já foi batida — enquanto o dia não acabou, ele não quebra a sequência.
+ */
+export function streakDiasUteis(
+  vendasPorDia: Map<string, number>,
+  diasUteisDecorridos: string[],
+  metaDiaria: number,
+  hoje: string
+): number {
+  if (metaDiaria <= 0 || diasUteisDecorridos.length === 0) return 0;
+  let streak = 0;
+  for (let i = diasUteisDecorridos.length - 1; i >= 0; i--) {
+    const dia = diasUteisDecorridos[i];
+    const bateu = (vendasPorDia.get(dia) ?? 0) >= metaDiaria;
+    if (bateu) {
+      streak += 1;
+    } else if (dia === hoje) {
+      continue; // dia em andamento: ainda não bateu, mas não quebra
+    } else {
+      break;
+    }
+  }
+  return streak;
+}

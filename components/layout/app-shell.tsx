@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare,
-  Target, ShieldCheck, Settings, Menu, X, LogOut, type LucideIcon,
+  Target, ShieldCheck, Settings, Trophy, Menu, X, LogOut, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { ROTULO_PERFIL, type Usuario } from "@/lib/tipos";
 import { LogoInterlig } from "@/components/marca/logo-interlig";
 
 const ICONES: Record<string, LucideIcon> = {
-  LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare, Target, ShieldCheck, Settings,
+  LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare, Target, ShieldCheck, Settings, Trophy,
 };
 
 export function AppShell({

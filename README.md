@@ -8,7 +8,7 @@ Especificação: [`docs/PRD.md`](docs/PRD.md) · Regras para o Claude Code: [`CL
 **Estado atual: EM PRODUÇÃO — roteiro de 7 prompts concluído.**
 App: https://interlig-plataforma.vercel.app · repositório conectado à Vercel (deploy por push
 na `main`). Módulos no ar: fundação (banco + RLS + auth + identidade), Dashboard Geral (3.1),
-Painel por Vendedora + Metas (3.2/3.7), Esteira de Ativação (3.5), CRM Comercial (3.9), Qualidade da Venda (3.8) e worker
+Painel por Vendedora + Metas (3.2/3.7), Esteira de Ativação (3.5), CRM Comercial (3.9), Qualidade da Venda (3.8), Ranking gamificado (3.3) e worker
 de sync em modo mock + webhook SZ Chat (7.1).
 
 ---

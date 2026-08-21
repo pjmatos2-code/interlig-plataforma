@@ -15,6 +15,7 @@ export const ITENS_NAV: ItemNav[] = [
   { href: "/dashboard",     rotulo: "Dashboard",   icone: "LayoutDashboard", perfis: ["gestor", "supervisor"] },
   { href: "/vendedoras",    rotulo: "Vendedoras",  icone: "Users",           perfis: ["gestor", "supervisor"] },
   { href: "/minhas-vendas", rotulo: "Minhas vendas", icone: "TrendingUp",    perfis: ["gestor", "supervisor", "vendedora"] },
+  { href: "/ranking",       rotulo: "Ranking",     icone: "Trophy",          perfis: ["gestor", "supervisor", "vendedora"] },
   { href: "/esteira",       rotulo: "Esteira",     icone: "ListChecks",      perfis: ["gestor", "supervisor"] },
   { href: "/crm",           rotulo: "CRM",         icone: "MessagesSquare",  perfis: ["gestor", "supervisor", "vendedora"] },
   { href: "/metas",         rotulo: "Metas e comissão", icone: "Target",     perfis: ["gestor", "supervisor", "vendedora"] },

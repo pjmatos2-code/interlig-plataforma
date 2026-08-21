@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ehVendaContavel,
+  streakDiasUteis,
   churnPrecoce,
   safraFechada,
   inadimplenciaPrimeiraFatura,
@@ -364,5 +365,38 @@ describe("5.11 — inadimplência de 1ª fatura", () => {
   it("pagamento exatamente no dia venc+10 é adimplente", () => {
     const lista = [t("2026-07-01", "2026-07-11", "liquidado")];
     expect(inadimplenciaPrimeiraFatura(lista, "2026-08-20").inadimplentes).toBe(0);
+  });
+});
+
+describe("5.13 — streak de meta diária", () => {
+  const dias = ["2026-08-14", "2026-08-15", "2026-08-17", "2026-08-18", "2026-08-19", "2026-08-20"];
+
+  it("conta dias úteis consecutivos com vendas ≥ meta diária", () => {
+    const vendas = new Map([
+      ["2026-08-15", 1], ["2026-08-17", 2], ["2026-08-18", 1], ["2026-08-19", 1], ["2026-08-20", 1],
+    ]);
+    // 14 falhou → streak = 15,17,18,19,20 = 5
+    expect(streakDiasUteis(vendas, dias, 1, "2026-08-20")).toBe(5);
+  });
+
+  it("dia corrente sem meta batida não quebra a sequência", () => {
+    const vendas = new Map([["2026-08-18", 1], ["2026-08-19", 1]]);
+    // hoje (20) ainda zerado → streak segue valendo 2
+    expect(streakDiasUteis(vendas, dias, 1, "2026-08-20")).toBe(2);
+  });
+
+  it("dia útil anterior sem meta quebra", () => {
+    const vendas = new Map([["2026-08-17", 1], ["2026-08-20", 1]]);
+    // 18 e 19 falharam → só hoje conta
+    expect(streakDiasUteis(vendas, dias, 1, "2026-08-20")).toBe(1);
+  });
+
+  it("meta fracionária: 0,8/dia exige ao menos 1 venda", () => {
+    const vendas = new Map([["2026-08-19", 1], ["2026-08-20", 1]]);
+    expect(streakDiasUteis(vendas, dias, 0.8, "2026-08-20")).toBe(2);
+  });
+
+  it("sem meta → 0", () => {
+    expect(streakDiasUteis(new Map(), dias, 0, "2026-08-20")).toBe(0);
   });
 });
