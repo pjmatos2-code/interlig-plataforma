@@ -1,15 +1,23 @@
 import { NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { executarSync } from "@/lib/sync/worker";
 import { executarRotinasCrm } from "@/lib/crm/rotinas";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /**
- * Rota do worker de sync (PRD 7.1) — chamada pelo cron (Vercel Cron a cada
- * 10 min, vercel.json) ou manualmente pelo gestor no admin.
- * Protegida por CRON_SECRET (Authorization: Bearer <segredo>).
+ * Worker de sync (PRD 7.1). Responde IMEDIATAMENTE e continua o trabalho em
+ * segundo plano (waitUntil) — assim o disparo do cron externo (que desconecta
+ * em 30s) nunca mata o ciclo. `?aguardar=1` espera o resultado (uso manual).
  */
+async function cicloCompleto() {
+  const resultado = await executarSync();
+  const rotinas = await executarRotinasCrm();
+  return { ...resultado, rotinas };
+}
+
 export async function GET(request: Request) {
   const segredo = process.env.CRON_SECRET;
   if (segredo) {
@@ -19,12 +27,38 @@ export async function GET(request: Request) {
     }
   }
 
-  const resultado = await executarSync();
-  // reconciliação + fechamento por inatividade logo após o sync: a atribuição
-  // venda→vendedora acontece no mesmo ciclo (critério D5, tempo quase real)
-  const rotinas = await executarRotinasCrm();
-  const houveErro = resultado.execucoes.some((e) => e.status === "erro");
-  return NextResponse.json({ ...resultado, rotinas }, { status: houveErro ? 500 : 200 });
+  // trava de concorrência: não empilha ciclos (janela de 4 min)
+  const admin = criarClienteAdmin();
+  const corte = new Date(Date.now() - 4 * 60_000).toISOString();
+  const { data: emAndamento } = await admin
+    .from("sync_runs")
+    .select("id")
+    .eq("status", "executando")
+    .gte("iniciado_em", corte)
+    .limit(1);
+  if ((emAndamento ?? []).length > 0) {
+    return NextResponse.json({ resultado: "ja_em_andamento" });
+  }
+  // runs zumbis (função morta no meio) são marcadas como erro
+  await admin
+    .from("sync_runs")
+    .update({ status: "erro", erro: "interrompido", finalizado_em: new Date().toISOString() })
+    .eq("status", "executando")
+    .lt("iniciado_em", corte);
+
+  const url = new URL(request.url);
+  if (url.searchParams.get("aguardar") === "1") {
+    const resultado = await cicloCompleto();
+    const houveErro = resultado.execucoes.some((e) => e.status === "erro");
+    return NextResponse.json(resultado, { status: houveErro ? 500 : 200 });
+  }
+
+  waitUntil(
+    cicloCompleto().catch((e) => {
+      console.error("sync em segundo plano falhou:", e);
+    })
+  );
+  return NextResponse.json({ resultado: "disparado" }, { status: 202 });
 }
 
 export const POST = GET;
