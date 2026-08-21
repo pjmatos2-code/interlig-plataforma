@@ -151,21 +151,39 @@ export async function executarSync(): Promise<ResultadoSync> {
 
       if (contratos.length > 0) {
         // resolve FKs por id do SGP
-        const [{ data: clientes }, { data: planos }, { data: vendedores }, { data: existentes }] =
-          await Promise.all([
-            admin.from("clientes").select("id, sgp_cliente_id, cidade"),
-            admin.from("planos").select("id, sgp_plano_id"),
-            admin.from("vendedores").select("id, sgp_vendedor_id, pop_id"),
-            admin
-              .from("contratos")
-              .select("sgp_contrato_id, data_cancelamento, vendedor_id, data_assinatura, assinaturas_verificadas_em")
-              .not("sgp_contrato_id", "is", null)
-              .limit(20000),
-          ]);
-        const { data: pops } = await admin.from("pops").select("id, cidade");
-        const anterior = new Map(
-          (existentes ?? []).map((e) => [e.sgp_contrato_id as string, e])
-        );
+        // o PostgREST corta selects em 1000 linhas — busca APENAS os registros
+        // da janela atual, em blocos de .in()
+        const idsClientes = [...new Set(contratos.map((x) => x.sgp_cliente_id))];
+        const idsContratos = contratos.map((x) => x.sgp_contrato_id);
+        const clientes: { id: string; sgp_cliente_id: string; cidade: string | null }[] = [];
+        for (let i = 0; i < idsClientes.length; i += 400) {
+          const { data: parte } = await admin
+            .from("clientes")
+            .select("id, sgp_cliente_id, cidade")
+            .in("sgp_cliente_id", idsClientes.slice(i, i + 400));
+          clientes.push(...((parte ?? []) as typeof clientes));
+        }
+        type Existente = {
+          sgp_contrato_id: string;
+          data_cancelamento: string | null;
+          vendedor_id: string | null;
+          data_assinatura: string | null;
+          assinaturas_verificadas_em: string | null;
+        };
+        const existentes: Existente[] = [];
+        for (let i = 0; i < idsContratos.length; i += 400) {
+          const { data: parte } = await admin
+            .from("contratos")
+            .select("sgp_contrato_id, data_cancelamento, vendedor_id, data_assinatura, assinaturas_verificadas_em")
+            .in("sgp_contrato_id", idsContratos.slice(i, i + 400));
+          existentes.push(...((parte ?? []) as Existente[]));
+        }
+        const [{ data: planos }, { data: vendedores }, { data: pops }] = await Promise.all([
+          admin.from("planos").select("id, sgp_plano_id"),
+          admin.from("vendedores").select("id, sgp_vendedor_id, pop_id"),
+          admin.from("pops").select("id, cidade"),
+        ]);
+        const anterior = new Map(existentes.map((e) => [e.sgp_contrato_id, e]));
 
         const clientePorSgp = new Map((clientes ?? []).map((c) => [c.sgp_cliente_id, c]));
         const planoPorSgp = new Map((planos ?? []).map((p) => [p.sgp_plano_id, p.id]));
