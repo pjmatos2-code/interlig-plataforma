@@ -91,3 +91,39 @@ sugerida, tom, objeção a tratar).
 
 **Ordem sugerida:** depende só do token da API do SZ (independe do fluxo/RPA
 da D1) — pode ser o próximo módulo após as integrações de dados.
+
+## D3 — Mapeamento real da API do SGP e limitações da URA (21/08/2026)
+
+**Instância:** `https://atm-erp.interlig.net` (a URL cadastrada no módulo de
+Integrações não deve incluir `/admin/` — a API mora na raiz).
+**Autenticação:** `{token, app}` no corpo (POST). Paginação máxima: **limit=100**.
+
+**Rotas confirmadas:**
+- `POST /api/ura/clientes/` — paginada (`offset`/`limit`); cada cliente vem com
+  `contratos[]` e `titulos[]` EMBUTIDOS → é a fonte principal do sync (uma
+  varredura traz tudo).
+- `POST /api/ura/consultacliente/` — detalhe por `{cpfcnpj}` ou `{contrato}`;
+  traz `popNome`, `dataAlteracao`, plano, status display.
+- `POST /api/ura/titulos/` — paginada, instância inteira (296 mil títulos),
+  ordenada por id desc; útil para incrementais de pagamento.
+- Não existem: `/api/ura/contratos/`, `/api/ura/planos/` (404).
+
+**Escopo da carga (decisão do Paulo):** somente os POPs **Altamira,
+Vitória do Xingu e Brasil Novo** (filtro por `endereco.cidade`, sem acento).
+
+**Limitações da API URA e aproximações adotadas:**
+1. **Vendedor não é exposto** → contratos reais ficam "não atribuídos". A
+   atribuição real virá do CRM (reconciliação ticket→contrato) e/ou de outra
+   rota/relatório a descobrir com o suporte SGP.
+2. **Datas de assinatura/ativação não são expostas** → assumimos
+   `dataCadastro` para as três (venda=assinatura=ativação). Efeito: esteira de
+   ativação fica vazia para dados reais e o tempo venda→ativação zera, até
+   descobrirmos rota com essas datas.
+3. **Data de cancelamento não vem no embed** → para cancelados recentes
+   (~14 meses) buscamos `dataAlteracao` via consultacliente (aproximação:
+   última alteração ≈ cancelamento); antigos ficam com data_venda (fora das
+   janelas de análise).
+4. **Origem de cadastro não é exposta** → origem oficial passará a nascer do
+   CRM (reconciliação define a origem no contrato — já implementado).
+5. **Mensalidade não vem no contrato** → usamos o valor do título mais
+   recente não cancelado do contrato.
