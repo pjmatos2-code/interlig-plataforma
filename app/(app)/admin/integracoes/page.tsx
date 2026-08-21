@@ -22,6 +22,11 @@ export default async function IntegracoesPage() {
     .eq("sistema", "sgp")
     .order("coletado_em", { ascending: false })
     .limit(16);
+  const { data: eventosSz } = await admin
+    .from("szchat_eventos_brutos")
+    .select("id, recebido_em, content_type, corpo, resultado")
+    .order("recebido_em", { ascending: false })
+    .limit(12);
 
   const urlBase =
     process.env.NEXT_PUBLIC_APP_URL ||
@@ -131,6 +136,44 @@ export default async function IntegracoesPage() {
           />
         </CardContent>
       </Card>
+
+      {(eventosSz ?? []).length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Eventos recebidos do SZ Chat ({(eventosSz ?? []).length})</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Cada chamada ao webhook é registrada aqui — use para conferir o formato real do
+              payload e o resultado (criado / ignorado / capturado para mapeamento).
+            </p>
+            {(eventosSz ?? []).map((e) => (
+              <details key={e.id} className="rounded-md border">
+                <summary className="flex cursor-pointer flex-wrap items-center gap-2 px-3 py-2 text-sm">
+                  <Badge
+                    variant={
+                      String(e.resultado).startsWith("criado")
+                        ? "verde"
+                        : String(e.resultado).startsWith("ignorado") || String(e.resultado).startsWith("recusado")
+                          ? "vermelho"
+                          : "amarelo"
+                    }
+                  >
+                    {e.resultado}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">{e.content_type}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {formatarDataHora(e.recebido_em)}
+                  </span>
+                </summary>
+                <pre className="overflow-x-auto border-t bg-muted/30 p-3 font-mono text-xs">
+                  {JSON.stringify(e.corpo, null, 2).slice(0, 3000)}
+                </pre>
+              </details>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <p className="text-xs text-muted-foreground">
         Equipes que geram ticket (filtro por fluxo) e o mapeamento atendente ↔ vendedora ficam na{" "}
