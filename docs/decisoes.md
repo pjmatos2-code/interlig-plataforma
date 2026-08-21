@@ -206,3 +206,14 @@ comissão separa "pontua a meta" (todas as vendas válidas) de "recebe comissão
 (só liberadas) e expõe vendasPendentes + totalSeLiberar; telas mostram a
 coluna Pendentes e o aviso no simulador. A esteira volta a ser real: sem as
 duas assinaturas, o contrato aparece como "pendente de assinatura".
+
+**Refinamento D5 — estorno por QUANTIDADE (21/08/2026, definição do Paulo):**
+a venda fica monitorada por 90 dias. Se o cliente não pagar os boletos e o
+cadastro for para suspenso (ou cancelado), o estorno é da QUANTIDADE, nunca do
+valor: no início do mês o sistema soma esses clientes como débito na meta da
+vendedora (ex.: 10 suspensos → meta efetiva +10). Implementado no motor
+(debitoMeta/metaEfetiva, testado), no cálculo mensal (suspensos/cancelados dos
+90 dias anteriores ao mês com 1ª fatura vencida e não paga) e nas telas
+(coluna "Débito 90d" no time; aviso "meta efetiva" no simulador). O sync
+ficou incremental de verdade: janela de 8 páginas por execução + verificação
+de 25 assinaturas + títulos recentes (o histórico veio na carga inicial).

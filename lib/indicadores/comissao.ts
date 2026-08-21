@@ -44,6 +44,9 @@ export type ResultadoComissao = {
   total: number;
   /** quanto a comissão vale se as pendentes forem liberadas */
   totalSeLiberar: number;
+  /** estorno por quantidade: suspensos ≤90d sem pagar somam na meta do mês */
+  debitoMeta: number;
+  metaEfetiva: number;
 };
 
 /**
@@ -110,18 +113,23 @@ export function calcularComissao(entrada: {
   metaMensal: number;
   degraus: DegrauComissao[];
   gatilhos: GatilhoComissao[];
+  /**
+   * Estorno por QUANTIDADE (regra do gestor): clientes das vendas dos 90
+   * dias anteriores que ficaram suspensos sem pagar os primeiros boletos.
+   * O débito SOMA na meta do mês — a vendedora precisa vender essa
+   * quantidade a mais; nunca se desconta o valor da comissão já paga.
+   */
+  debitoMeta?: number;
 }): ResultadoComissao {
   const validas = entrada.vendas.filter((v) => !v.estornada);
   const estornos = entrada.vendas.length - validas.length;
   const liberadas = validas.filter((v) => v.liberada !== false);
+  const debito = Math.max(0, entrada.debitoMeta ?? 0);
+  const metaEfetiva = entrada.metaMensal + debito;
 
-  const nucleo = calcularNucleo(
-    validas, liberadas, entrada.metaMensal, entrada.degraus, entrada.gatilhos
-  );
+  const nucleo = calcularNucleo(validas, liberadas, metaEfetiva, entrada.degraus, entrada.gatilhos);
   // cenário "tudo liberado": mostra quanto está preso nas pendências
-  const cenarioCheio = calcularNucleo(
-    validas, validas, entrada.metaMensal, entrada.degraus, entrada.gatilhos
-  );
+  const cenarioCheio = calcularNucleo(validas, validas, metaEfetiva, entrada.degraus, entrada.gatilhos);
 
   return {
     ...nucleo,
@@ -129,6 +137,8 @@ export function calcularComissao(entrada: {
     vendasPendentes: validas.length - liberadas.length,
     estornos,
     totalSeLiberar: cenarioCheio.total,
+    debitoMeta: debito,
+    metaEfetiva,
   };
 }
 
@@ -138,7 +148,7 @@ export function calcularComissao(entrada: {
  * negócio da tela), sem plano premium.
  */
 export function simularMaisVendas(
-  base: { vendas: VendaComissao[]; metaMensal: number; degraus: DegrauComissao[]; gatilhos: GatilhoComissao[] },
+  base: { vendas: VendaComissao[]; metaMensal: number; degraus: DegrauComissao[]; gatilhos: GatilhoComissao[]; debitoMeta?: number },
   maisN: number
 ): { atual: ResultadoComissao; simulado: ResultadoComissao; delta: number } {
   const atual = calcularComissao(base);
@@ -165,15 +175,17 @@ export function proximoDegrau(base: {
   metaMensal: number;
   degraus: DegrauComissao[];
   gatilhos: GatilhoComissao[];
+  debitoMeta?: number;
 }): { faltamVendas: number; degrau: DegrauComissao; totalLa: number } | null {
-  if (base.metaMensal <= 0) return null;
+  const metaEfetiva = base.metaMensal + Math.max(0, base.debitoMeta ?? 0);
+  if (metaEfetiva <= 0) return null;
   const validas = base.vendas.filter((v) => !v.estornada).length;
-  const atingimento = (validas / base.metaMensal) * 100;
+  const atingimento = (validas / metaEfetiva) * 100;
   const acima = [...base.degraus]
     .sort((a, b) => a.atingimento_min - b.atingimento_min)
     .find((d) => d.atingimento_min > atingimento);
   if (!acima) return null;
-  const vendasNecessarias = Math.ceil((acima.atingimento_min / 100) * base.metaMensal);
+  const vendasNecessarias = Math.ceil((acima.atingimento_min / 100) * metaEfetiva);
   const faltam = Math.max(1, vendasNecessarias - validas);
   const { simulado } = simularMaisVendas(base, faltam);
   return { faltamVendas: faltam, degrau: acima, totalLa: simulado.total };

@@ -22,6 +22,7 @@ export function SimuladorComissao({
     metaMensal: number;
     degraus: DegrauComissao[];
     gatilhos: GatilhoComissao[];
+    debitoMeta?: number;
   };
 }) {
   const [maisN, setMaisN] = useState(0);
@@ -45,6 +46,12 @@ export function SimuladorComissao({
               {atual.atingimentoPct.toFixed(0)}% da meta
               {atual.estornos > 0 && ` · ${atual.estornos} estornada(s)`}
             </p>
+            {atual.debitoMeta > 0 && (
+              <p className="mt-1 rounded bg-farol-vermelho/10 px-2 py-1 text-xs text-farol-vermelho">
+                ↩ {atual.debitoMeta} cliente(s) suspenso(s) sem pagar (janela de 90 dias) — sua
+                meta efetiva este mês é {atual.metaEfetiva}
+              </p>
+            )}
             {atual.vendasPendentes > 0 && (
               <p className="mt-1 rounded bg-farol-amarelo/10 px-2 py-1 text-xs text-yellow-700">
                 ⏳ {atual.vendasPendentes} venda(s) com comissão pendente (assinaturas/ativação/CRM)

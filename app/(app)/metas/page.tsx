@@ -200,7 +200,9 @@ export default async function MetasPage({
                     <th className="px-3 py-2.5 text-right font-medium">Atingimento</th>
                     <th className="px-3 py-2.5 text-right font-medium">Degrau</th>
                     <th className="px-3 py-2.5 text-right font-medium">Pendentes</th>
-                    <th className="px-3 py-2.5 text-right font-medium">Estornos</th>
+                    <th className="px-3 py-2.5 text-right font-medium" title="Suspensos ≤90d sem pagar: somam na meta do mês">
+                      Débito 90d
+                    </th>
                     <th className="px-3 py-2.5 text-right font-medium">Comissão liberada</th>
                   </tr>
                 </thead>
@@ -215,6 +217,11 @@ export default async function MetasPage({
                           </td>
                           <td className="px-3 py-2.5 text-right tabular-nums">
                             {c.resultado.atingimentoPct.toFixed(0)}%
+                            {c.resultado.debitoMeta > 0 && (
+                              <span className="block text-xs text-muted-foreground">
+                                meta {c.resultado.metaEfetiva}
+                              </span>
+                            )}
                           </td>
                           <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">
                             {c.resultado.degrau
@@ -233,8 +240,8 @@ export default async function MetasPage({
                             )}
                           </td>
                           <td className="px-3 py-2.5 text-right tabular-nums">
-                            {c.resultado.estornos > 0 ? (
-                              <Badge variant="vermelho">{c.resultado.estornos}</Badge>
+                            {c.resultado.debitoMeta > 0 ? (
+                              <Badge variant="vermelho">+{c.resultado.debitoMeta}</Badge>
                             ) : (
                               "0"
                             )}

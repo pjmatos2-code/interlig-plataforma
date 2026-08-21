@@ -213,6 +213,9 @@ export class SgpApiClient implements SgpClient {
   async listarTitulos(): Promise<SgpTitulo[]> {
     const clientes = await this.escanear();
     const titulos: SgpTitulo[] = [];
+    // sync contínuo só precisa da movimentação recente (a carga inicial já
+    // trouxe o histórico completo)
+    const corte = new Date(Date.now() - 430 * 86_400_000).toISOString().slice(0, 10);
     for (const c of clientes) {
       const porContrato = new Map<string, BrutoTitulo[]>();
       for (const t of c.titulos ?? []) {
@@ -225,6 +228,7 @@ export class SgpApiClient implements SgpClient {
           .filter((t) => dataBr(t.dataVencimento))
           .sort((a, b) => (dataBr(a.dataVencimento)! < dataBr(b.dataVencimento)! ? -1 : 1));
         ordenados.forEach((t, i) => {
+          if (dataBr(t.dataVencimento)! < corte) return; // parcela antiga: já temos
           titulos.push({
             sgp_titulo_id: String(t.id),
             sgp_contrato_id: contratoId,

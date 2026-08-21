@@ -7,7 +7,7 @@ import {
   type VendaComissao,
 } from "@/lib/indicadores/comissao";
 import { vendasDoPeriodo, type ContratoIndicador } from "@/lib/indicadores/regras";
-import { hojeIso, primeiroDiaDoMes, ultimoDiaDoMes } from "@/lib/datas";
+import { hojeIso, primeiroDiaDoMes, ultimoDiaDoMes, somarDias } from "@/lib/datas";
 
 export type RegraComissao = {
   id: string;
@@ -69,6 +69,7 @@ export type ComissaoVendedora = {
     metaMensal: number;
     degraus: DegrauComissao[];
     gatilhos: GatilhoComissao[];
+    debitoMeta: number;
   } | null;
 };
 
@@ -84,7 +85,7 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
   const fim = ultimoDiaDoMes(mes);
   const ateData = fim < hoje ? fim : hoje;
 
-  const [{ data: vendedoras }, { data: contratosBrutos }, { data: metas }, regras, { data: ticketsConvertidos }] =
+  const [{ data: vendedoras }, { data: contratosBrutos }, { data: metas }, regras, { data: ticketsConvertidos }, { data: monitorados }] =
     await Promise.all([
       supabase.from("vendedores").select("id, nome, pop_id").eq("ativo", true).order("nome"),
       supabase
@@ -108,6 +109,18 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
         .eq("desfecho", "convertido")
         .not("contrato_id", "is", null)
         .limit(3000),
+      // estorno por QUANTIDADE (regra do gestor): vendas dos 90 dias
+      // anteriores ao mês cujo cadastro está suspenso/cancelado — cada uma
+      // soma +1 na meta do mês da vendedora
+      supabase
+        .from("contratos")
+        .select("id, vendedor_id, status, data_venda, titulos!inner(numero_parcela, status, vencimento)")
+        .gte("data_venda", somarDias(mes, -90))
+        .lt("data_venda", mes)
+        .in("status", ["suspenso", "cancelado"])
+        .not("vendedor_id", "is", null)
+        .eq("titulos.numero_parcela", 1)
+        .limit(3000),
     ]);
 
   // critério D5: liberação exige ticket convertido reconciliado com o MESMO
@@ -115,6 +128,22 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
   const ticketPorContrato = new Map(
     (ticketsConvertidos ?? []).map((t) => [t.contrato_id as string, t])
   );
+
+  // débito: suspenso/cancelado ≤90d E 1ª fatura vencida sem pagamento
+  const hojeIsoStr = hoje;
+  const debitoPorVendedora = new Map<string, number>();
+  for (const m of (monitorados ?? []) as unknown as {
+    vendedor_id: string;
+    titulos: { numero_parcela: number; status: string; vencimento: string }[];
+  }[]) {
+    const primeira = (m.titulos ?? []).find((t) => t.numero_parcela === 1);
+    const naoPagou =
+      primeira !== undefined &&
+      primeira.status !== "liquidado" &&
+      primeira.vencimento < hojeIsoStr;
+    if (!naoPagou) continue;
+    debitoPorVendedora.set(m.vendedor_id, (debitoPorVendedora.get(m.vendedor_id) ?? 0) + 1);
+  }
 
   const contratos = (contratosBrutos ?? []) as unknown as ContratoC[];
   const metaPor = new Map(
@@ -169,6 +198,7 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
       metaMensal: meta,
       degraus: regra.degraus,
       gatilhos: regra.gatilhos,
+      debitoMeta: debitoPorVendedora.get(v.id) ?? 0,
     };
     return {
       vendedorId: v.id,

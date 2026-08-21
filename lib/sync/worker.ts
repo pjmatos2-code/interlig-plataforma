@@ -72,7 +72,7 @@ export async function executarSync(): Promise<ResultadoSync> {
   const cursor = Number((cfgBruta?.config as Record<string, unknown>)?.scan_offset ?? 0) || 0;
 
   const sgp = await criarClienteSgp(
-    cfgSgp.modo === "real" ? { offset: cursor, maxPaginas: 35 } : undefined
+    cfgSgp.modo === "real" ? { offset: cursor, maxPaginas: 8 } : undefined
   );
   const execucoes: ResultadoSync["execucoes"] = [];
 
@@ -291,7 +291,7 @@ export async function executarSync(): Promise<ResultadoSync> {
         .gte("data_venda", corte)
         .or("termo_adesao_assinado.is.null,termo_adesao_assinado.eq.false,fidelidade_assinada.is.null,fidelidade_assinada.eq.false")
         .order("data_venda", { ascending: false })
-        .limit(60);
+        .limit(25);
 
       let verificados = 0;
       const { lerConfigSgp } = await import("@/lib/integracoes/config");

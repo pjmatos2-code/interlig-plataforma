@@ -178,3 +178,52 @@ describe("comissão pendente (assinaturas/ativação)", () => {
     expect(r.atingimentoPct).toBe(20); // 2 válidas de meta 10
   });
 });
+
+describe("estorno por quantidade (débito de meta)", () => {
+  it("débito soma na meta: 10 suspensos → precisa vender 10 a mais", () => {
+    // meta 70, débito 10 → meta efetiva 80. 64 vendas = 80% de 80 → degrau 7%
+    const vendas = Array.from({ length: 64 }, () => venda(100));
+    const r = calcularComissao({
+      vendas,
+      metaMensal: 70,
+      degraus: [
+        { atingimento_min: 80, atingimento_max: 100, tipo: "percentual_receita", valor: 7 },
+        { atingimento_min: 101, atingimento_max: null, tipo: "percentual_receita", valor: 8 },
+      ],
+      gatilhos: [],
+      debitoMeta: 10,
+    });
+    expect(r.metaEfetiva).toBe(80);
+    expect(r.atingimentoPct).toBeCloseTo(80);
+    expect(r.valorBase).toBeCloseTo(0.07 * 6400);
+  });
+
+  it("mesmas vendas SEM débito bateriam faixa maior — o débito nunca desconta valor, só exige volume", () => {
+    const vendas = Array.from({ length: 64 }, () => venda(100));
+    const sem = calcularComissao({
+      vendas, metaMensal: 70,
+      degraus: [{ atingimento_min: 80, atingimento_max: null, tipo: "percentual_receita", valor: 7 }],
+      gatilhos: [],
+    });
+    const com = calcularComissao({
+      vendas, metaMensal: 70,
+      degraus: [{ atingimento_min: 80, atingimento_max: null, tipo: "percentual_receita", valor: 7 }],
+      gatilhos: [], debitoMeta: 15,
+    });
+    expect(sem.atingimentoPct).toBeGreaterThan(com.atingimentoPct);
+    // com débito 15 → meta efetiva 85 → 64/85 = 75% → abaixo do piso → zero
+    expect(com.total).toBe(0);
+    expect(sem.total).toBeGreaterThan(0);
+  });
+
+  it("próximo degrau considera a meta efetiva", () => {
+    const p = proximoDegrau({
+      vendas: Array.from({ length: 60 }, () => venda(100)),
+      metaMensal: 70,
+      degraus: [{ atingimento_min: 80, atingimento_max: null, tipo: "percentual_receita", valor: 7 }],
+      gatilhos: [],
+      debitoMeta: 10,
+    })!;
+    expect(p.faltamVendas).toBe(4); // 80% de 80 = 64
+  });
+});
