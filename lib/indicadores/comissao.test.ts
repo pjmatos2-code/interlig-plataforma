@@ -33,11 +33,16 @@ const pendente = (valor: number): VendaComissao => ({
 });
 
 describe("degraus por atingimento", () => {
-  it("seleciona pelo % da meta, inclusive nas bordas", () => {
+  it("seleciona pelo % da meta, com arredondamento (classificação por volume)", () => {
     expect(encontrarDegrau(DEGRAUS, 0)!.valor).toBe(25);
     expect(encontrarDegrau(DEGRAUS, 79)!.valor).toBe(25);
+    expect(encontrarDegrau(DEGRAUS, 79.4)!.valor).toBe(25); // arredonda p/ 79
+    expect(encontrarDegrau(DEGRAUS, 79.5)!.valor).toBe(40); // arredonda p/ 80
     expect(encontrarDegrau(DEGRAUS, 80)!.valor).toBe(40);
-    expect(encontrarDegrau(DEGRAUS, 99.9)!.valor).toBe(40);
+    expect(encontrarDegrau(DEGRAUS, 99.4)!.valor).toBe(40);
+    // 99,5%+ ≈ meta batida — a Instrução classifica pelo volume (ex.: 100
+    // vendas de 70 = 142,86% conta como Desafio ≥143%)
+    expect(encontrarDegrau(DEGRAUS, 99.9)!.valor).toBe(55);
     expect(encontrarDegrau(DEGRAUS, 100)!.valor).toBe(55);
     expect(encontrarDegrau(DEGRAUS, 150)!.valor).toBe(55);
   });
@@ -225,5 +230,49 @@ describe("estorno por quantidade (débito de meta)", () => {
       debitoMeta: 10,
     })!;
     expect(p.faltamVendas).toBe(4); // 80% de 80 = 64
+  });
+
+  // ---- Instrução Geral AGO/2026: gatilho de ativação zera abaixo do piso ----
+  const REGUA_INTERNA = [
+    { atingimento_min: 80, atingimento_max: 100, tipo: "percentual_receita" as const, valor: 7 },
+    { atingimento_min: 101, atingimento_max: 120, tipo: "percentual_receita" as const, valor: 8 },
+    { atingimento_min: 121, atingimento_max: 142, tipo: "percentual_receita" as const, valor: 10 },
+    { atingimento_min: 143, atingimento_max: null, tipo: "percentual_receita" as const, valor: 15 },
+  ];
+  const REGUA_EXTERNA = [
+    { atingimento_min: 64, atingimento_max: 79, tipo: "percentual_receita" as const, valor: 10 },
+    { atingimento_min: 80, atingimento_max: 95, tipo: "percentual_receita" as const, valor: 15 },
+    { atingimento_min: 96, atingimento_max: 159, tipo: "percentual_receita" as const, valor: 20 },
+    { atingimento_min: 160, atingimento_max: null, tipo: "percentual_receita" as const, valor: 30 },
+  ];
+  const vendasDe = (n: number) => Array.from({ length: n }, () => venda(100));
+
+  it("interno: 55 vendas de 70 zera; 56 paga 7% (Instrução AGO/2026)", () => {
+    const base = { metaMensal: 70, degraus: REGUA_INTERNA, gatilhos: [], debitoMeta: 0 };
+    expect(calcularComissao({ ...base, vendas: vendasDe(55) }).total).toBe(0);
+    const bronze = calcularComissao({ ...base, vendas: vendasDe(56) });
+    expect(bronze.total).toBeCloseTo(0.07 * 56 * 100, 2);
+  });
+
+  it("externo: 15 vendas de 25 zera; 16 paga 10%", () => {
+    const base = { metaMensal: 25, degraus: REGUA_EXTERNA, gatilhos: [], debitoMeta: 0 };
+    expect(calcularComissao({ ...base, vendas: vendasDe(15) }).total).toBe(0);
+    const inicial = calcularComissao({ ...base, vendas: vendasDe(16) });
+    expect(inicial.total).toBeCloseTo(0.1 * 16 * 100, 2);
+  });
+
+  it("faixa Desafio é retroativa: um único percentual sobre TODA a base", () => {
+    const interna = calcularComissao({
+      metaMensal: 70, degraus: REGUA_INTERNA, gatilhos: [], debitoMeta: 0,
+      vendas: vendasDe(100), // ≥143%
+    });
+    expect(interna.degrau?.valor).toBe(15);
+    expect(interna.total).toBeCloseTo(0.15 * 100 * 100, 2); // 15% de tudo, sem faixas somadas
+    const externa = calcularComissao({
+      metaMensal: 25, degraus: REGUA_EXTERNA, gatilhos: [], debitoMeta: 0,
+      vendas: vendasDe(40), // 160%
+    });
+    expect(externa.degrau?.valor).toBe(30);
+    expect(externa.total).toBeCloseTo(0.3 * 40 * 100, 2);
   });
 });

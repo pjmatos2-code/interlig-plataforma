@@ -58,9 +58,13 @@ export function encontrarDegrau(
   degraus: DegrauComissao[],
   atingimentoPct: number
 ): DegrauComissao | null {
+  // arredonda antes de comparar: 100 vendas de 70 = 142,86% e a Instrução
+  // classifica "100 ou mais" como Desafio (≥143%) — sem arredondar, exatamente
+  // 100 vendas cairia no degrau anterior.
+  const pct = Math.round(atingimentoPct);
   const alcancados = [...degraus]
     .sort((a, b) => a.atingimento_min - b.atingimento_min)
-    .filter((d) => atingimentoPct >= d.atingimento_min);
+    .filter((d) => pct >= d.atingimento_min);
   return alcancados.length > 0 ? alcancados[alcancados.length - 1] : null;
 }
 
