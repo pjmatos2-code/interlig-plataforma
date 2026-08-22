@@ -5,6 +5,8 @@ import { carregarCrm, type CartaoTicket, type FiltrosCrm } from "@/lib/crm/dados
 import { executarRotinasCrm } from "@/lib/crm/rotinas";
 import { FecharODia } from "@/components/crm/fechar-o-dia";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { templateLinkSgp } from "@/lib/sgp/links-server";
+import { aplicarLinkSgp } from "@/lib/sgp/links";
 import { buttonVariants } from "@/components/ui/button";
 import { formatarMoeda, formatarMoedaKpi, formatarNumero, formatarPercentual } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -12,7 +14,7 @@ import { type EtapaTicket } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
 
-const COLUNAS_ABERTAS: EtapaTicket[] = ["novo", "em_atendimento", "proposta", "aguardando"];
+const COLUNAS_TRILHA: EtapaTicket[] = ["novo", "em_atendimento", "proposta", "aguardando", "fechado"];
 const LIMITE_COLUNA = 15;
 
 /** paleta leve por coluna (liquid glass) */
@@ -49,6 +51,53 @@ function Prioridade({ t }: { t: CartaoTicket }) {
         : { rotulo: "Baixa", cor: "bg-emerald-100 text-emerald-700" };
   return (
     <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] font-bold", p.cor)}>{p.rotulo}</span>
+  );
+}
+
+function CartaoVendida({ t, linkTemplate }: { t: CartaoTicket; linkTemplate: string }) {
+  const link = aplicarLinkSgp(linkTemplate, {
+    clienteId: t.sgpClienteId,
+    contratoId: t.sgpContratoId,
+    cpf: t.cpf,
+  });
+  return (
+    <div className="rounded-xl border border-emerald-200/70 bg-white/80 p-3 text-sm shadow-sm backdrop-blur">
+      <div className="flex items-start justify-between gap-2">
+        <Link
+          href={`/crm/${t.id}`}
+          className="min-w-0 truncate font-semibold text-slate-800 hover:text-primary hover:underline"
+        >
+          {t.cliente_nome}
+        </Link>
+        {t.valor != null && t.valor > 0 && (
+          <span className="shrink-0 text-sm font-bold tabular-nums text-emerald-700">
+            {formatarMoeda(t.valor)}
+          </span>
+        )}
+      </div>
+      <p className="mt-0.5 truncate text-xs text-slate-500">{t.plano ?? "—"}</p>
+      <p className="mt-1 truncate text-[11px] text-slate-400">{t.vendedora ?? "Sem vendedora"}</p>
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-emerald-100 pt-2">
+        <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+          ● Vendida
+        </span>
+        {t.sgpContratoId && link ? (
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Abrir contrato no SGP"
+            className="rounded-md bg-interlig-ceu/10 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-interlig-ceu hover:underline"
+          >
+            #{t.sgpContratoId} ↗
+          </a>
+        ) : (
+          <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+            aguardando SGP
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -131,9 +180,10 @@ export default async function CrmPage({
   const ehVendedora = usuario.perfil === "vendedora";
 
   const supabase = criarClienteServidor();
-  const [{ data: pops }, { data: vendedoras }] = await Promise.all([
+  const [{ data: pops }, { data: vendedoras }, linkTemplate] = await Promise.all([
     supabase.from("pops").select("id, nome").order("nome"),
     supabase.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
+    templateLinkSgp(),
   ]);
 
   // helpers de URL preservando filtros
@@ -388,8 +438,8 @@ export default async function CrmPage({
       {/* corpo: kanban + trilho lateral */}
       <div className="grid gap-4 xl:grid-cols-[1fr_290px]">
         <div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {COLUNAS_ABERTAS.map((etapa) => {
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {COLUNAS_TRILHA.map((etapa) => {
               const itens = d.colunas[etapa];
               const total = itens.reduce((s, t) => s + (t.valor ?? 0), 0);
               const tom = TOM_COLUNA[etapa];
@@ -417,9 +467,13 @@ export default async function CrmPage({
                     className="flex flex-col gap-2 overflow-y-auto p-2"
                     style={{ maxHeight: "30rem" }}
                   >
-                    {itens.slice(0, LIMITE_COLUNA).map((t) => (
-                      <CartaoGlass key={t.id} t={t} hoje={hoje} />
-                    ))}
+                    {itens.slice(0, LIMITE_COLUNA).map((t) =>
+                      etapa === "fechado" && t.desfecho === "convertido" ? (
+                        <CartaoVendida key={t.id} t={t} linkTemplate={linkTemplate} />
+                      ) : (
+                        <CartaoGlass key={t.id} t={t} hoje={hoje} />
+                      )
+                    )}
                     {itens.length === 0 && (
                       <div className="flex flex-col items-center gap-1 py-8 text-center text-slate-400">
                         <span className="text-2xl">📝</span>

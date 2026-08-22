@@ -15,6 +15,9 @@ export type CartaoTicket = {
   id: string;
   cliente_nome: string;
   telefone: string | null;
+  cpf: string | null;
+  sgpContratoId: string | null;
+  sgpClienteId: string | null;
   vendedor_id: string | null;
   plano: string | null;
   vendedora: string | null;
@@ -107,15 +110,18 @@ type Bruto = TicketIndicador & {
   motivo_id: string | null;
   valor_estimado: number | null;
   etapa_encerramento: string | null;
+  cpf: string | null;
+  contratos: { sgp_contrato_id: string | null; clientes: { sgp_cliente_id: string | null } | null } | null;
   planos: { nome: string } | null;
   vendedores: { nome: string } | null;
   pops: { nome: string } | null;
   motivos_nao_conversao: { nome: string } | null;
 };
 
-const CAMPOS = `id, cliente_nome, telefone, vendedor_id, pop_id, etapa, criado_em,
+const CAMPOS = `id, cliente_nome, telefone, cpf, vendedor_id, pop_id, etapa, criado_em,
   primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por, origem_criacao,
   motivo_id, contrato_id, reconciliado_em, atualizado_em, valor_estimado, etapa_encerramento,
+  contratos(sgp_contrato_id, clientes(sgp_cliente_id)),
   vendedores(nome), pops(nome), planos(nome), motivos_nao_conversao(nome)`;
 
 /**
@@ -166,7 +172,7 @@ export async function carregarCrm(
   ]);
 
   const todosAbertos = (abertosBrutos ?? []) as unknown as Bruto[];
-  const fechados = (fechadosBrutos ?? []) as unknown as Bruto[];
+  const todosFechados = (fechadosBrutos ?? []) as unknown as Bruto[];
 
   // ---------- filtros do painel (aplicados aos abertos e às perdidas) ----------
   const agora48h = Date.parse(agora) - 48 * 3_600_000;
@@ -190,6 +196,23 @@ export async function carregarCrm(
     return true;
   };
   const abertos = todosAbertos.filter(casaFiltro);
+  // nos fechados valem os filtros de DIMENSÃO (busca/POP/vendedora/origem/meus);
+  // chips de estado (sem contato, risco…) só se aplicam a tickets abertos
+  const casaDimensao = (t: Bruto): boolean => {
+    if (filtros.busca) {
+      const b = filtros.busca.toLowerCase();
+      const tel = (t.telefone ?? "").replace(/\D/g, "");
+      if (!t.cliente_nome.toLowerCase().includes(b) && !tel.includes(b.replace(/\D/g, "") || "\u0000"))
+        return false;
+    }
+    if (filtros.popId && t.pop_id !== filtros.popId) return false;
+    if (filtros.vendedorId && t.vendedor_id !== filtros.vendedorId) return false;
+    if (filtros.origem && t.origem_criacao !== filtros.origem) return false;
+    if (filtros.meus && usuario.vendedor_id && t.vendedor_id !== usuario.vendedor_id) return false;
+    if (filtros.altoValor && (t.valor_estimado ?? 0) < 130) return false;
+    return true;
+  };
+  const fechados = todosFechados.filter(casaDimensao);
 
   const paraCartao = (t: Bruto): CartaoTicket => {
     const referencia = t.etapa === "fechado" ? t.fechado_em! : t.atualizado_em;
@@ -198,6 +221,9 @@ export async function carregarCrm(
       id: t.id,
       cliente_nome: t.cliente_nome,
       telefone: t.telefone,
+      cpf: t.cpf,
+      sgpContratoId: t.contratos?.sgp_contrato_id ?? null,
+      sgpClienteId: t.contratos?.clientes?.sgp_cliente_id ?? null,
       vendedor_id: t.vendedor_id,
       plano: t.planos?.nome ?? null,
       vendedora: t.vendedores?.nome ?? null,
@@ -277,7 +303,7 @@ export async function carregarCrm(
     { etapa: "em_atendimento", rotulo: "Contato inicial" },
     { etapa: "proposta", rotulo: "Interessado" },
     { etapa: "aguardando", rotulo: "Criação do contrato" },
-    { etapa: "fechado", rotulo: "Fechado" },
+    { etapa: "fechado", rotulo: "Contrato assinado" },
   ];
   const qtdPorEtapa = (etapa: EtapaTicket) =>
     etapa === "fechado"
