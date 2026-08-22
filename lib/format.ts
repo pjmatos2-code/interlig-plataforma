@@ -28,6 +28,16 @@ const dataHora = new Intl.DateTimeFormat("pt-BR", {
 export const formatarMoeda = (valor: number | null | undefined) =>
   moeda.format(valor ?? 0);
 
+const moedaInteira = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  maximumFractionDigits: 0,
+});
+
+/** Para cartões de KPI: valores ≥ R$ 1.000 dispensam os centavos. */
+export const formatarMoedaKpi = (valor: number | null | undefined) =>
+  Math.abs(valor ?? 0) >= 1000 ? moedaInteira.format(valor ?? 0) : moeda.format(valor ?? 0);
+
 export const formatarNumero = (valor: number | null | undefined) =>
   numero.format(valor ?? 0);
 

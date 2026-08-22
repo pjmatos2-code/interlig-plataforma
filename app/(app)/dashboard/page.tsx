@@ -13,7 +13,7 @@ import {
   GraficoProjecao,
 } from "@/components/dashboard/graficos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatarData, formatarMoeda, formatarNumero, formatarPercentual } from "@/lib/format";
+import { formatarData, formatarMoeda, formatarMoedaKpi, formatarNumero, formatarPercentual } from "@/lib/format";
 import { ROTULO_ORIGEM } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
@@ -76,7 +76,7 @@ export default async function DashboardPage({
                 }
           }
         />
-        <CartaoKpi rotulo="Receita contratada" valor={formatarMoeda(d.receitaPeriodo)} />
+        <CartaoKpi rotulo="Receita contratada" valor={formatarMoedaKpi(d.receitaPeriodo)} />
         <CartaoKpi rotulo="Ticket médio" valor={formatarMoeda(d.ticketMedioPeriodo)} />
         <CartaoKpi
           rotulo="Meta do mês"

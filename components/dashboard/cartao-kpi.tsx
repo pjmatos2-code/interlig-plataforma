@@ -23,9 +23,17 @@ export function CartaoKpi({
         tom === "vermelho" && "border-l-4 border-l-farol-vermelho"
       )}
     >
-      <CardContent className="p-4">
-        <p className="text-xs font-medium text-muted-foreground">{rotulo}</p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">{valor}</p>
+      <CardContent className="min-w-0 p-4">
+        <p className="text-xs font-medium leading-tight text-muted-foreground">{rotulo}</p>
+        {/* fonte encolhe conforme o número cresce — nunca estoura a caixa */}
+        <p
+          className={cn(
+            "mt-1 font-semibold leading-snug tabular-nums tracking-tight",
+            valor.length <= 9 ? "text-2xl" : valor.length <= 13 ? "text-xl" : "text-lg"
+          )}
+        >
+          {valor}
+        </p>
         <div className="mt-0.5 flex items-baseline gap-2 text-xs">
           {delta && (
             <span
