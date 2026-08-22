@@ -5,6 +5,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   adicionarNota,
+  adicionarProposta,
   agendarFollowup,
   fecharTicket,
   mudarEtapa,
@@ -12,6 +13,7 @@ import {
   reatribuirTicket,
   type EstadoAcao,
 } from "../acoes";
+import { formatarMoeda } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -203,6 +205,77 @@ export function FormularioFechamento({
           Selecione o desfecho — não existe fechar sem desfecho (PRD 3.9).
         </p>
       )}
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+export type PlanoOpcao = { id: string; nome: string; velocidade: string | null; valor_referencia: number | null };
+
+export function FormularioProposta({ ticketId, planos }: { ticketId: string; planos: PlanoOpcao[] }) {
+  const [estado, acao] = useFormState(adicionarProposta, inicial);
+  const [planoId, setPlanoId] = useState("");
+  const [valor, setValor] = useState("");
+
+  function aoTrocarPlano(id: string) {
+    setPlanoId(id);
+    const p = planos.find((x) => x.id === id);
+    // sugere o preço de tabela; a vendedora ainda pode editar (valor negociado)
+    if (p?.valor_referencia) setValor(String(p.valor_referencia));
+  }
+
+  return (
+    <form
+      action={acao}
+      className="space-y-2.5"
+      key={estado.ok ? Date.now() : "proposta"} // limpa após salvar
+    >
+      <input type="hidden" name="ticket_id" value={ticketId} />
+      <div className="space-y-1.5">
+        <Label htmlFor="plano_id">Plano / produto</Label>
+        <select
+          id="plano_id"
+          name="plano_id"
+          value={planoId}
+          onChange={(e) => aoTrocarPlano(e.target.value)}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">Selecione um plano…</option>
+          {planos.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nome}
+              {p.velocidade ? ` · ${p.velocidade}` : ""}
+              {p.valor_referencia ? ` — ${formatarMoeda(p.valor_referencia)}` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="valor">Valor mensal (R$) *</Label>
+          <Input
+            id="valor"
+            name="valor"
+            type="number"
+            step="0.01"
+            min="0"
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+            placeholder="0,00"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="observacao">Observação</Label>
+          <Input id="observacao" name="observacao" placeholder="condição, desconto…" />
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <BotaoEnviar rotulo="Registrar proposta" />
+        <span className="text-xs text-muted-foreground">
+          O valor da última proposta aparece no card do funil.
+        </span>
+      </div>
+      <Erro estado={estado} />
     </form>
   );
 }

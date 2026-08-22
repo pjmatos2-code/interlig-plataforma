@@ -257,3 +257,39 @@ export async function reabrirTicket(ticketId: string): Promise<EstadoAcao> {
   revalidar();
   return { ok: true };
 }
+
+export async function adicionarProposta(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
+  const usuario = await exigirUsuario();
+  const ticketId = String(dados.get("ticket_id") ?? "");
+  const planoId = String(dados.get("plano_id") ?? "") || null;
+  const descricao = String(dados.get("descricao") ?? "").trim() || null;
+  const valor = Number(dados.get("valor"));
+  const observacao = String(dados.get("observacao") ?? "").trim() || null;
+
+  if (!Number.isFinite(valor) || valor <= 0) return { erro: "Informe o valor da proposta." };
+  if (!planoId && !descricao) return { erro: "Escolha o plano ou descreva o produto." };
+
+  const supabase = criarClienteServidor();
+  const { error } = await supabase.from("ticket_propostas").insert({
+    ticket_id: ticketId,
+    plano_id: planoId,
+    descricao,
+    valor,
+    observacao,
+    criado_por: usuario.id,
+  });
+  if (error) return { erro: error.message };
+
+  // valor da negociação = última proposta (aparece no card/kanban)
+  await supabase.from("tickets").update({ valor_estimado: valor, atualizado_em: new Date().toISOString() }).eq("id", ticketId);
+  // registra na trilha
+  await supabase.from("ticket_eventos").insert({
+    ticket_id: ticketId,
+    tipo: "nota",
+    dados: { texto: `Proposta registrada: R$ ${valor.toFixed(2)}${descricao ? ` — ${descricao}` : ""}` },
+    usuario_id: usuario.id,
+  });
+  revalidatePath(`/crm/${ticketId}`);
+  revalidar();
+  return { ok: true };
+}

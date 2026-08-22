@@ -24,6 +24,7 @@ export type CartaoTicket = {
   desfecho: "convertido" | "nao_convertido" | null;
   fechado_por: "vendedora" | "auto_inatividade" | null;
   origem_criacao: "sz_auto" | "manual";
+  valor: number | null;
   diasNaEtapa: number;
   aviso: "fechar" | "avisar" | "ok";
   fechaEmDias: number;
@@ -56,6 +57,7 @@ type Bruto = TicketIndicador & {
   fechado_por: "vendedora" | "auto_inatividade" | null;
   origem_criacao: "sz_auto" | "manual";
   motivo_id: string | null;
+  valor_estimado: number | null;
   vendedores: { nome: string } | null;
   pops: { nome: string } | null;
   motivos_nao_conversao: { nome: string } | null;
@@ -63,7 +65,7 @@ type Bruto = TicketIndicador & {
 
 const CAMPOS = `id, cliente_nome, telefone, vendedor_id, pop_id, etapa, criado_em,
   primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por, origem_criacao,
-  motivo_id, contrato_id, reconciliado_em, atualizado_em,
+  motivo_id, contrato_id, reconciliado_em, atualizado_em, valor_estimado,
   vendedores(nome), pops(nome), motivos_nao_conversao(nome)`;
 
 /**
@@ -107,6 +109,7 @@ export async function carregarCrm(periodo: Periodo, usuario: Usuario): Promise<D
       desfecho: t.desfecho,
       fechado_por: t.fechado_por,
       origem_criacao: t.origem_criacao,
+      valor: t.valor_estimado,
       diasNaEtapa: Math.floor((Date.parse(agora) - Date.parse(referencia)) / 86_400_000),
       aviso: est.situacao,
       fechaEmDias: Math.ceil(est.fechaEmDias),
@@ -222,18 +225,29 @@ export type DetalheTicket = {
   contrato_sgp_id: string | null;
   cliente_sgp_id: string | null;
   reconciliado_em: string | null;
+  valor_estimado: number | null;
+  propostas: {
+    id: string;
+    plano: string | null;
+    velocidade: string | null;
+    descricao: string | null;
+    valor: number;
+    observacao: string | null;
+    criado_em: string;
+    usuario: string | null;
+  }[];
   eventos: { id: string; tipo: string; dados: Record<string, unknown>; criado_em: string; usuario: string | null }[];
 };
 
 export async function carregarTicket(id: string): Promise<DetalheTicket | null> {
   const supabase = criarClienteServidor();
-  const [{ data: t }, { data: eventos }] = await Promise.all([
+  const [{ data: t }, { data: eventos }, { data: propostas }] = await Promise.all([
     supabase
       .from("tickets")
       .select(
         `id, cliente_nome, telefone, cpf, etapa, origem_criacao, sz_conversa_id, vendedor_id,
          criado_em, primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por,
-         origem_cadastro, contrato_id, reconciliado_em,
+         origem_cadastro, contrato_id, reconciliado_em, valor_estimado,
          vendedores(nome), pops(nome), motivos_nao_conversao(nome), planos(nome),
          contratos(sgp_contrato_id, clientes(sgp_cliente_id))`
       )
@@ -245,6 +259,11 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
       .eq("ticket_id", id)
       .order("criado_em", { ascending: false })
       .limit(100),
+    supabase
+      .from("ticket_propostas")
+      .select("id, descricao, valor, observacao, criado_em, planos(nome, velocidade), usuarios(nome)")
+      .eq("ticket_id", id)
+      .order("criado_em", { ascending: false }),
   ]);
   if (!t) return null;
 
@@ -281,6 +300,20 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
     contrato_sgp_id: registro.contratos?.sgp_contrato_id ?? null,
     cliente_sgp_id: registro.contratos?.clientes?.sgp_cliente_id ?? null,
     reconciliado_em: registro.reconciliado_em,
+    valor_estimado: (registro as { valor_estimado: number | null }).valor_estimado ?? null,
+    propostas: (propostas ?? []).map((p) => {
+      const pp = p as typeof p & { planos: { nome: string; velocidade: string | null } | null; usuarios: Rel };
+      return {
+        id: pp.id,
+        plano: pp.planos?.nome ?? null,
+        velocidade: pp.planos?.velocidade ?? null,
+        descricao: pp.descricao,
+        valor: Number(pp.valor),
+        observacao: pp.observacao,
+        criado_em: pp.criado_em,
+        usuario: pp.usuarios?.nome ?? null,
+      };
+    }),
     eventos: (eventos ?? []).map((e) => ({
       id: e.id,
       tipo: e.tipo,

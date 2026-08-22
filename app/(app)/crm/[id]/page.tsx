@@ -17,8 +17,10 @@ import {
   FormularioFechamento,
   FormularioFollowup,
   FormularioNota,
+  FormularioProposta,
   FormularioReatribuir,
 } from "./painel-acoes";
+import { formatarMoeda } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +47,11 @@ export default async function TicketPage({ params }: { params: { id: string } })
 
   const supabase = criarClienteServidor();
   const [{ data: planos }, { data: motivos }, { data: vendedoras }] = await Promise.all([
-    supabase.from("planos").select("id, nome").eq("ativo", true).order("valor_referencia"),
+    supabase
+      .from("planos")
+      .select("id, nome, velocidade, valor_referencia")
+      .eq("ativo", true)
+      .order("valor_referencia", { ascending: false }),
     supabase
       .from("motivos_nao_conversao")
       .select("id, nome")
@@ -237,6 +243,71 @@ export default async function TicketPage({ params }: { params: { id: string } })
             </CardContent>
           </Card>
         )}
+
+        {/* Propostas / Produtos */}
+        <Card className="xl:col-span-3">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+            <CardTitle>Propostas / Produtos</CardTitle>
+            {t.propostas.length > 0 && (
+              <span className="text-sm text-muted-foreground">
+                Valor da negociação:{" "}
+                <span className="font-semibold text-interlig-azul">
+                  {formatarMoeda(t.valor_estimado ?? t.propostas[0].valor)}
+                </span>
+              </span>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {t.propostas.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma proposta registrada. Escolha o plano abaixo — o valor de tabela é sugerido
+                automaticamente e pode ser ajustado para o valor negociado.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-xs text-muted-foreground">
+                      <th className="pb-1.5 pr-3 font-medium">Plano / produto</th>
+                      <th className="pb-1.5 pr-3 font-medium">Valor mensal</th>
+                      <th className="pb-1.5 pr-3 font-medium">Observação</th>
+                      <th className="pb-1.5 pr-3 font-medium">Registrada</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {t.propostas.map((p, i) => (
+                      <tr key={p.id} className={i === 0 ? "font-medium" : "text-muted-foreground"}>
+                        <td className="py-1.5 pr-3">
+                          {p.plano ?? p.descricao ?? "—"}
+                          {p.velocidade && (
+                            <span className="ml-1 text-xs text-muted-foreground">· {p.velocidade}</span>
+                          )}
+                          {i === 0 && (
+                            <Badge variant="outline" className="ml-2 text-[10px]">
+                              atual
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="py-1.5 pr-3 tabular-nums">{formatarMoeda(p.valor)}</td>
+                        <td className="py-1.5 pr-3 text-muted-foreground">{p.observacao ?? "—"}</td>
+                        <td className="py-1.5 pr-3 text-xs text-muted-foreground">
+                          {formatarData(p.criado_em.slice(0, 10))}
+                          {p.usuario ? ` · ${p.usuario}` : ""}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {!fechado && (
+              <div className="rounded-md border bg-muted/30 p-3">
+                <FormularioProposta ticketId={t.id} planos={planos ?? []} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Timeline */}
         <Card className={fechado ? "xl:col-span-1" : "xl:col-span-3"}>

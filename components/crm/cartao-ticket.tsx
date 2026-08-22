@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { formatarData } from "@/lib/format";
+import { formatarData, formatarMoeda } from "@/lib/format";
 import type { CartaoTicket } from "@/lib/crm/dados";
 
 /**
@@ -50,7 +50,14 @@ export function CartaoDeTicket({ ticket, mostrarPop }: { ticket: CartaoTicket; m
         )}
       </div>
 
-      <p className="min-w-0 truncate font-medium">{ticket.cliente_nome}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0 truncate font-medium">{ticket.cliente_nome}</p>
+        {ticket.valor != null && ticket.valor > 0 && (
+          <span className="shrink-0 text-sm font-semibold tabular-nums text-interlig-azul">
+            {formatarMoeda(ticket.valor)}
+          </span>
+        )}
+      </div>
 
       <p className="mt-0.5 truncate text-xs text-muted-foreground">
         {ticket.vendedora ?? "Não atribuído"}

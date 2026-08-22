@@ -11,7 +11,7 @@ import { GraficoBarrasHorizontais } from "@/components/dashboard/graficos";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatarData, formatarNumero, formatarPercentual } from "@/lib/format";
+import { formatarData, formatarMoeda, formatarNumero, formatarPercentual } from "@/lib/format";
 import { ROTULO_ETAPA, type EtapaTicket } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
@@ -143,9 +143,14 @@ export default async function CrmPage({
           const visiveis = itens.slice(0, LIMITE_COLUNA);
           return (
             <div key={etapa} className="flex min-w-0 flex-col rounded-lg border bg-muted/30">
-              <div className="flex items-center justify-between rounded-t-lg border-b bg-background px-3 py-2">
-                <p className="text-sm font-semibold">{ROTULO_ETAPA[etapa]}</p>
-                <Badge variant="secondary">{itens.length}</Badge>
+              <div className="rounded-t-lg border-b bg-background px-3 py-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold">{ROTULO_ETAPA[etapa]}</p>
+                  <Badge variant="secondary">{itens.length}</Badge>
+                </div>
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  {formatarMoeda(itens.reduce((soma, t) => soma + (t.valor ?? 0), 0))}
+                </p>
               </div>
               <div className="flex flex-col gap-2 overflow-y-auto p-2" style={{ maxHeight: "30rem" }}>
                 {visiveis.map((t) => (
