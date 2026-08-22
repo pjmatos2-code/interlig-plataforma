@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare,
-  Target, ShieldCheck, Settings, Trophy, Map, Menu, X, LogOut, type LucideIcon,
+  Target, ShieldCheck, Settings, Trophy, Map, Menu, X, LogOut,
+  PanelLeftClose, PanelLeftOpen, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,8 @@ import { LogoInterlig } from "@/components/marca/logo-interlig";
 const ICONES: Record<string, LucideIcon> = {
   LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare, Target, ShieldCheck, Settings, Trophy, Map,
 };
+
+const CHAVE_RECOLHIDO = "interlig-menu-recolhido";
 
 export function AppShell({
   usuario,
@@ -31,8 +34,19 @@ export function AppShell({
 }) {
   const caminho = usePathname();
   const [aberto, setAberto] = useState(false);
+  // menu lateral recolhido (desktop) — preferência lembrada no navegador
+  const [recolhido, setRecolhido] = useState(false);
+  useEffect(() => {
+    setRecolhido(localStorage.getItem(CHAVE_RECOLHIDO) === "1");
+  }, []);
+  function alternarRecolhido() {
+    setRecolhido((v) => {
+      localStorage.setItem(CHAVE_RECOLHIDO, v ? "0" : "1");
+      return !v;
+    });
+  }
 
-  const links = (
+  const renderLinks = (compacto: boolean) => (
     <nav className="flex flex-col gap-1">
       {itens.map((item) => {
         const Icone = ICONES[item.icone] ?? LayoutDashboard;
@@ -42,15 +56,17 @@ export function AppShell({
             key={item.href}
             href={item.href}
             onClick={() => setAberto(false)}
+            title={compacto ? item.rotulo : undefined}
             className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+              "flex items-center gap-3 rounded-md py-2.5 text-sm font-medium transition-colors",
+              compacto ? "justify-center px-0" : "px-3",
               ativo
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-accent hover:text-foreground"
             )}
           >
             <Icone className="h-4 w-4 shrink-0" />
-            {item.rotulo}
+            {!compacto && item.rotulo}
           </Link>
         );
       })}
@@ -97,13 +113,32 @@ export function AppShell({
       </header>
 
       <div className="flex">
-        {/* Menu lateral — desktop */}
-        <aside className="hidden w-60 shrink-0 border-r bg-background p-3 lg:block">
-          <div className="mb-4 px-3 pt-2">
-            <p className="truncate text-sm font-medium">{usuario.nome}</p>
-            <p className="truncate text-xs text-muted-foreground">{usuario.email}</p>
+        {/* Menu lateral — desktop (recolhível) */}
+        <aside
+          className={cn(
+            "hidden shrink-0 border-r bg-background p-3 transition-[width] duration-200 lg:block",
+            recolhido ? "w-16" : "w-60"
+          )}
+        >
+          <div className={cn("mb-2 flex", recolhido ? "justify-center" : "justify-end")}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={alternarRecolhido}
+              aria-label={recolhido ? "Expandir menu" : "Recolher menu"}
+              title={recolhido ? "Expandir menu" : "Recolher menu"}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            >
+              {recolhido ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </Button>
           </div>
-          {links}
+          {!recolhido && (
+            <div className="mb-4 px-3">
+              <p className="truncate text-sm font-medium">{usuario.nome}</p>
+              <p className="truncate text-xs text-muted-foreground">{usuario.email}</p>
+            </div>
+          )}
+          {renderLinks(recolhido)}
         </aside>
 
         {/* Menu lateral — mobile */}
@@ -115,7 +150,7 @@ export function AppShell({
                 <p className="truncate text-sm font-medium">{usuario.nome}</p>
                 <p className="truncate text-xs text-muted-foreground">{usuario.email}</p>
               </div>
-              {links}
+              {renderLinks(false)}
             </aside>
           </div>
         )}
