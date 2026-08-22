@@ -34,9 +34,9 @@ export const ROTULO_ORIGEM: Record<CategoriaOrigem, string> = {
 export type EtapaTicket = "novo" | "em_atendimento" | "proposta" | "aguardando" | "fechado";
 
 export const ROTULO_ETAPA: Record<EtapaTicket, string> = {
-  novo: "Novo",
-  em_atendimento: "Em atendimento",
-  proposta: "Proposta enviada",
-  aguardando: "Aguardando cliente",
+  novo: "Sem contato",
+  em_atendimento: "Contato inicial",
+  proposta: "Interessado",
+  aguardando: "Criação do contrato",
   fechado: "Fechado",
 };

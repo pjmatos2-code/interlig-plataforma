@@ -88,7 +88,29 @@ export default async function TicketPage({ params }: { params: { id: string } })
             <CardTitle>Dados</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p><span className="text-muted-foreground">Telefone:</span> {t.telefone ?? "—"}</p>
+            <p className="flex items-center gap-2">
+              <span className="text-muted-foreground">Telefone:</span>
+              {t.telefone ? (
+                <>
+                  {t.telefone}
+                  <a
+                    href={`https://wa.me/${(t.telefone.replace(/\D/g, "").length <= 11 ? "55" : "") + t.telefone.replace(/\D/g, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded bg-farol-verde/15 px-1.5 py-0.5 text-xs font-medium text-farol-verde hover:underline"
+                    title="Abrir conversa no WhatsApp"
+                  >
+                    WhatsApp ↗
+                  </a>
+                </>
+              ) : (
+                "—"
+              )}
+            </p>
+            <p>
+              <span className="text-muted-foreground">Fonte:</span>{" "}
+              {t.origem_criacao === "sz_auto" ? "WhatsApp / SZ Chat" : "Cadastro manual"}
+            </p>
             <p><span className="text-muted-foreground">CPF:</span> {t.cpf ?? "—"}</p>
             <p><span className="text-muted-foreground">Vendedora:</span> {t.vendedora ?? "Não atribuído"}</p>
             <p><span className="text-muted-foreground">POP:</span> {t.pop ?? "—"}</p>
