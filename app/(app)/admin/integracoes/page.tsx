@@ -14,6 +14,14 @@ export default async function IntegracoesPage() {
   await exigirPerfil(["gestor"]);
 
   const [sgp, szchat] = await Promise.all([lerConfigSgp(), lerConfigSzchat()]);
+  const adminCfg = criarClienteAdmin();
+  const { data: cfgSgpRaw } = await adminCfg
+    .from("integracoes_config")
+    .select("config")
+    .eq("sistema", "sgp")
+    .maybeSingle();
+  const linkClienteSgp =
+    ((cfgSgpRaw?.config as Record<string, unknown> | null)?.link_cliente as string) ?? null;
 
   const admin = criarClienteAdmin();
   const { data: amostras } = await admin
@@ -81,6 +89,7 @@ export default async function IntegracoesPage() {
               token: mascarar(sgp.token),
               app: sgp.app,
               modo: sgp.modo,
+              link_cliente: linkClienteSgp,
             }}
           />
         </CardContent>

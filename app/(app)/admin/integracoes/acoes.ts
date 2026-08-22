@@ -33,6 +33,7 @@ export async function salvarSgp(_e: EstadoIntegracao, dados: FormData): Promise<
         token: String(dados.get("token") ?? "").trim(),
         app: String(dados.get("app") ?? "").trim(),
         modo: String(dados.get("modo") ?? "mock") === "real" ? "real" : "mock",
+        link_cliente: String(dados.get("link_cliente") ?? "").trim(),
       },
       usuario.id
     );

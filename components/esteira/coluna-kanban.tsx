@@ -2,9 +2,64 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatarMoeda } from "@/lib/format";
+import { aplicarLinkSgp } from "@/lib/sgp/links";
 import type { ItemEsteira } from "@/lib/esteira/dados";
 
 const LIMITE_VISIVEL = 25;
+
+/** Card com nome do cliente e ID do contrato clicáveis, abrindo no SGP. */
+function LinhaCliente({ item, linkTemplate, mostrarPop }: { item: ItemEsteira; linkTemplate: string; mostrarPop: boolean }) {
+  const link = aplicarLinkSgp(linkTemplate, {
+    clienteId: item.sgpClienteId,
+    contratoId: item.sgpContratoId,
+  });
+  const nome = link ? (
+    <a
+      href={link}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="min-w-0 truncate font-medium text-primary hover:underline"
+      title="Abrir cliente no SGP"
+    >
+      {item.cliente}
+    </a>
+  ) : (
+    <span className="min-w-0 truncate font-medium">{item.cliente}</span>
+  );
+  return (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        {nome}
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums",
+            item.alerta ? "bg-farol-vermelho/15 text-farol-vermelho" : "bg-muted text-muted-foreground"
+          )}
+        >
+          {item.idadeDias === 0 ? "hoje" : `${item.idadeDias} d`}
+        </span>
+      </div>
+      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+        {item.vendedora}
+        {mostrarPop && ` · ${item.pop}`}
+      </p>
+      <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+        {item.plano} · {formatarMoeda(item.valor)}
+        {item.sgpContratoId && link && (
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto rounded bg-interlig-ceu/10 px-1.5 py-0.5 font-mono text-[11px] text-interlig-ceu hover:underline"
+            title="Contrato no SGP"
+          >
+            #{item.sgpContratoId}
+          </a>
+        )}
+      </p>
+    </>
+  );
+}
 
 /** Coluna do kanban da esteira (PRD 3.5): mais antigos primeiro, alerta em vermelho. */
 export function ColunaKanban({
@@ -13,12 +68,14 @@ export function ColunaKanban({
   itens,
   tom,
   mostrarPop,
+  linkTemplate,
 }: {
   titulo: string;
   descricaoIdade: string;
   itens: ItemEsteira[];
   tom: "amarelo" | "azul" | "verde";
   mostrarPop: boolean;
+  linkTemplate: string;
 }) {
   const visiveis = itens.slice(0, LIMITE_VISIVEL);
   const ocultos = itens.length - visiveis.length;
@@ -53,26 +110,7 @@ export function ColunaKanban({
               item.alerta && "border-farol-vermelho/60 bg-farol-vermelho/5"
             )}
           >
-            <div className="flex items-start justify-between gap-2">
-              <p className="min-w-0 truncate font-medium">{item.cliente}</p>
-              <span
-                className={cn(
-                  "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums",
-                  item.alerta
-                    ? "bg-farol-vermelho/15 text-farol-vermelho"
-                    : "bg-muted text-muted-foreground"
-                )}
-              >
-                {item.idadeDias === 0 ? "hoje" : `${item.idadeDias} d`}
-              </span>
-            </div>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-              {item.vendedora}
-              {mostrarPop && ` · ${item.pop}`}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {item.plano} · {formatarMoeda(item.valor)}
-            </p>
+            <LinhaCliente item={item} linkTemplate={linkTemplate} mostrarPop={mostrarPop} />
           </Card>
         ))}
         {itens.length === 0 && (

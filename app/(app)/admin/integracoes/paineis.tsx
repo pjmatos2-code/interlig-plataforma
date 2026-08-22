@@ -85,7 +85,7 @@ function BotaoAcao({
 export function PainelSgp({
   configurado,
 }: {
-  configurado: { base_url: string | null; token: string | null; app: string | null; modo: string };
+  configurado: { base_url: string | null; token: string | null; app: string | null; modo: string; link_cliente: string | null };
 }) {
   const [estado, acao] = useFormState(salvarSgp, inicial);
   const [rotas, setRotas] = useState<ResultadoRota[] | null>(null);
@@ -124,6 +124,21 @@ export function PainelSgp({
             name="app"
             placeholder={configurado.app ?? "nome do app do token"}
           />
+        </div>
+        <div className="space-y-1.5 lg:col-span-2">
+          <Label htmlFor="sgp_link">
+            Link para abrir o cliente no SGP (use {"{cliente_id}"} e/ou {"{contrato_id}"})
+          </Label>
+          <Input
+            id="sgp_link"
+            name="link_cliente"
+            defaultValue={configurado.link_cliente ?? ""}
+            placeholder="https://atm-erp.interlig.net/admin/cliente/{cliente_id}"
+          />
+          <p className="text-xs text-muted-foreground">
+            Abra um cliente no SGP, copie a URL da barra do navegador e troque o número do
+            cliente por <code>{"{cliente_id}"}</code>. Deixe vazio para usar o padrão.
+          </p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="sgp_modo">Fonte dos dados</Label>

@@ -219,6 +219,8 @@ export type DetalheTicket = {
   plano: string | null;
   origem_cadastro: CategoriaOrigem | null;
   contrato_id: string | null;
+  contrato_sgp_id: string | null;
+  cliente_sgp_id: string | null;
   reconciliado_em: string | null;
   eventos: { id: string; tipo: string; dados: Record<string, unknown>; criado_em: string; usuario: string | null }[];
 };
@@ -232,7 +234,8 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
         `id, cliente_nome, telefone, cpf, etapa, origem_criacao, sz_conversa_id, vendedor_id,
          criado_em, primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por,
          origem_cadastro, contrato_id, reconciliado_em,
-         vendedores(nome), pops(nome), motivos_nao_conversao(nome), planos(nome)`
+         vendedores(nome), pops(nome), motivos_nao_conversao(nome), planos(nome),
+         contratos(sgp_contrato_id, clientes(sgp_cliente_id))`
       )
       .eq("id", id)
       .maybeSingle(),
@@ -251,6 +254,7 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
     pops: Rel;
     motivos_nao_conversao: Rel;
     planos: Rel;
+    contratos: { sgp_contrato_id: string | null; clientes: { sgp_cliente_id: string | null } | null } | null;
   };
 
   return {
@@ -274,6 +278,8 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
     plano: registro.planos?.nome ?? null,
     origem_cadastro: registro.origem_cadastro,
     contrato_id: registro.contrato_id,
+    contrato_sgp_id: registro.contratos?.sgp_contrato_id ?? null,
+    cliente_sgp_id: registro.contratos?.clientes?.sgp_cliente_id ?? null,
     reconciliado_em: registro.reconciliado_em,
     eventos: (eventos ?? []).map((e) => ({
       id: e.id,

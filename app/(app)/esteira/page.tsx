@@ -7,7 +7,10 @@ import { FiltrosDashboard } from "@/components/dashboard/filtros";
 import { CartaoKpi } from "@/components/dashboard/cartao-kpi";
 import { ColunaKanban } from "@/components/esteira/coluna-kanban";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatarData, formatarNumero, formatarPercentual } from "@/lib/format";
+import { Badge } from "@/components/ui/badge";
+import { formatarData, formatarMoeda, formatarNumero, formatarPercentual } from "@/lib/format";
+import { templateLinkSgp } from "@/lib/sgp/links-server";
+import { aplicarLinkSgp } from "@/lib/sgp/links";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +71,10 @@ export default async function EsteiraPage({
   const supabase = criarClienteServidor();
   const { data: pops } = await supabase.from("pops").select("id, nome").order("nome");
 
-  const d = await carregarEsteira(periodo, popFiltro);
+  const [d, linkTemplate] = await Promise.all([
+    carregarEsteira(periodo, popFiltro),
+    templateLinkSgp(),
+  ]);
   const ehGestorSemFiltro = usuario.perfil === "gestor" && !popFiltro;
 
   return (
@@ -138,6 +144,7 @@ export default async function EsteiraPage({
           itens={d.colunas.pendenteAssinatura}
           tom="amarelo"
           mostrarPop={ehGestorSemFiltro}
+          linkTemplate={linkTemplate}
         />
         <ColunaKanban
           titulo="Aguardando instalação"
@@ -145,6 +152,7 @@ export default async function EsteiraPage({
           itens={d.colunas.aguardandoInstalacao}
           tom="azul"
           mostrarPop={ehGestorSemFiltro}
+          linkTemplate={linkTemplate}
         />
         <ColunaKanban
           titulo="Instaladas no período"
@@ -152,7 +160,126 @@ export default async function EsteiraPage({
           itens={d.colunas.instaladas}
           tom="verde"
           mostrarPop={ehGestorSemFiltro}
+          linkTemplate={linkTemplate}
         />
+      </div>
+
+      {/* Assinaturas pendentes: resumo por vendedor + lista com ID clicável no SGP */}
+      <div className="mb-6 grid gap-4 xl:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>Assinaturas pendentes por vendedora</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+                  <th className="px-4 py-2 font-medium">Vendedora</th>
+                  <th className="px-3 py-2 text-right font-medium">Pendentes</th>
+                  <th className="px-3 py-2 text-right font-medium">Em alerta (48h+)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {d.assinaturaPorVendedora.map((v) => (
+                  <tr key={v.vendedora} className="border-b last:border-0">
+                    <td className="px-4 py-2 font-medium">{v.vendedora}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{formatarNumero(v.total)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {v.emAlerta > 0 ? (
+                        <Badge variant="vermelho">{v.emAlerta}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">0</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {d.assinaturaPorVendedora.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">
+                      Nenhuma assinatura pendente 🎉
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+
+        <Card className="xl:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle>Cadastros com assinatura pendente</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+                    <th className="px-4 py-2 font-medium">Contrato</th>
+                    <th className="px-3 py-2 font-medium">Cliente</th>
+                    <th className="px-3 py-2 font-medium">Vendedora</th>
+                    {ehGestorSemFiltro && <th className="px-3 py-2 font-medium">POP</th>}
+                    <th className="px-3 py-2 text-right font-medium">Idade</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.colunas.pendenteAssinatura.map((i) => {
+                    const link = aplicarLinkSgp(linkTemplate, {
+                      clienteId: i.sgpClienteId,
+                      contratoId: i.sgpContratoId,
+                    });
+                    return (
+                      <tr
+                        key={i.id}
+                        className={i.alerta ? "border-b bg-farol-vermelho/5 last:border-0" : "border-b last:border-0"}
+                      >
+                        <td className="px-4 py-2 font-mono text-xs">
+                          {i.sgpContratoId && link ? (
+                            <a
+                              href={link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-interlig-ceu hover:underline"
+                              title="Abrir contrato no SGP"
+                            >
+                              #{i.sgpContratoId}
+                            </a>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {link ? (
+                            <a href={link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                              {i.cliente}
+                            </a>
+                          ) : (
+                            i.cliente
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">{i.vendedora}</td>
+                        {ehGestorSemFiltro && <td className="px-3 py-2 text-muted-foreground">{i.pop}</td>}
+                        <td className="px-3 py-2 text-right tabular-nums">
+                          {i.alerta ? (
+                            <span className="text-farol-vermelho">{i.idadeDias} d</span>
+                          ) : (
+                            `${i.idadeDias} d`
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {d.colunas.pendenteAssinatura.length === 0 && (
+                    <tr>
+                      <td colSpan={ehGestorSemFiltro ? 5 : 4} className="px-4 py-6 text-center text-muted-foreground">
+                        Nenhum cadastro com assinatura pendente.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">

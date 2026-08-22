@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigirUsuario } from "@/lib/auth";
 import { carregarTicket } from "@/lib/crm/dados";
+import { templateLinkSgp } from "@/lib/sgp/links-server";
+import { aplicarLinkSgp } from "@/lib/sgp/links";
 import { podeReabrir } from "@/lib/indicadores/crm";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
@@ -35,6 +37,10 @@ export default async function TicketPage({ params }: { params: { id: string } })
   const usuario = await exigirUsuario();
   const t = await carregarTicket(params.id);
   if (!t) notFound();
+  const linkSgp = aplicarLinkSgp(await templateLinkSgp(), {
+    clienteId: t.cliente_sgp_id,
+    contratoId: t.contrato_sgp_id,
+  });
 
   const supabase = criarClienteServidor();
   const [{ data: planos }, { data: motivos }, { data: vendedoras }] = await Promise.all([
@@ -115,7 +121,19 @@ export default async function TicketPage({ params }: { params: { id: string } })
                     <p>
                       <span className="text-muted-foreground">Contrato SGP:</span>{" "}
                       {t.contrato_id ? (
-                        <Badge variant="verde">reconciliado</Badge>
+                        t.contrato_sgp_id && linkSgp ? (
+                          <a
+                            href={linkSgp}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-interlig-ceu hover:underline"
+                            title="Abrir contrato no SGP"
+                          >
+                            #{t.contrato_sgp_id} ↗
+                          </a>
+                        ) : (
+                          <Badge variant="verde">reconciliado</Badge>
+                        )
                       ) : (
                         <Badge variant="amarelo">aguardando reconciliação</Badge>
                       )}

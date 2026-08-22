@@ -13,6 +13,8 @@ import { hojeIso, type Periodo } from "@/lib/datas";
 
 export type ItemEsteira = {
   id: string;
+  sgpClienteId: string | null;
+  sgpContratoId: string | null;
   cliente: string;
   vendedora: string;
   pop: string;
@@ -39,20 +41,23 @@ export type DadosEsteira = {
   };
   tempoPorPop: { nome: string; dias: number; ativacoes: number }[];
   tempoPorVendedora: { nome: string; dias: number; ativacoes: number }[];
+  // assinaturas pendentes agrupadas por vendedora (ajuste do gestor)
+  assinaturaPorVendedora: { vendedora: string; total: number; emAlerta: number }[];
 };
 
 type Bruto = ContratoIndicador & {
   id: string;
+  sgp_contrato_id: string | null;
   vendedor_id: string | null;
   pop_id: string | null;
-  clientes: { nome: string } | null;
+  clientes: { nome: string; sgp_cliente_id: string | null } | null;
   planos: { nome: string } | null;
   vendedores: { nome: string } | null;
   pops: { nome: string } | null;
 };
 
 const CAMPOS =
-  "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, pop_id, clientes(nome), planos(nome), vendedores(nome), pops(nome)";
+  "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, pop_id, clientes(nome, sgp_cliente_id), planos(nome), vendedores(nome), pops(nome)";
 
 function dias(deIso: string, ateIso: string) {
   return Math.round(
@@ -107,6 +112,8 @@ export async function carregarEsteira(
 
   const paraItem = (c: Bruto, idadeDias: number, alerta: boolean): ItemEsteira => ({
     id: c.id,
+    sgpClienteId: c.clientes?.sgp_cliente_id ?? null,
+    sgpContratoId: c.sgp_contrato_id,
     cliente: c.clientes?.nome ?? "—",
     vendedora: c.vendedores?.nome ?? "Não atribuída",
     pop: c.pops?.nome ?? "—",
@@ -173,6 +180,18 @@ export async function carregarEsteira(
     },
     tempoPorPop: agrupar((c) => c.pops?.nome ?? "—"),
     tempoPorVendedora: agrupar((c) => c.vendedores?.nome ?? "Não atribuída"),
+    assinaturaPorVendedora: (() => {
+      const grupos = new Map<string, { total: number; emAlerta: number }>();
+      for (const i of semAssinatura) {
+        const g = grupos.get(i.vendedora) ?? { total: 0, emAlerta: 0 };
+        g.total += 1;
+        if (i.alerta) g.emAlerta += 1;
+        grupos.set(i.vendedora, g);
+      }
+      return [...grupos.entries()]
+        .map(([vendedora, v]) => ({ vendedora, ...v }))
+        .sort((a, b) => b.total - a.total);
+    })(),
   };
 }
 
