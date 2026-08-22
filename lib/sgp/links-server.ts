@@ -21,5 +21,5 @@ export async function templateLinkSgp(): Promise<string> {
   )
     .replace(/\/+$/, "")
     .replace(/\/api$/, "");
-  return `${base}/cliente/{cliente_id}`;
+  return `${base}/cliente/{cliente_id}/edit/`;
 }

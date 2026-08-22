@@ -1,22 +1,32 @@
 /**
- * Monta o link para abrir um cliente/contrato direto no painel do SGP.
- * Função PURA (serve em componente cliente e servidor). O template usa
- * {cliente_id} e/ou {contrato_id}; ver templateLinkSgp() para a origem.
+ * Monta o link para o painel do SGP. O SGP não abre cliente por ID direto
+ * (/cliente/{id} dá 404) — usa a LISTA com busca. O template padrão aponta
+ * para /admin/cliente/list/?search={cpf}. Placeholders sem valor são
+ * removidos com segurança (o link nunca fica quebrado). Função pura.
  */
 export function aplicarLinkSgp(
   template: string | null | undefined,
-  ids: { clienteId?: string | null; contratoId?: string | null }
+  ids: { clienteId?: string | null; contratoId?: string | null; cpf?: string | null }
 ): string | null {
   if (!template) return null;
   let url = template;
-  if (ids.clienteId) {
-    const c = encodeURIComponent(String(ids.clienteId));
-    url = url.replaceAll("{cliente_id}", c).replaceAll("{id}", c);
+  const subs: [string, string | null | undefined][] = [
+    ["{cliente_id}", ids.clienteId],
+    ["{id}", ids.clienteId],
+    ["{contrato_id}", ids.contratoId],
+    ["{cpf}", ids.cpf ? String(ids.cpf).replace(/\D/g, "") : null],
+  ];
+  for (const [ph, val] of subs) {
+    if (url.includes(ph) && val) url = url.replaceAll(ph, encodeURIComponent(String(val)));
   }
-  if (ids.contratoId) {
-    url = url.replaceAll("{contrato_id}", encodeURIComponent(String(ids.contratoId)));
+  // sobrou placeholder?
+  if (/\{[a-z_]+\}/.test(url)) {
+    const [base, query] = url.split("?");
+    if (/\{[a-z_]+\}/.test(base)) return null; // no caminho: sem link possível
+    if (query) {
+      const limpos = query.split("&").filter((kv) => !/\{[a-z_]+\}/.test(kv));
+      url = limpos.length ? `${base}?${limpos.join("&")}` : base;
+    }
   }
-  // se sobraram placeholders sem valor, não há link válido
-  if (/\{(cliente_id|contrato_id|id)\}/.test(url)) return null;
   return url;
 }

@@ -12,6 +12,7 @@ function LinhaCliente({ item, linkTemplate, mostrarPop }: { item: ItemEsteira; l
   const link = aplicarLinkSgp(linkTemplate, {
     clienteId: item.sgpClienteId,
     contratoId: item.sgpContratoId,
+    cpf: item.cpf,
   });
   const nome = link ? (
     <a

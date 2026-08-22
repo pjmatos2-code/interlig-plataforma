@@ -226,6 +226,7 @@ export default async function EsteiraPage({
                     const link = aplicarLinkSgp(linkTemplate, {
                       clienteId: i.sgpClienteId,
                       contratoId: i.sgpContratoId,
+                      cpf: i.cpf,
                     });
                     return (
                       <tr

@@ -40,6 +40,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
   const linkSgp = aplicarLinkSgp(await templateLinkSgp(), {
     clienteId: t.cliente_sgp_id,
     contratoId: t.contrato_sgp_id,
+    cpf: t.cpf,
   });
 
   const supabase = criarClienteServidor();

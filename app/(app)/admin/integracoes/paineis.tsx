@@ -127,13 +127,13 @@ export function PainelSgp({
         </div>
         <div className="space-y-1.5 lg:col-span-2">
           <Label htmlFor="sgp_link">
-            Link para abrir o cliente no SGP (use {"{cliente_id}"} e/ou {"{contrato_id}"})
+            Link para abrir o cliente no SGP (use {"{cpf}"}, {"{cliente_id}"} e/ou {"{contrato_id}"})
           </Label>
           <Input
             id="sgp_link"
             name="link_cliente"
             defaultValue={configurado.link_cliente ?? ""}
-            placeholder="https://atm-erp.interlig.net/admin/cliente/{cliente_id}"
+            placeholder="https://atm-erp.interlig.net/admin/cliente/{cliente_id}/edit/"
           />
           <p className="text-xs text-muted-foreground">
             Abra um cliente no SGP, copie a URL da barra do navegador e troque o número do

@@ -15,6 +15,7 @@ export type ItemEsteira = {
   id: string;
   sgpClienteId: string | null;
   sgpContratoId: string | null;
+  cpf: string | null;
   cliente: string;
   vendedora: string;
   pop: string;
@@ -50,14 +51,14 @@ type Bruto = ContratoIndicador & {
   sgp_contrato_id: string | null;
   vendedor_id: string | null;
   pop_id: string | null;
-  clientes: { nome: string; sgp_cliente_id: string | null } | null;
+  clientes: { nome: string; sgp_cliente_id: string | null; cpf: string | null } | null;
   planos: { nome: string } | null;
   vendedores: { nome: string } | null;
   pops: { nome: string } | null;
 };
 
 const CAMPOS =
-  "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, pop_id, clientes(nome, sgp_cliente_id), planos(nome), vendedores(nome), pops(nome)";
+  "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, pop_id, clientes(nome, sgp_cliente_id, cpf), planos(nome), vendedores(nome), pops(nome)";
 
 function dias(deIso: string, ateIso: string) {
   return Math.round(
@@ -114,6 +115,7 @@ export async function carregarEsteira(
     id: c.id,
     sgpClienteId: c.clientes?.sgp_cliente_id ?? null,
     sgpContratoId: c.sgp_contrato_id,
+    cpf: c.clientes?.cpf ?? null,
     cliente: c.clientes?.nome ?? "—",
     vendedora: c.vendedores?.nome ?? "Não atribuída",
     pop: c.pops?.nome ?? "—",
