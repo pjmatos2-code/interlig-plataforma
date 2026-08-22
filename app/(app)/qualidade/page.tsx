@@ -1,12 +1,14 @@
 import { exigirPerfil } from "@/lib/auth";
-import { carregarQualidade, type LinhaTaxa } from "@/lib/qualidade/dados";
+import { carregarQualidade, type ContratoLinkado, type LinhaTaxa } from "@/lib/qualidade/dados";
+import { templateLinkSgp } from "@/lib/sgp/links-server";
+import { aplicarLinkSgp } from "@/lib/sgp/links";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { CartaoKpi } from "@/components/dashboard/cartao-kpi";
 import { GraficoSafras } from "@/components/qualidade/grafico-safras";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatarNumero, formatarPercentual } from "@/lib/format";
+import { formatarData, formatarMoeda, formatarNumero, formatarPercentual } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +21,42 @@ function tomTaxa(taxa: number | null, atencao: number, critico: number) {
   if (taxa >= critico) return "vermelho" as const;
   if (taxa >= atencao) return "amarelo" as const;
   return "verde" as const;
+}
+
+function ClienteSgp({ item, linkTemplate }: { item: ContratoLinkado; linkTemplate: string }) {
+  const link = aplicarLinkSgp(linkTemplate, {
+    clienteId: item.sgpClienteId,
+    contratoId: item.sgpContratoId,
+    cpf: item.cpf,
+  });
+  return (
+    <span className="flex items-center gap-1.5">
+      {link ? (
+        <a
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="truncate font-medium text-primary hover:underline"
+          title="Abrir cliente no SGP"
+        >
+          {item.cliente}
+        </a>
+      ) : (
+        <span className="truncate font-medium">{item.cliente}</span>
+      )}
+      {item.sgpContratoId && link && (
+        <a
+          href={link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded bg-interlig-ceu/10 px-1.5 py-0.5 font-mono text-[11px] text-interlig-ceu hover:underline"
+          title="Contrato no SGP"
+        >
+          #{item.sgpContratoId}
+        </a>
+      )}
+    </span>
+  );
 }
 
 function TabelaTaxas({
@@ -94,6 +132,7 @@ export default async function QualidadePage({
   const supabase = criarClienteServidor();
   const { data: pops } = await supabase.from("pops").select("id, nome").order("nome");
   const d = await carregarQualidade(popFiltro);
+  const linkTemplate = await templateLinkSgp();
 
   return (
     <>
@@ -275,6 +314,106 @@ export default async function QualidadePage({
                 )}
               </tbody>
             </table>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ---------- listas nominais linkadas ao SGP ---------- */}
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>Churn por vendedora — cancelamentos ≤ 90 dias</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Cada cancelamento precoce com a vendedora responsável. Clique para abrir no SGP.
+            </p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto" style={{ maxHeight: "26rem", overflowY: "auto" }}>
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-background">
+                  <tr className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+                    <th className="px-4 py-2 font-medium">Cliente</th>
+                    <th className="px-3 py-2 font-medium">Vendedora</th>
+                    <th className="px-3 py-2 font-medium">Ativação → Cancel.</th>
+                    <th className="px-3 py-2 font-medium">Motivo</th>
+                    <th className="px-3 py-2 text-right font-medium">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.churnLista.map((c) => (
+                    <tr key={`${c.sgpContratoId}-${c.cancelamento}`} className="border-b last:border-0">
+                      <td className="max-w-56 px-4 py-2"><ClienteSgp item={c} linkTemplate={linkTemplate} /></td>
+                      <td className="px-3 py-2">{c.vendedora}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs tabular-nums text-muted-foreground">
+                        {formatarData(c.ativacao)} → {formatarData(c.cancelamento)}
+                      </td>
+                      <td className="max-w-40 truncate px-3 py-2 text-xs text-muted-foreground" title={c.motivo ?? undefined}>
+                        {c.motivo ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatarMoeda(c.valor)}</td>
+                    </tr>
+                  ))}
+                  {d.churnLista.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+                        Nenhum cancelamento precoce no histórico carregado. 🎉
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>Contratos inadimplentes — 1ª fatura em aberto</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Vencida há mais de 10 dias (carência do indicador 5.11) e sem pagamento — são estes
+              que geram débito de meta no estorno. Clique para abrir no SGP.
+            </p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto" style={{ maxHeight: "26rem", overflowY: "auto" }}>
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-background">
+                  <tr className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+                    <th className="px-4 py-2 font-medium">Cliente</th>
+                    <th className="px-3 py-2 font-medium">Vendedora</th>
+                    <th className="px-3 py-2 font-medium">Vencimento</th>
+                    <th className="px-3 py-2 text-right font-medium">Atraso</th>
+                    <th className="px-3 py-2 text-right font-medium">Valor</th>
+                    <th className="px-3 py-2 text-center font-medium">Serviço</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.inadimplentes.map((c) => (
+                    <tr key={`${c.sgpContratoId}-${c.vencimento}`} className="border-b last:border-0">
+                      <td className="max-w-56 px-4 py-2"><ClienteSgp item={c} linkTemplate={linkTemplate} /></td>
+                      <td className="px-3 py-2">{c.vendedora}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs tabular-nums text-muted-foreground">
+                        {formatarData(c.vencimento)}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <Badge variant={c.diasAtraso > 30 ? "vermelho" : "amarelo"}>
+                          {c.diasAtraso} d
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatarMoeda(c.valor)}</td>
+                      <td className="px-3 py-2 text-center text-xs text-muted-foreground">{c.statusContrato}</td>
+                    </tr>
+                  ))}
+                  {d.inadimplentes.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                        Nenhuma 1ª fatura em aberto. 🎉
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       </div>
