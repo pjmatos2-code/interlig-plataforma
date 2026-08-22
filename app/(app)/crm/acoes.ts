@@ -177,6 +177,16 @@ export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<Est
 
   const supabase = criarClienteServidor();
 
+  // padrão RD: perdida fica na coluna do funil onde parou (com o selo);
+  // guardamos a etapa atual antes de fechar
+  const { data: atual } = await supabase
+    .from("tickets")
+    .select("etapa")
+    .eq("id", ticketId)
+    .maybeSingle();
+  const etapaEncerramento =
+    atual && atual.etapa !== "fechado" ? (atual.etapa as string) : null;
+
   if (desfecho === "convertido") {
     const planoId = String(dados.get("plano_id") ?? "");
     const origem = String(dados.get("origem_cadastro") ?? "");
@@ -192,6 +202,7 @@ export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<Est
       .from("tickets")
       .update({
         etapa: "fechado",
+        etapa_encerramento: etapaEncerramento,
         desfecho: "convertido",
         fechado_por: "vendedora",
         plano_id: planoId,
@@ -210,6 +221,7 @@ export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<Est
       .from("tickets")
       .update({
         etapa: "fechado",
+        etapa_encerramento: etapaEncerramento,
         desfecho: "nao_convertido",
         fechado_por: "vendedora",
         motivo_id: motivoId,

@@ -58,6 +58,7 @@ type Bruto = TicketIndicador & {
   origem_criacao: "sz_auto" | "manual";
   motivo_id: string | null;
   valor_estimado: number | null;
+  etapa_encerramento: string | null;
   vendedores: { nome: string } | null;
   pops: { nome: string } | null;
   motivos_nao_conversao: { nome: string } | null;
@@ -65,7 +66,7 @@ type Bruto = TicketIndicador & {
 
 const CAMPOS = `id, cliente_nome, telefone, vendedor_id, pop_id, etapa, criado_em,
   primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por, origem_criacao,
-  motivo_id, contrato_id, reconciliado_em, atualizado_em, valor_estimado,
+  motivo_id, contrato_id, reconciliado_em, atualizado_em, valor_estimado, etapa_encerramento,
   vendedores(nome), pops(nome), motivos_nao_conversao(nome)`;
 
 /**
@@ -116,18 +117,27 @@ export async function carregarCrm(periodo: Periodo, usuario: Usuario): Promise<D
     };
   };
 
+  // padrão RD Station: a perdida fica na coluna do funil onde parou (com o
+  // selo "Perdida"); só a vendida vai para a coluna Fechado.
   const colunas: DadosCrm["colunas"] = {
     novo: [],
     em_atendimento: [],
     proposta: [],
     aguardando: [],
-    fechado: fechados.map(paraCartao),
+    fechado: [],
   };
   for (const t of abertos) {
     colunas[t.etapa as EtapaTicket]?.push(paraCartao(t));
   }
   for (const etapa of ["novo", "em_atendimento", "proposta", "aguardando"] as const) {
     colunas[etapa].sort((a, b) => (a.atualizado_em < b.atualizado_em ? -1 : 1));
+  }
+  for (const t of fechados) {
+    const destino =
+      t.desfecho === "nao_convertido" && t.etapa_encerramento && t.etapa_encerramento !== "fechado"
+        ? (t.etapa_encerramento as EtapaTicket)
+        : "fechado";
+    colunas[destino]?.push(paraCartao(t)); // perdidas entram após as abertas da coluna
   }
 
   // follow-ups de hoje ou atrasados (lembrete na home da vendedora, PRD 3.9)
