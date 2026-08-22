@@ -326,3 +326,21 @@ contratos/execução: vendas ≤21d + OS abertas) + backfill
 OS abertas ∪ assinados-sem-ativação; card mostra agendamento (ou "Sem
 agendamento"), técnico e badge "pronta p/ operacional" quando o responsável
 está atribuído, com link para as ocorrências do painel.
+
+---
+
+## D10 — Importação histórica do RD Station (agosto/2026)
+
+**Contexto:** as vendedoras não lançam no RD no tempo certo — a finalização no
+nosso CRM passa a fazer parte da validação do processo. Para partir com a base
+completa, importamos o export de negociações do RD (deal CSV, 01–21/08).
+
+**Carga (22/08):** 154 negociações → 146 tickets (8 perdidas sem NENHUM contato
+no RD violariam a identificação mínima 5.17 — não importadas; todas da Damely).
+130 vendidas (129 reconciliadas por ID Contrato→sgp_contrato_id; vendedor/plano/
+POP vêm do CONTRATO SGP como fonte da verdade, com fallback no responsável RD e
+no produto) + 16 perdidas com motivo mapeado ([INT] Parou de responder→Sem
+resposta etc.). `tickets.rd_deal_id` (0012) garante idempotência. Mapeamentos:
+Railson (RD)→Loja VTX; Fonte PAP→venda_externa, Loja Física→presencial,
+WhatsApp (0800)→outro (não há categoria própria — avaliar criar), Instagram→
+trafego_pago. Fonte/Produto/Qualificação★ originais ficam na trilha do ticket.
