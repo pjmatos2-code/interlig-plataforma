@@ -182,44 +182,29 @@ export default async function RankingPage() {
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <span className="text-xl">💎</span>
-              <div>
-                <p className="font-medium">Maior ticket médio</p>
-                <p className="text-muted-foreground">
-                  {d.badges.maiorTicket
-                    ? `${d.badges.maiorTicket.nome} — ${ehVendedora ? "na liderança" : formatarMoeda(d.badges.maiorTicket.valor)}`
-                    : "mínimo de 5 vendas no mês"}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="text-xl">🎯</span>
-              <div>
-                <p className="font-medium">Melhor conversão real (CRM)</p>
-                <p className="text-muted-foreground">
-                  {d.badges.melhorConversao
-                    ? `${d.badges.melhorConversao.nome} — ${ehVendedora ? "na liderança" : formatarPercentual(d.badges.melhorConversao.taxa, 0)}`
-                    : "mínimo de 5 tickets fechados no mês"}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
               <span className="text-xl">🚀</span>
               <div>
-                <p className="font-medium">Recorde pessoal em andamento</p>
-                {d.badges.recordePessoal.length === 0 ? (
-                  <p className="text-muted-foreground">ninguém superou o próprio recorde ainda</p>
-                ) : (
-                  <p className="text-muted-foreground">
-                    {d.badges.recordePessoal
-                      .map((r) =>
-                        ehVendedora
-                          ? r.nome
-                          : `${r.nome} (${r.vendas} vs ${r.recordeAnterior})`
-                      )
-                      .join(" · ")}
-                  </p>
-                )}
+                <p className="font-medium">Meta desafio atingida</p>
+                <p className="text-muted-foreground">
+                  {d.badges.metaDesafio.length === 0
+                    ? "interna 100+ vendas · externa 40+ (todas que atingirem no mês)"
+                    : d.badges.metaDesafio
+                        .map((m) => (ehVendedora ? m.nome : `${m.nome} (${m.atingimento}%)`))
+                        .join(" · ")}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-xl">📆</span>
+              <div>
+                <p className="font-medium">Vende todo dia</p>
+                <p className="text-muted-foreground">
+                  {d.badges.vendeTodoDia.length === 0
+                    ? "venda registrada em todos os dias úteis do mês — ninguém ainda"
+                    : d.badges.vendeTodoDia
+                        .map((m) => `${m.nome} (${m.dias} dias)`)
+                        .join(" · ")}
+                </p>
               </div>
             </div>
           </CardContent>

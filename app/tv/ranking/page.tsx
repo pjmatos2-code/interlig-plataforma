@@ -359,38 +359,50 @@ export default async function TotemRankingPage({
         {/* ---------- conquistas ---------- */}
         <section className="anim-subir rounded-2xl border border-white/10 bg-white/5 p-4">
           <h2 className="mb-3 text-sm font-black tracking-wide text-amber-300">🏆 CONQUISTAS EM DESTAQUE</h2>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <div className="rounded-xl border border-amber-400/30 bg-gradient-to-b from-amber-500/15 to-transparent p-3 text-center">
               <p className="text-2xl">🏅</p>
-              <p className="mt-1 text-[11px] font-bold leading-tight">PRIMEIRA A BATER A META DO MÊS</p>
+              <p className="mt-1 text-[11px] font-bold leading-tight">PRIMEIRA A BATER A META</p>
               <p className="mt-1 truncate text-xs text-amber-200">{b.primeiraMeta ? b.primeiraMeta.nome : "em disputa…"}</p>
               <p className="mt-1 inline-block rounded bg-fuchsia-500/25 px-1.5 text-[9px] font-black text-fuchsia-300">ÉPICA</p>
             </div>
             <div className="rounded-xl border border-sky-400/30 bg-gradient-to-b from-sky-500/15 to-transparent p-3 text-center">
-              <p className="text-2xl">💎</p>
-              <p className="mt-1 text-[11px] font-bold leading-tight">MAIOR TICKET MÉDIO</p>
-              <p className="mt-1 truncate text-xs text-sky-200">
-                {b.maiorTicket ? `${b.maiorTicket.nome} · ${formatarMoeda(b.maiorTicket.valor)}` : "mín. 5 vendas"}
+              <p className="text-2xl">🚀</p>
+              <p className="mt-1 text-[11px] font-bold leading-tight">META DESAFIO ATINGIDA</p>
+              <p className="mt-1 text-xs text-sky-200">
+                {b.metaDesafio.length === 0 ? (
+                  <span className="text-slate-400">interna 100+ · externa 40+</span>
+                ) : (
+                  b.metaDesafio.slice(0, 3).map((m) => (
+                    <span key={m.nome} className="block truncate">
+                      {m.nome} · {m.atingimento}%
+                    </span>
+                  ))
+                )}
+                {b.metaDesafio.length > 3 && (
+                  <span className="block text-slate-400">+{b.metaDesafio.length - 3}</span>
+                )}
               </p>
-              <p className="mt-1 inline-block rounded bg-sky-500/25 px-1.5 text-[9px] font-black text-sky-300">RARA</p>
-            </div>
-            <div className="rounded-xl border border-rose-400/30 bg-gradient-to-b from-rose-500/15 to-transparent p-3 text-center">
-              <p className="text-2xl">🎯</p>
-              <p className="mt-1 text-[11px] font-bold leading-tight">MELHOR CONVERSÃO REAL (CRM)</p>
-              <p className="mt-1 truncate text-xs text-rose-200">
-                {b.melhorConversao ? `${b.melhorConversao.nome} · ${b.melhorConversao.taxa.toFixed(0)}%` : "sem fechamentos ainda"}
-              </p>
-              <p className="mt-1 inline-block rounded bg-fuchsia-500/25 px-1.5 text-[9px] font-black text-fuchsia-300">ÉPICA</p>
+              <p className="mt-1 inline-block rounded bg-amber-500/25 px-1.5 text-[9px] font-black text-amber-300">LENDÁRIA</p>
             </div>
             <div className="rounded-xl border border-emerald-400/30 bg-gradient-to-b from-emerald-500/15 to-transparent p-3 text-center">
-              <p className="text-2xl">🚀</p>
-              <p className="mt-1 text-[11px] font-bold leading-tight">RECORDE PESSOAL EM ANDAMENTO</p>
-              <p className="mt-1 truncate text-xs text-emerald-200">
-                {b.recordePessoal[0]
-                  ? `${b.recordePessoal[0].nome} · ${b.recordePessoal[0].vendas} (antes ${b.recordePessoal[0].recordeAnterior})`
-                  : "ninguém ainda"}
+              <p className="text-2xl">📆</p>
+              <p className="mt-1 text-[11px] font-bold leading-tight">VENDE TODO DIA</p>
+              <p className="mt-1 text-xs text-emerald-200">
+                {b.vendeTodoDia.length === 0 ? (
+                  <span className="text-slate-400">nenhuma ainda</span>
+                ) : (
+                  b.vendeTodoDia.slice(0, 3).map((m) => (
+                    <span key={m.nome} className="block truncate">
+                      {m.nome} · {m.dias} dias
+                    </span>
+                  ))
+                )}
+                {b.vendeTodoDia.length > 3 && (
+                  <span className="block text-slate-400">+{b.vendeTodoDia.length - 3}</span>
+                )}
               </p>
-              <p className="mt-1 inline-block rounded bg-emerald-500/25 px-1.5 text-[9px] font-black text-emerald-300">COMUM</p>
+              <p className="mt-1 inline-block rounded bg-emerald-500/25 px-1.5 text-[9px] font-black text-emerald-300">RARA</p>
             </div>
           </div>
         </section>

@@ -41,6 +41,10 @@ export type LinhaRanking = {
 
 export type Badges = {
   primeiraMeta: { nome: string; dia: string } | null;
+  /** faixa Desafio da Instrução Geral (interna ≥143% · externa 40+): todas que atingirem no mês */
+  metaDesafio: { nome: string; atingimento: number }[];
+  /** registrou venda em TODOS os dias úteis decorridos do mês */
+  vendeTodoDia: { nome: string; dias: number }[];
   maiorTicket: { nome: string; valor: number } | null;
   melhorConversao: { nome: string; taxa: number } | null;
   recordePessoal: { nome: string; vendas: number; recordeAnterior: number }[];
@@ -178,6 +182,24 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
       .limit(3000),
   ]);
 
+  // réguas de comissão vigentes (a faixa Desafio de cada agente vem daqui)
+  const { data: regrasBrutas } = await admin
+    .from("regras_comissao")
+    .select("escopo, referencia_id, degraus, vigencia_inicio, vigencia_fim")
+    .lte("vigencia_inicio", inicioMes)
+    .or(`vigencia_fim.is.null,vigencia_fim.gte.${inicioMes}`);
+  const limiarDesafio = (vendedorId: string, popIdV: string | null): number | null => {
+    type Regra = { escopo: string; referencia_id: string | null; degraus: { atingimento_min?: number | null }[] };
+    const regras = (regrasBrutas ?? []) as unknown as Regra[];
+    const r =
+      regras.find((x) => x.escopo === "vendedora" && x.referencia_id === vendedorId) ??
+      regras.find((x) => x.escopo === "pop" && x.referencia_id === popIdV) ??
+      regras.find((x) => x.escopo === "global");
+    if (!r) return null;
+    const minimos = r.degraus.map((d) => d.atingimento_min ?? 0);
+    return minimos.length ? Math.max(...minimos) : null;
+  };
+
   const vendedoras = (vendedorasBrutas ?? []).map((v) => ({
     id: v.id as string,
     nome: v.nome as string,
@@ -214,7 +236,12 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
     mes: totaisDe(podios.mes, contratosEscopo, antMes, vendedoras.length),
   };
 
-  // ---------- streaks (5.13) ----------
+  // ---------- streaks (5.13) + conquistas por dia ----------
+  const metaDesafio: Badges["metaDesafio"] = [];
+  const vendeTodoDia: Badges["vendeTodoDia"] = [];
+  const popPorVendedora = new Map(
+    (vendedorasBrutas ?? []).map((v) => [v.id as string, (v.pop_id as string | null) ?? null])
+  );
   const streaks = vendedoras
     .map((v) => {
       const meta = metaPorVendedora.get(v.id) ?? 0;
@@ -227,6 +254,25 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
       )) {
         porDia.set(c.data_venda, (porDia.get(c.data_venda) ?? 0) + 1);
       }
+      // conquista "meta desafio atingida": nº de vendas do mês alcançou a
+      // faixa Desafio da régua (interna ≈100 · externa 40 — Instrução Ago/2026)
+      const vendasMes = [...porDia.values()].reduce((s2, n) => s2 + n, 0);
+      const limiarPct = limiarDesafio(v.id, popPorVendedora.get(v.id) ?? null);
+      if (meta > 0 && limiarPct !== null) {
+        const limiarVendas = Math.round((meta * limiarPct) / 100);
+        if (limiarVendas > 0 && vendasMes >= limiarVendas) {
+          metaDesafio.push({ nome: v.nome, atingimento: Math.round((vendasMes / meta) * 100) });
+        }
+      }
+
+      // conquista "vende todo dia": vendeu em TODOS os dias úteis decorridos
+      if (
+        diasUteisDecorridos.length >= 3 &&
+        diasUteisDecorridos.every((d) => (porDia.get(d) ?? 0) > 0)
+      ) {
+        vendeTodoDia.push({ nome: v.nome, dias: diasUteisDecorridos.length });
+      }
+
       return {
         vendedorId: v.id,
         nome: v.nome,
@@ -236,6 +282,7 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
       };
     })
     .sort((a, b) => b.streak - a.streak);
+  metaDesafio.sort((a, b) => b.atingimento - a.atingimento);
 
   // ---------- badges ----------
   // primeira a bater a meta do mês
@@ -319,7 +366,7 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
     podios,
     totais,
     streaks,
-    badges: { primeiraMeta, maiorTicket, melhorConversao, recordePessoal },
+    badges: { primeiraMeta, metaDesafio, vendeTodoDia, maiorTicket, melhorConversao, recordePessoal },
     desafioDia,
   };
 }

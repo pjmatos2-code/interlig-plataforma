@@ -344,3 +344,30 @@ resposta etc.). `tickets.rd_deal_id` (0012) garante idempotência. Mapeamentos:
 Railson (RD)→Loja VTX; Fonte PAP→venda_externa, Loja Física→presencial,
 WhatsApp (0800)→outro (não há categoria própria — avaliar criar), Instagram→
 trafego_pago. Fonte/Produto/Qualificação★ originais ficam na trilha do ticket.
+
+---
+
+## D11 — Instrução Geral de Comissionamento AGO/2026 (documento normativo)
+
+**Fonte:** PDF "INTERLIG_Instrucao_Geral_Comissionamento_Ago2026" (22/08). O
+"Painel Comercial" (esta plataforma) é a fonte oficial de Vendas Novas.
+
+**Aplicado agora (migração 0015):** faixa Desafio do time externo 25%→30%;
+régua externa + meta 25 para Jessica Valentim e Maclicya Martins. Interno
+(Dâmely/Karoline): meta 70, Desafio ≥143% (100+ vendas, 15% retroativo) —
+já estava correto. Conquistas do ranking/totem reduzidas a 3 (pedido do Paulo):
+Primeira a bater a meta · Meta desafio atingida (interna 100+/externa 40+,
+vale várias no mês) · Vende todo dia (todos os dias úteis decorridos).
+
+**Pendências da Instrução (exigem evolução do motor/módulos — combinar):**
+(1) LIGCHIP compõe o VTV comissionável mas NÃO conta na contagem de vendas
+para faixa — motor hoje conta tudo; (2) regra novata 10% flat 90 dias
+(Maclicya, Amanda) — motor não tem "flat"; (3) coordenações: Marcelo Otávio
+(faixas sobre VTV externa ALT, Ivanilda excluída) e Aline 3% da praça BN
+(10% individual encerrado); (4) setores Refidelização (Talia/Myllena) e
+Retenção POP-RET-001 v2.0 (Sandryne) — fonte RD, agentes/módulos não
+existem na plataforma; (5) override de gerência (3 gatilhos + trava pelo
+menor pilar, retenção neutralizada); (6) gatilho de ativação zera comissão
+abaixo do piso (56 interno/16 externo) — conferir se o motor zera ou paga
+degrau mínimo; (7) early churn vira débito na meta do mês seguinte (hoje o
+débito entra no mês corrente).
