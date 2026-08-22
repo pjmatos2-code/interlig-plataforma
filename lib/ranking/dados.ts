@@ -15,6 +15,7 @@ import {
   ultimoDiaDoMes,
   inicioDaSemana,
   mesAtras,
+  somarDias,
 } from "@/lib/datas";
 
 /**
@@ -28,9 +29,14 @@ export type LinhaRanking = {
   vendedorId: string;
   nome: string;
   pop: string;
+  foto: string | null;
   vendas: number;
   receita: number;
   posicao: number;
+  /** gamificação do totem: 100 pts por venda */
+  pontos: number;
+  /** posições ganhas (+) ou perdidas (-) vs o período anterior; null = novata no ranking */
+  variacao: number | null;
 };
 
 export type Badges = {
@@ -40,20 +46,38 @@ export type Badges = {
   recordePessoal: { nome: string; vendas: number; recordeAnterior: number }[];
 };
 
+export type TotaisPeriodo = {
+  vendas: number;
+  receita: number;
+  /** % vs período anterior equivalente (null quando o anterior foi zero) */
+  variacaoPct: number | null;
+  ativas: number;
+  totalVendedoras: number;
+};
+
+export type DesafioDia = {
+  alvo: number;
+  progresso: number;
+  recompensaPts: number;
+};
+
 export type DadosRanking = {
   hoje: string;
   podios: { dia: LinhaRanking[]; semana: LinhaRanking[]; mes: LinhaRanking[] };
-  streaks: { vendedorId: string; nome: string; streak: number; metaDiaria: number }[];
+  totais: { dia: TotaisPeriodo; semana: TotaisPeriodo; mes: TotaisPeriodo };
+  streaks: { vendedorId: string; nome: string; foto: string | null; streak: number; metaDiaria: number }[];
   badges: Badges;
+  desafioDia: DesafioDia | null;
 };
 
 type ContratoR = ContratoIndicador & { vendedor_id: string | null };
 
 function ranquear(
-  vendedoras: { id: string; nome: string; pop: string }[],
+  vendedoras: { id: string; nome: string; pop: string; foto: string | null }[],
   contratos: ContratoR[],
   de: string,
-  ate: string
+  ate: string,
+  anterior?: { de: string; ate: string }
 ): LinhaRanking[] {
   const linhas = vendedoras.map((v) => {
     const proprias = vendasDoPeriodo(
@@ -65,16 +89,47 @@ function ranquear(
       vendedorId: v.id,
       nome: v.nome,
       pop: v.pop,
+      foto: v.foto,
       vendas: proprias.length,
       receita: receitaContratada(proprias),
       posicao: 0,
+      pontos: proprias.length * 100,
+      variacao: null as number | null,
     };
   });
   linhas.sort(
     (a, b) => b.vendas - a.vendas || b.receita - a.receita || a.nome.localeCompare(b.nome)
   );
   linhas.forEach((l, i) => (l.posicao = i + 1));
+
+  if (anterior) {
+    const antes = ranquear(vendedoras, contratos, anterior.de, anterior.ate);
+    const posAntes = new Map(antes.filter((l) => l.vendas > 0).map((l) => [l.vendedorId, l.posicao]));
+    for (const l of linhas) {
+      const pa = posAntes.get(l.vendedorId);
+      l.variacao = pa === undefined ? null : pa - l.posicao;
+    }
+  }
   return linhas;
+}
+
+function totaisDe(
+  linhas: LinhaRanking[],
+  contratos: ContratoR[],
+  anterior: { de: string; ate: string },
+  totalVendedoras: number
+): TotaisPeriodo {
+  const vendas = linhas.reduce((s, l) => s + l.vendas, 0);
+  const receita = linhas.reduce((s, l) => s + l.receita, 0);
+  const antes = vendasDoPeriodo(contratos, anterior.de, anterior.ate);
+  const receitaAntes = receitaContratada(antes);
+  return {
+    vendas,
+    receita,
+    variacaoPct: receitaAntes > 0 ? ((receita - receitaAntes) / receitaAntes) * 100 : null,
+    ativas: linhas.filter((l) => l.vendas > 0).length,
+    totalVendedoras,
+  };
 }
 
 export async function carregarRanking(popId: string | null): Promise<DadosRanking> {
@@ -86,7 +141,7 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
 
   let consultaVend = admin
     .from("vendedores")
-    .select("id, nome, pop_id, pops(nome)")
+    .select("id, nome, pop_id, foto_url, pops(nome)")
     .eq("ativo", true);
   if (popId) consultaVend = consultaVend.eq("pop_id", popId);
 
@@ -127,6 +182,7 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
     id: v.id as string,
     nome: v.nome as string,
     pop: ((v.pops as unknown as { nome: string } | null)?.nome ?? "—") as string,
+    foto: (v as { foto_url?: string | null }).foto_url ?? null,
   }));
   const contratos = (contratosBrutos ?? []) as ContratoR[];
   const idsEscopo = new Set(vendedoras.map((v) => v.id));
@@ -140,12 +196,22 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
   const diasUteisMes = (cal ?? []).filter((d) => d.dia_util).map((d) => d.data as string);
   const diasUteisDecorridos = diasUteisMes.filter((d) => d <= hoje);
 
-  // ---------- pódios ----------
-  const rankingMes = ranquear(vendedoras, contratosEscopo, inicioMes, hoje);
+  // ---------- pódios (variação vs período anterior equivalente) ----------
+  const ontem = somarDias(hoje, -1);
+  const antDia = { de: ontem, ate: ontem };
+  const antSemana = { de: somarDias(inicioSemana, -7), ate: somarDias(inicioSemana, -1) };
+  const mesAnterior = mesAtras(inicioMes, 1);
+  const antMes = { de: mesAnterior, ate: ultimoDiaDoMes(mesAnterior) };
+  const rankingMes = ranquear(vendedoras, contratosEscopo, inicioMes, hoje, antMes);
   const podios = {
-    dia: ranquear(vendedoras, contratosEscopo, hoje, hoje),
-    semana: ranquear(vendedoras, contratosEscopo, inicioSemana, hoje),
+    dia: ranquear(vendedoras, contratosEscopo, hoje, hoje, antDia),
+    semana: ranquear(vendedoras, contratosEscopo, inicioSemana, hoje, antSemana),
     mes: rankingMes,
+  };
+  const totais = {
+    dia: totaisDe(podios.dia, contratosEscopo, antDia, vendedoras.length),
+    semana: totaisDe(podios.semana, contratosEscopo, antSemana, vendedoras.length),
+    mes: totaisDe(podios.mes, contratosEscopo, antMes, vendedoras.length),
   };
 
   // ---------- streaks (5.13) ----------
@@ -164,6 +230,7 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
       return {
         vendedorId: v.id,
         nome: v.nome,
+        foto: v.foto,
         metaDiaria,
         streak: streakDiasUteis(porDia, diasUteisDecorridos, metaDiaria, hoje),
       };
@@ -233,10 +300,26 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
   }
   recordePessoal.sort((a, b) => b.vendas - a.vendas);
 
+  // ---------- desafio do dia (meta diária derivada da meta global) ----------
+  const { data: metaGlobal } = await admin
+    .from("metas")
+    .select("quantidade_vendas")
+    .eq("escopo", "global")
+    .eq("mes_ano", inicioMes)
+    .maybeSingle();
+  let desafioDia: DesafioDia | null = null;
+  if (metaGlobal && diasUteisMes.length > 0) {
+    const alvo = Math.max(1, Math.round(metaGlobal.quantidade_vendas / diasUteisMes.length));
+    const vendasHoje = vendasDoPeriodo(contratosEscopo, hoje, hoje).length;
+    desafioDia = { alvo, progresso: vendasHoje, recompensaPts: alvo * 50 };
+  }
+
   return {
     hoje,
     podios,
+    totais,
     streaks,
     badges: { primeiraMeta, maiorTicket, melhorConversao, recordePessoal },
+    desafioDia,
   };
 }

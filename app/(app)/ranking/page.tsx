@@ -103,6 +103,14 @@ export default async function RankingPage() {
         }
       />
 
+      <a
+        href="/tv/ranking"
+        target="_blank"
+        className="mb-5 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-interlig-azul to-interlig-ceu px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02]"
+      >
+        📺 Abrir modo Totem (TV vertical) →
+      </a>
+
       {/* visão da vendedora: posição + distância, sem valores das colegas */}
       {ehVendedora && minhasPosicoes.length > 0 && (
         <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">

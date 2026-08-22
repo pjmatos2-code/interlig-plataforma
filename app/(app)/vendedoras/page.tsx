@@ -6,6 +6,7 @@ import { criarClienteServidor } from "@/lib/supabase/server";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { FiltrosDashboard } from "@/components/dashboard/filtros";
 import { BadgeFarol, BadgeTendencia } from "@/components/vendedoras/badges";
+import { FotoPerfil } from "@/components/vendedoras/foto-perfil";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatarData, formatarMoeda, formatarNumero, formatarPercentual } from "@/lib/format";
 
@@ -23,6 +24,8 @@ export default async function VendedorasPage({
   const { data: pops } = await supabase.from("pops").select("id, nome").order("nome");
 
   const linhas = await listaVendedoras(periodo, usuario, searchParams.pop || null);
+  const { data: fotos } = await supabase.from("vendedores").select("id, foto_url");
+  const fotoPor = new Map((fotos ?? []).map((f) => [f.id as string, f.foto_url as string | null]));
   const totais = linhas.reduce(
     (acc, l) => ({ vendas: acc.vendas + l.vendas, receita: acc.receita + l.receita }),
     { vendas: 0, receita: 0 }
@@ -73,12 +76,20 @@ export default async function VendedorasPage({
                 {linhas.map((l) => (
                   <tr key={l.id} className="border-b transition-colors last:border-0 hover:bg-accent/40">
                     <td className="px-4 py-2.5">
-                      <Link
-                        href={`/vendedoras/${l.id}`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {l.nome}
-                      </Link>
+                      <span className="flex items-center gap-2.5">
+                        <FotoPerfil
+                          vendedorId={l.id}
+                          nome={l.nome}
+                          fotoUrl={fotoPor.get(l.id) ?? null}
+                          podeEditar
+                        />
+                        <Link
+                          href={`/vendedoras/${l.id}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {l.nome}
+                        </Link>
+                      </span>
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground">{l.pop}</td>
                     <td className="px-3 py-2.5 text-right tabular-nums">{formatarNumero(l.vendas)}</td>
