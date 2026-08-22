@@ -239,7 +239,7 @@ export default async function TotemRankingPage({
                   <p className="mt-2 truncate text-[10px] font-semibold tracking-wider text-slate-400">{p2.pop.toUpperCase()}</p>
                   <p className="truncate text-lg font-extrabold">{p2.nome}</p>
                   <p className="text-sm font-bold text-emerald-400">{formatarMoeda(p2.receita)}</p>
-                  <p className="mt-1 inline-block rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-sky-300">⭐ {p2.pontos.toLocaleString("pt-BR")} pts</p>
+                  <p className="mt-1 inline-block rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-sky-300">📶 {p2.vendas} plano{p2.vendas === 1 ? "" : "s"}</p>
                 </>
               ) : (
                 <p className="py-8 text-xs text-slate-500">—</p>
@@ -273,7 +273,7 @@ export default async function TotemRankingPage({
                   <p className="mt-2 inline-block rounded-full bg-amber-400/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-amber-200">{p1.pop.toUpperCase()}</p>
                   <p className="truncate text-2xl font-black">{p1.nome}</p>
                   <p className="text-xl font-extrabold text-emerald-400">{formatarMoeda(p1.receita)}</p>
-                  <p className="mt-1 inline-block rounded-full bg-amber-400/25 px-3 py-1 text-sm font-black text-amber-200">⭐ {p1.pontos.toLocaleString("pt-BR")} pts</p>
+                  <p className="mt-1 inline-block rounded-full bg-amber-400/25 px-3 py-1 text-sm font-black text-amber-200">📶 {p1.vendas} plano{p1.vendas === 1 ? "" : "s"}</p>
                 </>
               )}
             </div>
@@ -289,7 +289,7 @@ export default async function TotemRankingPage({
                   <p className="mt-2 truncate text-[10px] font-semibold tracking-wider text-orange-300/80">{p3.pop.toUpperCase()}</p>
                   <p className="truncate text-lg font-extrabold">{p3.nome}</p>
                   <p className="text-sm font-bold text-emerald-400">{formatarMoeda(p3.receita)}</p>
-                  <p className="mt-1 inline-block rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-orange-300">⭐ {p3.pontos.toLocaleString("pt-BR")} pts</p>
+                  <p className="mt-1 inline-block rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-orange-300">📶 {p3.vendas} plano{p3.vendas === 1 ? "" : "s"}</p>
                 </>
               ) : (
                 <p className="py-8 text-xs text-slate-500">—</p>
@@ -436,7 +436,7 @@ export default async function TotemRankingPage({
               </span>
             </div>
             <p className="mt-2 text-xs text-slate-400">
-              RECOMPENSA <span className="font-black text-amber-300">🪙 {dados.desafioDia.recompensaPts} pts</span>
+              META DO DIA <span className="font-black text-amber-300">📶 {dados.desafioDia.alvo} planos</span>
               {dados.desafioDia.progresso >= dados.desafioDia.alvo && (
                 <span className="ml-2 font-black text-emerald-400">✔ DESAFIO CUMPRIDO!</span>
               )}
