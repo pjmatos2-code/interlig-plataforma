@@ -210,3 +210,146 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
     };
   });
 }
+
+// ---------------------------------------------------------------------------
+// Conferência com o SGP: status oficial (elegível/pendente/glosado importado do
+// PDF "Detalhe Comissão") lado a lado com a nossa validação D5.
+// ---------------------------------------------------------------------------
+export type ConferenciaVendedora = {
+  nome: string;
+  total: number;
+  sgpElegivel: number;
+  sgpPendente: number;
+  sgpGlosado: number;
+  nossaLiberada: number;
+  divergencias: number;
+};
+
+export type ConferenciaSgp = {
+  competencia: string;
+  temDados: boolean;
+  importadoEm: string | null;
+  totais: {
+    total: number;
+    sgpElegivel: number;
+    sgpPendente: number;
+    sgpGlosado: number;
+    nossaLiberada: number;
+    divergencias: number;
+    receitaBaseElegivel: number;
+  };
+  porVendedora: ConferenciaVendedora[];
+  motivosResumo: { motivo: string; quantidade: number }[];
+};
+
+export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
+  const supabase = criarClienteServidor();
+  const { data: itens } = await supabase
+    .from("comissao_sgp_itens")
+    .select(
+      "sgp_contrato_id, contrato_id, vendedor_nome, vl_base, status_sgp, servico_sgp, importado_em"
+    )
+    .eq("competencia", mesIso);
+
+  const vazio: ConferenciaSgp = {
+    competencia: mesIso,
+    temDados: false,
+    importadoEm: null,
+    totais: {
+      total: 0,
+      sgpElegivel: 0,
+      sgpPendente: 0,
+      sgpGlosado: 0,
+      nossaLiberada: 0,
+      divergencias: 0,
+      receitaBaseElegivel: 0,
+    },
+    porVendedora: [],
+    motivosResumo: [],
+  };
+  if (!itens || itens.length === 0) return vazio;
+
+  // dados dos contratos casados, para rodar a nossa validação D5
+  const contratoIds = itens.map((i) => i.contrato_id).filter(Boolean) as string[];
+  const [{ data: contratos }, { data: ticketsConvertidos }] = await Promise.all([
+    supabase
+      .from("contratos")
+      .select("id, status, termo_adesao_assinado, fidelidade_assinada, plano_id, vendedor_id")
+      .in("id", contratoIds.length ? contratoIds : ["00000000-0000-0000-0000-000000000000"]),
+    supabase
+      .from("tickets")
+      .select("contrato_id, vendedor_id, plano_id")
+      .eq("etapa", "fechado")
+      .eq("desfecho", "convertido")
+      .not("contrato_id", "is", null)
+      .in("contrato_id", contratoIds.length ? contratoIds : ["00000000-0000-0000-0000-000000000000"]),
+  ]);
+
+  const contratoPor = new Map((contratos ?? []).map((c) => [c.id, c]));
+  const ticketPor = new Map((ticketsConvertidos ?? []).map((t) => [t.contrato_id as string, t]));
+
+  const porVend = new Map<string, ConferenciaVendedora>();
+  const motivos = new Map<string, number>();
+  const t = { ...vazio.totais };
+
+  for (const it of itens) {
+    t.total++;
+    const pagavelSgp = it.status_sgp === "elegivel";
+    if (it.status_sgp === "elegivel") t.sgpElegivel++;
+    else if (it.status_sgp === "pendente") t.sgpPendente++;
+    else t.sgpGlosado++;
+    if (pagavelSgp) t.receitaBaseElegivel += Number(it.vl_base ?? 0);
+
+    // nossa validação D5
+    const c = it.contrato_id ? contratoPor.get(it.contrato_id) : undefined;
+    const ticket = it.contrato_id ? ticketPor.get(it.contrato_id) : undefined;
+    const crmOk =
+      ticket !== undefined &&
+      c !== undefined &&
+      ticket.vendedor_id === c.vendedor_id &&
+      (ticket.plano_id === null || c.plano_id === null || ticket.plano_id === c.plano_id);
+    const assinaturasOk =
+      c?.termo_adesao_assinado === true && c?.fidelidade_assinada === true;
+    const nossaLiberada = Boolean(c) && crmOk && assinaturasOk && c?.status === "ativo";
+    if (nossaLiberada) t.nossaLiberada++;
+
+    const diverge = pagavelSgp !== nossaLiberada;
+    if (diverge) {
+      t.divergencias++;
+      // motivos: por que a nossa validação segura o que o SGP liberou (ou vice-versa)
+      if (pagavelSgp && !nossaLiberada) {
+        if (!c) motivos.set("contrato ainda não sincronizado", (motivos.get("contrato ainda não sincronizado") ?? 0) + 1);
+        else {
+          if (!crmOk) motivos.set("sem ticket convertido no CRM", (motivos.get("sem ticket convertido no CRM") ?? 0) + 1);
+          if (!assinaturasOk) motivos.set("assinatura eletrônica pendente", (motivos.get("assinatura eletrônica pendente") ?? 0) + 1);
+          if (c.status !== "ativo") motivos.set(`serviço ${c.status}`, (motivos.get(`serviço ${c.status}`) ?? 0) + 1);
+        }
+      } else {
+        motivos.set(`nós liberamos, SGP marcou ${it.status_sgp}`, (motivos.get(`nós liberamos, SGP marcou ${it.status_sgp}`) ?? 0) + 1);
+      }
+    }
+
+    const chave = it.vendedor_nome;
+    const v =
+      porVend.get(chave) ??
+      { nome: chave, total: 0, sgpElegivel: 0, sgpPendente: 0, sgpGlosado: 0, nossaLiberada: 0, divergencias: 0 };
+    v.total++;
+    if (it.status_sgp === "elegivel") v.sgpElegivel++;
+    else if (it.status_sgp === "pendente") v.sgpPendente++;
+    else v.sgpGlosado++;
+    if (nossaLiberada) v.nossaLiberada++;
+    if (diverge) v.divergencias++;
+    porVend.set(chave, v);
+  }
+
+  return {
+    competencia: mesIso,
+    temDados: true,
+    importadoEm: (itens[0] as { importado_em: string }).importado_em ?? null,
+    totais: t,
+    porVendedora: [...porVend.values()].sort((a, b) => b.total - a.total),
+    motivosResumo: [...motivos.entries()]
+      .map(([motivo, quantidade]) => ({ motivo, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade),
+  };
+}

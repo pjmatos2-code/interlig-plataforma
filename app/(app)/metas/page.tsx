@@ -9,7 +9,7 @@ import {
   type ContratoIndicador,
 } from "@/lib/indicadores/regras";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
-import { comissoesDoMes } from "@/lib/comissao/dados";
+import { comissoesDoMes, conferenciaSgp } from "@/lib/comissao/dados";
 import { SimuladorComissao } from "@/components/comissao/simulador";
 import { PainelFechamento } from "@/components/comissao/fechamento";
 import { GestaoRegrasComissao, type RegraListada } from "@/components/comissao/gestao-regras";
@@ -119,6 +119,8 @@ export default async function MetasPage({
 
   // ---------- comissões (PRD seção 6) ----------
   const comissoes = await comissoesDoMes(mesAtual);
+  const conferencia =
+    ehGestor || usuario.perfil === "supervisor" ? await conferenciaSgp(mesSelecionado) : null;
   const minhaComissao = usuario.vendedor_id
     ? comissoes.find((c) => c.vendedorId === usuario.vendedor_id) ?? null
     : null;
@@ -273,6 +275,109 @@ export default async function MetasPage({
                 )}
               </table>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {conferencia?.temDados && (
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle>
+              Conferência com o SGP — {mesInput.split("-").reverse().join("/")}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Status oficial do SGP (importado do Detalhe Comissão) lado a lado com a nossa
+              validação D5. As divergências mostram onde as duas regras discordam.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">SGP elegíveis</p>
+                <p className="text-xl font-semibold text-farol-verde">{conferencia.totais.sgpElegivel}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">SGP pendentes</p>
+                <p className="text-xl font-semibold text-farol-amarelo">{conferencia.totais.sgpPendente}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">SGP glosadas</p>
+                <p className="text-xl font-semibold text-farol-vermelho">{conferencia.totais.sgpGlosado}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Nós liberamos (D5)</p>
+                <p className="text-xl font-semibold">{conferencia.totais.nossaLiberada}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Divergências</p>
+                <p className="text-xl font-semibold text-interlig-azul">{conferencia.totais.divergencias}</p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Receita base elegível</p>
+                <p className="text-xl font-semibold tabular-nums">
+                  {formatarMoeda(conferencia.totais.receitaBaseElegivel)}
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+                    <th className="px-4 py-2.5 font-medium">Vendedora</th>
+                    <th className="px-3 py-2.5 text-right font-medium">Vendas</th>
+                    <th className="px-3 py-2.5 text-right font-medium" title="SGP: elegíveis">SGP eleg.</th>
+                    <th className="px-3 py-2.5 text-right font-medium" title="SGP: pendentes">SGP pend.</th>
+                    <th className="px-3 py-2.5 text-right font-medium" title="SGP: glosadas">SGP glos.</th>
+                    <th className="px-3 py-2.5 text-right font-medium" title="Nossa validação D5 liberou">Nós liberamos</th>
+                    <th className="px-3 py-2.5 text-right font-medium">Divergências</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {conferencia.porVendedora.map((v) => (
+                    <tr key={v.nome} className="border-b last:border-0">
+                      <td className="px-4 py-2.5 font-medium">{v.nome}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{v.total}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-farol-verde">{v.sgpElegivel}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{v.sgpPendente}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{v.sgpGlosado || "—"}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">{v.nossaLiberada}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums">
+                        {v.divergencias > 0 ? (
+                          <Badge variant="amarelo">{v.divergencias}</Badge>
+                        ) : (
+                          <span className="text-farol-verde">✓</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {conferencia.motivosResumo.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">
+                  Por que a nossa validação diverge do SGP
+                </p>
+                <ul className="flex flex-wrap gap-2">
+                  {conferencia.motivosResumo.map((m) => (
+                    <li
+                      key={m.motivo}
+                      className="rounded-full border bg-muted/30 px-3 py-1 text-xs"
+                    >
+                      {m.motivo} <span className="font-semibold tabular-nums">· {m.quantidade}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              O SGP libera a comissão no cadastro + assinaturas; a nossa validação D5 exige também o
+              ticket convertido no CRM e o serviço ativo. Por isso o SGP costuma mostrar mais
+              vendas elegíveis do que nós liberamos — a diferença é a fila de tratativa que ainda
+              falta ser registrada no CRM.
+            </p>
           </CardContent>
         </Card>
       )}
