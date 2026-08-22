@@ -390,3 +390,12 @@ todo insert/update — o sync não rebaixa mais; (3) contratos 22337/22360
 R$ 26.727,00 vs painel R$ 27.306,50 (resíduo de R$ 579,50 ≈ 2% = valores que o
 SGP atualizou depois do export de 21/08 — zera reimportando um PDF novo do
 Detalhe Comissão; o gatilho repropaga sozinho).
+
+**D7 — avanço (22/08):** página Configurações → Canais mapeada. Canais comerciais:
+0800 WhatsApp = canal 62702085acc2f200129c2d37 (provedor GUPSHUP, "Fluxo com IA");
+INTERLIG Trafego Comercial = 6839c0f34cfb100018bace81 (conector Fortics, "Fluxo
+Funil de Vendas"). O "Copiar webhook" da tela é o webhook de ENTRADA
+(hub/v1/{provedor}/inbound/{canal}) — provedor→SZ, não serve para captura.
+Caminho confirmado: componente Webhook/HTTP/REST dentro do editor de FLUXO,
+apontando para /api/webhooks/szchat?secret=… no ponto em que a conversa vira
+atendimento comercial. IDs salvos em integracoes_config.szchat.canais.
