@@ -32,15 +32,52 @@ export function FotoPerfil({
     .map((p) => p[0]!.toUpperCase())
     .join("");
 
+  /** Reduz a foto no navegador (máx. 640px, JPEG) — celular manda 8 MB+ e o
+   * limite do servidor derrubaria o envio. */
+  async function reduzir(arquivo: File): Promise<Blob> {
+    try {
+      const img = await createImageBitmap(arquivo);
+      const maior = Math.max(img.width, img.height);
+      const escala = Math.min(1, 640 / maior);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * escala);
+      canvas.height = Math.round(img.height * escala);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return arquivo;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      img.close();
+      const blob = await new Promise<Blob | null>((res) =>
+        canvas.toBlob(res, "image/jpeg", 0.85)
+      );
+      return blob ?? arquivo;
+    } catch {
+      return arquivo; // navegador sem suporte: envia como veio
+    }
+  }
+
   function aoEscolher(arquivo: File | undefined) {
     if (!arquivo) return;
-    const dados = new FormData();
-    dados.set("vendedor_id", vendedorId);
-    dados.set("foto", arquivo);
+    setErro(null);
     comecar(async () => {
-      const r = await salvarFotoVendedora({}, dados);
-      setErro(r.erro ?? null);
-      if (r.ok) router.refresh();
+      try {
+        const menor = await reduzir(arquivo);
+        if (menor.size > 4 * 1024 * 1024) {
+          setErro("Imagem grande demais mesmo após reduzir.");
+          return;
+        }
+        const dados = new FormData();
+        dados.set("vendedor_id", vendedorId);
+        dados.set(
+          "foto",
+          new File([menor], "foto.jpg", { type: menor.type || "image/jpeg" })
+        );
+        const r = await salvarFotoVendedora({}, dados);
+        setErro(r.erro ?? null);
+        if (r.ok) router.refresh();
+      } catch (e) {
+        // nunca deixa a exceção derrubar a página
+        setErro(e instanceof Error ? e.message : "Falha ao enviar a foto. Tente de novo.");
+      }
     });
   }
 
