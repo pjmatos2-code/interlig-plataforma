@@ -254,3 +254,29 @@ credencial cifrada; usuário de leitura garante zero risco de escrita.
 
 **Ponte imediata:** relatório xlsx do SGP com coluna Vendedor →
 scripts/importar-vendedores.py + aplicar-vendedores.mjs (já prontos).
+
+## D7 — Integração SZ Chat: estado da investigação (21/08/2026)
+
+**Host:** interlig.sz.chat (SPA Apollo). API: `/api/v4`, `/service`, GraphQL em
+`/graphql`. Auth: `Authorization: Bearer <token>`.
+
+**Webhook (push, para criar tickets) — NÃO entrega.** Integração "Interlig CRM"
+salva, evento marcado, Seleção marcada, POST, JSON, Host com ?secret=. Mesmo
+com 329 conversas ativas e agentes atendendo, ZERO eventos chegaram à nossa URL
+(só testes internos). Suspeita nº 1: falta **vincular um canal** à integração.
+Nosso endpoint está 100% (aceita header/query secret, JSON/form, captura tudo
+em szchat_eventos_brutos, mapeamento flexível; testado — cria ticket na hora).
+Descoberta do painel: a conversa de teste caiu em "Equipe Atendimento Altamira"
+(não Comercial); equipe comercial real aparece como "Equipe Comercial Altamira"
+(ex.: Dâmely). Confirmar nome exato no payload real.
+
+**API de leitura (pull, para o follow-up D2):** token do agente (Gerar token de
+autenticação) chega ao GraphQL, mas **introspecção desativada** e as queries de
+atendimento/conversa estão em chunks code-split (não no app.js principal — só
+achei searchTeams/pagination_teams/listContacts). Reverse-engineering cego é
+frágil e de baixo retorno.
+
+**Decisão:** pedir a documentação oficial da API à Fortics (mensagem redigida
+para o Paulo). Com ela: (a) ligar o follow-up (ler conversas por equipe/data +
+mensagens), (b) confirmar o vínculo de canal do webhook. Plataforma pronta dos
+dois lados; falta só a documentação/credencial correta.
