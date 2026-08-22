@@ -114,6 +114,7 @@ export async function carregarDashboard(
     { data: popsData },
     { data: planosData },
     { data: metasData },
+    { data: vendedoresAtivos },
   ] = await Promise.all([
     consulta,
     consultaPendencias,
@@ -130,6 +131,7 @@ export async function carregarDashboard(
       .from("metas")
       .select("escopo, referencia_id, quantidade_vendas")
       .eq("mes_ano", inicioMes),
+    supabase.from("vendedores").select("id, pop_id").eq("ativo", true),
   ]);
 
   const contratos = (contratosBrutos ?? []) as ContratoDashboard[];
@@ -139,19 +141,28 @@ export async function carregarDashboard(
 
   // ---------- meta do escopo ----------
   // com filtro de POP (ou supervisor): meta da POP; sem filtro: meta global.
+  // Sem meta explícita, a meta é a SOMA das metas das vendedoras ativas
+  // (interno 70×2 + externo 25×5 — pedido do gestor, 22/08).
   const metas = metasData ?? [];
+  const popDoVendedor = new Map((vendedoresAtivos ?? []).map((v) => [v.id, v.pop_id]));
+  const somaVendedoras = (filtroPop: string | null) =>
+    metas
+      .filter(
+        (m) =>
+          m.escopo === "vendedora" &&
+          popDoVendedor.has(m.referencia_id as string) &&
+          (filtroPop === null || popDoVendedor.get(m.referencia_id as string) === filtroPop)
+      )
+      .reduce((soma, m) => soma + m.quantidade_vendas, 0);
   let metaMensal: number | null = null;
   if (popId) {
     metaMensal =
       metas.find((m) => m.escopo === "pop" && m.referencia_id === popId)
-        ?.quantidade_vendas ?? null;
+        ?.quantidade_vendas ?? (somaVendedoras(popId) || null);
   } else {
     metaMensal =
       metas.find((m) => m.escopo === "global")?.quantidade_vendas ??
-      (pops.length === 1
-        ? metas.find((m) => m.escopo === "pop" && m.referencia_id === pops[0].id)
-            ?.quantidade_vendas ?? null
-        : null);
+      (somaVendedoras(null) || null);
   }
 
   // ---------- 5.1–5.3: período e comparativo ----------

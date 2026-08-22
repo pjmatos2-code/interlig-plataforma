@@ -347,16 +347,21 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
   }
   recordePessoal.sort((a, b) => b.vendas - a.vendas);
 
-  // ---------- desafio do dia (meta diária derivada da meta global) ----------
+  // ---------- desafio do dia (meta global explícita OU soma das metas das
+  // vendedoras ativas — interno 70×2 + externo 25×5) ----------
   const { data: metaGlobal } = await admin
     .from("metas")
     .select("quantidade_vendas")
     .eq("escopo", "global")
     .eq("mes_ano", inicioMes)
     .maybeSingle();
+  const somaMetas = [...metaPorVendedora.entries()]
+    .filter(([id]) => vendedoras.some((v) => v.id === id))
+    .reduce((soma, [, m]) => soma + m, 0);
+  const metaMes = metaGlobal?.quantidade_vendas ?? (somaMetas || null);
   let desafioDia: DesafioDia | null = null;
-  if (metaGlobal && diasUteisMes.length > 0) {
-    const alvo = Math.max(1, Math.round(metaGlobal.quantidade_vendas / diasUteisMes.length));
+  if (metaMes && diasUteisMes.length > 0) {
+    const alvo = Math.max(1, Math.round(metaMes / diasUteisMes.length));
     const vendasHoje = vendasDoPeriodo(contratosEscopo, hoje, hoje).length;
     desafioDia = { alvo, progresso: vendasHoje, recompensaPts: alvo * 50 };
   }
