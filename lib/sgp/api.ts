@@ -195,7 +195,10 @@ export class SgpApiClient implements SgpClient {
           sgp_cliente_id: String(c.id),
           sgp_plano_id: servico?.plano?.id ? String(servico.plano.id) : null,
           sgp_vendedor_id: null, // não exposto pela URA (D3)
-          valor_mensalidade: num(recentes[0]?.valorCorrigido ?? recentes[0]?.valor),
+          // MAIOR título nominal do contrato — a 1ª fatura de cliente novo é
+          // pró-rata e usava ~metade do valor real (D12). O gatilho
+          // contratos_valor_oficial sobrepõe com o Vl. Base quando existir.
+          valor_mensalidade: recentes.reduce((mx, t) => Math.max(mx, num(t.valor)), 0),
           valor_instalacao: 0,
           status_sgp: ct.status ?? "",
           origem_cadastro_sgp: null,

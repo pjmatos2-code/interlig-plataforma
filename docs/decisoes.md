@@ -371,3 +371,22 @@ menor pilar, retenção neutralizada); (6) gatilho de ativação zera comissão
 abaixo do piso (56 interno/16 externo) — conferir se o motor zera ou paga
 degrau mínimo; (7) early churn vira débito na meta do mês seguinte (hoje o
 débito entra no mês corrente).
+
+---
+
+## D12 — Mensalidade oficial: Vl. Base do Detalhe Comissão (bug do pró-rata)
+
+**Bug (22/08):** a aproximação D3 gravava como `valor_mensalidade` o título
+mais recente — e cliente novo tem a 1ª fatura PRÓ-RATA, então receita/ticket
+de agosto apareciam pela metade (R$ 15,8k vs R$ 27,3k do painel).
+
+**Correção em 3 camadas:** (1) `lib/sgp/api.ts`: mensalidade = MAIOR título
+nominal do contrato; (2) migração 0016: gatilho `contratos_valor_oficial`
+pina o Vl. Base do `comissao_sgp_itens` (e o vendedor do PDF, se faltar) em
+todo insert/update — o sync não rebaixa mais; (3) contratos 22337/22360
+(fora da janela incremental) inseridos via `/api/ura/consultacliente/`.
+
+**Resultado:** 230/230 vendas, todas as vendedoras com contagem exata; receita
+R$ 26.727,00 vs painel R$ 27.306,50 (resíduo de R$ 579,50 ≈ 2% = valores que o
+SGP atualizou depois do export de 21/08 — zera reimportando um PDF novo do
+Detalhe Comissão; o gatilho repropaga sozinho).
