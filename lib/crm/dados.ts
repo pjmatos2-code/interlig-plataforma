@@ -15,6 +15,8 @@ export type CartaoTicket = {
   id: string;
   cliente_nome: string;
   telefone: string | null;
+  vendedor_id: string | null;
+  plano: string | null;
   vendedora: string | null;
   pop: string | null;
   etapa: EtapaTicket;
@@ -30,15 +32,61 @@ export type CartaoTicket = {
   fechaEmDias: number;
 };
 
+export type FiltrosCrm = {
+  busca?: string;
+  popId?: string | null;
+  vendedorId?: string | null;
+  origem?: "sz_auto" | "manual" | null;
+  meus?: boolean;
+  semVendedor?: boolean;
+  semContato24h?: boolean;
+  emRisco?: boolean;
+  altoValor?: boolean;
+};
+
+export type EtapaFunil = {
+  etapa: EtapaTicket;
+  rotulo: string;
+  quantidade: number;
+  valor: number;
+  /** % de conversão para a próxima etapa (null na última) */
+  conversaoPct: number | null;
+};
+
 export type DadosCrm = {
   kpis: {
     abertos: number;
     naoAtribuidos: number;
     conversao: ReturnType<typeof conversaoReal>;
+    conversaoDeltaPp: number | null;
+    pipeline: { valor: number; quantidade: number };
+    emRisco: { total: number; semVendedor: number; semContato24h: number };
     primeiraTratativaMin: number | null;
     cicloConvertidoDias: number | null;
     cicloNaoConvertidoDias: number | null;
     reconciliacao: ReturnType<typeof taxaReconciliacao>;
+  };
+  funilEtapas: EtapaFunil[];
+  atencao: {
+    semContato48h: number;
+    retornosVencidos: number;
+    semVendedor: number;
+    fechadasHoje: number;
+  };
+  retornosHoje: CartaoTicket[];
+  retornosVencidos: CartaoTicket[];
+  fechadosMes: {
+    quantidade: number;
+    valor: number;
+    ultimas: { id: string; cliente: string; valor: number }[];
+  };
+  perdidosPeriodo: number;
+  rodape: {
+    receitaSemana: number;
+    receitaSemanaDeltaPct: number | null;
+    vendedorasComVenda: number;
+    vendedorasTotal: number;
+    maiorTicketMedio: { nome: string; valor: number } | null;
   };
   followupsHoje: CartaoTicket[];
   colunas: Record<EtapaTicket, CartaoTicket[]>;
@@ -59,6 +107,7 @@ type Bruto = TicketIndicador & {
   motivo_id: string | null;
   valor_estimado: number | null;
   etapa_encerramento: string | null;
+  planos: { nome: string } | null;
   vendedores: { nome: string } | null;
   pops: { nome: string } | null;
   motivos_nao_conversao: { nome: string } | null;
@@ -67,19 +116,29 @@ type Bruto = TicketIndicador & {
 const CAMPOS = `id, cliente_nome, telefone, vendedor_id, pop_id, etapa, criado_em,
   primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por, origem_criacao,
   motivo_id, contrato_id, reconciliado_em, atualizado_em, valor_estimado, etapa_encerramento,
-  vendedores(nome), pops(nome), motivos_nao_conversao(nome)`;
+  vendedores(nome), pops(nome), planos(nome), motivos_nao_conversao(nome)`;
 
 /**
  * Painel do CRM (PRD 3.9). Kanban mostra os ABERTOS (estoque) + fechados do
  * período; indicadores 5.14–5.17 seguem os tickets FECHADOS no período.
  * A RLS decide o escopo (vendedora: só os seus; supervisor: o time).
  */
-export async function carregarCrm(periodo: Periodo, usuario: Usuario): Promise<DadosCrm> {
+export async function carregarCrm(
+  periodo: Periodo,
+  usuario: Usuario,
+  filtros: FiltrosCrm = {}
+): Promise<DadosCrm> {
   const supabase = criarClienteServidor();
   const agora = new Date().toISOString();
   const hoje = agora.slice(0, 10);
+  const inicioMes = `${hoje.slice(0, 7)}-01`;
 
-  const [{ data: abertosBrutos }, { data: fechadosBrutos }] = await Promise.all([
+  const [
+    { data: abertosBrutos },
+    { data: fechadosBrutos },
+    { data: fechadosAntBrutos },
+    { data: fechadosMesBrutos },
+  ] = await Promise.all([
     supabase.from("tickets").select(CAMPOS).neq("etapa", "fechado").limit(1000),
     supabase
       .from("tickets")
@@ -89,10 +148,48 @@ export async function carregarCrm(periodo: Periodo, usuario: Usuario): Promise<D
       .lte("fechado_em", `${periodo.ate}T23:59:59.999`)
       .order("fechado_em", { ascending: false })
       .limit(1000),
+    supabase
+      .from("tickets")
+      .select("desfecho")
+      .eq("etapa", "fechado")
+      .gte("fechado_em", `${periodo.deAnterior}T00:00:00`)
+      .lte("fechado_em", `${periodo.ateAnterior}T23:59:59.999`)
+      .limit(1000),
+    supabase
+      .from("tickets")
+      .select("id, cliente_nome, valor_estimado, fechado_em")
+      .eq("etapa", "fechado")
+      .eq("desfecho", "convertido")
+      .gte("fechado_em", `${inicioMes}T00:00:00`)
+      .order("fechado_em", { ascending: false })
+      .limit(1000),
   ]);
 
-  const abertos = (abertosBrutos ?? []) as unknown as Bruto[];
+  const todosAbertos = (abertosBrutos ?? []) as unknown as Bruto[];
   const fechados = (fechadosBrutos ?? []) as unknown as Bruto[];
+
+  // ---------- filtros do painel (aplicados aos abertos e às perdidas) ----------
+  const agora48h = Date.parse(agora) - 48 * 3_600_000;
+  const agora24h = Date.parse(agora) - 24 * 3_600_000;
+  const casaFiltro = (t: Bruto): boolean => {
+    if (filtros.busca) {
+      const b = filtros.busca.toLowerCase();
+      const tel = (t.telefone ?? "").replace(/\D/g, "");
+      if (!t.cliente_nome.toLowerCase().includes(b) && !tel.includes(b.replace(/\D/g, "") || "\u0000"))
+        return false;
+    }
+    if (filtros.popId && t.pop_id !== filtros.popId) return false;
+    if (filtros.vendedorId && t.vendedor_id !== filtros.vendedorId) return false;
+    if (filtros.origem && t.origem_criacao !== filtros.origem) return false;
+    if (filtros.meus && usuario.vendedor_id && t.vendedor_id !== usuario.vendedor_id) return false;
+    if (filtros.semVendedor && t.vendedor_id !== null) return false;
+    if (filtros.semContato24h && Date.parse(t.atualizado_em) > agora24h) return false;
+    if (filtros.emRisco && t.vendedor_id !== null && Date.parse(t.atualizado_em) > agora24h)
+      return false;
+    if (filtros.altoValor && (t.valor_estimado ?? 0) < 130) return false;
+    return true;
+  };
+  const abertos = todosAbertos.filter(casaFiltro);
 
   const paraCartao = (t: Bruto): CartaoTicket => {
     const referencia = t.etapa === "fechado" ? t.fechado_em! : t.atualizado_em;
@@ -101,6 +198,8 @@ export async function carregarCrm(periodo: Periodo, usuario: Usuario): Promise<D
       id: t.id,
       cliente_nome: t.cliente_nome,
       telefone: t.telefone,
+      vendedor_id: t.vendedor_id,
+      plano: t.planos?.nome ?? null,
       vendedora: t.vendedores?.nome ?? null,
       pop: t.pops?.nome ?? null,
       etapa: t.etapa as EtapaTicket,
@@ -146,6 +245,154 @@ export async function carregarCrm(periodo: Periodo, usuario: Usuario): Promise<D
     .map(paraCartao)
     .sort((a, b) => (a.followup_em! < b.followup_em! ? -1 : 1));
 
+  // ---------- blocos do painel (modelo aprovado 22/08) ----------
+  const pipeline = {
+    valor: abertos.reduce((s2, t) => s2 + (t.valor_estimado ?? 0), 0),
+    quantidade: abertos.length,
+  };
+  const semVendedorLista = abertos.filter((t) => t.vendedor_id === null);
+  const semContato24hLista = abertos.filter((t) => Date.parse(t.atualizado_em) <= agora24h);
+  const emRisco = {
+    semVendedor: semVendedorLista.length,
+    semContato24h: semContato24hLista.length,
+    total: new Set([...semVendedorLista, ...semContato24hLista].map((t) => t.id)).size,
+  };
+
+  // conversão do período anterior (delta em pontos percentuais)
+  const fechadosAnt = (fechadosAntBrutos ?? []) as { desfecho: string | null }[];
+  const convAnt =
+    fechadosAnt.length === 0
+      ? null
+      : fechadosAnt.filter((t) => t.desfecho === "convertido").length / fechadosAnt.length;
+  const conversaoAtual = conversaoReal(fechados);
+  const conversaoDeltaPp =
+    convAnt === null || conversaoAtual.taxa === null
+      ? null
+      : (conversaoAtual.taxa - convAnt) * 100;
+
+  // funil com % de passagem entre etapas (acumulado à frente ÷ acumulado atual)
+  const convertidosPeriodo = fechados.filter((t) => t.desfecho === "convertido");
+  const ORDEM: { etapa: EtapaTicket; rotulo: string }[] = [
+    { etapa: "novo", rotulo: "Sem contato" },
+    { etapa: "em_atendimento", rotulo: "Contato inicial" },
+    { etapa: "proposta", rotulo: "Interessado" },
+    { etapa: "aguardando", rotulo: "Criação do contrato" },
+    { etapa: "fechado", rotulo: "Fechado" },
+  ];
+  const qtdPorEtapa = (etapa: EtapaTicket) =>
+    etapa === "fechado"
+      ? convertidosPeriodo.length
+      : abertos.filter((t) => t.etapa === etapa).length;
+  const valorPorEtapa = (etapa: EtapaTicket) =>
+    etapa === "fechado"
+      ? convertidosPeriodo.reduce((s2, t) => s2 + (t.valor_estimado ?? 0), 0)
+      : abertos
+          .filter((t) => t.etapa === etapa)
+          .reduce((s2, t) => s2 + (t.valor_estimado ?? 0), 0);
+  const acumulado = ORDEM.map((_, i) =>
+    ORDEM.slice(i).reduce((s2, o) => s2 + qtdPorEtapa(o.etapa), 0)
+  );
+  const funilEtapas: EtapaFunil[] = ORDEM.map((o, i) => ({
+    etapa: o.etapa,
+    rotulo: o.rotulo,
+    quantidade: qtdPorEtapa(o.etapa),
+    valor: valorPorEtapa(o.etapa),
+    conversaoPct:
+      i === ORDEM.length - 1 || acumulado[i] === 0
+        ? null
+        : Math.round((acumulado[i + 1] / acumulado[i]) * 100),
+  }));
+
+  // atenção necessária + retornos
+  const retornosHoje = abertos
+    .filter((t) => t.followup_em && t.followup_em.slice(0, 10) === hoje)
+    .map(paraCartao)
+    .sort((a, b) => (a.followup_em! < b.followup_em! ? -1 : 1));
+  const retornosVencidos = abertos
+    .filter((t) => t.followup_em && t.followup_em.slice(0, 10) < hoje)
+    .map(paraCartao)
+    .sort((a, b) => (a.followup_em! < b.followup_em! ? -1 : 1));
+  const atencao = {
+    semContato48h: abertos.filter((t) => Date.parse(t.atualizado_em) <= agora48h).length,
+    retornosVencidos: retornosVencidos.length,
+    semVendedor: emRisco.semVendedor,
+    fechadasHoje: fechados.filter(
+      (t) => t.desfecho === "convertido" && (t.fechado_em ?? "").slice(0, 10) === hoje
+    ).length,
+  };
+
+  // fechados no mês corrente (independe do filtro de período)
+  const fm = (fechadosMesBrutos ?? []) as { id: string; cliente_nome: string; valor_estimado: number | null }[];
+  const fechadosMes = {
+    quantidade: fm.length,
+    valor: fm.reduce((s2, t) => s2 + (t.valor_estimado ?? 0), 0),
+    ultimas: fm.slice(0, 3).map((t) => ({
+      id: t.id,
+      cliente: t.cliente_nome.split(/\s+/)[0] ?? t.cliente_nome,
+      valor: t.valor_estimado ?? 0,
+    })),
+  };
+
+  // rodapé: números reais de venda (contratos), no escopo da RLS
+  const inicioSemanaIso = (() => {
+    const d = new Date(`${hoje}T00:00:00Z`);
+    const dia = d.getUTCDay();
+    d.setUTCDate(d.getUTCDate() - ((dia + 6) % 7));
+    return d.toISOString().slice(0, 10);
+  })();
+  const semanaAntIso = (() => {
+    const d = new Date(`${inicioSemanaIso}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 7);
+    return d.toISOString().slice(0, 10);
+  })();
+  const [{ data: vendasSemana }, { data: vendasSemanaAnt }, { data: vendasMesContratos }, { data: vendedorasAtivas }] =
+    await Promise.all([
+      supabase
+        .from("contratos")
+        .select("valor_mensalidade")
+        .gte("data_venda", inicioSemanaIso)
+        .neq("status", "cancelado")
+        .limit(2000),
+      supabase
+        .from("contratos")
+        .select("valor_mensalidade")
+        .gte("data_venda", semanaAntIso)
+        .lt("data_venda", inicioSemanaIso)
+        .neq("status", "cancelado")
+        .limit(2000),
+      supabase
+        .from("contratos")
+        .select("vendedor_id, valor_mensalidade, vendedores(nome)")
+        .gte("data_venda", inicioMes)
+        .neq("status", "cancelado")
+        .not("vendedor_id", "is", null)
+        .limit(2000),
+      supabase.from("vendedores").select("id").eq("ativo", true),
+    ]);
+  const receitaSemana = (vendasSemana ?? []).reduce((s2, c) => s2 + Number(c.valor_mensalidade ?? 0), 0);
+  const receitaAnt = (vendasSemanaAnt ?? []).reduce((s2, c) => s2 + Number(c.valor_mensalidade ?? 0), 0);
+  const porVend = new Map<string, { nome: string; total: number; qtd: number }>();
+  for (const c of (vendasMesContratos ?? []) as unknown as { vendedor_id: string; valor_mensalidade: number; vendedores: { nome: string } | null }[]) {
+    const g = porVend.get(c.vendedor_id) ?? { nome: c.vendedores?.nome ?? "—", total: 0, qtd: 0 };
+    g.total += Number(c.valor_mensalidade ?? 0);
+    g.qtd += 1;
+    porVend.set(c.vendedor_id, g);
+  }
+  let maiorTicketMedio: DadosCrm["rodape"]["maiorTicketMedio"] = null;
+  for (const g of porVend.values()) {
+    if (g.qtd < 5) continue;
+    const tm = g.total / g.qtd;
+    if (!maiorTicketMedio || tm > maiorTicketMedio.valor) maiorTicketMedio = { nome: g.nome, valor: tm };
+  }
+  const rodape = {
+    receitaSemana,
+    receitaSemanaDeltaPct: receitaAnt > 0 ? ((receitaSemana - receitaAnt) / receitaAnt) * 100 : null,
+    vendedorasComVenda: porVend.size,
+    vendedorasTotal: (vendedorasAtivas ?? []).length,
+    maiorTicketMedio,
+  };
+  const perdidosPeriodo = fechados.filter((t) => t.desfecho === "nao_convertido").length;
+
   // motivos de perda no período (alimenta 3.4)
   const porMotivo = new Map<string, number>();
   for (const t of fechados) {
@@ -179,12 +426,22 @@ export async function carregarCrm(periodo: Periodo, usuario: Usuario): Promise<D
     kpis: {
       abertos: abertos.length,
       naoAtribuidos: abertos.filter((t) => t.vendedor_id === null).length,
-      conversao: conversaoReal(fechados),
+      conversao: conversaoAtual,
+      conversaoDeltaPp,
+      pipeline,
+      emRisco,
       primeiraTratativaMin: tempoPrimeiraTratativa([...abertos, ...fechados]),
       cicloConvertidoDias: cicloNegociacao(fechados, "convertido"),
       cicloNaoConvertidoDias: cicloNegociacao(fechados, "nao_convertido"),
       reconciliacao: taxaReconciliacao(fechados),
     },
+    funilEtapas,
+    atencao,
+    retornosHoje,
+    retornosVencidos,
+    fechadosMes,
+    perdidosPeriodo,
+    rodape,
     followupsHoje,
     colunas,
     motivosPerda: [...porMotivo.entries()]

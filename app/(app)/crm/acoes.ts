@@ -305,3 +305,37 @@ export async function adicionarProposta(_e: EstadoAcao, dados: FormData): Promis
   revalidar();
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// Fechar o dia: concluir/empurrar follow-ups sem abrir o ticket
+// ---------------------------------------------------------------------------
+export async function concluirFollowup(ticketId: string): Promise<EstadoAcao> {
+  const usuario = await exigirUsuario();
+  const supabase = criarClienteServidor();
+  const { error } = await supabase
+    .from("tickets")
+    .update({ followup_em: null, atualizado_em: new Date().toISOString() })
+    .eq("id", ticketId);
+  if (error) return { erro: error.message };
+  await supabase.from("ticket_eventos").insert({
+    ticket_id: ticketId,
+    tipo: "nota",
+    dados: { texto: "Retorno realizado (fechar o dia)." },
+    usuario_id: usuario.id,
+  });
+  revalidar();
+  return { ok: true };
+}
+
+export async function adiarFollowup(ticketId: string, dias: number): Promise<EstadoAcao> {
+  await exigirUsuario();
+  const quando = new Date(Date.now() + dias * 86_400_000).toISOString().slice(0, 10);
+  const supabase = criarClienteServidor();
+  const { error } = await supabase
+    .from("tickets")
+    .update({ followup_em: `${quando}T12:00:00` })
+    .eq("id", ticketId);
+  if (error) return { erro: error.message };
+  revalidar();
+  return { ok: true };
+}
