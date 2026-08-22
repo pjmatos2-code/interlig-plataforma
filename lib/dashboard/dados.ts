@@ -90,16 +90,26 @@ export async function carregarDashboard(
   let consultaPendencias = supabase
     .from("contratos")
     .select(
-      "data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade"
+      "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade"
     )
     .or("data_assinatura.is.null,data_ativacao.is.null")
     .neq("status", "cancelado")
     .limit(5000);
   if (popId) consultaPendencias = consultaPendencias.eq("pop_id", popId);
 
+  // D9: aguardando instalação = OS de instalação ABERTA no SGP (mesma régua
+  // da Esteira — a aproximação D3 zera o critério antigo por data_ativacao)
+  let consultaOsAbertas = supabase
+    .from("os_instalacao")
+    .select("contrato_id, contratos!inner(id, data_venda, pop_id, status)")
+    .eq("situacao", "aberta")
+    .limit(1000);
+  if (popId) consultaOsAbertas = consultaOsAbertas.eq("contratos.pop_id", popId);
+
   const [
     { data: contratosBrutos },
     { data: contratosPendentes },
+    { data: osAbertasBrutas },
     { data: diasCalendario },
     { data: popsData },
     { data: planosData },
@@ -107,6 +117,7 @@ export async function carregarDashboard(
   ] = await Promise.all([
     consulta,
     consultaPendencias,
+    consultaOsAbertas,
     supabase
       .from("calendario")
       .select("data, dia_util")
@@ -170,10 +181,23 @@ export async function carregarDashboard(
     diasUteisRestantes: diasUteisMes.filter((d) => d > hoje).length,
   });
 
-  // ---------- 5.7 / 5.8 ----------
+  // ---------- 5.7 / 5.8 (5.7 revisado pela D9) ----------
   const pendencias = (contratosPendentes ?? []) as ContratoIndicador[];
-  const ativ = ativacoesPendentes(pendencias, hoje);
   const assin = pendentesAssinatura(pendencias, hoje);
+
+  // aguardando instalação: OS abertas ∪ assinados sem ativação (D9)
+  type OsAberta = { contrato_id: string; contratos: { id: string; data_venda: string; status: string } };
+  const osAbertas = ((osAbertasBrutas ?? []) as unknown as OsAberta[]).filter(
+    (o) => o.contratos && o.contratos.status !== "cancelado"
+  );
+  const diasDesde = (de: string) =>
+    Math.round((Date.parse(`${hoje}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000);
+  const idsComOs = new Set(osAbertas.map((o) => o.contratos.id));
+  const ativLegado = ativacoesPendentes(pendencias, hoje);
+  const ativ = [
+    ...osAbertas.map((o) => ({ alerta: diasDesde(o.contratos.data_venda) > 7 })),
+    ...ativLegado.filter((p) => !idsComOs.has((p.contrato as { id?: string }).id ?? "")),
+  ];
 
   // ---------- gráficos ----------
   const vendasDiarias: { dia: string; vendas: number }[] = [];
