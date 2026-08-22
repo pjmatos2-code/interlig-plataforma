@@ -280,3 +280,22 @@ frágil e de baixo retorno.
 para o Paulo). Com ela: (a) ligar o follow-up (ler conversas por equipe/data +
 mensagens), (b) confirmar o vínculo de canal do webhook. Plataforma pronta dos
 dois lados; falta só a documentação/credencial correta.
+
+---
+
+## D8 — Liberação de comissão durante a implantação (revisão da D5)
+
+**Contexto:** o card "Conferência com o SGP" (agosto/2026) mostrou que o SGP
+libera 187 vendas e a nossa validação D5 liberava 0 — porque nenhuma das vendas
+nativas do SGP tem ticket convertido no CRM. As vendedoras ainda não tiveram
+acesso à plataforma; o processo de CRM não está validado ao pé da letra.
+
+**Decisão (Paulo, 21/08/2026 — opção 2):** a venda **nativa do SGP** (cadastrada
+direto, sem passar pelo funil) **não exige** ticket no CRM para liberar comissão.
+Régua de liberação passa a ser: **duas assinaturas eletrônicas + serviço ativo**
+(igual ao SGP). O ticket do CRM só é exigido quando a venda passou pelo funil
+(WhatsApp/SZ) — se houver ticket, ele precisa estar convertido e consistente
+(mesma vendedora/plano). Implementado em `lib/comissao/dados.ts` (`comissoesDoMes`
+e `conferenciaSgp`). Resultado agosto: liberadas 0→204; divergências 187→25
+(4 elegíveis segurados por assinatura/serviço + 21 que liberamos e o SGP ainda
+marca pendente). Rever quando as vendedoras estiverem operando o CRM.

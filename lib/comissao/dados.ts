@@ -176,14 +176,17 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
         c.data_cancelamento !== null &&
         dias(referencia, c.data_cancelamento) <= regra.estorno_dias;
 
-      // ---- liberação da comissão (critério D5) ----
+      // ---- liberação da comissão (critério D5, revisado — decisão D8) ----
+      // Em implantação as vendedoras ainda não operam o CRM, então a venda
+      // nativa do SGP (sem ticket) NÃO exige tratativa no CRM. Quando existe
+      // ticket, ele precisa estar convertido e consistente (mesma vendedora/plano).
       const ticket = ticketPorContrato.get(c.id);
-      const crmOk =
-        ticket !== undefined &&
-        ticket.vendedor_id === c.vendedor_id &&
-        (ticket.plano_id === null || c.plano_id === null || ticket.plano_id === c.plano_id);
+      const crmConsistente =
+        ticket === undefined ||
+        (ticket.vendedor_id === c.vendedor_id &&
+          (ticket.plano_id === null || c.plano_id === null || ticket.plano_id === c.plano_id));
       const assinaturasOk = c.termo_adesao_assinado === true && c.fidelidade_assinada === true;
-      const liberada = crmOk && assinaturasOk && c.status === "ativo";
+      const liberada = crmConsistente && assinaturasOk && c.status === "ativo";
 
       return {
         valor_mensalidade: c.valor_mensalidade,
@@ -300,17 +303,18 @@ export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
     else t.sgpGlosado++;
     if (pagavelSgp) t.receitaBaseElegivel += Number(it.vl_base ?? 0);
 
-    // nossa validação D5
+    // nossa validação D5 (revisado — decisão D8): venda nativa do SGP não exige
+    // ticket no CRM; havendo ticket, precisa ser convertido e consistente
     const c = it.contrato_id ? contratoPor.get(it.contrato_id) : undefined;
     const ticket = it.contrato_id ? ticketPor.get(it.contrato_id) : undefined;
-    const crmOk =
-      ticket !== undefined &&
-      c !== undefined &&
-      ticket.vendedor_id === c.vendedor_id &&
-      (ticket.plano_id === null || c.plano_id === null || ticket.plano_id === c.plano_id);
+    const crmConsistente =
+      ticket === undefined ||
+      (c !== undefined &&
+        ticket.vendedor_id === c.vendedor_id &&
+        (ticket.plano_id === null || c.plano_id === null || ticket.plano_id === c.plano_id));
     const assinaturasOk =
       c?.termo_adesao_assinado === true && c?.fidelidade_assinada === true;
-    const nossaLiberada = Boolean(c) && crmOk && assinaturasOk && c?.status === "ativo";
+    const nossaLiberada = Boolean(c) && crmConsistente && assinaturasOk && c?.status === "ativo";
     if (nossaLiberada) t.nossaLiberada++;
 
     const diverge = pagavelSgp !== nossaLiberada;
@@ -320,7 +324,7 @@ export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
       if (pagavelSgp && !nossaLiberada) {
         if (!c) motivos.set("contrato ainda não sincronizado", (motivos.get("contrato ainda não sincronizado") ?? 0) + 1);
         else {
-          if (!crmOk) motivos.set("sem ticket convertido no CRM", (motivos.get("sem ticket convertido no CRM") ?? 0) + 1);
+          if (!crmConsistente) motivos.set("ticket do CRM inconsistente (vendedora/plano)", (motivos.get("ticket do CRM inconsistente (vendedora/plano)") ?? 0) + 1);
           if (!assinaturasOk) motivos.set("assinatura eletrônica pendente", (motivos.get("assinatura eletrônica pendente") ?? 0) + 1);
           if (c.status !== "ativo") motivos.set(`serviço ${c.status}`, (motivos.get(`serviço ${c.status}`) ?? 0) + 1);
         }

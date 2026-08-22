@@ -373,10 +373,10 @@ export default async function MetasPage({
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              O SGP libera a comissão no cadastro + assinaturas; a nossa validação D5 exige também o
-              ticket convertido no CRM e o serviço ativo. Por isso o SGP costuma mostrar mais
-              vendas elegíveis do que nós liberamos — a diferença é a fila de tratativa que ainda
-              falta ser registrada no CRM.
+              Durante a implantação, a venda nativa do SGP não exige tratativa no CRM (decisão D8):
+              a nossa validação libera com as duas assinaturas eletrônicas + serviço ativo, igual
+              ao SGP. O ticket do CRM só é exigido quando a venda passou pelo funil (WhatsApp/SZ).
+              As divergências que sobram são assinatura pendente ou serviço não ativo.
             </p>
           </CardContent>
         </Card>
