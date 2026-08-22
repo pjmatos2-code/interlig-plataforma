@@ -58,7 +58,64 @@ function LinhaCliente({ item, linkTemplate, mostrarPop }: { item: ItemEsteira; l
           </a>
         )}
       </p>
+      {item.temOs && <LinhaOs item={item} linkTemplate={linkTemplate} />}
     </>
+  );
+}
+
+/** OS de instalação (D9): agendamento + responsável, linkando nas ocorrências do painel. */
+function LinhaOs({ item, linkTemplate }: { item: ItemEsteira; linkTemplate: string }) {
+  const linkOcorrencias = item.sgpClienteId
+    ? aplicarLinkSgp(
+        linkTemplate.replace(/\/cliente\/\{cliente_id\}\/edit\/?$/, "/atendimento/cliente/{cliente_id}/ocorrencias/"),
+        { clienteId: item.sgpClienteId, contratoId: item.sgpContratoId, cpf: item.cpf }
+      )
+    : null;
+  const dataAgenda = item.agendamento
+    ? new Date(item.agendamento).toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "America/Belem",
+      })
+    : null;
+  const conteudo = (
+    <span className="flex flex-wrap items-center gap-1.5">
+      <span
+        className={cn(
+          "rounded px-1.5 py-0.5 text-[11px] font-medium",
+          dataAgenda ? "bg-farol-verde/15 text-farol-verde" : "bg-muted text-muted-foreground"
+        )}
+      >
+        {dataAgenda ? `Instalação: ${dataAgenda}` : "Sem agendamento"}
+      </span>
+      {item.prontaOperacional && (
+        <span className="rounded bg-interlig-ceu/10 px-1.5 py-0.5 text-[11px] font-medium text-interlig-ceu">
+          pronta p/ operacional
+        </span>
+      )}
+      {item.responsavel && (
+        <span className="truncate text-[11px] text-muted-foreground">resp. {item.responsavel}</span>
+      )}
+    </span>
+  );
+  return (
+    <p className="mt-1.5 border-t pt-1.5 text-xs">
+      {linkOcorrencias ? (
+        <a
+          href={linkOcorrencias}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Abrir ocorrências no SGP"
+          className="block hover:opacity-80"
+        >
+          {conteudo}
+        </a>
+      ) : (
+        conteudo
+      )}
+    </p>
   );
 }
 

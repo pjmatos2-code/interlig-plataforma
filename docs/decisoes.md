@@ -299,3 +299,30 @@ Régua de liberação passa a ser: **duas assinaturas eletrônicas + serviço at
 e `conferenciaSgp`). Resultado agosto: liberadas 0→204; divergências 187→25
 (4 elegíveis segurados por assinatura/serviço + 21 que liberamos e o SGP ainda
 marca pendente). Rever quando as vendedoras estiverem operando o CRM.
+
+---
+
+## D9 — Esteira: aguardando instalação vem das OS abertas do SGP
+
+**Contexto:** a aproximação D3 marca todo contrato como ativo/ativado, então
+"assinado sem ativação" zerava a coluna. O processo real (Paulo, 21/08): a
+ocorrência **Operacional / Instalação de equipamento** é o start dos contratos
+prontos para o operacional — só OS **com responsável atribuído** está apta para
+instalação. Quem atribui no painel: José Galdino / Aline Santos (Railson Costa
+em Vitória do Xingu).
+
+**Descoberta de API:** `/api/os/list/` com `{contrato: id}` retorna as OS
+**abertas** do contrato com `os_setor`, `os_motivo_descricao`,
+`os_tecnico_responsavel` (técnico designado — no painel a coluna "Resp." mostra
+o atribuidor, ex. jose.galdino), `os_data_agendamento` e `os_data_cadastro`.
+Sem filtro a rota estoura timeout; OS "Em execução"/finalizada **some** da
+listagem (marcamos `saiu_da_fila`). `/api/ura/ocorrencias/` com `{contrato}` é a
+versão enxuta (sem responsável). Tela do painel:
+`/admin/atendimento/cliente/{cliente_id}/ocorrencias/`.
+
+**Implementação:** tabela `os_instalacao` (0011) + rotina no worker (20
+contratos/execução: vendas ≤21d + OS abertas) + backfill
+`scripts/backfill-os-instalacao.mjs`. Esteira: coluna "Aguardando instalação" =
+OS abertas ∪ assinados-sem-ativação; card mostra agendamento (ou "Sem
+agendamento"), técnico e badge "pronta p/ operacional" quando o responsável
+está atribuído, com link para as ocorrências do painel.

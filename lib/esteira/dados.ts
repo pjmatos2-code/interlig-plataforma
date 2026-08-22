@@ -24,6 +24,11 @@ export type ItemEsteira = {
   dataVenda: string;
   idadeDias: number;
   alerta: boolean;
+  /** OS de instalação do SGP (só na coluna aguardando instalação) */
+  temOs: boolean;
+  agendamento: string | null;
+  responsavel: string | null;
+  prontaOperacional: boolean;
 };
 
 export type DadosEsteira = {
@@ -104,8 +109,16 @@ export async function carregarEsteira(
     .limit(3000);
   if (popId) consultaAtivadas = consultaAtivadas.eq("pop_id", popId);
 
-  const [{ data: pendenciasBrutas }, { data: vendasBrutas }, { data: ativadasBrutas }] =
-    await Promise.all([consultaPendencias, consultaVendas, consultaAtivadas]);
+  // OS de instalação abertas no SGP (start do operacional — decisão D9)
+  let consultaOs = supabase
+    .from("os_instalacao")
+    .select(`sgp_os_id, responsavel, agendamento, contratos!inner(${CAMPOS})`)
+    .eq("situacao", "aberta")
+    .limit(500);
+  if (popId) consultaOs = consultaOs.eq("contratos.pop_id", popId);
+
+  const [{ data: pendenciasBrutas }, { data: vendasBrutas }, { data: ativadasBrutas }, { data: osBrutas }] =
+    await Promise.all([consultaPendencias, consultaVendas, consultaAtivadas, consultaOs]);
 
   const pendencias = (pendenciasBrutas ?? []) as unknown as Bruto[];
   const vendas = (vendasBrutas ?? []) as unknown as Bruto[];
@@ -124,17 +137,45 @@ export async function carregarEsteira(
     dataVenda: c.data_venda,
     idadeDias,
     alerta,
+    temOs: false,
+    agendamento: null,
+    responsavel: null,
+    prontaOperacional: false,
   });
+
+  // D9: OS com responsável atribuído = apta para instalação (start do
+  // operacional). No painel quem atribui é José Galdino / Aline Santos
+  // (Railson Costa em VTX); a API expõe o técnico designado — a presença
+  // dele é o sinal de que o start foi dado.
+  const ehStart = (r: string | null) => (r ?? "").trim() !== "";
 
   // 5.8 — sem assinatura; idade desde a venda; alerta ≥ 48h
   const semAssinatura = pendentesAssinatura(pendencias, hoje)
     .map((p) => paraItem(p.contrato as Bruto, p.idadeDias, p.alerta))
     .sort((a, b) => b.idadeDias - a.idadeDias);
 
-  // 5.7 — assinados sem ativação; idade desde a assinatura; alerta > 7 dias
-  const semAtivacao = ativacoesPendentes(pendencias, hoje)
-    .map((p) => paraItem(p.contrato as Bruto, p.idadeDias, p.alerta))
-    .sort((a, b) => b.idadeDias - a.idadeDias);
+  // 5.7 — aguardando instalação = OS de instalação ABERTA no SGP (D9) ∪
+  // assinados sem ativação; idade desde a venda; alerta > 7 dias
+  type OsBruta = { sgp_os_id: string; responsavel: string | null; agendamento: string | null; contratos: Bruto };
+  const osAbertas = (osBrutas ?? []) as unknown as OsBruta[];
+  const comOs = new Map<string, ItemEsteira>();
+  for (const os of osAbertas) {
+    const c = os.contratos;
+    if (!c) continue;
+    const idade = dias(c.data_venda, hoje);
+    const item = paraItem(c, idade, idade > ALERTA_ATIVACAO_DIAS);
+    item.temOs = true;
+    item.agendamento = os.agendamento;
+    item.responsavel = os.responsavel;
+    item.prontaOperacional = ehStart(os.responsavel);
+    comOs.set(c.id, item);
+  }
+  const semAtivacao = [
+    ...comOs.values(),
+    ...ativacoesPendentes(pendencias, hoje)
+      .filter((p) => !comOs.has((p.contrato as Bruto).id))
+      .map((p) => paraItem(p.contrato as Bruto, p.idadeDias, p.alerta)),
+  ].sort((a, b) => b.idadeDias - a.idadeDias);
 
   // instaladas no período (idade = venda → ativação; nunca alerta)
   const instaladas = ativadas
