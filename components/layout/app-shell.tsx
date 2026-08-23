@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare,
   Target, ShieldCheck, Settings, Trophy, Map, Menu, X, LogOut,
-  PanelLeftClose, PanelLeftOpen, type LucideIcon,
+  PanelLeftClose, PanelLeftOpen, Footprints, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import { ROTULO_PERFIL, type Usuario } from "@/lib/tipos";
 import { LogoInterlig } from "@/components/marca/logo-interlig";
 
 const ICONES: Record<string, LucideIcon> = {
-  LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare, Target, ShieldCheck, Settings, Trophy, Map,
+  LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare, Target, ShieldCheck, Settings, Trophy, Map, Footprints,
 };
 
 const CHAVE_RECOLHIDO = "interlig-menu-recolhido";

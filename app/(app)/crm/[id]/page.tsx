@@ -6,6 +6,7 @@ import { templateLinkSgp } from "@/lib/sgp/links-server";
 import { aplicarLinkSgp } from "@/lib/sgp/links";
 import { podeReabrir } from "@/lib/indicadores/crm";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,6 +62,26 @@ export default async function TicketPage({ params }: { params: { id: string } })
       ? Promise.resolve({ data: [] as { id: string; nome: string }[] })
       : supabase.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
   ]);
+
+  // visita externa (fotos em bucket privado -> URLs assinadas por 1h)
+  const { data: visita } = await supabase
+    .from("visitas_externas")
+    .select("foto_casa_path, foto_doc_path, lat, lng, precisao_m, criado_em")
+    .eq("ticket_id", t.id)
+    .order("criado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let fotoCasaUrl: string | null = null;
+  let fotoDocUrl: string | null = null;
+  if (visita) {
+    const admin = criarClienteAdmin();
+    const assinar = async (path: string | null) =>
+      path
+        ? (await admin.storage.from("venda-externa").createSignedUrl(path, 3600)).data?.signedUrl ?? null
+        : null;
+    fotoCasaUrl = await assinar(visita.foto_casa_path);
+    fotoDocUrl = await assinar(visita.foto_doc_path);
+  }
 
   const fechado = t.etapa === "fechado";
   const reabrivel = podeReabrir(t, new Date().toISOString());
@@ -240,6 +261,62 @@ export default async function TicketPage({ params }: { params: { id: string } })
                 planos={planos ?? []}
                 motivos={motivos ?? []}
               />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Visita externa (PAP) */}
+        {visita && (
+          <Card className="xl:col-span-3">
+            <CardHeader className="pb-2">
+              <CardTitle>Visita externa 🚶</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Registrada em {formatarDataHora(visita.criado_em)}
+                {visita.lat && visita.lng && (
+                  <>
+                    {" · "}
+                    <a
+                      href={`https://www.google.com/maps?q=${visita.lat},${visita.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-interlig-ceu hover:underline"
+                    >
+                      📍 abrir no mapa (±{Math.round(visita.precisao_m ?? 0)} m)
+                    </a>
+                  </>
+                )}
+              </p>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-4">
+              {fotoCasaUrl && (
+                <a href={fotoCasaUrl} target="_blank" rel="noopener noreferrer" className="block">
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">Frente da casa</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={fotoCasaUrl}
+                    alt="Frente da casa"
+                    className="h-44 w-64 rounded-lg border object-cover"
+                  />
+                </a>
+              )}
+              {fotoDocUrl ? (
+                <a href={fotoDocUrl} target="_blank" rel="noopener noreferrer" className="block">
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">
+                    Documento (pré-cadastro)
+                  </p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={fotoDocUrl}
+                    alt="Documento do cliente"
+                    className="h-44 w-64 rounded-lg border object-cover"
+                  />
+                </a>
+              ) : (
+                <div className="flex h-44 w-64 flex-col items-center justify-center gap-1 self-end rounded-lg border border-dashed text-muted-foreground">
+                  <span className="text-xl">🪪</span>
+                  <p className="text-xs">Documento não anexado</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

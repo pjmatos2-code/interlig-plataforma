@@ -1,0 +1,117 @@
+import Link from "next/link";
+import { exigirUsuario } from "@/lib/auth";
+import { criarClienteServidor } from "@/lib/supabase/server";
+import { FormularioVisita } from "@/components/externa/formulario-visita";
+import { formatarMoeda } from "@/lib/format";
+
+export const dynamic = "force-dynamic";
+
+/** Venda Externa (PAP) — registro de visita em campo, mobile-first. */
+export default async function ExternaPage() {
+  const usuario = await exigirUsuario();
+  const supabase = criarClienteServidor();
+  const hoje = new Date().toISOString().slice(0, 10);
+
+  const [{ data: planos }, { data: vendedoras }, { data: visitas }] = await Promise.all([
+    supabase
+      .from("planos")
+      .select("id, nome, valor_referencia")
+      .eq("ativo", true)
+      .gt("valor_referencia", 0)
+      .order("valor_referencia", { ascending: false }),
+    usuario.perfil === "vendedora"
+      ? Promise.resolve({ data: [] as { id: string; nome: string }[] })
+      : supabase.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
+    supabase
+      .from("visitas_externas")
+      .select(
+        "id, criado_em, lat, lng, foto_doc_path, tickets(id, cliente_nome, valor_estimado, vendedores(nome))"
+      )
+      .gte("criado_em", `${hoje}T00:00:00`)
+      .order("criado_em", { ascending: false })
+      .limit(30),
+  ]);
+
+  type Visita = {
+    id: string;
+    criado_em: string;
+    lat: number | null;
+    lng: number | null;
+    foto_doc_path: string | null;
+    tickets: {
+      id: string;
+      cliente_nome: string;
+      valor_estimado: number | null;
+      vendedores: { nome: string } | null;
+    } | null;
+  };
+  const lista = ((visitas ?? []) as unknown as Visita[]).filter((v) => v.tickets);
+
+  return (
+    <div
+      className="-m-4 min-h-screen p-4 lg:-m-6 lg:p-6"
+      style={{
+        background: "linear-gradient(160deg, #eef4ff 0%, #f6f8ff 45%, #eefaff 100%)",
+      }}
+    >
+      <div className="mx-auto max-w-md">
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Venda Externa 🚶</h1>
+          <p className="text-sm text-slate-500">
+            Registre a visita em 3 passos — o ticket entra direto no CRM
+          </p>
+        </div>
+
+        <FormularioVisita
+          planos={planos ?? []}
+          vendedoras={vendedoras ?? []}
+          ehVendedora={usuario.perfil === "vendedora"}
+        />
+
+        {/* visitas de hoje */}
+        <div className="mt-6 rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur">
+          <p className="mb-2 text-sm font-bold text-slate-800">
+            📋 Visitas de hoje ({lista.length})
+          </p>
+          {lista.length === 0 ? (
+            <p className="py-3 text-center text-sm text-slate-400">
+              Nenhuma visita registrada hoje ainda.
+            </p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {lista.map((v) => (
+                <li key={v.id} className="flex items-center gap-2 py-2.5">
+                  <span className="w-11 shrink-0 text-xs font-semibold tabular-nums text-slate-400">
+                    {new Date(v.criado_em).toLocaleTimeString("pt-BR", {
+                      timeZone: "America/Santarem",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/crm/${v.tickets!.id}`}
+                      className="block truncate text-sm font-semibold text-slate-800 hover:text-primary hover:underline"
+                    >
+                      {v.tickets!.cliente_nome}
+                    </Link>
+                    <p className="truncate text-xs text-slate-400">
+                      {v.tickets!.vendedores?.nome ?? "—"}
+                      {v.foto_doc_path ? " · 🪪 doc" : ""}
+                      {v.lat ? " · 📍 GPS" : ""}
+                    </p>
+                  </div>
+                  {v.tickets!.valor_estimado != null && v.tickets!.valor_estimado > 0 && (
+                    <span className="shrink-0 text-sm font-bold tabular-nums text-emerald-600">
+                      {formatarMoeda(v.tickets!.valor_estimado)}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
