@@ -436,7 +436,7 @@ export default async function CrmPage({
       </div>
 
       {/* corpo: kanban + trilho lateral */}
-      <div className="grid gap-4 xl:grid-cols-[1fr_290px]">
+      <div className="">
         <div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {COLUNAS_TRILHA.map((etapa) => {
@@ -491,61 +491,8 @@ export default async function CrmPage({
             })}
           </div>
 
-          {/* perdidos + rodapé */}
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <span className={cn(vidro, "px-3.5 py-2 text-sm font-semibold text-rose-600")}>
-              🚩 Perdidos no período: {d.perdidosPeriodo}
-            </span>
-            <div
-              className={cn(
-                vidro,
-                "flex flex-1 flex-wrap items-center justify-around gap-3 px-4 py-2.5"
-              )}
-            >
-              <div className="text-center">
-                <p className="text-[11px] font-semibold text-slate-500">📈 Total da semana</p>
-                <p className="text-base font-bold tabular-nums text-slate-900">
-                  {formatarMoedaKpi(d.rodape.receitaSemana)}
-                  {d.rodape.receitaSemanaDeltaPct !== null && (
-                    <span
-                      className={cn(
-                        "ml-1.5 text-xs font-semibold",
-                        d.rodape.receitaSemanaDeltaPct >= 0 ? "text-emerald-600" : "text-rose-600"
-                      )}
-                    >
-                      {d.rodape.receitaSemanaDeltaPct >= 0 ? "▲" : "▼"}
-                      {Math.abs(d.rodape.receitaSemanaDeltaPct).toFixed(0)}%
-                    </span>
-                  )}
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-[11px] font-semibold text-slate-500">👥 Vendedoras ativas</p>
-                <p className="text-base font-bold tabular-nums text-slate-900">
-                  {d.rodape.vendedorasComVenda}
-                  <span className="text-xs font-normal text-slate-500">
-                    {" "}
-                    de {d.rodape.vendedorasTotal} no time
-                  </span>
-                </p>
-              </div>
-              <div className="text-center">
-                <p className="text-[11px] font-semibold text-slate-500">🏷️ Maior ticket médio</p>
-                <p className="text-base font-bold tabular-nums text-slate-900">
-                  {d.rodape.maiorTicketMedio ? formatarMoeda(d.rodape.maiorTicketMedio.valor) : "—"}
-                  {d.rodape.maiorTicketMedio && (
-                    <span className="ml-1 text-xs font-normal text-slate-500">
-                      {d.rodape.maiorTicketMedio.nome}
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* trilho lateral */}
-        <div className="flex flex-col gap-3">
+          {/* caixas de apoio — abaixo do kanban para ele aparecer inteiro */}
+        <div className="mt-4 grid items-start gap-3 md:grid-cols-3">
           <div className={cn(vidro, "p-4")}>
             <p className="mb-2 text-sm font-bold text-slate-800">Atenção necessária</p>
             <ul className="space-y-1.5 text-sm">
@@ -637,6 +584,60 @@ export default async function CrmPage({
             )}
           </div>
         </div>
+
+          {/* perdidos + rodapé */}
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <span className={cn(vidro, "px-3.5 py-2 text-sm font-semibold text-rose-600")}>
+              🚩 Perdidos no período: {d.perdidosPeriodo}
+            </span>
+            <div
+              className={cn(
+                vidro,
+                "flex flex-1 flex-wrap items-center justify-around gap-3 px-4 py-2.5"
+              )}
+            >
+              <div className="text-center">
+                <p className="text-[11px] font-semibold text-slate-500">📈 Total da semana</p>
+                <p className="text-base font-bold tabular-nums text-slate-900">
+                  {formatarMoedaKpi(d.rodape.receitaSemana)}
+                  {d.rodape.receitaSemanaDeltaPct !== null && (
+                    <span
+                      className={cn(
+                        "ml-1.5 text-xs font-semibold",
+                        d.rodape.receitaSemanaDeltaPct >= 0 ? "text-emerald-600" : "text-rose-600"
+                      )}
+                    >
+                      {d.rodape.receitaSemanaDeltaPct >= 0 ? "▲" : "▼"}
+                      {Math.abs(d.rodape.receitaSemanaDeltaPct).toFixed(0)}%
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-[11px] font-semibold text-slate-500">👥 Vendedoras ativas</p>
+                <p className="text-base font-bold tabular-nums text-slate-900">
+                  {d.rodape.vendedorasComVenda}
+                  <span className="text-xs font-normal text-slate-500">
+                    {" "}
+                    de {d.rodape.vendedorasTotal} no time
+                  </span>
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-[11px] font-semibold text-slate-500">🏷️ Maior ticket médio</p>
+                <p className="text-base font-bold tabular-nums text-slate-900">
+                  {d.rodape.maiorTicketMedio ? formatarMoeda(d.rodape.maiorTicketMedio.valor) : "—"}
+                  {d.rodape.maiorTicketMedio && (
+                    <span className="ml-1 text-xs font-normal text-slate-500">
+                      {d.rodape.maiorTicketMedio.nome}
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
