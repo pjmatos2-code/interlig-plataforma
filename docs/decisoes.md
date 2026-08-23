@@ -399,3 +399,17 @@ Funil de Vendas"). O "Copiar webhook" da tela é o webhook de ENTRADA
 Caminho confirmado: componente Webhook/HTTP/REST dentro do editor de FLUXO,
 apontando para /api/webhooks/szchat?secret=… no ponto em que a conversa vira
 atendimento comercial. IDs salvos em integracoes_config.szchat.canais.
+
+**D7 — RESOLVIDO (22/08):** integração SZ→plataforma publicada em produção.
+Método: 3 nós "Requisição de URL" (type url) inseridos no "Fluxo com IA" do
+0800, um antes de cada transferência para as equipes Comercial Altamira /
+Comercial Vitória do Xingu / Comercial Brasil Novo (demais equipes/cidades
+ficam de fora, decisão do gestor). POST para /api/webhooks/szchat?secret=…
+com body: nome {{NAME}}, telefone {{PHONE}}, protocolo {{PROTOCOL}}, agente
+{{AGENT}}, equipe (literal), canal, origem. Edição feita via navegador
+(sessão do Paulo), nós manipulados via Vue (draggable lists), versão
+publicada 6a89c72f (anterior 6a70f7f7 no Histórico p/ rollback). Aprendizados:
+xlsx de export do painel sai zerado; export de fluxo é zip com senha; o
+simulador "Testar fluxo" NÃO roda fluxos com Fortics IA (500 pré-existente,
+provado por A/B). Pendente: validar payload real (1º WhatsApp) e calibrar
+o mapeamento variáveis→ticket.
