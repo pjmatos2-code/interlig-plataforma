@@ -108,6 +108,39 @@ export default async function TicketPage({ params }: { params: { id: string } })
         {t.origem_criacao === "sz_auto" && <Badge variant="outline">via SZ Chat</Badge>}
       </div>
 
+      {t.resumo_tratativa && (
+        <div
+          className={
+            "mb-4 rounded-xl border p-4 " +
+            (t.urgencia === "alta"
+              ? "border-rose-300 bg-rose-50/60"
+              : t.urgencia === "media"
+                ? "border-amber-300 bg-amber-50/60"
+                : "border-emerald-300 bg-emerald-50/60")
+          }
+        >
+          <p className="mb-1 flex items-center gap-2 text-sm font-bold">
+            🔔 Follow-up pendente
+            <span
+              className={
+                "rounded-full px-2 py-0.5 text-[11px] font-black uppercase " +
+                (t.urgencia === "alta"
+                  ? "bg-rose-500 text-white"
+                  : t.urgencia === "media"
+                    ? "bg-amber-400 text-amber-950"
+                    : "bg-emerald-500 text-white")
+              }
+            >
+              {t.urgencia === "alta" ? "Alta" : t.urgencia === "media" ? "Média" : "Baixa"}
+            </span>
+          </p>
+          <p className="text-sm text-muted-foreground">{t.resumo_tratativa}</p>
+          {t.proxima_abordagem && (
+            <p className="mt-2 text-sm font-medium">➜ {t.proxima_abordagem}</p>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-4 xl:grid-cols-3">
         {/* Coluna 1: dados */}
         <Card>

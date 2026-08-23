@@ -439,3 +439,17 @@ ativação): 176 contratos com data posterior à venda + 25 no mesmo dia.
 Resultado real na Esteira: tempo venda→instalação médio 1,8d (mediana 1d,
 máx 15d) — Brasil Novo 0,8d · VTX 1,3d · Altamira 2,0d. Daqui pra frente a
 data é exata (virada Inativo→Ativo observada pelo sync de 5 min).
+
+---
+
+## D2 — em produção (parcial, 23/08): follow-up com resumo no CRM
+
+Tickets nascem em "Contato inicial" com **resumo da tratativa**, **próxima
+abordagem** e **urgência** (alta/média/baixa com cores). Campos novos em
+tickets (migração 0020). Seção "🔔 Follow-ups pendentes" no CRM (RLS recorta
+por vendedora) + destaque colorido na ficha do ticket. Primeira carga: 8
+conversas reais das equipes comerciais lidas via /reports/messages/getTalks
+do SZ (payload: session_id + date; lista via /reports/messages/filter, cujo
+filtro de equipe finalCampaign é IGNORADO pelo servidor — filtrar client-side
+por campaign_id). Pendente para fechar D2: automatizar a leitura+resumo via
+IA no ciclo do webhook/cron.

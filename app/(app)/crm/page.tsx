@@ -180,11 +180,32 @@ export default async function CrmPage({
   const ehVendedora = usuario.perfil === "vendedora";
 
   const supabase = criarClienteServidor();
-  const [{ data: pops }, { data: vendedoras }, linkTemplate] = await Promise.all([
-    supabase.from("pops").select("id, nome").order("nome"),
-    supabase.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
-    templateLinkSgp(),
-  ]);
+  const [{ data: pops }, { data: vendedoras }, linkTemplate, { data: followupsIa }] =
+    await Promise.all([
+      supabase.from("pops").select("id, nome").order("nome"),
+      supabase.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
+      templateLinkSgp(),
+      supabase
+        .from("tickets")
+        .select(
+          "id, cliente_nome, telefone, urgencia, resumo_tratativa, proxima_abordagem, resumo_em, vendedores(nome)"
+        )
+        .neq("etapa", "fechado")
+        .not("resumo_tratativa", "is", null)
+        .limit(60),
+    ]);
+  const ORDEM_URGENCIA: Record<string, number> = { alta: 0, media: 1, baixa: 2 };
+  const pendentesIa = ((followupsIa ?? []) as unknown as {
+    id: string;
+    cliente_nome: string;
+    telefone: string | null;
+    urgencia: "alta" | "media" | "baixa" | null;
+    resumo_tratativa: string;
+    proxima_abordagem: string | null;
+    vendedores: { nome: string } | null;
+  }[]).sort(
+    (a, b) => (ORDEM_URGENCIA[a.urgencia ?? "baixa"] ?? 2) - (ORDEM_URGENCIA[b.urgencia ?? "baixa"] ?? 2)
+  );
 
   // helpers de URL preservando filtros
   const baseQs = new URLSearchParams();
@@ -490,6 +511,63 @@ export default async function CrmPage({
               );
             })}
           </div>
+
+          {/* follow-ups pendentes (resumo IA das conversas do SZ) */}
+          {pendentesIa.length > 0 && (
+            <div className={cn(vidro, "mt-4 p-4")}>
+              <p className="mb-1 text-sm font-bold text-slate-800">
+                🔔 Follow-ups pendentes ({pendentesIa.length})
+              </p>
+              <p className="mb-3 text-xs text-slate-500">
+                Resumo da tratativa e continuidade sugerida — priorize pela cor da urgência
+              </p>
+              <div className="grid gap-3 lg:grid-cols-2">
+                {pendentesIa.map((f) => (
+                  <div
+                    key={f.id}
+                    className={cn(
+                      "rounded-xl border bg-white/80 p-3 backdrop-blur",
+                      f.urgencia === "alta"
+                        ? "border-rose-300/80"
+                        : f.urgencia === "media"
+                          ? "border-amber-300/80"
+                          : "border-emerald-300/70"
+                    )}
+                  >
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      <span
+                        className={cn(
+                          "rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide",
+                          f.urgencia === "alta"
+                            ? "bg-rose-500 text-white"
+                            : f.urgencia === "media"
+                              ? "bg-amber-400 text-amber-950"
+                              : "bg-emerald-500 text-white"
+                        )}
+                      >
+                        {f.urgencia === "alta" ? "● Alta" : f.urgencia === "media" ? "● Média" : "● Baixa"}
+                      </span>
+                      <Link
+                        href={`/crm/${f.id}`}
+                        className="min-w-0 truncate text-sm font-bold text-slate-800 hover:text-primary hover:underline"
+                      >
+                        {f.cliente_nome}
+                      </Link>
+                      <span className="ml-auto text-[11px] text-slate-400">
+                        {f.vendedores?.nome ?? "sem vendedora"}
+                      </span>
+                    </div>
+                    <p className="text-xs leading-relaxed text-slate-600">{f.resumo_tratativa}</p>
+                    {f.proxima_abordagem && (
+                      <p className="mt-1.5 rounded-lg bg-sky-50/80 px-2.5 py-1.5 text-xs font-medium text-sky-800">
+                        ➜ {f.proxima_abordagem}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* caixas de apoio — abaixo do kanban para ele aparecer inteiro */}
         <div className="mt-4 grid items-start gap-3 md:grid-cols-3">

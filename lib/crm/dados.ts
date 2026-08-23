@@ -519,6 +519,9 @@ export type DetalheTicket = {
   cliente_sgp_id: string | null;
   reconciliado_em: string | null;
   valor_estimado: number | null;
+  resumo_tratativa: string | null;
+  proxima_abordagem: string | null;
+  urgencia: "alta" | "media" | "baixa" | null;
   propostas: {
     id: string;
     plano: string | null;
@@ -541,6 +544,7 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
         `id, cliente_nome, telefone, cpf, etapa, origem_criacao, sz_conversa_id, vendedor_id,
          criado_em, primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por,
          origem_cadastro, contrato_id, reconciliado_em, valor_estimado,
+         resumo_tratativa, proxima_abordagem, urgencia,
          vendedores(nome), pops(nome), motivos_nao_conversao(nome), planos(nome),
          contratos(sgp_contrato_id, clientes(sgp_cliente_id))`
       )
@@ -594,6 +598,9 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
     cliente_sgp_id: registro.contratos?.clientes?.sgp_cliente_id ?? null,
     reconciliado_em: registro.reconciliado_em,
     valor_estimado: (registro as { valor_estimado: number | null }).valor_estimado ?? null,
+    resumo_tratativa: (registro as { resumo_tratativa?: string | null }).resumo_tratativa ?? null,
+    proxima_abordagem: (registro as { proxima_abordagem?: string | null }).proxima_abordagem ?? null,
+    urgencia: ((registro as { urgencia?: string | null }).urgencia ?? null) as "alta" | "media" | "baixa" | null,
     propostas: (propostas ?? []).map((p) => {
       const pp = p as typeof p & { planos: { nome: string; velocidade: string | null } | null; usuarios: Rel };
       return {
