@@ -44,15 +44,6 @@ function Avatar({
   );
 }
 
-function Seta({ variacao }: { variacao: number | null }) {
-  if (variacao === null || variacao === 0)
-    return <span className="text-xs text-slate-500">—</span>;
-  return variacao > 0 ? (
-    <span className="text-xs font-bold text-emerald-400">↑ {variacao}</span>
-  ) : (
-    <span className="text-xs font-bold text-rose-400">↓ {Math.abs(variacao)}</span>
-  );
-}
 
 /** Fundo com a identidade Interlig: malha de fibra (nós + conexões) em azul. */
 function FundoRede() {
@@ -305,7 +296,7 @@ export default async function TotemRankingPage({
               📈 TOP 10 · {ROTULO[periodo]}
             </h2>
             <div className="mb-1 grid grid-cols-[2rem_1fr_auto_2.5rem] gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              <span>Pos.</span><span>Vendedora</span><span className="text-right">Vendas (R$)</span><span className="text-right">Var.</span>
+              <span>Pos.</span><span>Vendedora</span><span className="text-right">Vendas (R$)</span><span className="text-right">Planos</span>
             </div>
             <ul className="divide-y divide-white/5">
               {resto.map((l: LinhaRanking) => (
@@ -316,7 +307,7 @@ export default async function TotemRankingPage({
                     <span className="truncate text-sm font-semibold">{l.nome}</span>
                   </span>
                   <span className="text-right text-sm font-bold tabular-nums">{formatarMoeda(l.receita)}</span>
-                  <span className="text-right"><Seta variacao={l.variacao} /></span>
+                  <span className="text-right text-sm font-bold tabular-nums text-sky-300">{l.vendas}</span>
                 </li>
               ))}
             </ul>
