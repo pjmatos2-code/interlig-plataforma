@@ -47,6 +47,8 @@ export function normalizarStatus(c: SgpContrato): string {
   const s = c.status_sgp.toUpperCase();
   if (c.data_cancelamento || s.includes("CANCEL")) return "cancelado";
   if (s.includes("SUSPEN")) return "suspenso";
+  // D12b: INATIVO no SGP = cadastro feito, instalação ainda não concluída
+  if (s.includes("INATIV")) return "aguardando_ativacao";
   if (c.data_ativacao || s === "ATIVO") return "ativo";
   if (c.data_assinatura || s.includes("INSTALA")) return "aguardando_ativacao";
   return "pendente_assinatura";
@@ -169,12 +171,13 @@ export async function executarSync(): Promise<ResultadoSync> {
           vendedor_id: string | null;
           data_assinatura: string | null;
           assinaturas_verificadas_em: string | null;
-        };
+          data_ativacao: string | null;
+};
         const existentes: Existente[] = [];
         for (let i = 0; i < idsContratos.length; i += 400) {
           const { data: parte } = await admin
             .from("contratos")
-            .select("sgp_contrato_id, data_cancelamento, vendedor_id, data_assinatura, assinaturas_verificadas_em")
+            .select("sgp_contrato_id, data_cancelamento, vendedor_id, data_assinatura, data_ativacao, assinaturas_verificadas_em")
             .in("sgp_contrato_id", idsContratos.slice(i, i + 400));
           existentes.push(...((parte ?? []) as Existente[]));
         }
@@ -209,6 +212,17 @@ export async function executarSync(): Promise<ResultadoSync> {
           const dataAssinatura = antes?.assinaturas_verificadas_em
             ? ((antes.data_assinatura as string | null) ?? null)
             : c.data_assinatura;
+          // D12b: a data de ativação REAL é a virada Inativo→Ativo observada
+          // pelo sync. Preserva a data já registrada; quando o contrato vira
+          // ativo e ainda não tinha data, carimba hoje.
+          const statusNovo = normalizarStatus(c);
+          const ativacaoAntes = (antes?.data_ativacao as string | null) ?? null;
+          const dataAtivacao =
+            statusNovo === "ativo"
+              ? ativacaoAntes ?? c.data_ativacao ?? new Date().toISOString().slice(0, 10)
+              : statusNovo === "cancelado" || statusNovo === "suspenso"
+                ? ativacaoAntes ?? c.data_ativacao
+                : null; // aguardando/pendente: sem instalação
           linhas.push({
             sgp_contrato_id: c.sgp_contrato_id,
             cliente_id: cliente.id,
@@ -217,11 +231,11 @@ export async function executarSync(): Promise<ResultadoSync> {
             pop_id: vendedor?.pop_id ?? popPorCidade.get(cliente.cidade ?? "") ?? null,
             valor_mensalidade: c.valor_mensalidade,
             valor_instalacao: c.valor_instalacao,
-            status: normalizarStatus(c),
+            status: statusNovo,
             origem_cadastro: origem(c.origem_cadastro_sgp),
             data_venda: c.data_venda,
             data_assinatura: dataAssinatura,
-            data_ativacao: c.data_ativacao,
+            data_ativacao: dataAtivacao,
             data_cancelamento: dataCancelamento,
             motivo_cancelamento: c.motivo_cancelamento,
             sync_updated_at: new Date().toISOString(),

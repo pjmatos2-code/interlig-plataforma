@@ -413,3 +413,21 @@ xlsx de export do painel sai zerado; export de fluxo é zip com senha; o
 simulador "Testar fluxo" NÃO roda fluxos com Fortics IA (500 pré-existente,
 provado por A/B). Pendente: validar payload real (1º WhatsApp) e calibrar
 o mapeamento variáveis→ticket.
+
+---
+
+## D12b — Instalação = virada Inativo→Ativo no SGP (correção da aproximação D3)
+
+**Descoberta do Paulo (23/08):** o que valida a INSTALAÇÃO no SGP é o status do
+contrato mudar de Inativo para Ativo — a aproximação D3 (ativação = data do
+cadastro) marcava tudo como instalado no dia da venda.
+
+**Implementado:** (1) api SGP: contrato INATIVO chega sem data_ativacao;
+(2) normalizarStatus: INATIVO → aguardando_ativacao (antes virava "ativo");
+(3) worker: na virada para Ativo sem data anterior, carimba a DATA REAL da
+instalação (dia em que o sync observou a virada) — datas de instalação passam
+a ser reais daqui pra frente; (4) acerto de agosto via consultacliente
+(contratoStatusDisplay): 201 ativos · 30 aguardando_ativacao (bate com o PDF)
+· 1 cancelado · 1 suspenso. Efeitos: Esteira "aguardando instalação" agora
+reflete os inativos reais; tempo venda→instalação passa a medir de verdade;
+comissão continua exigindo serviço ATIVO (inativo não libera, correto).

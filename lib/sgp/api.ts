@@ -204,7 +204,9 @@ export class SgpApiClient implements SgpClient {
           origem_cadastro_sgp: null,
           data_venda: dataVenda,
           data_assinatura: dataVenda, // aproximação D3
-          data_ativacao: dataVenda, // aproximação D3
+          // D12b: no SGP a instalação é a virada Inativo→Ativo — contrato
+          // INATIVO ainda não foi instalado (sem data de ativação)
+          data_ativacao: st.includes("INATIV") ? null : dataVenda,
           data_cancelamento: cancelado ? dataVenda : null, // o worker preserva data melhor
           motivo_cancelamento: cancelado ? ct.motivo_status || null : null,
         });
