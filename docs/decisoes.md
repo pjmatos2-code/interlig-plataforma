@@ -431,3 +431,11 @@ a ser reais daqui pra frente; (4) acerto de agosto via consultacliente
 · 1 cancelado · 1 suspenso. Efeitos: Esteira "aguardando instalação" agora
 reflete os inativos reais; tempo venda→instalação passa a medir de verdade;
 comissão continua exigindo serviço ATIVO (inativo não libera, correto).
+
+**D12b — backfill (23/08):** o /api/os/list só devolve OS ABERTAS (concluídas
+somem), então o histórico de instalação de agosto foi estimado pelo campo
+dataAlteracao do consultacliente (em cadastro novo, a última alteração é a
+ativação): 176 contratos com data posterior à venda + 25 no mesmo dia.
+Resultado real na Esteira: tempo venda→instalação médio 1,8d (mediana 1d,
+máx 15d) — Brasil Novo 0,8d · VTX 1,3d · Altamira 2,0d. Daqui pra frente a
+data é exata (virada Inativo→Ativo observada pelo sync de 5 min).
