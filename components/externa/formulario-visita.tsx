@@ -104,21 +104,41 @@ export function FormularioVisita({
   const [fotoDoc, setFotoDoc] = useState<File | null>(null);
   const [gps, setGps] = useState<{ lat: number; lng: number; prec: number } | null>(null);
   const [gpsStatus, setGpsStatus] = useState<"ocioso" | "buscando" | "ok" | "falhou">("ocioso");
+  const [gpsMotivo, setGpsMotivo] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // GPS entra junto com a foto da casa — pedido do fluxo
-  function capturarCasa(f: File | null) {
-    setFotoCasa(f);
-    if (!f) return;
+  function pedirGps() {
+    if (!("geolocation" in navigator)) {
+      setGpsStatus("falhou");
+      setGpsMotivo("Este navegador não oferece localização.");
+      return;
+    }
     setGpsStatus("buscando");
+    setGpsMotivo(null);
     navigator.geolocation.getCurrentPosition(
       (p) => {
         setGps({ lat: p.coords.latitude, lng: p.coords.longitude, prec: p.coords.accuracy });
         setGpsStatus("ok");
       },
-      () => setGpsStatus("falhou"),
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
+      (e) => {
+        setGpsStatus("falhou");
+        setGpsMotivo(
+          e.code === 1
+            ? "Permissão de localização negada. No iPhone: toque em “aA” na barra do Safari → Configurações do Site → Localização → Permitir. Ou Ajustes → Privacidade → Serviços de Localização → Safari."
+            : e.code === 2
+              ? "Sinal de GPS indisponível agora — tente em céu aberto."
+              : "Tempo esgotado buscando o GPS — tente de novo."
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
     );
+  }
+
+  // GPS entra junto com a foto da casa — pedido do fluxo
+  function capturarCasa(f: File | null) {
+    setFotoCasa(f);
+    if (!f) return;
+    pedirGps();
   }
 
   function enviar(e: React.FormEvent<HTMLFormElement>) {
@@ -212,22 +232,32 @@ export function FormularioVisita({
             arquivo={fotoCasa}
             aoCapturar={capturarCasa}
           />
-          <p
+          <div
             className={cn(
-              "rounded-lg px-3 py-1.5 text-xs font-medium",
+              "rounded-lg px-3 py-2 text-xs font-medium",
               gpsStatus === "ok" && "bg-emerald-50 text-emerald-700",
               gpsStatus === "buscando" && "bg-sky-50 text-sky-700",
-              gpsStatus === "falhou" && "bg-amber-50 text-amber-700",
+              gpsStatus === "falhou" && "bg-amber-50 text-amber-800",
               gpsStatus === "ocioso" && "bg-slate-50 text-slate-400"
             )}
           >
-            {gpsStatus === "ok" &&
-              `📍 Localização capturada (±${Math.round(gps?.prec ?? 0)} m)`}
+            {gpsStatus === "ok" && `📍 Localização capturada (±${Math.round(gps?.prec ?? 0)} m)`}
             {gpsStatus === "buscando" && "📡 Buscando localização…"}
-            {gpsStatus === "falhou" &&
-              "⚠️ GPS indisponível — a visita será registrada sem localização"}
             {gpsStatus === "ocioso" && "📍 A localização entra junto com a foto da casa"}
-          </p>
+            {gpsStatus === "falhou" && (
+              <>
+                <p>⚠️ Sem localização — a visita pode ser registrada mesmo assim.</p>
+                {gpsMotivo && <p className="mt-1 font-normal">{gpsMotivo}</p>}
+                <button
+                  type="button"
+                  onClick={pedirGps}
+                  className="mt-2 rounded-lg bg-amber-600 px-3 py-1.5 font-bold text-white active:scale-95"
+                >
+                  🔄 Tentar localização de novo
+                </button>
+              </>
+            )}
+          </div>
           <CampoFoto
             rotulo="Documento do cliente (opcional)"
             dica="Para gerar o pré-cadastro no SGP"
