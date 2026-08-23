@@ -453,3 +453,13 @@ do SZ (payload: session_id + date; lista via /reports/messages/filter, cujo
 filtro de equipe finalCampaign é IGNORADO pelo servidor — filtrar client-side
 por campaign_id). Pendente para fechar D2: automatizar a leitura+resumo via
 IA no ciclo do webhook/cron.
+
+**D2 robô — VALIDADO (23/08):** login server-side com admin API Altamira
+(apialtamira@interlig.com) → acesso a /reports liberado (1148 conversas/dia).
+Pipeline provado ponta a ponta sem sessão humana: login → filter (9 conversas
+comerciais de 22/08, idênticas à leitura manual) → getTalks (60 msgs da Tayna)
+→ resumo+urgência. Heurístico funciona; qualidade real exige ANTHROPIC_API_KEY.
+Rota de produção /api/sz/ler-conversas responde "Redirecting" no curl direto
+(proteção Vercel) — validar no agendamento do cron com o secret certo.
+Falta: (1) ANTHROPIC_API_KEY (.env.local + Vercel); (2) cron-job.org 22:30 UTC;
+(3) trocar a senha do robô (foi digitada no chat).
