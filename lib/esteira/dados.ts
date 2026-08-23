@@ -150,9 +150,10 @@ export async function carregarEsteira(
   const ehStart = (r: string | null) => (r ?? "").trim() !== "";
 
   // 5.8 — sem assinatura; idade desde a venda; alerta ≥ 48h
+  // ordem: mais recentes no topo, mais atrasados no fim (pedido do gestor)
   const semAssinatura = pendentesAssinatura(pendencias, hoje)
     .map((p) => paraItem(p.contrato as Bruto, p.idadeDias, p.alerta))
-    .sort((a, b) => b.idadeDias - a.idadeDias);
+    .sort((a, b) => a.idadeDias - b.idadeDias);
 
   // 5.7 — aguardando instalação = OS de instalação ABERTA no SGP (D9) ∪
   // assinados sem ativação; idade desde a venda; alerta > 7 dias
@@ -175,12 +176,13 @@ export async function carregarEsteira(
     ...ativacoesPendentes(pendencias, hoje)
       .filter((p) => !comOs.has((p.contrato as Bruto).id))
       .map((p) => paraItem(p.contrato as Bruto, p.idadeDias, p.alerta)),
-  ].sort((a, b) => b.idadeDias - a.idadeDias);
+  ].sort((a, b) => a.idadeDias - b.idadeDias); // recentes no topo, atrasados no fim
 
   // instaladas no período (idade = venda → ativação; nunca alerta)
-  const instaladas = ativadas
-    .map((c) => paraItem(c, dias(c.data_venda, c.data_ativacao!), false))
-    .sort((a, b) => (a.dataVenda < b.dataVenda ? 1 : -1));
+  // ordem: instalação mais recente no topo
+  const instaladas = [...ativadas]
+    .sort((a, b) => (a.data_ativacao! < b.data_ativacao! ? 1 : -1))
+    .map((c) => paraItem(c, dias(c.data_venda, c.data_ativacao!), false));
 
   // ---------- tempo médio por POP e por vendedora ----------
   const agrupar = (chave: (c: Bruto) => string) => {
