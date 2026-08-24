@@ -19,7 +19,7 @@ export default async function ExternaPage() {
   const [{ data: planos }, { data: vendedoras }, { data: visitas }] = await Promise.all([
     supabase
       .from("planos")
-      .select("id, nome, valor_referencia")
+      .select("id, nome, valor_referencia, venda_externa")
       .eq("ativo", true)
       .gt("valor_referencia", 0)
       .order("valor_referencia", { ascending: false }),
@@ -35,6 +35,10 @@ export default async function ExternaPage() {
       .order("criado_em", { ascending: false })
       .limit(30),
   ]);
+
+  // PAP vende só os planos marcados no Administração; nenhum marcado = todos
+  const doPap = (planos ?? []).filter((p) => p.venda_externa);
+  const planosPap = doPap.length > 0 ? doPap : (planos ?? []);
 
   type Visita = {
     id: string;
@@ -67,7 +71,7 @@ export default async function ExternaPage() {
         </div>
 
         <FormularioVisita
-          planos={planos ?? []}
+          planos={planosPap}
           vendedoras={vendedoras ?? []}
           ehVendedora={ehVendedora(usuario.perfil)}
         />

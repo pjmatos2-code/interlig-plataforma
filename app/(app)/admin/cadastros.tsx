@@ -7,6 +7,7 @@ import {
   criarUsuario,
   alternarUsuario,
   definirAgentesCoordenador,
+  salvarPlanosExterna,
   salvarOrigem,
   excluirOrigem,
   salvarAtendente,
@@ -383,5 +384,81 @@ export function GestaoCoordenacoes({
         <FormCoordenacao key={c.id} coordenador={c} vendedoras={vendedoras} />
       ))}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Planos da Venda Externa — o PAP vende só residenciais; o gestor marca aqui
+// quais planos aparecem no formulário de visita. Nenhum marcado = todos.
+// ---------------------------------------------------------------------------
+export function GestaoPlanosExterna({
+  planos,
+}: {
+  planos: { id: string; nome: string; valor_referencia: number; venda_externa: boolean }[];
+}) {
+  const [estado, acao] = useFormState(salvarPlanosExterna, inicial);
+  const [busca, setBusca] = useState("");
+  const [marcados, setMarcados] = useState<Set<string>>(
+    () => new Set(planos.filter((p) => p.venda_externa).map((p) => p.id))
+  );
+  const filtro = busca.trim().toLowerCase();
+  const visiveis = filtro
+    ? planos.filter((p) => p.nome.toLowerCase().includes(filtro))
+    : planos;
+
+  return (
+    <form action={acao} className="space-y-3">
+      {/* todos os marcados vão no submit, mesmo fora do filtro atual */}
+      {[...marcados].map((id) => (
+        <input key={id} type="hidden" name="plano_id" value={id} />
+      ))}
+      <div className="flex flex-wrap items-center gap-3">
+        <Input
+          placeholder="Buscar plano pelo nome… (ex.: fibra 400)"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          className="max-w-sm"
+        />
+        <span className="text-xs text-muted-foreground">
+          {marcados.size === 0
+            ? "Nenhum marcado — a Venda Externa mostra todos os planos ativos."
+            : `${marcados.size} plano(s) na Venda Externa.`}
+        </span>
+      </div>
+      <div className="max-h-72 overflow-y-auto rounded-md border">
+        <ul className="divide-y">
+          {visiveis.map((p) => (
+            <li key={p.id}>
+              <label className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm hover:bg-accent/40">
+                <input
+                  type="checkbox"
+                  checked={marcados.has(p.id)}
+                  onChange={(e) => {
+                    const prox = new Set(marcados);
+                    if (e.target.checked) prox.add(p.id);
+                    else prox.delete(p.id);
+                    setMarcados(prox);
+                  }}
+                  className="h-4 w-4 rounded border-input"
+                />
+                <span className="min-w-0 flex-1 truncate">{p.nome}</span>
+                <span className="shrink-0 tabular-nums text-muted-foreground">
+                  {p.valor_referencia.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </span>
+              </label>
+            </li>
+          ))}
+          {visiveis.length === 0 && (
+            <li className="px-3 py-6 text-center text-sm text-muted-foreground">
+              Nenhum plano com esse nome.
+            </li>
+          )}
+        </ul>
+      </div>
+      <div className="flex items-center gap-3">
+        <BotaoSalvar rotulo="Salvar planos do PAP" />
+        <Mensagem estado={estado} />
+      </div>
+    </form>
   );
 }

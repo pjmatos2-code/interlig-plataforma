@@ -3,7 +3,7 @@ import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { EmConstrucao } from "@/components/layout/em-construcao";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { GestaoMotivos } from "./motivos";
-import { GestaoUsuarios, GestaoOrigens, GestaoSzChat, GestaoCoordenacoes } from "./cadastros";
+import { GestaoUsuarios, GestaoOrigens, GestaoSzChat, GestaoCoordenacoes, GestaoPlanosExterna } from "./cadastros";
 import { BotaoSincronizar } from "./botao-sync";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,7 @@ export default async function AdminPage() {
     { data: atendentes },
     { data: equipes },
     { data: vendedorasCoord },
+    { data: planosExterna },
   ] = await Promise.all([
     supabase
       .from("vw_ultima_sync")
@@ -44,6 +45,12 @@ export default async function AdminPage() {
       .order("sz_atendente_id"),
     supabase.from("sz_equipes_habilitadas").select("id, nome, ativo, pops(nome)").order("nome"),
     supabase.from("vendedores").select("id, nome, coordenador_id").eq("ativo", true).order("nome"),
+    supabase
+      .from("planos")
+      .select("id, nome, valor_referencia, venda_externa")
+      .eq("ativo", true)
+      .gt("valor_referencia", 0)
+      .order("nome"),
   ]);
 
   type Rel = { nome: string } | null;
@@ -156,6 +163,22 @@ export default async function AdminPage() {
               id: v.id,
               nome: v.nome,
               coordenador_id: v.coordenador_id ?? null,
+            }))}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Planos da Venda Externa (PAP)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <GestaoPlanosExterna
+            planos={(planosExterna ?? []).map((p) => ({
+              id: p.id,
+              nome: p.nome,
+              valor_referencia: Number(p.valor_referencia ?? 0),
+              venda_externa: Boolean(p.venda_externa),
             }))}
           />
         </CardContent>
