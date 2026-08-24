@@ -1,4 +1,5 @@
 import { exigirPerfil } from "@/lib/auth";
+import { ehVendedora } from "@/lib/tipos";
 import { resolverPeriodo } from "@/lib/datas";
 import { carregarEsteira } from "@/lib/esteira/dados";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -64,12 +65,22 @@ export default async function EsteiraPage({
 }: {
   searchParams: { periodo?: string; de?: string; ate?: string; pop?: string };
 }) {
-  const usuario = await exigirPerfil(["gestor", "supervisor"]);
+  const usuario = await exigirPerfil([
+    "gestor",
+    "supervisor",
+    "vendedora",
+    "vendedora_externa",
+  ]);
   const periodo = resolverPeriodo(searchParams);
+  const ehVend = ehVendedora(usuario.perfil);
+  // vendedora: escopo garantido pela RLS (vendedor_id = vendedor_atual());
+  // supervisor: seu POP; gestor: filtro livre.
   const popFiltro = usuario.perfil === "supervisor" ? usuario.pop_id : searchParams.pop || null;
 
   const supabase = criarClienteServidor();
-  const { data: pops } = await supabase.from("pops").select("id, nome").order("nome");
+  const { data: pops } = ehVend
+    ? { data: [] as { id: string; nome: string }[] }
+    : await supabase.from("pops").select("id, nome").order("nome");
 
   const [d, linkTemplate] = await Promise.all([
     carregarEsteira(periodo, popFiltro),
@@ -81,7 +92,11 @@ export default async function EsteiraPage({
     <>
       <CabecalhoPagina
         titulo="Esteira de ativação"
-        descricao={`Pendências mostram o estoque atual · taxa e tempos seguem o período ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`}
+        descricao={
+          ehVend
+            ? "Acompanhe seus clientes: quem falta assinar, quem já está agendado e quem foi instalado"
+            : `Pendências mostram o estoque atual · taxa e tempos seguem o período ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`
+        }
       />
 
       <FiltrosDashboard
@@ -166,6 +181,7 @@ export default async function EsteiraPage({
 
       {/* Assinaturas pendentes: resumo por vendedor + lista com ID clicável no SGP */}
       <div className="mb-6 grid gap-4 xl:grid-cols-3">
+        {!ehVend && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle>Assinaturas pendentes por vendedora</CardTitle>
@@ -204,8 +220,9 @@ export default async function EsteiraPage({
             </table>
           </CardContent>
         </Card>
+        )}
 
-        <Card className="xl:col-span-2">
+        <Card className={ehVend ? "xl:col-span-3" : "xl:col-span-2"}>
           <CardHeader className="pb-2">
             <CardTitle>Cadastros com assinatura pendente</CardTitle>
           </CardHeader>
@@ -283,10 +300,12 @@ export default async function EsteiraPage({
         </Card>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <TabelaTempos titulo="Tempo médio por POP" linhas={d.tempoPorPop} />
-        <TabelaTempos titulo="Tempo médio por vendedora" linhas={d.tempoPorVendedora} />
-      </div>
+      {!ehVend && (
+        <div className="grid gap-4 xl:grid-cols-2">
+          <TabelaTempos titulo="Tempo médio por POP" linhas={d.tempoPorPop} />
+          <TabelaTempos titulo="Tempo médio por vendedora" linhas={d.tempoPorVendedora} />
+        </div>
+      )}
     </>
   );
 }

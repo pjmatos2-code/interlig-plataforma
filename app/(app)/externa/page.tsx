@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { exigirUsuario } from "@/lib/auth";
+import { ehVendedora } from "@/lib/tipos";
+import { exigirPerfil } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { FormularioVisita } from "@/components/externa/formulario-visita";
 import { formatarMoeda } from "@/lib/format";
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 /** Venda Externa (PAP) — registro de visita em campo, mobile-first. */
 export default async function ExternaPage() {
-  const usuario = await exigirUsuario();
+  const usuario = await exigirPerfil(["gestor", "supervisor", "vendedora_externa"]);
   const supabase = criarClienteServidor();
   const hoje = new Date().toISOString().slice(0, 10);
 
@@ -19,7 +20,7 @@ export default async function ExternaPage() {
       .eq("ativo", true)
       .gt("valor_referencia", 0)
       .order("valor_referencia", { ascending: false }),
-    usuario.perfil === "vendedora"
+    ehVendedora(usuario.perfil)
       ? Promise.resolve({ data: [] as { id: string; nome: string }[] })
       : supabase.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
     supabase
@@ -65,7 +66,7 @@ export default async function ExternaPage() {
         <FormularioVisita
           planos={planos ?? []}
           vendedoras={vendedoras ?? []}
-          ehVendedora={usuario.perfil === "vendedora"}
+          ehVendedora={ehVendedora(usuario.perfil)}
         />
 
         {/* visitas de hoje */}

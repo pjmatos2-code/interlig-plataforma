@@ -1,4 +1,5 @@
 import { exigirUsuario } from "@/lib/auth";
+import { ehVendedora } from "@/lib/tipos";
 import { carregarRanking, type LinhaRanking } from "@/lib/ranking/dados";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +66,7 @@ function Podio({
 
 export default async function RankingPage() {
   const usuario = await exigirUsuario();
-  const ehVendedora = usuario.perfil === "vendedora";
+  const ehVend = ehVendedora(usuario.perfil);
   const popEscopo = usuario.perfil === "supervisor" ? usuario.pop_id : null;
 
   const d = await carregarRanking(popEscopo);
@@ -80,7 +81,7 @@ export default async function RankingPage() {
     const faltam = acima ? acima.vendas - minha.vendas + 1 : 0;
     return { rotulo, posicao: minha.posicao, total: linhas.length, vendas: minha.vendas, faltam };
   };
-  const minhasPosicoes = ehVendedora
+  const minhasPosicoes = ehVend
     ? [
         posicaoCard("Hoje", d.podios.dia),
         posicaoCard("Semana", d.podios.semana),
@@ -95,7 +96,7 @@ export default async function RankingPage() {
       <CabecalhoPagina
         titulo="Ranking"
         descricao={
-          ehVendedora
+          ehVend
             ? "Sua posição e sua sequência — os números das colegas não aparecem aqui."
             : usuario.perfil === "supervisor"
               ? "Pódios, sequências e badges do seu time."
@@ -112,7 +113,7 @@ export default async function RankingPage() {
       </a>
 
       {/* visão da vendedora: posição + distância, sem valores das colegas */}
-      {ehVendedora && minhasPosicoes.length > 0 && (
+      {ehVend && minhasPosicoes.length > 0 && (
         <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
           {minhasPosicoes.map((p) => (
             <Card key={p!.rotulo} className={cn(p!.posicao === 1 && "border-farol-amarelo/70")}>
@@ -137,7 +138,7 @@ export default async function RankingPage() {
         </div>
       )}
 
-      {ehVendedora && meuStreak && (
+      {ehVend && meuStreak && (
         <Card className="mb-5 border-interlig-ceu/40">
           <CardContent className="flex items-center gap-4 p-4">
             <span className="text-3xl">🔥</span>
@@ -158,9 +159,9 @@ export default async function RankingPage() {
 
       {/* pódios */}
       <div className="mb-6 grid gap-4 md:grid-cols-3">
-        <Podio titulo="Pódio do dia" linhas={d.podios.dia} mostrarValores={!ehVendedora} destacarId={meuId} />
-        <Podio titulo="Pódio da semana" linhas={d.podios.semana} mostrarValores={!ehVendedora} destacarId={meuId} />
-        <Podio titulo="Pódio do mês" linhas={d.podios.mes} mostrarValores={!ehVendedora} destacarId={meuId} />
+        <Podio titulo="Pódio do dia" linhas={d.podios.dia} mostrarValores={!ehVend} destacarId={meuId} />
+        <Podio titulo="Pódio da semana" linhas={d.podios.semana} mostrarValores={!ehVend} destacarId={meuId} />
+        <Podio titulo="Pódio do mês" linhas={d.podios.mes} mostrarValores={!ehVend} destacarId={meuId} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
@@ -189,7 +190,7 @@ export default async function RankingPage() {
                   {d.badges.metaDesafio.length === 0
                     ? "interna 100+ vendas · externa 40+ (todas que atingirem no mês)"
                     : d.badges.metaDesafio
-                        .map((m) => (ehVendedora ? m.nome : `${m.nome} (${m.atingimento}%)`))
+                        .map((m) => (ehVend ? m.nome : `${m.nome} (${m.atingimento}%)`))
                         .join(" · ")}
                 </p>
               </div>
@@ -238,7 +239,7 @@ export default async function RankingPage() {
                       {s.vendedorId === meuId && " (você)"}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                      {ehVendedora && s.vendedorId !== meuId
+                      {ehVend && s.vendedorId !== meuId
                         ? "—"
                         : `${s.metaDiaria.toFixed(1).replace(".", ",")}/dia`}
                     </td>

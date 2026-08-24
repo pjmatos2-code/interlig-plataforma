@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ROTULO_ORIGEM, ROTULO_PERFIL, type CategoriaOrigem, type Perfil } from "@/lib/tipos";
+import { ROTULO_ORIGEM, ROTULO_PERFIL, ehVendedora, type CategoriaOrigem, type Perfil } from "@/lib/tipos";
 
 const inicial: EstadoAdmin = {};
 const selectCls = "flex h-10 rounded-md border border-input bg-background px-3 text-sm";
@@ -90,9 +90,10 @@ export function GestaoUsuarios({
         <Input name="email" type="email" placeholder="e-mail" required />
         <Input name="senha" type="text" placeholder="senha provisória (8+)" required />
         <select name="perfil" value={perfil} onChange={(e) => setPerfil(e.target.value as Perfil)} className={selectCls}>
-          <option value="vendedora">Vendedora</option>
-          <option value="supervisor">Supervisor</option>
-          <option value="gestor">Gestor</option>
+          <option value="vendedora">{ROTULO_PERFIL.vendedora}</option>
+          <option value="vendedora_externa">{ROTULO_PERFIL.vendedora_externa}</option>
+          <option value="supervisor">{ROTULO_PERFIL.supervisor}</option>
+          <option value="gestor">{ROTULO_PERFIL.gestor}</option>
         </select>
         {perfil === "supervisor" && (
           <select name="pop_id" className={selectCls} required>
@@ -102,7 +103,7 @@ export function GestaoUsuarios({
             ))}
           </select>
         )}
-        {perfil === "vendedora" && (
+        {ehVendedora(perfil) && (
           <select name="vendedor_id" className={selectCls} required>
             <option value="">Vendedora do SGP…</option>
             {vendedoras.map((v) => (

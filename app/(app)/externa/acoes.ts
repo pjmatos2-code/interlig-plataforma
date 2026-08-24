@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { exigirUsuario } from "@/lib/auth";
+import { ehVendedora } from "@/lib/tipos";
+import { exigirPerfil } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 
@@ -35,7 +36,7 @@ async function subirFoto(
  * a proposta com o plano de interesse e o anexo de campo (fotos + GPS).
  */
 export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promise<EstadoVisita> {
-  const usuario = await exigirUsuario();
+  const usuario = await exigirPerfil(["gestor", "supervisor", "vendedora_externa"]);
   const supabase = criarClienteServidor();
   const admin = criarClienteAdmin();
 
@@ -56,7 +57,7 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
   // vendedora registra para si; gestor/supervisor pode escolher
   const vendedorForm = String(dados.get("vendedor_id") ?? "");
   const vendedorId =
-    usuario.perfil === "vendedora" ? usuario.vendedor_id : vendedorForm || usuario.vendedor_id;
+    ehVendedora(usuario.perfil) ? usuario.vendedor_id : vendedorForm || usuario.vendedor_id;
   let popId = usuario.pop_id;
   if (vendedorId) {
     const { data: v } = await supabase

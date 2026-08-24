@@ -10,7 +10,7 @@ import { aplicarLinkSgp } from "@/lib/sgp/links";
 import { buttonVariants } from "@/components/ui/button";
 import { formatarMoeda, formatarMoedaKpi, formatarNumero, formatarPercentual } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { type EtapaTicket } from "@/lib/tipos";
+import { type EtapaTicket, ehVendedora } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
 
@@ -177,7 +177,7 @@ export default async function CrmPage({
   };
   const d = await carregarCrm(periodo, usuario, filtros);
   const hoje = new Date().toISOString().slice(0, 10);
-  const ehVendedora = usuario.perfil === "vendedora";
+  const ehVend = ehVendedora(usuario.perfil);
 
   const supabase = criarClienteServidor();
   const [{ data: pops }, { data: vendedoras }, linkTemplate, { data: followupsIa }] =
@@ -306,7 +306,7 @@ export default async function CrmPage({
             </option>
           ))}
         </select>
-        {!ehVendedora && (
+        {!ehVend && (
           <select
             name="vend"
             defaultValue={searchParams.vend ?? ""}

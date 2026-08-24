@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { exigirPerfil } from "@/lib/auth";
+import { ehVendedora, type Perfil } from "@/lib/tipos";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { executarSync, type ResultadoSync } from "@/lib/sync/worker";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
@@ -70,9 +71,11 @@ export async function criarUsuario(_e: EstadoAdmin, dados: FormData): Promise<Es
 
   if (!nome || !email) return { erro: "Informe nome e e-mail." };
   if (senha.length < 8) return { erro: "Senha provisória precisa de 8+ caracteres." };
-  if (!["gestor", "supervisor", "vendedora"].includes(perfil)) return { erro: "Perfil inválido." };
-  if (perfil === "supervisor" && !popId) return { erro: "Supervisor precisa de POP." };
-  if (perfil === "vendedora" && !vendedorId)
+  if (!["gestor", "supervisor", "vendedora", "vendedora_externa"].includes(perfil))
+    return { erro: "Perfil inválido." };
+  const ehVend = ehVendedora(perfil as Perfil);
+  if (perfil === "supervisor" && !popId) return { erro: "Coordenador precisa de POP." };
+  if (ehVend && !vendedorId)
     return { erro: "Vendedora precisa do vínculo com a vendedora do SGP." };
 
   const admin = criarClienteAdmin();
@@ -95,14 +98,14 @@ export async function criarUsuario(_e: EstadoAdmin, dados: FormData): Promise<Es
     email,
     perfil,
     pop_id: perfil === "gestor" ? null : popFinal,
-    vendedor_id: perfil === "vendedora" ? vendedorId : null,
+    vendedor_id: ehVend ? vendedorId : null,
     ativo: true,
   });
   if (error) {
     await admin.auth.admin.deleteUser(novo.user.id); // rollback
     return { erro: error.message };
   }
-  if (perfil === "vendedora" && vendedorId) {
+  if (ehVend && vendedorId) {
     await admin.from("vendedores").update({ usuario_id: novo.user.id }).eq("id", vendedorId);
   }
   if (perfil === "supervisor" && popFinal) {
