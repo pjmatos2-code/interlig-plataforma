@@ -271,6 +271,23 @@ export async function reabrirTicket(ticketId: string): Promise<EstadoAcao> {
   return { ok: true };
 }
 
+// Exclusão administrativa (só gestor): remove o ticket e seus filhos.
+// A regra geral é "ticket não se exclui" (auditoria); esta é a exceção do
+// Administrador para limpeza (ex.: apagar tickets de teste). RLS + gatilho
+// (migração 0029) garantem que só o gestor consegue.
+export async function excluirTicket(ticketId: string): Promise<EstadoAcao> {
+  await exigirPerfil(["gestor"]);
+  const supabase = criarClienteServidor();
+  // apaga os filhos primeiro (FKs on delete restrict)
+  await supabase.from("ticket_eventos").delete().eq("ticket_id", ticketId);
+  await supabase.from("ticket_propostas").delete().eq("ticket_id", ticketId);
+  await supabase.from("visitas_externas").delete().eq("ticket_id", ticketId);
+  const { error } = await supabase.from("tickets").delete().eq("id", ticketId);
+  if (error) return { erro: `Não foi possível excluir: ${error.message}` };
+  revalidar();
+  redirect("/crm");
+}
+
 export async function adicionarProposta(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
   const usuario = await exigirUsuario();
   const ticketId = String(dados.get("ticket_id") ?? "");

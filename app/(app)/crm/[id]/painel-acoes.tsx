@@ -7,6 +7,7 @@ import {
   adicionarNota,
   adicionarProposta,
   agendarFollowup,
+  excluirTicket,
   fecharTicket,
   mudarEtapa,
   reabrirTicket,
@@ -363,6 +364,37 @@ export function BotaoReabrir({ ticketId }: { ticketId: string }) {
         }}
       >
         {aguardando ? "Reabrindo…" : "Reabrir ticket"}
+      </Button>
+      {erro && <p className="text-sm text-destructive">{erro}</p>}
+    </div>
+  );
+}
+
+/** Exclusão administrativa — só aparece para o Administrador (gestor). */
+export function BotaoExcluir({ ticketId, cliente }: { ticketId: string; cliente: string }) {
+  const [aguardando, setAguardando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  return (
+    <div className="space-y-2">
+      <Button
+        variant="outline"
+        className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        disabled={aguardando}
+        onClick={async () => {
+          if (
+            !confirm(
+              `Excluir definitivamente o ticket de "${cliente}"? Esta ação é permanente e apaga o histórico do ticket.`
+            )
+          )
+            return;
+          setAguardando(true);
+          const r = await excluirTicket(ticketId);
+          // sucesso redireciona para /crm; só chega aqui se deu erro
+          setErro(r?.erro ?? "Falha ao excluir.");
+          setAguardando(false);
+        }}
+      >
+        {aguardando ? "Excluindo…" : "🗑 Excluir ticket (admin)"}
       </Button>
       {erro && <p className="text-sm text-destructive">{erro}</p>}
     </div>

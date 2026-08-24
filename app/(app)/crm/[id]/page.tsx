@@ -15,6 +15,7 @@ import { ROTULO_ETAPA, ROTULO_ORIGEM, ehVendedora } from "@/lib/tipos";
 import {
   BarraEtapas,
   BotaoReabrir,
+  BotaoExcluir,
   FormularioFechamento,
   FormularioFollowup,
   FormularioNota,
@@ -275,6 +276,16 @@ export default async function TicketPage({ params }: { params: { id: string } })
                     <p className="text-xs">Janela de reabertura (30 dias) expirada.</p>
                   )
                 )}
+              </div>
+            )}
+
+            {/* Exclusão administrativa — só o Administrador (limpeza/testes) */}
+            {usuario.perfil === "gestor" && (
+              <div className="mt-4 border-t pt-3">
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                  Administração
+                </p>
+                <BotaoExcluir ticketId={t.id} cliente={t.cliente_nome} />
               </div>
             )}
           </CardContent>
