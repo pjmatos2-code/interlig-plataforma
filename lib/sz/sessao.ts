@@ -59,6 +59,7 @@ export class SessaoSz {
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ email: this.cred.email, password: this.cred.senha }),
       redirect: "manual",
+      cache: "no-store",
     });
     this.juntarCookies(r);
     const j = (await r.json().catch(() => ({}))) as { success?: boolean; error?: string };
@@ -66,13 +67,16 @@ export class SessaoSz {
     // pega o CSRF de uma página logada
     const home = await fetch(`${this.cred.baseUrl}/reports/messages`, {
       headers: { Cookie: this.cookie, Accept: "text/html" },
+      cache: "no-store",
     });
     this.juntarCookies(home);
     const html = await home.text();
     this.csrf = html.match(/name="csrf-token"\s+content="([^"]+)"/)?.[1] ?? "";
   }
 
-  /** GET/POST autenticado; injeta cookie + CSRF + XHR. */
+  /** GET/POST autenticado; injeta cookie + CSRF + XHR.
+   *  cache: no-store é obrigatório — o fetch do Next cacheia GETs em route
+   *  handlers e serviria uma resposta velha (HTML de login) para a sessão nova. */
   async api(rota: string, opt: { method?: string; body?: unknown } = {}): Promise<Response> {
     return fetch(`${this.cred.baseUrl}${rota}`, {
       method: opt.method ?? "GET",
@@ -84,6 +88,7 @@ export class SessaoSz {
         Accept: "application/json",
       },
       body: opt.body ? JSON.stringify(opt.body) : undefined,
+      cache: "no-store",
     });
   }
 }
