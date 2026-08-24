@@ -215,6 +215,10 @@ export default async function TotemRankingPage({
           ))}
         </nav>
 
+        <p className="-mt-2 text-center text-[10px] font-semibold tracking-wide text-slate-400">
+          📶 QUANTIDADE VENDIDA · DESEMPATE: MAIOR TICKET MÉDIO
+        </p>
+
         {/* ---------- pódio ---------- */}
         {linhas.length === 0 ? (
           <p className="py-10 text-center text-sm text-slate-400">Ainda sem vendas neste recorte.</p>
@@ -231,6 +235,7 @@ export default async function TotemRankingPage({
                   <p className="mt-2 truncate text-[10px] font-semibold tracking-wider text-slate-400">{p2.pop.toUpperCase()}</p>
                   <p className="truncate text-lg font-extrabold">{p2.nome}</p>
                   <p className="text-sm font-bold text-emerald-400">{formatarMoeda(p2.receita)}</p>
+                  <p className="text-[10px] tabular-nums text-slate-400">ticket {formatarMoeda(p2.ticketMedio)}</p>
                   <p className="mt-1 inline-block rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-sky-300">📶 {p2.vendas} plano{p2.vendas === 1 ? "" : "s"}</p>
                 </>
               ) : (
@@ -265,6 +270,7 @@ export default async function TotemRankingPage({
                   <p className="mt-2 inline-block rounded-full bg-amber-400/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-amber-200">{p1.pop.toUpperCase()}</p>
                   <p className="truncate text-2xl font-black">{p1.nome}</p>
                   <p className="text-xl font-extrabold text-emerald-400">{formatarMoeda(p1.receita)}</p>
+                  <p className="text-[11px] tabular-nums text-amber-200/80">ticket {formatarMoeda(p1.ticketMedio)}</p>
                   <p className="mt-1 inline-block rounded-full bg-amber-400/25 px-3 py-1 text-sm font-black text-amber-200">📶 {p1.vendas} plano{p1.vendas === 1 ? "" : "s"}</p>
                 </>
               )}
@@ -281,6 +287,7 @@ export default async function TotemRankingPage({
                   <p className="mt-2 truncate text-[10px] font-semibold tracking-wider text-orange-300/80">{p3.pop.toUpperCase()}</p>
                   <p className="truncate text-lg font-extrabold">{p3.nome}</p>
                   <p className="text-sm font-bold text-emerald-400">{formatarMoeda(p3.receita)}</p>
+                  <p className="text-[10px] tabular-nums text-slate-400">ticket {formatarMoeda(p3.ticketMedio)}</p>
                   <p className="mt-1 inline-block rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-orange-300">📶 {p3.vendas} plano{p3.vendas === 1 ? "" : "s"}</p>
                 </>
               ) : (
@@ -296,19 +303,19 @@ export default async function TotemRankingPage({
             <h2 className="mb-2 text-sm font-black tracking-wide text-sky-300">
               📈 TOP 10 · {ROTULO[periodo]}
             </h2>
-            <div className="mb-1 grid grid-cols-[2rem_1fr_auto_2.5rem] gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              <span>Pos.</span><span>Vendedora</span><span className="text-right">Vendas (R$)</span><span className="text-right">Planos</span>
+            <div className="mb-1 grid grid-cols-[2rem_1fr_3rem_auto] gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <span>Pos.</span><span>Vendedora</span><span className="text-right">Planos</span><span className="text-right">Ticket médio</span>
             </div>
             <ul className="divide-y divide-white/5">
               {resto.map((l: LinhaRanking) => (
-                <li key={l.vendedorId} className="grid grid-cols-[2rem_1fr_auto_2.5rem] items-center gap-2 py-1.5">
+                <li key={l.vendedorId} className="grid grid-cols-[2rem_1fr_3rem_auto] items-center gap-2 py-1.5">
                   <span className="text-sm font-bold text-slate-400">{l.posicao}</span>
                   <span className="flex min-w-0 items-center gap-2">
                     <Avatar linha={l} tamanho="h-7 w-7" anel="bg-white/20" />
                     <span className="truncate text-sm font-semibold">{l.nome}</span>
                   </span>
-                  <span className="text-right text-sm font-bold tabular-nums">{formatarMoeda(l.receita)}</span>
                   <span className="text-right text-sm font-bold tabular-nums text-sky-300">{l.vendas}</span>
+                  <span className="text-right text-sm font-bold tabular-nums">{formatarMoeda(l.ticketMedio)}</span>
                 </li>
               ))}
             </ul>

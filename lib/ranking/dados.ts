@@ -32,6 +32,8 @@ export type LinhaRanking = {
   foto: string | null;
   vendas: number;
   receita: number;
+  /** critério de desempate: mesma quantidade → vence o maior ticket médio */
+  ticketMedio: number;
   posicao: number;
   /** gamificação do totem: 100 pts por venda */
   pontos: number;
@@ -89,20 +91,24 @@ function ranquear(
       de,
       ate
     );
+    const receita = receitaContratada(proprias);
     return {
       vendedorId: v.id,
       nome: v.nome,
       pop: v.pop,
       foto: v.foto,
       vendas: proprias.length,
-      receita: receitaContratada(proprias),
+      receita,
+      ticketMedio: proprias.length > 0 ? receita / proprias.length : 0,
       posicao: 0,
       pontos: proprias.length * 100,
       variacao: null as number | null,
     };
   });
+  // ordem oficial: quantidade vendida; desempate pelo MAIOR ticket médio
   linhas.sort(
-    (a, b) => b.vendas - a.vendas || b.receita - a.receita || a.nome.localeCompare(b.nome)
+    (a, b) =>
+      b.vendas - a.vendas || b.ticketMedio - a.ticketMedio || a.nome.localeCompare(b.nome)
   );
   linhas.forEach((l, i) => (l.posicao = i + 1));
 

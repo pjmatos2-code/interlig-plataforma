@@ -46,9 +46,11 @@ function Podio({
             </div>
             {mostrarValores && (
               <div className="text-right">
-                <p className="text-sm font-semibold tabular-nums">{formatarNumero(l.vendas)}</p>
+                <p className="text-sm font-semibold tabular-nums">
+                  {formatarNumero(l.vendas)} plano{l.vendas === 1 ? "" : "s"}
+                </p>
                 <p className="text-xs tabular-nums text-muted-foreground">
-                  {formatarMoeda(l.receita)}
+                  ticket {formatarMoeda(l.ticketMedio)}
                 </p>
               </div>
             )}
@@ -57,6 +59,11 @@ function Podio({
         {top3.length === 0 && (
           <p className="py-2 text-center text-xs text-muted-foreground">
             Ainda sem vendas neste recorte.
+          </p>
+        )}
+        {top3.length > 1 && (
+          <p className="pt-1 text-right text-[10px] text-muted-foreground">
+            quantidade vendida · desempate: maior ticket médio
           </p>
         )}
       </CardContent>
