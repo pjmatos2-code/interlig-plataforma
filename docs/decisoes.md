@@ -486,3 +486,11 @@ Quatro tipos de usuário e o que cada um enxerga:
 - Enum `perfil_usuario`: gestor→Administrador, supervisor→Coordenador, vendedora→Vendedora interna, vendedora_externa→Vendedora externa (migrations 0022/0023).
 - `ehVendedora()` unifica o escopo das duas vendedoras; RLS `no_escopo()` limita interna/externa a `vendedor_id = vendedor_atual()`.
 - Esteira da vendedora: mostra o kanban (pendente assinatura / aguardando instalação / instaladas) e a lista de assinaturas pendentes — só dos contratos dela. Quadros gerenciais (tempo médio por POP/vendedora, assinaturas por vendedora) ficam ocultos.
+
+### D13.1 — Coordenador × Venda Externa (23/08/2026)
+O PAP atua nas 3 cidades comerciais (Altamira, VTX, Brasil Novo), independente do
+POP. Como há um único coordenador (Marcelo Otávio), o módulo Venda Externa lê e
+grava via client admin para gestor e coordenador (cruza POPs); a vendedora externa
+segue restrita às suas próprias visitas pela RLS. Se no futuro houver mais de um
+coordenador e for preciso segmentar por praça, marcar o coordenador do PAP e trocar
+a leitura admin por uma política RLS específica de venda externa.
