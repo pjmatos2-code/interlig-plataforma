@@ -3,7 +3,7 @@ import { exigirUsuario } from "@/lib/auth";
 import { carregarRanking, type LinhaRanking } from "@/lib/ranking/dados";
 import { formatarMoeda } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { AtualizadorTotem } from "./atualizador";
+import { AtualizadorTotem, CarrosselPeriodos } from "./atualizador";
 
 export const dynamic = "force-dynamic";
 
@@ -154,6 +154,9 @@ export default async function TotemRankingPage({
         .anim-subir { animation: subir .5s ease-out both }
         @media (prefers-reduced-motion: reduce) { .confete, .coroa, .aovivo, .chama-viva { animation: none !important } }
       `}</style>
+
+      {/* telão: gira Dia → Semana → Mês a cada 1 minuto */}
+      <CarrosselPeriodos atual={periodo} />
 
       <FundoRede />
 
