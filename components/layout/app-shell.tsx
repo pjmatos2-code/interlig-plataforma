@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import type { ItemNav } from "@/lib/nav";
 import { ROTULO_PERFIL, type Usuario } from "@/lib/tipos";
 import { LogoInterlig } from "@/components/marca/logo-interlig";
+import { SinoNotificacoes } from "@/components/layout/sino-notificacoes";
 
 const ICONES: Record<string, LucideIcon> = {
   LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare, Target, ShieldCheck, Settings, Trophy, Map, Footprints,
@@ -94,6 +95,7 @@ export function AppShell({
 
         <div className="ml-auto flex items-center gap-3">
           <span className="hidden text-xs text-white/60 sm:inline">{atualizadoEm}</span>
+          <SinoNotificacoes />
           <Badge className="border-transparent bg-interlig-ceu/25 text-interlig-claro">
             {ROTULO_PERFIL[usuario.perfil]}
           </Badge>
