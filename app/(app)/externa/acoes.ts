@@ -39,6 +39,11 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
   const usuario = await exigirPerfil(["gestor", "supervisor", "vendedora_externa"]);
   const supabase = criarClienteServidor();
   const admin = criarClienteAdmin();
+  // Coordenador atua nas 3 cidades (independente do POP): gestor/coordenador
+  // gravam via admin para não esbarrar na RLS por POP. A vendedora externa
+  // registra a própria visita na RLS.
+  const ehGestao = usuario.perfil === "gestor" || usuario.perfil === "supervisor";
+  const db = ehGestao ? admin : supabase;
 
   const nome = String(dados.get("cliente_nome") ?? "").trim();
   const telefone = String(dados.get("telefone") ?? "").replace(/\D/g, "");
@@ -60,7 +65,7 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
     ehVendedora(usuario.perfil) ? usuario.vendedor_id : vendedorForm || usuario.vendedor_id;
   let popId = usuario.pop_id;
   if (vendedorId) {
-    const { data: v } = await supabase
+    const { data: v } = await db
       .from("vendedores")
       .select("pop_id")
       .eq("id", vendedorId)
@@ -69,7 +74,7 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
   }
 
   // 1) ticket no CRM (origem: venda externa / PAP)
-  const { data: ticket, error: eTicket } = await supabase
+  const { data: ticket, error: eTicket } = await db
     .from("tickets")
     .insert({
       origem_criacao: "manual",
@@ -95,7 +100,7 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
   }
 
   // 3) anexo de campo
-  const { error: eVisita } = await supabase.from("visitas_externas").insert({
+  const { error: eVisita } = await db.from("visitas_externas").insert({
     ticket_id: ticket.id,
     vendedor_id: vendedorId,
     foto_casa_path: casa.path,
@@ -109,21 +114,21 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
 
   // 4) plano de interesse vira proposta (valor aparece no card do kanban)
   if (planoId) {
-    const { data: plano } = await supabase
+    const { data: plano } = await db
       .from("planos")
       .select("nome, valor_referencia")
       .eq("id", planoId)
       .maybeSingle();
     const valor = Number(plano?.valor_referencia ?? 0);
     if (valor > 0) {
-      await supabase.from("ticket_propostas").insert({
+      await db.from("ticket_propostas").insert({
         ticket_id: ticket.id,
         plano_id: planoId,
         valor,
         observacao: "Interesse registrado na visita externa.",
         criado_por: usuario.id,
       });
-      await supabase
+      await db
         .from("tickets")
         .update({ valor_estimado: valor, atualizado_em: new Date().toISOString() })
         .eq("id", ticket.id);
@@ -131,7 +136,7 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
   }
 
   // 5) trilha
-  await supabase.from("ticket_eventos").insert({
+  await db.from("ticket_eventos").insert({
     ticket_id: ticket.id,
     tipo: "nota",
     dados: {
