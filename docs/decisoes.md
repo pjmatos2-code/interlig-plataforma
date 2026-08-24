@@ -463,3 +463,23 @@ Rota de produção /api/sz/ler-conversas responde "Redirecting" no curl direto
 (proteção Vercel) — validar no agendamento do cron com o secret certo.
 Falta: (1) ANTHROPIC_API_KEY (.env.local + Vercel); (2) cron-job.org 22:30 UTC;
 (3) trocar a senha do robô (foi digitada no chat).
+
+## D13 — Perfis de acesso (23/08/2026)
+Quatro tipos de usuário e o que cada um enxerga:
+
+| Módulo | Administrador | Coordenador | Vendedora interna | Vendedora externa |
+|---|---|---|---|---|
+| Dashboard | ✅ tudo | ✅ seu POP | — | — |
+| Vendedoras | ✅ | ✅ seu POP | — | — |
+| Minhas vendas | ✅ | ✅ | ✅ só dela | ✅ só dela |
+| Ranking | ✅ | ✅ | ✅ | ✅ |
+| **Esteira** | ✅ tudo | ✅ seu POP | ✅ **só os contratos dela** | ✅ só os dela |
+| CRM | ✅ | ✅ | ✅ só dela | ✅ só dela |
+| Venda Externa | ✅ | ✅ | ❌ bloqueada | ✅ (rota inicial) |
+| Metas e comissão | ✅ | ✅ | ✅ | ✅ |
+| Qualidade / Mapa | ✅ | ✅ | — | — |
+| Administração | ✅ | — | — | — |
+
+- Enum `perfil_usuario`: gestor→Administrador, supervisor→Coordenador, vendedora→Vendedora interna, vendedora_externa→Vendedora externa (migrations 0022/0023).
+- `ehVendedora()` unifica o escopo das duas vendedoras; RLS `no_escopo()` limita interna/externa a `vendedor_id = vendedor_atual()`.
+- Esteira da vendedora: mostra o kanban (pendente assinatura / aguardando instalação / instaladas) e a lista de assinaturas pendentes — só dos contratos dela. Quadros gerenciais (tempo médio por POP/vendedora, assinaturas por vendedora) ficam ocultos.
