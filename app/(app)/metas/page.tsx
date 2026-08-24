@@ -1,4 +1,4 @@
-import { exigirUsuario } from "@/lib/auth";
+import { exigirPerfil } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { hojeIso, primeiroDiaDoMes, ultimoDiaDoMes, mesAtras } from "@/lib/datas";
 import {
@@ -29,7 +29,8 @@ export default async function MetasPage({
 }: {
   searchParams: { mes?: string };
 }) {
-  const usuario = await exigirUsuario();
+  // Módulo exclusivo do Administrador (decisão 24/08/2026)
+  const usuario = await exigirPerfil(["gestor"]);
   const supabase = criarClienteServidor();
 
   const hoje = hojeIso();
