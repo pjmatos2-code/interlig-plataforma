@@ -163,9 +163,12 @@ abaixo do piso).
 **Aplicado na plataforma (regras por vendedora, vigência 08/2026):**
 - **Time Interno (SZ Chat/CRM)** — Damely e Karoline · meta 70/mês ·
   80–100%: 7% · 101–120%: 8% · 121–142%: 10% · ≥143%: 15% (VTV) · <80%: zero.
-- **Time Externo (PAP)** — Andrea, Janaína, Tamiris e Ivanilda VTX (Vitória
-  do Xingu) · meta 25/mês · faixas por quantidade convertidas em %:
-  16–19 vendas (64%): 10% · 20–23 (80%): 15% · 24–39 (96%): 20% · ≥40 (160%): 25%.
+- **Time Externo (PAP)** — Andrea, Janaína, Tamiris, Ivanilda VTX, Jessica
+  Valentim e Maclicya Martins · meta 25/mês · **só comissiona acima de 80% da
+  meta (20 vendas)** · faixas por volume (corrigido em 23/08/2026, migração 0024):
+  <20 (<80%): 0% · 20–25 (80–100%): 10% · 26–31 (104–124%): 15% ·
+  32–39 (128–156%): 20% · ≥40 (≥160%): 30%.
+  (Antes o piso estava em 16 vendas/64% e o corte 15%→20% em 24 vendas/96%.)
 - Estorno por early churn 90 dias já coberto pelo motor.
 - Metas por POP derivadas da soma das vendedoras da praça.
 
