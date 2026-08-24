@@ -1,77 +1,143 @@
 import "server-only";
 import type { Conversa } from "@/lib/sz/conversas";
 
+export type PlanoRef = { id: string; nome: string; velocidade: string | null };
+
 export type ResumoIa = {
   resumo: string;
   proxima: string;
   urgencia: "alta" | "media" | "baixa";
+  /** conversa indica venda concluída (assinou / plano ativado) */
+  vendaFechada: boolean;
+  /** plano detectado na conversa (para fechar como convertido) */
+  planoId: string | null;
 };
 
-const SISTEMA = `Você é analista comercial de um provedor de internet (Interlig, região de Altamira/PA).
-Recebe a transcrição de UMA conversa de WhatsApp entre um lead e a equipe comercial.
-Responda SOMENTE um JSON: {"resumo": "...", "proxima": "...", "urgencia": "alta|media|baixa"}.
-- resumo: 1-3 frases objetivas do que o cliente quer e onde a conversa parou (cidade, PF/PJ, plano de interesse, etapa).
-- proxima: a ação de continuidade que a vendedora deve fazer no dia seguinte.
-- urgencia: "alta" se há negociação avançada parada (escolheu plano, pediu viabilidade, é PJ/licitação, cliente aguardando resposta); "media" em atendimento normal em andamento; "baixa" se lead frio, sem resposta ou abandonado.
-Escreva em português do Brasil, tom direto de operação de vendas.`;
+const CIDADES = [
+  "Altamira", "Vitória do Xingu", "Vitoria do Xingu", "Brasil Novo", "Santarém",
+  "Rurópolis", "Uruará", "Placas", "Divinópolis", "Campo Verde",
+];
 
-function transcricao(c: Conversa): string {
-  return c.dialogo
-    .filter((m) => m.quem !== "SISTEMA")
-    .map((m) => `${m.quem}: ${m.texto}`)
-    .join("\n")
-    .slice(0, 6000);
+function horasEntre(a: string, b: string): number {
+  const pa = Date.parse(a.replace(" ", "T"));
+  const pb = Date.parse(b.replace(" ", "T"));
+  return Number.isFinite(pa) && Number.isFinite(pb) ? Math.abs(pb - pa) / 3_600_000 : 0;
 }
 
-/** Fallback sem IA: heurística simples, marcada como automática. */
-function heuristico(c: Conversa): ResumoIa {
-  const cliente = c.dialogo.filter((m) => m.quem === "CLIENTE").map((m) => m.texto);
-  const mostrouPlano = c.dialogo.some((m) => m.quem === "AGENTE" && /plano|recomendo|R\$|mensalidade/i.test(m.texto));
-  const ultima = c.dialogo[c.dialogo.length - 1];
-  const clienteEsperando = ultima?.quem === "CLIENTE";
-  const semResposta = cliente.length <= 1;
-  const urgencia: ResumoIa["urgencia"] =
-    mostrouPlano && (clienteEsperando || true) ? "alta" : semResposta ? "baixa" : "media";
-  const resumo =
-    `Lead de ${c.equipe.replace("Comercial ", "")} atendido por ${c.agente ?? "—"}. ` +
-    (cliente[0] ? `Pediu: "${cliente[0].slice(0, 90)}". ` : "") +
-    (mostrouPlano ? "Plano já apresentado. " : "") +
-    `(resumo automático — sem IA)`;
-  const proxima = mostrouPlano
-    ? "Retomar de onde parou e conduzir para assinatura do contrato."
-    : semResposta
-      ? "Reabordar com mensagem curta oferecendo os planos mais vendidos."
-      : "Dar sequência à qualificação e enviar a recomendação de plano.";
-  return { resumo, proxima, urgencia };
-}
-
-/** Gera o resumo com a API Anthropic quando houver chave; senão, heurística. */
-export async function gerarResumo(c: Conversa): Promise<ResumoIa> {
-  const chave = process.env.ANTHROPIC_API_KEY;
-  if (!chave) return heuristico(c);
-  try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": chave,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5",
-        max_tokens: 400,
-        system: SISTEMA,
-        messages: [{ role: "user", content: `Equipe: ${c.equipe}\nCliente: ${c.nome}\n\nTranscrição:\n${transcricao(c)}` }],
-      }),
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!r.ok) return heuristico(c);
-    const j = (await r.json()) as { content?: { text?: string }[] };
-    const txt = j.content?.[0]?.text ?? "";
-    const obj = JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1)) as ResumoIa;
-    const urg = ["alta", "media", "baixa"].includes(obj.urgencia) ? obj.urgencia : "media";
-    return { resumo: String(obj.resumo).slice(0, 800), proxima: String(obj.proxima).slice(0, 400), urgencia: urg };
-  } catch {
-    return heuristico(c);
+/** Detecta o plano citado pela vendedora e casa com o catálogo. */
+function detectarPlano(textoAgente: string, planos: PlanoRef[]): PlanoRef | null {
+  const t = textoAgente.toLowerCase();
+  // 1 GIGA / 1GB / speedmax
+  if (/\b1\s*g(b|iga)\b|speedmax|1\s*gb/.test(t)) {
+    return planos.find((p) => /1gb|speedmax|giga/i.test(p.nome)) ?? null;
   }
+  // velocidades em MB (400, 500, 600, 800…)
+  const mb = t.match(/\b(200|300|400|500|600|700|800|900)\s*(mb|mega)/);
+  if (mb) {
+    const v = mb[1];
+    return (
+      planos.find((p) => (p.velocidade ?? "").includes(v) || p.nome.includes(v)) ?? null
+    );
+  }
+  if (/gamer|gaming/.test(t)) return planos.find((p) => /gamer/i.test(p.nome)) ?? null;
+  return null;
+}
+
+/**
+ * Resumo por regras (sem IA paga). Lê o diálogo e monta um panorama acionável:
+ * cidade, PF/PJ, plano, etapa em que parou, quem espera e há quanto tempo.
+ * Regras de urgência definidas pelo gestor (23/08).
+ */
+export function resumirPorRegras(c: Conversa, planos: PlanoRef[]): ResumoIa {
+  const msgs = c.dialogo;
+  const doCliente = msgs.filter((m) => m.quem === "CLIENTE");
+  const doAgente = msgs.filter((m) => m.quem === "AGENTE");
+  const uteis = msgs.filter((m) => m.quem !== "SISTEMA" && m.quem !== "IA");
+  const ultima = uteis[uteis.length - 1];
+  const textoAgente = doAgente.map((m) => m.texto).join("  ");
+  const textoTudo = msgs.map((m) => m.texto).join("  ");
+  const temAgente = (re: RegExp) => re.test(textoAgente);
+
+  // ---- sinais ----
+  const cidade =
+    c.equipe.replace("Comercial ", "") ||
+    CIDADES.find((cid) => new RegExp(cid, "i").test(textoTudo)) ||
+    null;
+  const pj = /\b(empresa|cnpj|\bpj\b|corporativ|licita|jucepa|ltda|\bepp\b|órgão|orgao)\b/i.test(textoTudo);
+  const disp = textoTudo.match(/(\d{1,2})\s*(dispositivos|aparelhos|celular)/i)?.[1] ?? null;
+  const planoRef = detectarPlano(textoAgente, planos);
+  const planoMostrado = temAgente(/plano|recomendo|R\$|mensalidade|fibra\s*\d|speedmax|giga/i) || !!planoRef;
+  const pediuEndereco = temAgente(/endere[çc]o|localiza[çc][ãa]o|cobertura|viabilidade|qual bairro/i);
+  const deuEndereco =
+    /\b(rua|av\.?|avenida|travessa|bairro|n[ºo°]|maps\.google|maps\?q=)/i.test(
+      doCliente.map((m) => m.texto).join("  ")
+    );
+  const pediuDoc = temAgente(/documento|identidade|\brg\b|frente e verso|foto do seu doc/i);
+  const linkAssinatura = temAgente(/assinatura_eletronica|assina esse|link de assinatura|assinar o contrato/i);
+  const vendaFechada =
+    /parab[ée]ns.*(interlig|plano)|bem[- ]vind[oa].*(interlig|fam[íi]lia)|contrato ativad|instala[çc][ãa]o agendad/i.test(
+      textoAgente
+    ) ||
+    (linkAssinatura && /assinei|assinado|j[áa] assin|prontinho|feito.*assin/i.test(doCliente.map((m) => m.texto).join("  ")));
+
+  const clienteEsperando = ultima?.quem === "CLIENTE";
+  const abandonou =
+    /encerrou o atendimento|finalizad[oa] por inatividade|sess[ãa]o.*expir/i.test(textoTudo) &&
+    doCliente.length <= 2;
+  const semResposta = doCliente.length === 0 || (doAgente.length > 0 && doCliente.length <= 1 && !planoMostrado);
+
+  // espera até o 1º atendimento humano
+  const primeiroAgente = doAgente[0]?.hora;
+  const inicio = msgs[0]?.hora;
+  const esperaH = primeiroAgente && inicio ? horasEntre(inicio, primeiroAgente) : 0;
+  const esperaLonga = esperaH >= 3;
+
+  // ---- etapa em que a conversa parou ----
+  let etapa: string;
+  if (vendaFechada) etapa = "venda fechada";
+  else if (linkAssinatura) etapa = "contrato enviado, aguardando assinatura";
+  else if (pediuDoc) etapa = "coletando documentos";
+  else if (pediuEndereco) etapa = deuEndereco ? "verificando viabilidade do endereço" : "aguardando o endereço para viabilidade";
+  else if (planoMostrado) etapa = "plano apresentado, em negociação";
+  else if (doCliente.length > 0) etapa = "qualificação inicial";
+  else etapa = "aguardando primeira resposta do cliente";
+
+  // ---- urgência (regras do gestor) ----
+  let urgencia: ResumoIa["urgencia"];
+  if (vendaFechada) urgencia = "baixa";
+  else if ((linkAssinatura && !vendaFechada) || clienteEsperando || pj || esperaLonga) urgencia = "alta";
+  else if (abandonou || semResposta) urgencia = "baixa";
+  else urgencia = "media";
+
+  // ---- textos ----
+  const perfil = pj ? "cliente PJ/empresa" : "cliente residencial";
+  const partes = [
+    `${perfil} de ${cidade ?? "—"}`,
+    c.agente ? `com ${c.agente.split(" ").slice(0, 2).join(" ")}` : null,
+    disp ? `${disp} dispositivos` : null,
+    planoRef ? `interesse em ${planoRef.nome.replace(/\s*\|.*/, "")}` : null,
+  ].filter(Boolean);
+  let resumo = `${partes.join(", ")}. Parou em: ${etapa}.`;
+  if (esperaLonga) resumo += ` ⏱ Esperou ~${Math.round(esperaH)}h pelo 1º atendimento.`;
+  if (clienteEsperando && !vendaFechada) resumo += " Cliente aguardando resposta.";
+  if (pj) resumo += " Conta corporativa — priorizar proposta formal.";
+
+  let proxima: string;
+  if (vendaFechada) proxima = "Venda concluída — confirmar ativação/reconciliação no SGP.";
+  else if (linkAssinatura) proxima = "Cobrar a assinatura do contrato e acompanhar até ativar.";
+  else if (pediuEndereco && !deuEndereco) proxima = "Retomar pedindo o endereço/localização para checar viabilidade.";
+  else if (pediuDoc) proxima = "Coletar o documento e emitir o link de assinatura.";
+  else if (planoMostrado) proxima = pj
+    ? "Enviar proposta corporativa formal (CNPJ, prazo, SLA) e manter follow-up diário."
+    : "Retomar a negociação e conduzir para o fechamento do contrato.";
+  else if (semResposta || abandonou) proxima = "Reabordar com mensagem curta oferecendo os planos mais vendidos.";
+  else proxima = "Dar sequência à qualificação e recomendar o plano ideal.";
+
+  return {
+    resumo: resumo.slice(0, 800),
+    proxima,
+    urgencia,
+    vendaFechada,
+    planoId: planoRef?.id ?? null,
+  };
 }

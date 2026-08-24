@@ -192,20 +192,32 @@ export default async function CrmPage({
         )
         .neq("etapa", "fechado")
         .not("resumo_tratativa", "is", null)
-        .limit(60),
+        .not("urgencia", "is", null)
+        .order("resumo_em", { ascending: false })
+        .limit(200),
     ]);
   const ORDEM_URGENCIA: Record<string, number> = { alta: 0, media: 1, baixa: 2 };
-  const pendentesIa = ((followupsIa ?? []) as unknown as {
+  const brutosIa = (followupsIa ?? []) as unknown as {
     id: string;
     cliente_nome: string;
     telefone: string | null;
     urgencia: "alta" | "media" | "baixa" | null;
     resumo_tratativa: string;
     proxima_abordagem: string | null;
+    resumo_em: string | null;
     vendedores: { nome: string } | null;
-  }[]).sort(
-    (a, b) => (ORDEM_URGENCIA[a.urgencia ?? "baixa"] ?? 2) - (ORDEM_URGENCIA[b.urgencia ?? "baixa"] ?? 2)
-  );
+  }[];
+  // não-acumulativo: mostra apenas o ÚLTIMO dia de leitura do robô
+  // (na segunda/feriado, cai naturalmente no último dia útil com atividade)
+  const diaDaLeitura = (iso: string | null) =>
+    iso ? new Date(Date.parse(iso) - 3 * 3600_000).toISOString().slice(0, 10) : "";
+  const ultimoDia = brutosIa.length ? diaDaLeitura(brutosIa[0].resumo_em) : "";
+  const pendentesIa = brutosIa
+    .filter((f) => diaDaLeitura(f.resumo_em) === ultimoDia)
+    .sort((a, b) => (ORDEM_URGENCIA[a.urgencia ?? "baixa"] ?? 2) - (ORDEM_URGENCIA[b.urgencia ?? "baixa"] ?? 2));
+  const dataLeituraLabel = ultimoDia
+    ? ultimoDia.split("-").reverse().slice(0, 2).join("/")
+    : null;
 
   // helpers de URL preservando filtros
   const baseQs = new URLSearchParams();
@@ -517,9 +529,14 @@ export default async function CrmPage({
             <div className={cn(vidro, "mt-4 p-4")}>
               <p className="mb-1 text-sm font-bold text-slate-800">
                 🔔 Follow-ups pendentes ({pendentesIa.length})
+                {dataLeituraLabel && (
+                  <span className="ml-2 text-xs font-normal text-slate-400">
+                    conversas de {dataLeituraLabel}
+                  </span>
+                )}
               </p>
               <p className="mb-3 text-xs text-slate-500">
-                Resumo da tratativa e continuidade sugerida — priorize pela cor da urgência
+                Resumo do último dia de atendimento — priorize pela cor da urgência
               </p>
               <div className="grid gap-3 lg:grid-cols-2">
                 {pendentesIa.map((f) => (

@@ -2,7 +2,7 @@ import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { SessaoSz, lerCredenciaisSz } from "@/lib/sz/sessao";
 import { listarConversasComerciais, carregarDialogo, EQUIPES_CRM } from "@/lib/sz/conversas";
-import { gerarResumo } from "@/lib/sz/resumo";
+import { resumirPorRegras, type PlanoRef } from "@/lib/sz/resumo";
 
 function soDigitos(t: string | null): string | null {
   if (!t) return null;
@@ -47,6 +47,12 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
       (equipes ?? []).filter((e) => e.ativo).map((e) => [e.nome, e.pop_id as string | null])
     );
     const { data: vends } = await admin.from("vendedores").select("id, nome, pop_id").eq("ativo", true);
+    const { data: planosData } = await admin
+      .from("planos")
+      .select("id, nome, velocidade")
+      .eq("ativo", true)
+      .gt("valor_referencia", 0);
+    const planos = (planosData ?? []) as PlanoRef[];
     const acharVendedora = (agente: string | null, popId: string | null) => {
       if (!agente) return null;
       const primeiro = agente.split(/\s+/)[0].toLowerCase();
@@ -61,7 +67,7 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
     for (const c of conversas) {
       await carregarDialogo(sz, c, { inicio: alvo, fim: alvo });
       if (c.dialogo.length === 0) continue;
-      const r = await gerarResumo(c);
+      const r = resumirPorRegras(c, planos);
       const tel = soDigitos(c.telefone);
       const popId = popPorEquipe.get(c.equipe) ?? null;
       const vendedorId = acharVendedora(c.agente, popId);
@@ -76,15 +82,32 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
         existente = (abertos ?? []).find((t) => soDigitos(t.telefone) === tel)?.id ?? null;
       }
 
-      const campos = {
+      const base = {
         resumo_tratativa: r.resumo,
         proxima_abordagem: r.proxima,
-        urgencia: r.urgencia,
         resumo_em: new Date().toISOString(),
-        followup_em: amanha09,
         sz_conversa_id: c.protocolo,
         atualizado_em: new Date().toISOString(),
       };
+      // venda fechada no chat → sai da fila de follow-up.
+      // Com plano detectado, fecha como Vendida; sem plano, vai para
+      // "Criação do contrato" aguardando a reconciliação com o SGP.
+      const desfechoVenda = r.vendaFechada
+        ? r.planoId && tel
+          ? {
+              etapa: "fechado" as const,
+              desfecho: "convertido" as const,
+              fechado_por: "vendedora" as const,
+              fechado_em: new Date().toISOString(),
+              plano_id: r.planoId,
+              origem_cadastro: "outro" as const,
+              urgencia: null,
+              followup_em: null,
+            }
+          : { etapa: "aguardando" as const, urgencia: null, followup_em: null }
+        : { etapa: "em_atendimento" as const, urgencia: r.urgencia, followup_em: amanha09 };
+
+      const campos = { ...base, ...desfechoVenda };
 
       if (existente) {
         await admin.from("tickets").update(campos).eq("id", existente);
@@ -98,7 +121,6 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
             telefone: tel,
             vendedor_id: vendedorId,
             pop_id: popId,
-            etapa: "em_atendimento",
             primeira_tratativa_em: new Date().toISOString(),
             ...campos,
           })
