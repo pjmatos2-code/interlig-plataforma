@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   criarUsuario,
   alternarUsuario,
+  definirAgentesCoordenador,
   salvarOrigem,
   excluirOrigem,
   salvarAtendente,
@@ -298,6 +299,89 @@ export function GestaoSzChat({
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Coordenações — define as agentes sob cada coordenador (escopo por agente).
+// O coordenador passa a ver só as ações dessas agentes em todos os módulos
+// (exceção: na Venda Externa vê todos os tickets de PAP).
+// ---------------------------------------------------------------------------
+type Coordenador = { id: string; nome: string; email: string };
+type VendedoraCoord = { id: string; nome: string; coordenador_id: string | null };
+
+function FormCoordenacao({
+  coordenador,
+  vendedoras,
+}: {
+  coordenador: Coordenador;
+  vendedoras: VendedoraCoord[];
+}) {
+  const [estado, acao] = useFormState(definirAgentesCoordenador, inicial);
+  const doCoordenador = new Set(
+    vendedoras.filter((v) => v.coordenador_id === coordenador.id).map((v) => v.id)
+  );
+  return (
+    <form action={acao} className="rounded-lg border p-4" key={estado.ok ? Date.now() : coordenador.id}>
+      <input type="hidden" name="coordenador_id" value={coordenador.id} />
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold">{coordenador.nome}</p>
+          <p className="text-xs text-muted-foreground">{coordenador.email}</p>
+        </div>
+        <span className="text-xs text-muted-foreground">{doCoordenador.size} agente(s)</span>
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-3">
+        {vendedoras.map((v) => {
+          const outro = v.coordenador_id && v.coordenador_id !== coordenador.id;
+          return (
+            <label key={v.id} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="vendedor_id"
+                value={v.id}
+                defaultChecked={doCoordenador.has(v.id)}
+                className="h-4 w-4 rounded border-input"
+              />
+              <span className={outro ? "text-muted-foreground" : ""}>
+                {v.nome}
+                {outro ? " ↔" : ""}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex items-center gap-3">
+        <BotaoSalvar rotulo="Salvar equipe" />
+        <Mensagem estado={estado} />
+      </div>
+    </form>
+  );
+}
+
+export function GestaoCoordenacoes({
+  coordenadores,
+  vendedoras,
+}: {
+  coordenadores: Coordenador[];
+  vendedoras: VendedoraCoord[];
+}) {
+  if (coordenadores.length === 0)
+    return (
+      <p className="text-sm text-muted-foreground">
+        Nenhum coordenador cadastrado ainda. Crie um usuário com o perfil “Coordenador” acima.
+      </p>
+    );
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Marque as agentes de cada coordenador. Ele passa a ver só as ações dessas agentes (o “↔”
+        indica agente já vinculada a outro coordenador — marcá-la aqui a transfere).
+      </p>
+      {coordenadores.map((c) => (
+        <FormCoordenacao key={c.id} coordenador={c} vendedoras={vendedoras} />
+      ))}
     </div>
   );
 }

@@ -115,6 +115,32 @@ export async function criarUsuario(_e: EstadoAdmin, dados: FormData): Promise<Es
   return { ok: true };
 }
 
+// Coordenação: define quais agentes ficam sob um coordenador (escopo por agente).
+// O coordenador passa a ver só as ações dessas agentes (migração 0025).
+export async function definirAgentesCoordenador(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
+  await exigirPerfil(["gestor"]);
+  const coordenadorId = String(dados.get("coordenador_id") ?? "");
+  if (!coordenadorId) return { erro: "Selecione o coordenador." };
+  const vendedorIds = dados.getAll("vendedor_id").map(String).filter(Boolean);
+
+  const admin = criarClienteAdmin();
+  // zera o vínculo atual desse coordenador e aplica o novo conjunto
+  const { error: e1 } = await admin
+    .from("vendedores")
+    .update({ coordenador_id: null })
+    .eq("coordenador_id", coordenadorId);
+  if (e1) return { erro: e1.message };
+  if (vendedorIds.length) {
+    const { error: e2 } = await admin
+      .from("vendedores")
+      .update({ coordenador_id: coordenadorId })
+      .in("id", vendedorIds);
+    if (e2) return { erro: e2.message };
+  }
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
 export async function alternarUsuario(id: string, ativo: boolean): Promise<EstadoAdmin> {
   const usuario = await exigirPerfil(["gestor"]);
   if (id === usuario.id) return { erro: "Você não pode desativar a si mesmo." };

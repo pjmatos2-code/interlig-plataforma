@@ -73,9 +73,9 @@ export default async function EsteiraPage({
   ]);
   const periodo = resolverPeriodo(searchParams);
   const ehVend = ehVendedora(usuario.perfil);
-  // vendedora: escopo garantido pela RLS (vendedor_id = vendedor_atual());
-  // supervisor: seu POP; gestor: filtro livre.
-  const popFiltro = usuario.perfil === "supervisor" ? usuario.pop_id : searchParams.pop || null;
+  // RLS escopa por perfil: vendedora vê os contratos dela; coordenador vê os das
+  // agentes dele (podem cruzar POPs — migração 0025). O filtro de POP é do gestor.
+  const popFiltro = searchParams.pop || null;
 
   const supabase = criarClienteServidor();
   const { data: pops } = ehVend

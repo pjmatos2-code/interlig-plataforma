@@ -3,7 +3,7 @@ import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { EmConstrucao } from "@/components/layout/em-construcao";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { GestaoMotivos } from "./motivos";
-import { GestaoUsuarios, GestaoOrigens, GestaoSzChat } from "./cadastros";
+import { GestaoUsuarios, GestaoOrigens, GestaoSzChat, GestaoCoordenacoes } from "./cadastros";
 import { BotaoSincronizar } from "./botao-sync";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ export default async function AdminPage() {
     { data: origens },
     { data: atendentes },
     { data: equipes },
+    { data: vendedorasCoord },
   ] = await Promise.all([
     supabase
       .from("vw_ultima_sync")
@@ -42,6 +43,7 @@ export default async function AdminPage() {
       .select("id, sz_atendente_id, sz_atendente_nome, vendedores(nome)")
       .order("sz_atendente_id"),
     supabase.from("sz_equipes_habilitadas").select("id, nome, ativo, pops(nome)").order("nome"),
+    supabase.from("vendedores").select("id, nome, coordenador_id").eq("ativo", true).order("nome"),
   ]);
 
   type Rel = { nome: string } | null;
@@ -137,6 +139,24 @@ export default async function AdminPage() {
             }))}
             pops={pops ?? []}
             vendedoras={vendedoras ?? []}
+          />
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Coordenações — agentes sob cada coordenador</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <GestaoCoordenacoes
+            coordenadores={(usuarios ?? [])
+              .filter((u) => u.perfil === "supervisor" && u.ativo)
+              .map((u) => ({ id: u.id, nome: u.nome, email: u.email }))}
+            vendedoras={(vendedorasCoord ?? []).map((v) => ({
+              id: v.id,
+              nome: v.nome,
+              coordenador_id: v.coordenador_id ?? null,
+            }))}
           />
         </CardContent>
       </Card>

@@ -115,9 +115,10 @@ export default async function TotemRankingPage({
 }: {
   searchParams: { p?: string };
 }) {
-  const usuario = await exigirUsuario();
-  const popEscopo = usuario.perfil === "supervisor" ? usuario.pop_id : null;
-  const dados = await carregarRanking(popEscopo);
+  // Totem da sala comercial: painel único do time inteiro, igual para todos os
+  // usuários (sem recorte por POP/coordenação). É só leitura e roda em telão.
+  await exigirUsuario();
+  const dados = await carregarRanking(null);
 
   const periodo: Periodo = (["dia", "semana", "mes"] as const).includes(
     searchParams.p as Periodo

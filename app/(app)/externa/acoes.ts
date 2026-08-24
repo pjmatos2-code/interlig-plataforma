@@ -38,12 +38,10 @@ async function subirFoto(
 export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promise<EstadoVisita> {
   const usuario = await exigirPerfil(["gestor", "supervisor", "vendedora_externa"]);
   const supabase = criarClienteServidor();
-  const admin = criarClienteAdmin();
-  // Coordenador atua nas 3 cidades (independente do POP): gestor/coordenador
-  // gravam via admin para não esbarrar na RLS por POP. A vendedora externa
-  // registra a própria visita na RLS.
-  const ehGestao = usuario.perfil === "gestor" || usuario.perfil === "supervisor";
-  const db = ehGestao ? admin : supabase;
+  const admin = criarClienteAdmin(); // só para o upload das fotos no bucket privado
+  // Gravações passam pela RLS: coordenador só registra para agentes dele
+  // (tickets_ins/upd por agente — migração 0025); gestor registra para qualquer um.
+  const db = supabase;
 
   const nome = String(dados.get("cliente_nome") ?? "").trim();
   const telefone = String(dados.get("telefone") ?? "").replace(/\D/g, "");

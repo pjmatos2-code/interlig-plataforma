@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ehVendedora } from "@/lib/tipos";
 import { exigirPerfil } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { FormularioVisita } from "@/components/externa/formulario-visita";
 import { formatarMoeda } from "@/lib/format";
 
@@ -14,13 +13,9 @@ export default async function ExternaPage() {
   const supabase = criarClienteServidor();
   const hoje = new Date().toISOString().slice(0, 10);
 
-  // A Venda Externa (PAP) atua nas 3 cidades comerciais, independente do POP.
-  // Gestor e Coordenador enxergam as agentes das 3 cidades — a leitura de gestão
-  // usa o client admin para cruzar POPs; a vendedora externa segue na RLS (só as
-  // dela). O módulo é fechado a esses perfis (exigirPerfil acima).
-  const ehGestao = usuario.perfil === "gestor" || usuario.perfil === "supervisor";
-  const leitor = ehGestao ? criarClienteAdmin() : supabase;
-
+  // Escopo pela RLS: gestor vê tudo; coordenador vê as agentes atribuídas a ele
+  // (cruza as 3 cidades comerciais, independente do POP — migração 0025);
+  // a vendedora externa vê só as visitas dela.
   const [{ data: planos }, { data: vendedoras }, { data: visitas }] = await Promise.all([
     supabase
       .from("planos")
@@ -30,8 +25,8 @@ export default async function ExternaPage() {
       .order("valor_referencia", { ascending: false }),
     ehVendedora(usuario.perfil)
       ? Promise.resolve({ data: [] as { id: string; nome: string }[] })
-      : leitor.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
-    leitor
+      : supabase.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
+    supabase
       .from("visitas_externas")
       .select(
         "id, criado_em, lat, lng, foto_doc_path, tickets(id, cliente_nome, valor_estimado, vendedores(nome))"

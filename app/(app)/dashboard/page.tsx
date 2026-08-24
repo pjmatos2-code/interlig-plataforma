@@ -33,9 +33,9 @@ export default async function DashboardPage({
   const usuario = await exigirPerfil(["gestor", "supervisor"]);
   const periodo = resolverPeriodo(searchParams);
 
-  // supervisor já chega restrito pela RLS; o filtro de POP é ferramenta do gestor
-  const popFiltro =
-    usuario.perfil === "supervisor" ? usuario.pop_id : searchParams.pop || null;
+  // Coordenador já chega restrito pela RLS às agentes dele (que podem cruzar
+  // POPs — migração 0025). O filtro de POP é ferramenta do gestor.
+  const popFiltro = searchParams.pop || null;
 
   const d = await carregarDashboard(periodo, popFiltro);
 
