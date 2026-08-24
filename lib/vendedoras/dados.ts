@@ -68,13 +68,17 @@ export async function listaVendedoras(
   const supabase = criarClienteServidor();
   const cal = await diasUteisDoMes(supabase);
 
+  // Coordenador: lista só as agentes dele (coordenador_id). Gestor: todas, com
+  // filtro opcional de POP. Os contratos já vêm escopados pela RLS (por agente
+  // para o coordenador — migração 0025); o filtro de POP é só do gestor.
+  const ehCoord = usuario.perfil === "supervisor";
   let consultaVend = supabase
     .from("vendedores")
     .select("id, nome, pop_id, pops(nome)")
     .eq("ativo", true)
     .order("nome");
-  const popEscopo = usuario.perfil === "supervisor" ? usuario.pop_id : popFiltro;
-  if (popEscopo) consultaVend = consultaVend.eq("pop_id", popEscopo);
+  if (ehCoord) consultaVend = consultaVend.eq("coordenador_id", usuario.id);
+  else if (popFiltro) consultaVend = consultaVend.eq("pop_id", popFiltro);
 
   const menorData = [periodo.de, cal.inicioMes, somarDias(cal.hoje, -13)].sort()[0];
 
@@ -85,7 +89,7 @@ export async function listaVendedoras(
     )
     .gte("data_venda", menorData)
     .limit(5000);
-  if (popEscopo) consultaContratos = consultaContratos.eq("pop_id", popEscopo);
+  if (!ehCoord && popFiltro) consultaContratos = consultaContratos.eq("pop_id", popFiltro);
 
   const [{ data: vendedoras }, { data: contratosBrutos }, { data: metas }] = await Promise.all([
     consultaVend,
