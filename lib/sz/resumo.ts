@@ -11,7 +11,12 @@ export type ResumoIa = {
   vendaFechada: boolean;
   /** plano detectado na conversa (para fechar como convertido) */
   planoId: string | null;
+  /** nº do contrato SGP citado na frase de fechamento (para reconciliar) */
+  contratoSgpId: string | null;
 };
+
+const semAcento = (t: string) =>
+  t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 const CIDADES = [
   "Altamira", "Vitória do Xingu", "Vitoria do Xingu", "Brasil Novo", "Santarém",
@@ -48,7 +53,11 @@ function detectarPlano(textoAgente: string, planos: PlanoRef[]): PlanoRef | null
  * cidade, PF/PJ, plano, etapa em que parou, quem espera e há quanto tempo.
  * Regras de urgência definidas pelo gestor (23/08).
  */
-export function resumirPorRegras(c: Conversa, planos: PlanoRef[]): ResumoIa {
+export function resumirPorRegras(
+  c: Conversa,
+  planos: PlanoRef[],
+  opts: { marcadorFechamento?: string } = {}
+): ResumoIa {
   const msgs = c.dialogo;
   const doCliente = msgs.filter((m) => m.quem === "CLIENTE");
   const doAgente = msgs.filter((m) => m.quem === "AGENTE");
@@ -74,7 +83,18 @@ export function resumirPorRegras(c: Conversa, planos: PlanoRef[]): ResumoIa {
     );
   const pediuDoc = temAgente(/documento|identidade|\brg\b|frente e verso|foto do seu doc/i);
   const linkAssinatura = temAgente(/assinatura_eletronica|assina esse|link de assinatura|assinar o contrato/i);
+  // frase-sentinela de fechamento (configurável) — detecção de alta confiança
+  const marcador = semAcento(opts.marcadorFechamento || "venda concluida");
+  const msgFechamento = doAgente.find((m) => semAcento(m.texto).includes(marcador));
+  let planoDaFrase: PlanoRef | null = null;
+  let contratoSgpId: string | null = null;
+  if (msgFechamento) {
+    const planoTxt = msgFechamento.texto.match(/plano\s*[:\-]\s*([^|\n]+)/i)?.[1] ?? "";
+    if (planoTxt) planoDaFrase = detectarPlano(planoTxt, planos);
+    contratoSgpId = msgFechamento.texto.match(/contrato\s*[:\-]?\s*#?\s*(\d{3,7})/i)?.[1] ?? null;
+  }
   const vendaFechada =
+    !!msgFechamento ||
     /parab[ée]ns.*(interlig|plano)|bem[- ]vind[oa].*(interlig|fam[íi]lia)|contrato ativad|instala[çc][ãa]o agendad/i.test(
       textoAgente
     ) ||
@@ -138,6 +158,7 @@ export function resumirPorRegras(c: Conversa, planos: PlanoRef[]): ResumoIa {
     proxima,
     urgencia,
     vendaFechada,
-    planoId: planoRef?.id ?? null,
+    planoId: (planoDaFrase ?? planoRef)?.id ?? null,
+    contratoSgpId,
   };
 }

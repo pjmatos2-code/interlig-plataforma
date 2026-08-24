@@ -39,6 +39,15 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
     const sz = new SessaoSz(cred);
     await sz.login();
 
+    // frase de fechamento configurável (integracoes_config.szchat.frase_fechamento)
+    const { data: cfgRow } = await admin
+      .from("integracoes_config")
+      .select("config")
+      .eq("sistema", "szchat")
+      .maybeSingle();
+    const marcadorFechamento =
+      ((cfgRow?.config as Record<string, unknown>)?.frase_fechamento as string) || "venda concluída";
+
     const conversas = await listarConversasComerciais(sz, alvo, alvo);
     const { data: equipes } = await admin
       .from("sz_equipes_habilitadas")
@@ -67,7 +76,7 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
     for (const c of conversas) {
       await carregarDialogo(sz, c, { inicio: alvo, fim: alvo });
       if (c.dialogo.length === 0) continue;
-      const r = resumirPorRegras(c, planos);
+      const r = resumirPorRegras(c, planos, { marcadorFechamento });
       const tel = soDigitos(c.telefone);
       const popId = popPorEquipe.get(c.equipe) ?? null;
       const vendedorId = acharVendedora(c.agente, popId);
@@ -92,19 +101,34 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
       // venda fechada no chat → sai da fila de follow-up.
       // Com plano detectado, fecha como Vendida; sem plano, vai para
       // "Criação do contrato" aguardando a reconciliação com o SGP.
+      // contrato citado na frase de fechamento → reconcilia com o SGP
+      let reconc: Record<string, unknown> = {};
+      let planoFinal = r.planoId;
+      if (r.vendaFechada && r.contratoSgpId) {
+        const { data: ct } = await admin
+          .from("contratos")
+          .select("id, plano_id, valor_mensalidade")
+          .eq("sgp_contrato_id", r.contratoSgpId)
+          .maybeSingle();
+        if (ct) {
+          reconc = { contrato_id: ct.id, reconciliado_em: new Date().toISOString(), valor_estimado: ct.valor_mensalidade };
+          planoFinal = (ct.plano_id as string | null) ?? planoFinal;
+        }
+      }
       const desfechoVenda = r.vendaFechada
-        ? r.planoId && tel
+        ? planoFinal && tel
           ? {
               etapa: "fechado" as const,
               desfecho: "convertido" as const,
               fechado_por: "vendedora" as const,
               fechado_em: new Date().toISOString(),
-              plano_id: r.planoId,
+              plano_id: planoFinal,
               origem_cadastro: "outro" as const,
               urgencia: null,
               followup_em: null,
+              ...reconc,
             }
-          : { etapa: "aguardando" as const, urgencia: null, followup_em: null }
+          : { etapa: "aguardando" as const, urgencia: null, followup_em: null, ...reconc }
         : { etapa: "em_atendimento" as const, urgencia: r.urgencia, followup_em: amanha09 };
 
       const campos = { ...base, ...desfechoVenda };
