@@ -489,6 +489,32 @@ export async function executarSync(): Promise<ResultadoSync> {
     }
   }
 
+  // ---- vendedor via painel do SGP (decisão A): contratos sem vendedor ----
+  // A URA não expõe o campo; o leitor de sessão extrai da página do serviço e
+  // atribui pelo sgp_login (com aprendizado). 15 por rodada — os novos entram
+  // primeiro; o histórico é coberto aos poucos, sync a sync.
+  if (sgp.modo === "real") {
+    const run = await iniciarRun(admin, "vendedor_painel");
+    try {
+      const { identificarVendedoresPainel } = await import("@/lib/sgp/painel");
+      const r = await identificarVendedoresPainel(15);
+      if (!r.ok) throw new Error(r.erro ?? "leitor do painel falhou");
+      if (r.semMapeamento.length > 0) {
+        console.warn("vendedor_painel sem mapeamento:", r.semMapeamento.join(" | "));
+      }
+      await finalizarRun(admin, run, "sucesso", r.atribuidos);
+      execucoes.push({
+        entidade: "vendedor_painel" as Entidade,
+        registros: r.atribuidos,
+        status: "sucesso",
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await finalizarRun(admin, run, "erro", 0, msg);
+      execucoes.push({ entidade: "vendedor_painel" as Entidade, registros: 0, status: "erro", erro: msg });
+    }
+  }
+
   // avança o cursor da varredura para a próxima execução
   if (sgp.modo === "real") {
     const progresso = (sgp as unknown as { progresso: { proximoOffset: number } | null }).progresso;
