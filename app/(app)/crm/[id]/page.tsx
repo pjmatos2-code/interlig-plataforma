@@ -107,6 +107,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
             : ROTULO_ETAPA[t.etapa]}
         </Badge>
         {t.origem_criacao === "sz_auto" && <Badge variant="outline">via SZ Chat</Badge>}
+        {t.origem_criacao === "site" && <Badge variant="outline">via Site</Badge>}
       </div>
 
       {t.resumo_tratativa && (
@@ -170,7 +171,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
             </p>
             <p>
               <span className="text-muted-foreground">Fonte:</span>{" "}
-              {t.origem_criacao === "sz_auto" ? "WhatsApp / SZ Chat" : "Cadastro manual"}
+              {t.origem_criacao === "sz_auto" ? "WhatsApp / SZ Chat" : t.origem_criacao === "site" ? "Site (Contratar Online)" : "Cadastro manual"}
             </p>
             <p><span className="text-muted-foreground">CPF:</span> {t.cpf ?? "—"}</p>
             <p><span className="text-muted-foreground">Vendedora:</span> {t.vendedora ?? "Não atribuído"}</p>

@@ -132,7 +132,7 @@ function CartaoGlass({ t, hoje }: { t: CartaoTicket; hoje: string }) {
         <span className="truncate">{t.vendedora ?? "Sem vendedora"}</span>
       </div>
       <p className="mt-1 truncate text-[11px] text-slate-400">
-        {t.pop ?? "—"} · {t.origem_criacao === "sz_auto" ? "WhatsApp" : "Manual"}
+        {t.pop ?? "—"} · {t.origem_criacao === "sz_auto" ? "WhatsApp" : t.origem_criacao === "site" ? "Site" : "Manual"}
       </p>
       <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
         <span className="text-[11px] text-slate-400">
@@ -327,6 +327,7 @@ export default async function CrmPage({
         >
           <option value="">Origem</option>
           <option value="sz_auto">WhatsApp</option>
+          <option value="site">Site</option>
           <option value="manual">Manual</option>
         </select>
         <button

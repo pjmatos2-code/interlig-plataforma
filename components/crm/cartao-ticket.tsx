@@ -63,7 +63,7 @@ export function CartaoDeTicket({ ticket, mostrarPop }: { ticket: CartaoTicket; m
         {ticket.vendedora ?? "Não atribuído"}
         {mostrarPop && ticket.pop && ` · ${ticket.pop}`}
         {" · "}
-        {ticket.origem_criacao === "sz_auto" ? "SZ Chat" : "manual"}
+        {ticket.origem_criacao === "sz_auto" ? "SZ Chat" : ticket.origem_criacao === "site" ? "site" : "manual"}
       </p>
 
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">

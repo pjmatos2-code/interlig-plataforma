@@ -28,7 +28,7 @@ export type CartaoTicket = {
   followup_em: string | null;
   desfecho: "convertido" | "nao_convertido" | null;
   fechado_por: "vendedora" | "auto_inatividade" | null;
-  origem_criacao: "sz_auto" | "manual";
+  origem_criacao: "sz_auto" | "manual" | "site";
   valor: number | null;
   diasNaEtapa: number;
   aviso: "fechar" | "avisar" | "ok";
@@ -39,7 +39,7 @@ export type FiltrosCrm = {
   busca?: string;
   popId?: string | null;
   vendedorId?: string | null;
-  origem?: "sz_auto" | "manual" | null;
+  origem?: "sz_auto" | "manual" | "site" | null;
   meus?: boolean;
   semVendedor?: boolean;
   semContato24h?: boolean;
@@ -106,7 +106,7 @@ type Bruto = TicketIndicador & {
   pop_id: string | null;
   followup_em: string | null;
   fechado_por: "vendedora" | "auto_inatividade" | null;
-  origem_criacao: "sz_auto" | "manual";
+  origem_criacao: "sz_auto" | "manual" | "site";
   motivo_id: string | null;
   valor_estimado: number | null;
   etapa_encerramento: string | null;
@@ -500,7 +500,7 @@ export type DetalheTicket = {
   telefone: string | null;
   cpf: string | null;
   etapa: EtapaTicket;
-  origem_criacao: "sz_auto" | "manual";
+  origem_criacao: "sz_auto" | "manual" | "site";
   sz_conversa_id: string | null;
   vendedor_id: string | null;
   vendedora: string | null;
