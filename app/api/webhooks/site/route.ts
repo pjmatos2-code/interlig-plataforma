@@ -5,22 +5,24 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Webhook de conversão do RD Station Marketing → lead do site vira ticket no CRM.
+ * Webhook do SITE (interlig.com) → pré-cadastro do "Contratar Online" vira
+ * ticket no CRM. A plataforma substitui o RD Station: o formulário das LPs
+ * passa a ser o widget de Formulário do Elementor Pro, com a ação pós-envio
+ * "Webhook" apontando para:
+ *   POST https://interlig-plataforma.vercel.app/api/webhooks/site?secret=...
  *
- * O formulário "Contratar Online" das LPs (interlig.com/lp-plano-*) é do RD;
- * no RD, em Integrações → Webhooks, cadastra-se esta URL no evento de CONVERSÃO:
- *   POST https://interlig-plataforma.vercel.app/api/webhooks/rdstation?secret=...
- *
- * Aceita os dois formatos do RD (clássico {leads:[...]} e novo {event_type,
- * payload}) e também um POST simples {nome, telefone, email, plano} — o que
- * permite testar e, se um dia o form sair do RD, plugar direto.
+ * O Elementor envia os campos como form-data (multipart/urlencoded), com as
+ * chaves = ID de cada campo. IDs esperados no formulário: nome, telefone (ou
+ * celular), email, plano. Também aceita JSON simples {nome, telefone, email,
+ * plano} — e, por compatibilidade, os formatos do RD ({leads:[...]}/{payload}).
  */
 
 type LeadNormalizado = {
   nome: string;
   telefone: string | null;
   email: string | null;
-  identificador: string | null; // qual formulário/LP converteu
+  /** plano de interesse / identificador do formulário que converteu */
+  interesse: string | null;
 };
 
 function soDigitos(t: unknown): string | null {
@@ -30,47 +32,68 @@ function soDigitos(t: unknown): string | null {
   return d || null;
 }
 
-function extrairLeads(corpo: Record<string, unknown>): LeadNormalizado[] {
+/** normaliza chaves do Elementor: "form_fields[nome]" → "nome" */
+function achatarChaves(o: Record<string, unknown>): Record<string, unknown> {
+  const plano: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(o)) {
+    const m = k.match(/^form_fields\[([^\]]+)\]$/);
+    plano[(m?.[1] ?? k).toLowerCase()] = v;
+  }
+  return plano;
+}
+
+function extrairLeads(bruto: Record<string, unknown>): LeadNormalizado[] {
   const achados: LeadNormalizado[] = [];
-  const empurrar = (o: Record<string, unknown>, ident?: unknown) => {
+  const empurrar = (obj: Record<string, unknown>, ident?: unknown) => {
+    const o = achatarChaves(obj);
     const nome = String(o.name ?? o.nome ?? "").trim();
     const telefone =
       soDigitos(o.mobile_phone) ?? soDigitos(o.personal_phone) ??
-      soDigitos(o.phone) ?? soDigitos(o.telefone) ?? soDigitos(o.celular);
+      soDigitos(o.phone) ?? soDigitos(o.telefone) ?? soDigitos(o.celular) ??
+      soDigitos(o.whatsapp);
     const email = String(o.email ?? "").trim() || null;
     if (!nome && !telefone && !email) return;
     achados.push({
       nome: nome || "Lead do site",
       telefone,
       email,
-      identificador:
+      interesse:
+        String(o.plano ?? o.plan ?? "").trim() ||
         (typeof ident === "string" && ident) ||
         String(
           (o.last_conversion as { content?: { identificador?: string } })?.content
-            ?.identificador ??
-            o.conversion_identifier ??
-            o.identificador ??
-            ""
+            ?.identificador ?? o.conversion_identifier ?? o.identificador ?? ""
         ).trim() ||
         null,
     });
   };
 
-  // formato clássico: { leads: [...] }
-  if (Array.isArray(corpo.leads)) {
-    for (const l of corpo.leads as Record<string, unknown>[]) empurrar(l);
+  if (Array.isArray(bruto.leads)) {
+    for (const l of bruto.leads as Record<string, unknown>[]) empurrar(l);
   }
-  // formato novo: { event_type, payload: {...} } (payload pode ser objeto ou lista)
-  const payload = corpo.payload as Record<string, unknown> | Record<string, unknown>[] | undefined;
+  const payload = bruto.payload as Record<string, unknown> | Record<string, unknown>[] | undefined;
   if (payload) {
     for (const p of Array.isArray(payload) ? payload : [payload])
       empurrar(p, (p as Record<string, unknown>).conversion_identifier);
   }
-  // POST simples (teste/manual)
-  if (achados.length === 0 && (corpo.nome || corpo.name || corpo.telefone || corpo.email)) {
-    empurrar(corpo, corpo.plano ?? corpo.identificador);
-  }
+  if (achados.length === 0) empurrar(bruto);
   return achados;
+}
+
+async function lerCorpo(request: Request): Promise<Record<string, unknown>> {
+  const tipo = request.headers.get("content-type") ?? "";
+  if (tipo.includes("application/json")) {
+    return ((await request.json().catch(() => ({}))) as Record<string, unknown>) ?? {};
+  }
+  // Elementor: multipart/form-data ou x-www-form-urlencoded
+  try {
+    const fd = await request.formData();
+    const o: Record<string, unknown> = {};
+    for (const [k, v] of fd.entries()) if (typeof v === "string") o[k] = v;
+    return o;
+  } catch {
+    return {};
+  }
 }
 
 export async function POST(request: Request) {
@@ -80,17 +103,16 @@ export async function POST(request: Request) {
   const { data: cfgRow } = await admin
     .from("integracoes_config")
     .select("config")
-    .eq("sistema", "rdstation")
+    .eq("sistema", "site")
     .maybeSingle();
   const segredo = (cfgRow?.config as { webhook_secret?: string } | null)?.webhook_secret;
   const informado =
-    url.searchParams.get("secret") ?? request.headers.get("x-rd-secret");
+    url.searchParams.get("secret") ?? request.headers.get("x-site-secret");
   if (!segredo || informado !== segredo) {
     return NextResponse.json({ erro: "não autorizado" }, { status: 401 });
   }
 
-  const corpo = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-  const leads = extrairLeads(corpo);
+  const leads = extrairLeads(await lerCorpo(request));
   if (leads.length === 0) {
     return NextResponse.json({ resultado: "sem lead no corpo" }, { status: 200 });
   }
@@ -113,7 +135,7 @@ export async function POST(request: Request) {
           ticket_id: existente.id,
           tipo: "nota",
           dados: {
-            texto: `Novo pré-cadastro no site${lead.identificador ? ` (${lead.identificador})` : ""}${lead.email ? ` · e-mail: ${lead.email}` : ""} — cliente demonstrou interesse de novo.`,
+            texto: `Novo pré-cadastro no site${lead.interesse ? ` · interesse: ${lead.interesse}` : ""}${lead.email ? ` · e-mail: ${lead.email}` : ""} — cliente demonstrou interesse de novo.`,
           },
         });
         continue;
@@ -136,7 +158,7 @@ export async function POST(request: Request) {
       ticket_id: novo.id,
       tipo: "nota",
       dados: {
-        texto: `Pré-cadastro pelo site (Contratar Online)${lead.identificador ? ` · formulário: ${lead.identificador}` : ""}${lead.email ? ` · e-mail: ${lead.email}` : ""}.`,
+        texto: `Pré-cadastro pelo site (Contratar Online)${lead.interesse ? ` · plano de interesse: ${lead.interesse}` : ""}${lead.email ? ` · e-mail: ${lead.email}` : ""}.`,
       },
     });
   }
