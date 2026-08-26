@@ -54,7 +54,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
   const [{ data: planos }, { data: motivos }, { data: vendedoras }] = await Promise.all([
     supabase
       .from("planos")
-      .select("id, nome, velocidade, valor_referencia, venda_externa")
+      .select("id, nome, velocidade, valor_referencia, venda_externa, setor_corporativo")
       .eq("ativo", true)
       .order("valor_referencia", { ascending: false }),
     supabase
@@ -70,9 +70,15 @@ export default async function TicketPage({ params }: { params: { id: string } })
   // vendedora externa só enxerga os planos do PAP marcados no Administração
   // (mesma régua do formulário de visita; nenhum marcado = todos)
   const planosPermitidos = (() => {
-    if (usuario.perfil !== "vendedora_externa") return planos ?? [];
-    const doPap = (planos ?? []).filter((p) => p.venda_externa);
-    return doPap.length > 0 ? doPap : (planos ?? []);
+    if (usuario.perfil === "vendedora_externa") {
+      const doPap = (planos ?? []).filter((p) => p.venda_externa);
+      return doPap.length > 0 ? doPap : (planos ?? []);
+    }
+    if (usuario.perfil === "agente_corporativo") {
+      const doSetor = (planos ?? []).filter((p) => p.setor_corporativo);
+      return doSetor.length > 0 ? doSetor : (planos ?? []);
+    }
+    return planos ?? [];
   })();
 
   // ações agendadas do ticket (lembretes)

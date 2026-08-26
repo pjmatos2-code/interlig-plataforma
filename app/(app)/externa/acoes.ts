@@ -41,7 +41,7 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
   const setor = dados.get("setor") === "corporativo" ? "corporativo" : "pap";
   const usuario =
     setor === "corporativo"
-      ? await exigirPerfil(["gestor", "supervisor", "vendedora"])
+      ? await exigirPerfil(["gestor", "supervisor", "agente_corporativo"])
       : await exigirPerfil(["gestor", "supervisor", "vendedora_externa"]);
   const supabase = criarClienteServidor();
   const admin = criarClienteAdmin(); // só para o upload das fotos no bucket privado

@@ -70,6 +70,7 @@ export default async function EsteiraPage({
     "supervisor",
     "vendedora",
     "vendedora_externa",
+    "agente_corporativo",
   ]);
   const periodo = resolverPeriodo(searchParams);
   const ehVend = ehVendedora(usuario.perfil);
