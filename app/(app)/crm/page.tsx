@@ -291,7 +291,7 @@ export default async function CrmPage({
           <input
             name="q"
             defaultValue={searchParams.q ?? ""}
-            placeholder="Buscar cliente ou telefone"
+            placeholder="Buscar cliente, telefone ou nº do contrato"
             className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
           />
         </div>

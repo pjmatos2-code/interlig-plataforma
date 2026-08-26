@@ -177,11 +177,17 @@ export async function carregarCrm(
   // ---------- filtros do painel (aplicados aos abertos e às perdidas) ----------
   const agora48h = Date.parse(agora) - 48 * 3_600_000;
   const agora24h = Date.parse(agora) - 24 * 3_600_000;
+  const semAcento = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const casaFiltro = (t: Bruto): boolean => {
     if (filtros.busca) {
-      const b = filtros.busca.toLowerCase();
+      const b = semAcento(filtros.busca);
       const tel = (t.telefone ?? "").replace(/\D/g, "");
-      if (!t.cliente_nome.toLowerCase().includes(b) && !tel.includes(b.replace(/\D/g, "") || "\u0000"))
+      const contrato = t.contratos?.sgp_contrato_id ?? "";
+      if (
+        !semAcento(t.cliente_nome).includes(b) &&
+        !tel.includes(b.replace(/\D/g, "") || "\u0000") &&
+        !(contrato && contrato.includes(b.replace(/\D/g, "") || "\u0000"))
+      )
         return false;
     }
     if (filtros.popId && t.pop_id !== filtros.popId) return false;

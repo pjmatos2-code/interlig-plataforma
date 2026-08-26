@@ -63,7 +63,7 @@ function TabelaTempos({
 export default async function EsteiraPage({
   searchParams,
 }: {
-  searchParams: { periodo?: string; de?: string; ate?: string; pop?: string };
+  searchParams: { periodo?: string; de?: string; ate?: string; pop?: string; q?: string };
 }) {
   const usuario = await exigirPerfil([
     "gestor",
@@ -89,23 +89,57 @@ export default async function EsteiraPage({
   ]);
   const ehGestorSemFiltro = usuario.perfil === "gestor" && !popFiltro;
 
+  // busca por nome do cliente ou nº do contrato (filtra o kanban e as listas)
+  const busca = (searchParams.q ?? "").trim();
+  if (busca) {
+    const semAcento = (x: string) =>
+      x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const b = semAcento(busca);
+    const bDig = busca.replace(/\D/g, "");
+    const casa = (i: { cliente: string; sgpContratoId: string | null }) =>
+      semAcento(i.cliente).includes(b) ||
+      (bDig !== "" && (i.sgpContratoId ?? "").includes(bDig));
+    d.colunas.pendenteAssinatura = d.colunas.pendenteAssinatura.filter(casa);
+    d.colunas.aguardandoInstalacao = d.colunas.aguardandoInstalacao.filter(casa);
+    d.colunas.instaladas = d.colunas.instaladas.filter(casa);
+  }
+
   return (
     <>
       <CabecalhoPagina
         titulo="Esteira de ativação"
         descricao={
-          ehVend
-            ? "Acompanhe seus clientes: quem falta assinar, quem já está agendado e quem foi instalado"
-            : `Pendências mostram o estoque atual · taxa e tempos seguem o período ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`
+          busca
+            ? `Filtrando por "${busca}" — limpe a busca para ver tudo`
+            : ehVend
+              ? "Acompanhe seus clientes: quem falta assinar, quem já está agendado e quem foi instalado"
+              : `Pendências mostram o estoque atual · taxa e tempos seguem o período ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`
         }
       />
 
-      <FiltrosDashboard
-        pops={pops ?? []}
-        mostrarPop={usuario.perfil === "gestor"}
-        de={periodo.de}
-        ate={periodo.ate}
-      />
+      <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+        <FiltrosDashboard
+          pops={pops ?? []}
+          mostrarPop={usuario.perfil === "gestor"}
+          de={periodo.de}
+          ate={periodo.ate}
+        />
+        <form method="get" className="mb-5 flex items-center gap-2">
+          {searchParams.periodo && <input type="hidden" name="periodo" value={searchParams.periodo} />}
+          {searchParams.de && <input type="hidden" name="de" value={searchParams.de} />}
+          {searchParams.ate && <input type="hidden" name="ate" value={searchParams.ate} />}
+          {searchParams.pop && <input type="hidden" name="pop" value={searchParams.pop} />}
+          <input
+            name="q"
+            defaultValue={busca}
+            placeholder="Buscar cliente ou nº do contrato"
+            className="h-10 w-64 rounded-md border border-input bg-background px-3 text-sm"
+          />
+          <button className="h-10 rounded-md border px-3 text-sm font-medium hover:border-interlig-ceu">
+            Buscar
+          </button>
+        </form>
+      </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <CartaoKpi
