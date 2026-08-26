@@ -23,6 +23,8 @@ import {
   FormularioReatribuir,
 } from "./painel-acoes";
 import { formatarMoeda } from "@/lib/format";
+import { FollowupFeito } from "@/components/crm/followup-feito";
+import { AcoesAgendadas, type AcaoAgendada } from "@/components/crm/acoes-agendadas";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +65,14 @@ export default async function TicketPage({ params }: { params: { id: string } })
       ? Promise.resolve({ data: [] as { id: string; nome: string }[] })
       : supabase.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
   ]);
+
+  // ações agendadas do ticket (lembretes)
+  const { data: acoesAgendadas } = await supabase
+    .from("ticket_acoes")
+    .select("id, descricao, quando, concluida_em, notificado_em")
+    .eq("ticket_id", t.id)
+    .order("quando", { ascending: true })
+    .limit(30);
 
   // visita externa (fotos em bucket privado -> URLs assinadas por 1h)
   const { data: visita } = await supabase
@@ -139,6 +149,11 @@ export default async function TicketPage({ params }: { params: { id: string } })
           <p className="text-sm text-muted-foreground">{t.resumo_tratativa}</p>
           {t.proxima_abordagem && (
             <p className="mt-2 text-sm font-medium">➜ {t.proxima_abordagem}</p>
+          )}
+          {t.urgencia !== null && (
+            <div className="mt-3">
+              <FollowupFeito ticketId={t.id} />
+            </div>
           )}
         </div>
       )}
@@ -251,6 +266,15 @@ export default async function TicketPage({ params }: { params: { id: string } })
                 <div>
                   <p className="mb-1.5 text-xs font-medium text-muted-foreground">Follow-up</p>
                   <FormularioFollowup ticketId={t.id} atual={t.followup_em} />
+                </div>
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                    Ações agendadas ⏰
+                  </p>
+                  <AcoesAgendadas
+                    ticketId={t.id}
+                    acoes={(acoesAgendadas ?? []) as AcaoAgendada[]}
+                  />
                 </div>
                 {podeReatribuir && (
                   <div>

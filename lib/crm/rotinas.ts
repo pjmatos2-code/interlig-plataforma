@@ -147,5 +147,7 @@ function addDias(iso: string, dias: number): string {
 export async function executarRotinasCrm() {
   const fechados = await fecharTicketsInativos();
   const reconciliados = await reconciliarTickets();
-  return { fechados, reconciliados };
+  const { despacharLembretes } = await import("@/lib/notificacoes/lembretes");
+  const lembretes = await despacharLembretes().catch(() => 0);
+  return { fechados, reconciliados, lembretes };
 }

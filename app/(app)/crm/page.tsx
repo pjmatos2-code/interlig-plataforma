@@ -11,6 +11,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { formatarMoeda, formatarMoedaKpi, formatarNumero, formatarPercentual } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { type EtapaTicket, ehVendedora } from "@/lib/tipos";
+import { FollowupFeito } from "@/components/crm/followup-feito";
 
 export const dynamic = "force-dynamic";
 
@@ -576,6 +577,9 @@ export default async function CrmPage({
                       </span>
                     </div>
                     <p className="text-xs leading-relaxed text-slate-600">{f.resumo_tratativa}</p>
+                    <div className="mt-2">
+                      <FollowupFeito ticketId={f.id} compacto />
+                    </div>
                     {f.proxima_abordagem && (
                       <p className="mt-1.5 rounded-lg bg-sky-50/80 px-2.5 py-1.5 text-xs font-medium text-sky-800">
                         ➜ {f.proxima_abordagem}

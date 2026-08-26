@@ -16,6 +16,9 @@ export type Notificacao = {
 /** Últimas notificações do usuário logado + contador de não lidas (RLS escopa). */
 export async function listarNotificacoes(): Promise<{ itens: Notificacao[]; naoLidas: number }> {
   await exigirUsuario();
+  // lembretes de ações agendadas: dispara os vencidos (barato: índice parcial)
+  const { despacharLembretes } = await import("@/lib/notificacoes/lembretes");
+  await despacharLembretes().catch(() => 0);
   const supabase = criarClienteServidor();
   const [{ data: itens }, { count }] = await Promise.all([
     supabase

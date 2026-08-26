@@ -271,6 +271,74 @@ export async function reabrirTicket(ticketId: string): Promise<EstadoAcao> {
   return { ok: true };
 }
 
+// ---------------------------------------------------------------------------
+// Follow-up pendente: marcar como FEITO com o retorno obtido
+// ---------------------------------------------------------------------------
+export async function concluirFollowupIa(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
+  const usuario = await exigirUsuario();
+  const ticketId = String(dados.get("ticket_id") ?? "");
+  const retorno = String(dados.get("retorno") ?? "").trim();
+
+  const supabase = criarClienteServidor();
+  const { error } = await supabase
+    .from("tickets")
+    .update({
+      urgencia: null, // sai da fila de follow-ups pendentes
+      followup_feito_em: new Date().toISOString(),
+      atualizado_em: new Date().toISOString(),
+    })
+    .eq("id", ticketId);
+  if (error) return { erro: error.message };
+
+  await supabase.from("ticket_eventos").insert({
+    ticket_id: ticketId,
+    tipo: "nota",
+    dados: {
+      texto: `✅ Follow-up concluído${retorno ? ` · retorno: ${retorno}` : ""}.`,
+    },
+    usuario_id: usuario.id,
+  });
+  revalidatePath(`/crm/${ticketId}`);
+  revalidar();
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Ações agendadas do ticket ("ligar amanhã às 10:00") com lembrete
+// ---------------------------------------------------------------------------
+export async function criarAcaoTicket(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
+  const usuario = await exigirUsuario();
+  const ticketId = String(dados.get("ticket_id") ?? "");
+  const descricao = String(dados.get("descricao") ?? "").trim();
+  const data = String(dados.get("data") ?? "");
+  const hora = String(dados.get("hora") ?? "");
+  if (!descricao) return { erro: "Descreva a ação (ex.: ligar para o cliente)." };
+  if (!data || !hora) return { erro: "Informe data e hora do lembrete." };
+
+  const supabase = criarClienteServidor();
+  const { error } = await supabase.from("ticket_acoes").insert({
+    ticket_id: ticketId,
+    descricao,
+    quando: `${data}T${hora}:00-03:00`, // horário de Santarém
+    criado_por: usuario.id,
+  });
+  if (error) return { erro: error.message };
+  revalidatePath(`/crm/${ticketId}`);
+  return { ok: true };
+}
+
+export async function concluirAcaoTicket(acaoId: string, ticketId: string): Promise<EstadoAcao> {
+  await exigirUsuario();
+  const supabase = criarClienteServidor();
+  const { error } = await supabase
+    .from("ticket_acoes")
+    .update({ concluida_em: new Date().toISOString() })
+    .eq("id", acaoId);
+  if (error) return { erro: error.message };
+  revalidatePath(`/crm/${ticketId}`);
+  return { ok: true };
+}
+
 // Exclusão administrativa (só gestor): remove o ticket e seus filhos.
 // A regra geral é "ticket não se exclui" (auditoria); esta é a exceção do
 // Administrador para limpeza (ex.: apagar tickets de teste). RLS + gatilho
