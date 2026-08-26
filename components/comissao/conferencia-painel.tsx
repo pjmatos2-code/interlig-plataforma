@@ -17,6 +17,37 @@ const ROTULO_STATUS: Record<FiltroStatus, string> = {
   divergencia: "Divergências",
 };
 
+/** Planilha (CSV com BOM e ';' — abre direto no Excel pt-BR). */
+function exportarPlanilha(itens: ConferenciaItem[], competencia: string, sufixo: string) {
+  const cab = [
+    "Data da venda", "Contrato", "Cliente", "Vendedora", "Plano",
+    "Vl. base (R$)", "Status SGP", "Nossa validação", "O que falta / situação",
+  ];
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const linhas = itens.map((i) =>
+    [
+      i.dataVenda ? i.dataVenda.split("-").reverse().join("/") : "",
+      i.sgpContratoId,
+      i.cliente ?? "",
+      i.vendedora,
+      i.plano ?? "",
+      i.vlBase > 0 ? i.vlBase.toFixed(2).replace(".", ",") : "",
+      i.statusSgp,
+      i.nossaLiberada ? "liberada" : "não liberada",
+      i.pendencias.join(" | "),
+    ]
+      .map(esc)
+      .join(";")
+  );
+  const csv = "\ufeff" + [cab.map(esc).join(";"), ...linhas].join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `conferencia-${sufixo}-${competencia.slice(0, 7)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 function BadgeSgp({ s }: { s: ConferenciaItem["statusSgp"] }) {
   return s === "elegivel" ? (
     <Badge variant="verde">elegível</Badge>
@@ -166,6 +197,28 @@ export function ConferenciaPainel({
                 ✕ {vendedora}
               </button>
             )}
+            <button
+              onClick={() =>
+                exportarPlanilha(
+                  conferencia.itens.filter(
+                    (i) => i.statusSgp === "pendente" && (!vendedora || i.vendedora === vendedora)
+                  ),
+                  conferencia.competencia,
+                  "pendentes"
+                )
+              }
+              className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+              title="Baixa a planilha dos contratos pendentes (respeita a vendedora filtrada)"
+            >
+              ⬇ Exportar pendentes
+            </button>
+            <button
+              onClick={() => exportarPlanilha(filtrados, conferencia.competencia, "filtro")}
+              className="rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground hover:border-interlig-ceu/50"
+              title="Baixa a planilha exatamente do que está listado abaixo"
+            >
+              ⬇ Exportar esta lista
+            </button>
           </div>
         </div>
         <div className="max-h-[28rem] overflow-y-auto overflow-x-auto">
