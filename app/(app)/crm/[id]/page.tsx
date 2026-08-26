@@ -54,7 +54,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
   const [{ data: planos }, { data: motivos }, { data: vendedoras }] = await Promise.all([
     supabase
       .from("planos")
-      .select("id, nome, velocidade, valor_referencia")
+      .select("id, nome, velocidade, valor_referencia, venda_externa")
       .eq("ativo", true)
       .order("valor_referencia", { ascending: false }),
     supabase
@@ -66,6 +66,14 @@ export default async function TicketPage({ params }: { params: { id: string } })
       ? Promise.resolve({ data: [] as { id: string; nome: string }[] })
       : supabase.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
   ]);
+
+  // vendedora externa só enxerga os planos do PAP marcados no Administração
+  // (mesma régua do formulário de visita; nenhum marcado = todos)
+  const planosPermitidos = (() => {
+    if (usuario.perfil !== "vendedora_externa") return planos ?? [];
+    const doPap = (planos ?? []).filter((p) => p.venda_externa);
+    return doPap.length > 0 ? doPap : (planos ?? []);
+  })();
 
   // ações agendadas do ticket (lembretes)
   const { data: acoesAgendadas } = await supabase
@@ -334,7 +342,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
                 ticketId={t.id}
                 telefone={t.telefone}
                 cpf={t.cpf}
-                planos={planos ?? []}
+                planos={planosPermitidos}
                 motivos={motivos ?? []}
               />
             </CardContent>
@@ -456,7 +464,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
 
             {!fechado && (
               <div className="rounded-md border bg-muted/30 p-3">
-                <FormularioProposta ticketId={t.id} planos={planos ?? []} />
+                <FormularioProposta ticketId={t.id} planos={planosPermitidos} />
               </div>
             )}
           </CardContent>
