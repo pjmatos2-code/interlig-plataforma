@@ -228,6 +228,21 @@ export type ConferenciaVendedora = {
   divergencias: number;
 };
 
+export type ConferenciaItem = {
+  sgpContratoId: string;
+  sgpClienteId: string | null;
+  cliente: string | null;
+  vendedora: string;
+  plano: string | null;
+  dataVenda: string | null;
+  vlBase: number;
+  statusSgp: "elegivel" | "pendente" | "glosado";
+  nossaLiberada: boolean;
+  diverge: boolean;
+  /** o que está segurando a liberação (acionável antes do fechamento) */
+  pendencias: string[];
+};
+
 export type ConferenciaSgp = {
   competencia: string;
   temDados: boolean;
@@ -243,6 +258,7 @@ export type ConferenciaSgp = {
   };
   porVendedora: ConferenciaVendedora[];
   motivosResumo: { motivo: string; quantidade: number }[];
+  itens: ConferenciaItem[];
 };
 
 export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
@@ -250,7 +266,7 @@ export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
   const { data: itens } = await supabase
     .from("comissao_sgp_itens")
     .select(
-      "sgp_contrato_id, contrato_id, vendedor_nome, vl_base, status_sgp, servico_sgp, importado_em"
+      "sgp_contrato_id, contrato_id, vendedor_nome, plano, data_venda, vl_base, status_sgp, servico_sgp, importado_em"
     )
     .eq("competencia", mesIso);
 
@@ -269,6 +285,7 @@ export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
     },
     porVendedora: [],
     motivosResumo: [],
+    itens: [],
   };
   if (!itens || itens.length === 0) return vazio;
 
@@ -277,7 +294,9 @@ export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
   const [{ data: contratos }, { data: ticketsConvertidos }] = await Promise.all([
     supabase
       .from("contratos")
-      .select("id, status, termo_adesao_assinado, fidelidade_assinada, plano_id, vendedor_id")
+      .select(
+        "id, status, termo_adesao_assinado, fidelidade_assinada, plano_id, vendedor_id, data_venda, planos(nome), clientes(nome, sgp_cliente_id)"
+      )
       .in("id", contratoIds.length ? contratoIds : ["00000000-0000-0000-0000-000000000000"]),
     supabase
       .from("tickets")
@@ -293,6 +312,7 @@ export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
 
   const porVend = new Map<string, ConferenciaVendedora>();
   const motivos = new Map<string, number>();
+  const detalhes: ConferenciaItem[] = [];
   const t = { ...vazio.totais };
 
   for (const it of itens) {
@@ -333,6 +353,34 @@ export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
       }
     }
 
+    // ---- item detalhado (drill-down clicável no painel) ----
+    const rel = c as unknown as
+      | { data_venda?: string; planos?: { nome: string } | null; clientes?: { nome: string; sgp_cliente_id: string | null } | null }
+      | undefined;
+    const pendencias: string[] = [];
+    if (!c) pendencias.push("contrato ainda não sincronizado na plataforma");
+    else {
+      if (c.termo_adesao_assinado !== true) pendencias.push("Termo de Adesão sem assinatura");
+      if (c.fidelidade_assinada !== true) pendencias.push("Contrato de Fidelidade sem assinatura");
+      if (c.status !== "ativo") pendencias.push(`serviço ${c.status.replace(/_/g, " ")}`);
+      if (!crmConsistente) pendencias.push("ticket do CRM inconsistente (vendedora/plano)");
+    }
+    if (pendencias.length === 0 && it.status_sgp === "pendente")
+      pendencias.push("nada pendente do nosso lado — conferir o motivo no SGP");
+    detalhes.push({
+      sgpContratoId: String(it.sgp_contrato_id),
+      sgpClienteId: rel?.clientes?.sgp_cliente_id ?? null,
+      cliente: rel?.clientes?.nome ?? null,
+      vendedora: it.vendedor_nome,
+      plano: rel?.planos?.nome ?? ((it as { plano?: string | null }).plano ?? null),
+      dataVenda: rel?.data_venda ?? ((it as { data_venda?: string | null }).data_venda ?? null),
+      vlBase: Number(it.vl_base ?? 0),
+      statusSgp: it.status_sgp as ConferenciaItem["statusSgp"],
+      nossaLiberada,
+      diverge,
+      pendencias,
+    });
+
     const chave = it.vendedor_nome;
     const v =
       porVend.get(chave) ??
@@ -355,5 +403,6 @@ export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
     motivosResumo: [...motivos.entries()]
       .map(([motivo, quantidade]) => ({ motivo, quantidade }))
       .sort((a, b) => b.quantidade - a.quantidade),
+    itens: detalhes.sort((a, b) => (a.dataVenda ?? "") < (b.dataVenda ?? "") ? -1 : 1),
   };
 }
