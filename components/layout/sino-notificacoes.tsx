@@ -16,6 +16,63 @@ function tempoRelativo(iso: string): string {
   return `${Math.floor(s / 86400)} d`;
 }
 
+// ---------------------------------------------------------------------------
+// Som de campainha (Web Audio, sem arquivo) — dois toques suaves.
+// Navegadores exigem um gesto do usuário antes de tocar som; o contexto é
+// "destravado" no primeiro clique/tecla da sessão.
+// ---------------------------------------------------------------------------
+let audioCtx: AudioContext | null = null;
+function destravarAudio() {
+  try {
+    audioCtx ??= new AudioContext();
+    if (audioCtx.state === "suspended") void audioCtx.resume();
+  } catch {
+    /* sem suporte: segue sem som */
+  }
+}
+function tocarCampainha() {
+  try {
+    if (!audioCtx || audioCtx.state !== "running") return;
+    const agora = audioCtx.currentTime;
+    for (const [freq, inicio] of [
+      [880, 0],
+      [1174.7, 0.18],
+    ] as const) {
+      const osc = audioCtx.createOscillator();
+      const ganho = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      ganho.gain.setValueAtTime(0, agora + inicio);
+      ganho.gain.linearRampToValueAtTime(0.18, agora + inicio + 0.02);
+      ganho.gain.exponentialRampToValueAtTime(0.001, agora + inicio + 0.45);
+      osc.connect(ganho).connect(audioCtx.destination);
+      osc.start(agora + inicio);
+      osc.stop(agora + inicio + 0.5);
+    }
+  } catch {
+    /* silencioso */
+  }
+}
+
+/** Pop-up do sistema (Notification API) — aparece mesmo com a aba em 2º plano. */
+function notificarSistema(n: Notificacao) {
+  try {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    const alerta = new Notification(n.titulo, {
+      body: n.descricao ?? "",
+      icon: "/icon.svg",
+      tag: n.id, // evita duplicar o mesmo aviso
+    });
+    alerta.onclick = () => {
+      window.focus();
+      if (n.link) window.location.href = n.link;
+      alerta.close();
+    };
+  } catch {
+    /* silencioso */
+  }
+}
+
 export function SinoNotificacoes() {
   const [itens, setItens] = useState<Notificacao[]>([]);
   const [naoLidas, setNaoLidas] = useState(0);
@@ -37,6 +94,8 @@ export function SinoNotificacoes() {
           novos.forEach((n) =>
             setTimeout(() => setToasts((t) => t.filter((x) => x.id !== n.id)), 7000)
           );
+          tocarCampainha(); // 🔔 som
+          novos.slice(0, 3).forEach(notificarSistema); // pop-up do sistema
         }
       }
       vistos.current = new Set(itens.map((n) => n.id));
@@ -48,7 +107,26 @@ export function SinoNotificacoes() {
   useEffect(() => {
     puxar();
     const id = setInterval(puxar, INTERVALO_MS);
-    return () => clearInterval(id);
+    // destrava o som e pede permissão do pop-up no 1º gesto do usuário
+    const primeiroGesto = () => {
+      destravarAudio();
+      try {
+        if (typeof Notification !== "undefined" && Notification.permission === "default") {
+          void Notification.requestPermission();
+        }
+      } catch {
+        /* sem suporte */
+      }
+      document.removeEventListener("pointerdown", primeiroGesto);
+      document.removeEventListener("keydown", primeiroGesto);
+    };
+    document.addEventListener("pointerdown", primeiroGesto);
+    document.addEventListener("keydown", primeiroGesto);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("pointerdown", primeiroGesto);
+      document.removeEventListener("keydown", primeiroGesto);
+    };
   }, [puxar]);
 
   // fecha ao clicar fora
