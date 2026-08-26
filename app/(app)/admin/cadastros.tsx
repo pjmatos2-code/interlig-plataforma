@@ -393,13 +393,15 @@ export function GestaoCoordenacoes({
 // ---------------------------------------------------------------------------
 export function GestaoPlanosExterna({
   planos,
+  alvo = "externa",
 }: {
-  planos: { id: string; nome: string; valor_referencia: number; venda_externa: boolean }[];
+  planos: { id: string; nome: string; valor_referencia: number; marcado: boolean }[];
+  alvo?: "externa" | "corporativo";
 }) {
   const [estado, acao] = useFormState(salvarPlanosExterna, inicial);
   const [busca, setBusca] = useState("");
   const [marcados, setMarcados] = useState<Set<string>>(
-    () => new Set(planos.filter((p) => p.venda_externa).map((p) => p.id))
+    () => new Set(planos.filter((p) => p.marcado).map((p) => p.id))
   );
   const filtro = busca.trim().toLowerCase();
   const visiveis = filtro
@@ -409,6 +411,7 @@ export function GestaoPlanosExterna({
   return (
     <form action={acao} className="space-y-3">
       {/* todos os marcados vão no submit, mesmo fora do filtro atual */}
+      <input type="hidden" name="alvo" value={alvo} />
       {[...marcados].map((id) => (
         <input key={id} type="hidden" name="plano_id" value={id} />
       ))}
@@ -421,8 +424,8 @@ export function GestaoPlanosExterna({
         />
         <span className="text-xs text-muted-foreground">
           {marcados.size === 0
-            ? "Nenhum marcado — a Venda Externa mostra todos os planos ativos."
-            : `${marcados.size} plano(s) na Venda Externa.`}
+            ? `Nenhum marcado — o módulo mostra todos os planos ativos.`
+            : `${marcados.size} plano(s) no módulo.`}
         </span>
       </div>
       <div className="max-h-72 overflow-y-auto rounded-md border">
@@ -456,7 +459,7 @@ export function GestaoPlanosExterna({
         </ul>
       </div>
       <div className="flex items-center gap-3">
-        <BotaoSalvar rotulo="Salvar planos do PAP" />
+        <BotaoSalvar rotulo={alvo === "corporativo" ? "Salvar planos do Corporativo" : "Salvar planos do PAP"} />
         <Mensagem estado={estado} />
       </div>
     </form>

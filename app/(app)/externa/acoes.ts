@@ -36,7 +36,13 @@ async function subirFoto(
  * a proposta com o plano de interesse e o anexo de campo (fotos + GPS).
  */
 export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promise<EstadoVisita> {
-  const usuario = await exigirPerfil(["gestor", "supervisor", "vendedora_externa"]);
+  // pap = Venda Externa (gestor/coordenador/externa); corporativo = Setor
+  // Corporativo (qualquer perfil comercial pode registrar)
+  const setor = dados.get("setor") === "corporativo" ? "corporativo" : "pap";
+  const usuario =
+    setor === "corporativo"
+      ? await exigirPerfil(["gestor", "supervisor", "vendedora", "vendedora_externa"])
+      : await exigirPerfil(["gestor", "supervisor", "vendedora_externa"]);
   const supabase = criarClienteServidor();
   const admin = criarClienteAdmin(); // só para o upload das fotos no bucket privado
   // Gravações passam pela RLS: coordenador só registra para agentes dele
@@ -99,6 +105,7 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
 
   // 3) anexo de campo
   const { error: eVisita } = await db.from("visitas_externas").insert({
+    setor,
     ticket_id: ticket.id,
     vendedor_id: vendedorId,
     foto_casa_path: casa.path,
@@ -138,12 +145,12 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
     ticket_id: ticket.id,
     tipo: "nota",
     dados: {
-      texto: `Visita externa registrada${lat ? ` (GPS ±${Math.round(precisao ?? 0)}m)` : " (sem GPS)"}${docPath ? " · documento anexado p/ pré-cadastro" : ""}.`,
+      texto: `${setor === "corporativo" ? "Visita corporativa" : "Visita externa"} registrada${lat ? ` (GPS ±${Math.round(precisao ?? 0)}m)` : " (sem GPS)"}${docPath ? " · documento anexado p/ pré-cadastro" : ""}.`,
     },
     usuario_id: usuario.id,
   });
 
-  revalidatePath("/externa");
+  revalidatePath(setor === "corporativo" ? "/corporativo" : "/externa");
   revalidatePath("/crm");
   return { ok: true, ticketId: ticket.id };
 }

@@ -272,6 +272,52 @@ export async function reabrirTicket(ticketId: string): Promise<EstadoAcao> {
 }
 
 // ---------------------------------------------------------------------------
+// Tratativa (histórico/agenda): nota datada + retorno combinado opcional.
+// Cliente corporativo leva mais tempo — cada contato fica registrado no
+// histórico do ticket, e o retorno combinado vira ação agendada com lembrete.
+// ---------------------------------------------------------------------------
+export async function registrarTratativa(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
+  const usuario = await exigirUsuario();
+  const ticketId = String(dados.get("ticket_id") ?? "");
+  const texto = String(dados.get("texto") ?? "").trim();
+  const retornoData = String(dados.get("retorno_data") ?? "");
+  const retornoHora = String(dados.get("retorno_hora") ?? "");
+  if (!texto) return { erro: "Descreva a tratativa (o que foi conversado)." };
+  if ((retornoData && !retornoHora) || (!retornoData && retornoHora))
+    return { erro: "Para combinar retorno, informe data E hora." };
+
+  const supabase = criarClienteServidor();
+  const { error } = await supabase.from("ticket_eventos").insert({
+    ticket_id: ticketId,
+    tipo: "nota",
+    dados: {
+      texto: `📞 Tratativa: ${texto}${
+        retornoData ? ` · retorno combinado para ${retornoData.split("-").reverse().join("/")} às ${retornoHora}` : ""
+      }`,
+    },
+    usuario_id: usuario.id,
+  });
+  if (error) return { erro: error.message };
+
+  if (retornoData && retornoHora) {
+    await supabase.from("ticket_acoes").insert({
+      ticket_id: ticketId,
+      descricao: "Retornar para o cliente (combinado na tratativa)",
+      quando: `${retornoData}T${retornoHora}:00-03:00`,
+      criado_por: usuario.id,
+    });
+  }
+  // tratativa conta como interação: renova o relógio de inatividade
+  await supabase
+    .from("tickets")
+    .update({ atualizado_em: new Date().toISOString() })
+    .eq("id", ticketId);
+  revalidatePath(`/crm/${ticketId}`);
+  revalidar();
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
 // Follow-up pendente: marcar como FEITO com o retorno obtido
 // ---------------------------------------------------------------------------
 export async function concluirFollowupIa(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {

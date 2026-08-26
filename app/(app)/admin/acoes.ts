@@ -145,22 +145,23 @@ export async function definirAgentesCoordenador(_e: EstadoAdmin, dados: FormData
 // Nenhum marcado = o módulo mostra todos os ativos (fallback).
 export async function salvarPlanosExterna(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   await exigirPerfil(["gestor"]);
+  const alvo = dados.get("alvo") === "corporativo" ? "setor_corporativo" : "venda_externa";
   const ids = dados.getAll("plano_id").map(String).filter(Boolean);
   const supabase = criarClienteServidor();
   const { error: e1 } = await supabase
     .from("planos")
-    .update({ venda_externa: false })
-    .eq("venda_externa", true);
+    .update({ [alvo]: false })
+    .eq(alvo, true);
   if (e1) return { erro: e1.message };
   if (ids.length) {
     const { error: e2 } = await supabase
       .from("planos")
-      .update({ venda_externa: true })
+      .update({ [alvo]: true })
       .in("id", ids);
     if (e2) return { erro: e2.message };
   }
   revalidatePath("/admin");
-  revalidatePath("/externa");
+  revalidatePath(alvo === "setor_corporativo" ? "/corporativo" : "/externa");
   return { ok: true };
 }
 

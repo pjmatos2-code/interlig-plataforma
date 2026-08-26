@@ -7,19 +7,20 @@ import { formatarMoeda } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-/** Venda Externa (PAP) — registro de visita em campo, mobile-first. */
-export default async function ExternaPage() {
-  const usuario = await exigirPerfil(["gestor", "supervisor", "vendedora_externa"]);
+/**
+ * Setor Corporativo — mesmo fluxo da Venda Externa (visita → ticket no CRM),
+ * para o agente de planos corporativos. Cliente PJ leva mais tempo para
+ * converter: o ticket concentra as tratativas até o fechamento.
+ */
+export default async function CorporativoPage() {
+  const usuario = await exigirPerfil(["gestor", "supervisor", "vendedora", "vendedora_externa"]);
   const supabase = criarClienteServidor();
   const hoje = new Date().toISOString().slice(0, 10);
 
-  // Escopo pela RLS: gestor vê tudo; coordenador vê as agentes atribuídas a ele
-  // (cruza as 3 cidades comerciais, independente do POP — migração 0025);
-  // a vendedora externa vê só as visitas dela.
   const [{ data: planos }, { data: vendedoras }, { data: visitas }] = await Promise.all([
     supabase
       .from("planos")
-      .select("id, nome, valor_referencia, venda_externa")
+      .select("id, nome, valor_referencia, setor_corporativo")
       .eq("ativo", true)
       .gt("valor_referencia", 0)
       .order("valor_referencia", { ascending: false }),
@@ -31,15 +32,15 @@ export default async function ExternaPage() {
       .select(
         "id, criado_em, lat, lng, foto_doc_path, tickets(id, cliente_nome, valor_estimado, vendedores(nome))"
       )
-      .eq("setor", "pap")
+      .eq("setor", "corporativo")
       .gte("criado_em", `${hoje}T00:00:00`)
       .order("criado_em", { ascending: false })
       .limit(30),
   ]);
 
-  // PAP vende só os planos marcados no Administração; nenhum marcado = todos
-  const doPap = (planos ?? []).filter((p) => p.venda_externa);
-  const planosPap = doPap.length > 0 ? doPap : (planos ?? []);
+  // corporativo vende os planos marcados no Administração; nenhum marcado = todos
+  const doSetor = (planos ?? []).filter((p) => p.setor_corporativo);
+  const planosSetor = doSetor.length > 0 ? doSetor : (planos ?? []);
 
   type Visita = {
     id: string;
@@ -60,27 +61,28 @@ export default async function ExternaPage() {
     <div
       className="-m-4 min-h-screen p-4 lg:-m-6 lg:p-6"
       style={{
-        background: "linear-gradient(160deg, #eef4ff 0%, #f6f8ff 45%, #eefaff 100%)",
+        background: "linear-gradient(160deg, #eef2ff 0%, #f5f7ff 45%, #eef6ff 100%)",
       }}
     >
       <div className="mx-auto max-w-md">
         <div className="mb-4">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Venda Externa 🚶</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Setor Corporativo 🏢</h1>
           <p className="text-sm text-slate-500">
-            Registre a visita em 3 passos — o ticket entra direto no CRM
+            Registre a visita — o ticket entra no CRM e concentra as tratativas até o fechamento
           </p>
         </div>
 
         <FormularioVisita
-          planos={planosPap}
+          planos={planosSetor}
           vendedoras={vendedoras ?? []}
           ehVendedora={ehVendedora(usuario.perfil)}
+          setor="corporativo"
         />
 
         {/* visitas de hoje */}
         <div className="mt-6 rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur">
           <p className="mb-2 text-sm font-bold text-slate-800">
-            📋 Visitas de hoje ({lista.length})
+            📋 Visitas corporativas de hoje ({lista.length})
           </p>
           {lista.length === 0 ? (
             <p className="py-3 text-center text-sm text-slate-400">

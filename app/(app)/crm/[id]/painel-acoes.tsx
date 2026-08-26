@@ -9,6 +9,7 @@ import {
   agendarFollowup,
   excluirTicket,
   fecharTicket,
+  registrarTratativa,
   mudarEtapa,
   reabrirTicket,
   reatribuirTicket,
@@ -397,6 +398,79 @@ export function BotaoExcluir({ ticketId, cliente }: { ticketId: string; cliente:
         {aguardando ? "Excluindo…" : "🗑 Excluir ticket (admin)"}
       </Button>
       {erro && <p className="text-sm text-destructive">{erro}</p>}
+    </div>
+  );
+}
+
+
+/**
+ * Registrar tratativa — o diário do ticket (essencial no corporativo):
+ * "liguei, pediu retorno" vira nota datada no histórico e, se houver retorno
+ * combinado, agenda o lembrete automaticamente.
+ */
+export function FormularioTratativa({ ticketId }: { ticketId: string }) {
+  const router = useRouter();
+  const [texto, setTexto] = useState("");
+  const [comRetorno, setComRetorno] = useState(false);
+  const [data, setData] = useState("");
+  const [hora, setHora] = useState("");
+  const [aguardando, setAguardando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [ok, setOk] = useState(false);
+
+  async function salvar() {
+    setAguardando(true);
+    setOk(false);
+    const fd = new FormData();
+    fd.set("ticket_id", ticketId);
+    fd.set("texto", texto);
+    if (comRetorno) {
+      fd.set("retorno_data", data);
+      fd.set("retorno_hora", hora);
+    }
+    const r = await registrarTratativa({}, fd);
+    setErro(r.erro ?? null);
+    setAguardando(false);
+    if (!r.erro) {
+      setTexto(""); setData(""); setHora(""); setComRetorno(false); setOk(true);
+      setTimeout(() => setOk(false), 4000);
+      router.refresh();
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <textarea
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        placeholder="O que foi conversado? (ex.: liguei, cliente pediu retorno na sexta · reunião feita, vai avaliar a proposta)"
+        rows={2}
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+      />
+      <label className="flex items-center gap-2 text-sm text-muted-foreground">
+        <input
+          type="checkbox"
+          checked={comRetorno}
+          onChange={(e) => setComRetorno(e.target.checked)}
+          className="h-4 w-4 rounded border-input"
+        />
+        Combinar retorno (agenda lembrete 🔔)
+      </label>
+      {comRetorno && (
+        <div className="flex flex-wrap items-center gap-2">
+          <input type="date" value={data} onChange={(e) => setData(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-2.5 text-sm" />
+          <input type="time" value={hora} onChange={(e) => setHora(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-2.5 text-sm" />
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={salvar} disabled={aguardando}>
+          {aguardando ? "Registrando…" : "📞 Registrar tratativa"}
+        </Button>
+        {ok && <span className="text-xs font-medium text-farol-verde">registrada ✓</span>}
+        {erro && <span className="text-xs text-destructive">{erro}</span>}
+      </div>
     </div>
   );
 }

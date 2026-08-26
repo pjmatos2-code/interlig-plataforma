@@ -91,10 +91,12 @@ export function FormularioVisita({
   planos,
   vendedoras,
   ehVendedora,
+  setor = "pap",
 }: {
   planos: PlanoOpcao[];
   vendedoras: Vendedora[];
   ehVendedora: boolean;
+  setor?: "pap" | "corporativo";
 }) {
   const router = useRouter();
   const [enviando, comecar] = useTransition();
@@ -155,6 +157,7 @@ export function FormularioVisita({
     }
     comecar(async () => {
       try {
+        dados.set("setor", setor);
         const r = await registrarVisita({}, dados);
         if (r.erro) {
           setErro(r.erro);

@@ -17,6 +17,7 @@ import {
   BotaoReabrir,
   BotaoExcluir,
   FormularioFechamento,
+  FormularioTratativa,
   FormularioFollowup,
   FormularioNota,
   FormularioProposta,
@@ -258,6 +259,12 @@ export default async function TicketPage({ params }: { params: { id: string } })
                 <div>
                   <p className="mb-1.5 text-xs font-medium text-muted-foreground">Etapa</p>
                   <BarraEtapas ticketId={t.id} etapaAtual={t.etapa} />
+                </div>
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                    Registrar tratativa 📞
+                  </p>
+                  <FormularioTratativa ticketId={t.id} />
                 </div>
                 <div>
                   <p className="mb-1.5 text-xs font-medium text-muted-foreground">Nota rápida</p>
