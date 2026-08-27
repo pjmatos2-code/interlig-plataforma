@@ -9,6 +9,9 @@ export type ResumoAtualizacaoEsteira = {
   termoAssinado?: boolean;
   fidelidadeAssinada?: boolean;
   agendamento?: string | null;
+  mudancas?: string[];
+  colunaDe?: string;
+  colunaPara?: string;
 };
 
 /** Botão ⟳ do card da esteira: força a atualização do contrato no SGP
@@ -27,5 +30,8 @@ export async function atualizarContratoEsteira(
     termoAssinado: r.termoAssinado,
     fidelidadeAssinada: r.fidelidadeAssinada,
     agendamento: r.osAbertas?.[0]?.agendamento ?? null,
+    mudancas: r.mudancas,
+    colunaDe: r.colunaDe,
+    colunaPara: r.colunaPara,
   };
 }

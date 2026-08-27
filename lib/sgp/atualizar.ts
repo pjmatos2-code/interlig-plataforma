@@ -17,7 +17,19 @@ export type ResumoAtualizacao = {
   termoAssinado?: boolean;
   fidelidadeAssinada?: boolean;
   osAbertas?: { protocolo: string | null; agendamento: string | null; responsavel: string | null }[];
+  /** o que mudou nesta atualização (para o aviso na tela) */
+  mudancas?: string[];
+  /** coluna da esteira antes/depois — avisa quando o card vai se mover */
+  colunaDe?: string;
+  colunaPara?: string;
 };
+
+function colunaEsteira(assinado: boolean, status: string): string {
+  if (status === "cancelado") return "fora da esteira (cancelado)";
+  if (status === "suspenso") return "fora da esteira (suspenso)";
+  if (status === "ativo") return "Instaladas no período";
+  return assinado ? "Aguardando instalação" : "Pendente de assinatura";
+}
 
 export async function atualizarContratoDoSgp(contratoId: string): Promise<ResumoAtualizacao> {
   const admin = criarClienteAdmin();
@@ -27,7 +39,7 @@ export async function atualizarContratoDoSgp(contratoId: string): Promise<Resumo
 
   const { data: c } = await admin
     .from("contratos")
-    .select("id, sgp_contrato_id, status, data_assinatura, data_ativacao, data_cancelamento")
+    .select("id, sgp_contrato_id, status, data_assinatura, data_ativacao, data_cancelamento, termo_adesao_assinado, fidelidade_assinada")
     .eq("id", contratoId)
     .maybeSingle();
   if (!c?.sgp_contrato_id) return { ok: false, erro: "contrato sem vínculo com o SGP" };
@@ -157,6 +169,27 @@ export async function atualizarContratoDoSgp(contratoId: string): Promise<Resumo
     // OS indisponível não invalida a atualização do status/assinaturas
   }
 
+  // ---------- o que mudou (aviso na tela) ----------
+  const mudancas: string[] = [];
+  if (adesao && c.termo_adesao_assinado !== true) mudancas.push("Termo de Adesão assinado ✓");
+  if (fidelidade && c.fidelidade_assinada !== true) mudancas.push("Contrato de Fidelidade assinado ✓");
+  if (!adesao && c.termo_adesao_assinado === true) mudancas.push("Termo de Adesão voltou a pendente ✗");
+  if (!fidelidade && c.fidelidade_assinada === true) mudancas.push("Fidelidade voltou a pendente ✗");
+  if (statusNovo !== (c.status as string))
+    mudancas.push(`serviço: ${(c.status as string).replace(/_/g, " ")} → ${statusNovo.replace(/_/g, " ")}`);
+  const agendada = osAbertas.find((o) => o.agendamento);
+  if (agendada?.agendamento) {
+    const dt = new Date(agendada.agendamento).toLocaleString("pt-BR", {
+      timeZone: "America/Santarem", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+    });
+    mudancas.push(`instalação agendada para ${dt}${agendada.responsavel ? ` (${agendada.responsavel})` : ""}`);
+  }
+
+  const assinadoAntes = (c.data_assinatura as string | null) != null;
+  const assinadoDepois = adesao && fidelidade;
+  const colunaDe = colunaEsteira(assinadoAntes, c.status as string);
+  const colunaPara = colunaEsteira(assinadoDepois, statusNovo);
+
   return {
     ok: true,
     statusSgp: ct.contratoStatusDisplay ?? "—",
@@ -164,5 +197,8 @@ export async function atualizarContratoDoSgp(contratoId: string): Promise<Resumo
     termoAssinado: adesao,
     fidelidadeAssinada: fidelidade,
     osAbertas,
+    mudancas,
+    colunaDe,
+    colunaPara,
   };
 }

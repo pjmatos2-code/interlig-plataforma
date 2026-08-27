@@ -59,7 +59,7 @@ function LinhaCliente({ item, linkTemplate, mostrarPop }: { item: ItemEsteira; l
               #{item.sgpContratoId}
             </a>
           )}
-          <BotaoAtualizarContrato contratoId={item.id} />
+          <BotaoAtualizarContrato contratoId={item.id} cliente={item.cliente} />
         </span>
       </p>
       {item.temOs && <LinhaOs item={item} linkTemplate={linkTemplate} />}
