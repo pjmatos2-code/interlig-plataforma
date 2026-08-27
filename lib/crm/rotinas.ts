@@ -144,10 +144,99 @@ function addDias(iso: string, dias: number): string {
 }
 
 /** Executa as rotinas do CRM em sequência; usada no carregamento do /crm. */
+/**
+ * Venda apareceu no SGP → o ticket ABERTO do mesmo cliente (telefone/CPF) vira
+ * Vendida automaticamente. Fecha o gap: o cliente compra no meio do funil e o
+ * card ficava parado em "Contato inicial" mesmo com o contrato criado.
+ * Com plano no contrato → fecha como convertido; sem plano → move para
+ * "aguardando" já reconciliado (Criação do contrato).
+ */
+export async function converterVendidosPorSgp(): Promise<number> {
+  const admin = criarClienteAdmin();
+  const desde = new Date(Date.now() - 5 * 86_400_000).toISOString().slice(0, 10);
+
+  const [{ data: contratos }, { data: abertos }] = await Promise.all([
+    admin
+      .from("contratos")
+      .select(
+        "id, sgp_contrato_id, plano_id, vendedor_id, valor_mensalidade, origem_cadastro, clientes(telefone, cpf, nome)"
+      )
+      .gte("data_venda", desde)
+      .neq("status", "cancelado")
+      .limit(1000),
+    admin
+      .from("tickets")
+      .select("id, cliente_nome, telefone, cpf, etapa, vendedor_id")
+      .neq("etapa", "fechado")
+      .limit(2000),
+  ]);
+  if (!contratos?.length || !abertos?.length) return 0;
+
+  let convertidos = 0;
+  for (const c of contratos) {
+    const cli = c.clientes as unknown as { telefone: string | null; cpf: string | null; nome: string } | null;
+    const tel = normalizarTelefone(cli?.telefone);
+    const cpf = normalizarCpf(cli?.cpf);
+    if (!tel && !cpf) continue;
+    const t = abertos.find(
+      (x) =>
+        (tel && normalizarTelefone(x.telefone) === tel) ||
+        (cpf && normalizarCpf(x.cpf) === cpf)
+    );
+    if (!t) continue;
+
+    const base = {
+      contrato_id: c.id,
+      reconciliado_em: new Date().toISOString(),
+      valor_estimado: c.valor_mensalidade,
+      urgencia: null,
+      followup_em: null,
+      atualizado_em: new Date().toISOString(),
+    };
+    const { error } = c.plano_id
+      ? await admin
+          .from("tickets")
+          .update({
+            ...base,
+            etapa: "fechado",
+            etapa_encerramento: t.etapa,
+            desfecho: "convertido",
+            fechado_por: "vendedora",
+            fechado_em: new Date().toISOString(),
+            plano_id: c.plano_id,
+            origem_cadastro: c.origem_cadastro ?? "outro",
+          })
+          .eq("id", t.id)
+      : await admin.from("tickets").update({ ...base, etapa: "aguardando" }).eq("id", t.id);
+    if (error) {
+      console.error(`converterVendidos: falha no ticket ${t.id} (${t.cliente_nome}):`, error.message);
+      continue;
+    }
+
+    // vendedor: completa o lado que estiver faltando
+    if (!c.vendedor_id && t.vendedor_id) {
+      await admin.from("contratos").update({ vendedor_id: t.vendedor_id }).eq("id", c.id).is("vendedor_id", null);
+    }
+
+    await admin.from("ticket_eventos").insert({
+      ticket_id: t.id,
+      tipo: "nota",
+      dados: {
+        texto: `💰 Venda identificada no SGP (contrato #${c.sgp_contrato_id}) — ticket ${c.plano_id ? "fechado como Vendida" : "movido para Criação do contrato"} automaticamente.`,
+      },
+    });
+    convertidos += 1;
+    // tira da lista para não converter dois tickets no mesmo contrato
+    abertos.splice(abertos.indexOf(t), 1);
+  }
+  return convertidos;
+}
+
 export async function executarRotinasCrm() {
   const fechados = await fecharTicketsInativos();
+  const vendidos = await converterVendidosPorSgp().catch(() => 0);
   const reconciliados = await reconciliarTickets();
   const { despacharLembretes } = await import("@/lib/notificacoes/lembretes");
   const lembretes = await despacharLembretes().catch(() => 0);
-  return { fechados, reconciliados, lembretes };
+  return { fechados, vendidos, reconciliados, lembretes };
 }

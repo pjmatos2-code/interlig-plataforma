@@ -12,9 +12,42 @@ export const maxDuration = 300;
  * segundo plano (waitUntil) — assim o disparo do cron externo (que desconecta
  * em 30s) nunca mata o ciclo. `?aguardar=1` espera o resultado (uso manual).
  */
+/**
+ * Robô do SZ em quase tempo real: os nós de webhook do fluxo não disparam no
+ * caminho da LigIA, então o robô roda junto do sync, no máximo a cada 30 min,
+ * das 07h às 20h de Santarém — os tickets das conversas do dia nascem ao longo
+ * do dia, não só na leitura das 19:30.
+ */
+async function roboSzSeDevido() {
+  const admin = criarClienteAdmin();
+  const agoraStm = new Date(Date.now() - 3 * 3600_000);
+  const hora = agoraStm.getUTCHours();
+  if (hora < 7 || hora >= 20) return;
+
+  const { data: cfgRow } = await admin
+    .from("integracoes_config")
+    .select("config")
+    .eq("sistema", "szchat")
+    .maybeSingle();
+  const cfg = (cfgRow?.config ?? {}) as Record<string, unknown>;
+  const ultima = typeof cfg.robo_diurno_em === "string" ? Date.parse(cfg.robo_diurno_em) : 0;
+  if (Date.now() - ultima < 28 * 60_000) return;
+
+  // marca ANTES de rodar para não empilhar execuções concorrentes
+  await admin.from("integracoes_config").upsert({
+    sistema: "szchat",
+    config: { ...cfg, robo_diurno_em: new Date().toISOString() },
+    atualizado_em: new Date().toISOString(),
+  });
+  const { rodarRoboSz } = await import("@/lib/sz/robo");
+  const r = await rodarRoboSz();
+  console.log("robô SZ diurno:", JSON.stringify(r));
+}
+
 async function cicloCompleto() {
   const resultado = await executarSync();
   const rotinas = await executarRotinasCrm();
+  await roboSzSeDevido().catch((e) => console.error("robô SZ diurno falhou:", e));
   return { ...resultado, rotinas };
 }
 
