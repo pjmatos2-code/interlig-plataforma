@@ -10,6 +10,8 @@ import {
   excluirTicket,
   fecharTicket,
   registrarTratativa,
+  atualizarTicketDoSgp,
+  type ResumoSgp,
   mudarEtapa,
   reabrirTicket,
   reatribuirTicket,
@@ -471,6 +473,48 @@ export function FormularioTratativa({ ticketId }: { ticketId: string }) {
         {ok && <span className="text-xs font-medium text-farol-verde">registrada ✓</span>}
         {erro && <span className="text-xs text-destructive">{erro}</span>}
       </div>
+    </div>
+  );
+}
+
+
+/** Força a atualização do contrato no SGP (status, assinaturas, OS/agendamento). */
+export function BotaoAtualizarSgp({ ticketId }: { ticketId: string }) {
+  const router = useRouter();
+  const [aguardando, setAguardando] = useState(false);
+  const [resumo, setResumo] = useState<ResumoSgp | null>(null);
+
+  return (
+    <div className="space-y-1.5">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={aguardando}
+        onClick={async () => {
+          setAguardando(true);
+          const r = await atualizarTicketDoSgp(ticketId);
+          setResumo(r);
+          setAguardando(false);
+          if (!r.erro) router.refresh();
+        }}
+      >
+        {aguardando ? "Consultando o SGP…" : "⟳ Atualizar do SGP"}
+      </Button>
+      {resumo?.erro && <p className="text-xs text-destructive">{resumo.erro}</p>}
+      {resumo && !resumo.erro && (
+        <p className="text-xs text-muted-foreground">
+          Serviço <span className="font-semibold">{resumo.statusSgp}</span> · Termo{" "}
+          {resumo.termoAssinado ? "✓" : "✗"} · Fidelidade {resumo.fidelidadeAssinada ? "✓" : "✗"}
+          {resumo.osAbertas && resumo.osAbertas.length > 0 && (
+            <>
+              {" "}· OS {resumo.osAbertas[0].protocolo ?? "aberta"}
+              {resumo.osAbertas[0].agendamento
+                ? ` agendada ${new Date(resumo.osAbertas[0].agendamento).toLocaleString("pt-BR", { timeZone: "America/Santarem", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`
+                : " sem agendamento"}
+            </>
+          )}
+        </p>
+      )}
     </div>
   );
 }

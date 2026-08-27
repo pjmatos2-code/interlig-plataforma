@@ -385,6 +385,42 @@ export async function concluirAcaoTicket(acaoId: string, ticketId: string): Prom
   return { ok: true };
 }
 
+// ---------------------------------------------------------------------------
+// Atualizar do SGP sob demanda: força a busca do status do contrato
+// (ativo/inativo), assinaturas e OS/agendamento — sem esperar o sync.
+// ---------------------------------------------------------------------------
+export type ResumoSgp = {
+  erro?: string;
+  statusSgp?: string;
+  termoAssinado?: boolean;
+  fidelidadeAssinada?: boolean;
+  osAbertas?: { protocolo: string | null; agendamento: string | null; responsavel: string | null }[];
+};
+
+export async function atualizarTicketDoSgp(ticketId: string): Promise<ResumoSgp> {
+  await exigirUsuario();
+  const supabase = criarClienteServidor();
+  const { data: t } = await supabase
+    .from("tickets")
+    .select("contrato_id")
+    .eq("id", ticketId)
+    .maybeSingle();
+  if (!t?.contrato_id)
+    return { erro: "Este ticket ainda não tem contrato vinculado ao SGP (aguarde a reconciliação)." };
+
+  const { atualizarContratoDoSgp } = await import("@/lib/sgp/atualizar");
+  const r = await atualizarContratoDoSgp(t.contrato_id);
+  if (!r.ok) return { erro: r.erro ?? "Falha ao consultar o SGP." };
+  revalidatePath(`/crm/${ticketId}`);
+  revalidar();
+  return {
+    statusSgp: r.statusSgp,
+    termoAssinado: r.termoAssinado,
+    fidelidadeAssinada: r.fidelidadeAssinada,
+    osAbertas: r.osAbertas,
+  };
+}
+
 // Exclusão administrativa (só gestor): remove o ticket e seus filhos.
 // A regra geral é "ticket não se exclui" (auditoria); esta é a exceção do
 // Administrador para limpeza (ex.: apagar tickets de teste). RLS + gatilho
