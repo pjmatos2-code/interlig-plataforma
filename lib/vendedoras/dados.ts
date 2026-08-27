@@ -109,7 +109,7 @@ export async function listaVendedoras(
   const seteAtras = somarDias(cal.hoje, -6);
   const quatorzeAtras = somarDias(cal.hoje, -13);
 
-  return (vendedoras ?? []).map((v) => {
+  const linhas = (vendedoras ?? []).map((v) => {
     const proprios = contratos.filter((c) => c.vendedor_id === v.id);
     const vendasP = vendasDoPeriodo(proprios, periodo.de, periodo.ate);
     const vendasMes = vendasDoPeriodo(proprios, cal.inicioMes, cal.hoje).length;
@@ -147,6 +147,11 @@ export async function listaVendedoras(
       tendencia: tendencia(ult7, ant7),
     };
   });
+
+  // ordem por resultado (critério oficial do ranking): vendas ↓, ticket médio ↓
+  return linhas.sort(
+    (a, b) => b.vendas - a.vendas || b.ticketMedio - a.ticketMedio || a.nome.localeCompare(b.nome)
+  );
 }
 
 export type VendaListada = {
