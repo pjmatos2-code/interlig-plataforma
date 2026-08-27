@@ -23,9 +23,9 @@ export function BotaoAtualizarContrato({ contratoId }: { contratoId: string }) {
           if (!r.erro) router.refresh();
         }}
         title="Atualizar este contrato no SGP agora (status, assinaturas, agendamento)"
-        className="rounded bg-interlig-ceu/10 px-1.5 py-0.5 text-[11px] font-semibold text-interlig-ceu transition-colors hover:bg-interlig-ceu/20 disabled:opacity-50"
+        className="rounded-md border border-interlig-ceu/40 bg-interlig-ceu/10 px-2 py-0.5 text-xs font-semibold text-interlig-ceu shadow-sm transition-colors hover:bg-interlig-ceu/25 disabled:opacity-50"
       >
-        {aguardando ? "…" : "⟳"}
+        {aguardando ? "⏳" : "🔄"}
       </button>
       {resumo?.erro && <span className="text-[10px] text-destructive">{resumo.erro}</span>}
       {resumo && !resumo.erro && (
