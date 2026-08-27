@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { formatarMoeda } from "@/lib/format";
 import { aplicarLinkSgp } from "@/lib/sgp/links";
 import type { ItemEsteira } from "@/lib/esteira/dados";
+import { BotaoAtualizarContrato } from "@/components/esteira/botao-atualizar";
 
 const LIMITE_VISIVEL = 25;
 
@@ -46,17 +47,20 @@ function LinhaCliente({ item, linkTemplate, mostrarPop }: { item: ItemEsteira; l
       </p>
       <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
         {item.plano} · {formatarMoeda(item.valor)}
-        {item.sgpContratoId && link && (
-          <a
-            href={link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ml-auto rounded bg-interlig-ceu/10 px-1.5 py-0.5 font-mono text-[11px] text-interlig-ceu hover:underline"
-            title="Contrato no SGP"
-          >
-            #{item.sgpContratoId}
-          </a>
-        )}
+        <span className="ml-auto inline-flex items-center gap-1">
+          {item.sgpContratoId && link && (
+            <a
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded bg-interlig-ceu/10 px-1.5 py-0.5 font-mono text-[11px] text-interlig-ceu hover:underline"
+              title="Contrato no SGP"
+            >
+              #{item.sgpContratoId}
+            </a>
+          )}
+          <BotaoAtualizarContrato contratoId={item.id} />
+        </span>
       </p>
       {item.temOs && <LinhaOs item={item} linkTemplate={linkTemplate} />}
     </>

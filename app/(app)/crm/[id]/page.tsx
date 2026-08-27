@@ -208,11 +208,9 @@ export default async function TicketPage({ params }: { params: { id: string } })
             <p><span className="text-muted-foreground">Vendedora:</span> {t.vendedora ?? "Não atribuído"}</p>
             <p><span className="text-muted-foreground">POP:</span> {t.pop ?? "—"}</p>
             <p><span className="text-muted-foreground">Criado em:</span> {formatarDataHora(t.criado_em)}</p>
-            {t.contrato_id && (
-              <div className="pt-1">
-                <BotaoAtualizarSgp ticketId={t.id} />
-              </div>
-            )}
+            <div className="pt-1">
+              <BotaoAtualizarSgp ticketId={t.id} />
+            </div>
             <p>
               <span className="text-muted-foreground">1ª tratativa:</span>{" "}
               {t.primeira_tratativa_em ? formatarDataHora(t.primeira_tratativa_em) : "ainda não houve"}
