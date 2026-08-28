@@ -260,8 +260,9 @@ export async function carregarCrm(
   for (const t of abertos) {
     colunas[t.etapa as EtapaTicket]?.push(paraCartao(t));
   }
+  // ordem de CHEGADA: leads mais novos no topo (decisão do gestor 27/08)
   for (const etapa of ["novo", "em_atendimento", "proposta", "aguardando"] as const) {
-    colunas[etapa].sort((a, b) => (a.atualizado_em < b.atualizado_em ? -1 : 1));
+    colunas[etapa].sort((a, b) => (a.criado_em > b.criado_em ? -1 : 1));
   }
   for (const t of fechados) {
     const destino =
