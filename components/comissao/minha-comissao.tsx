@@ -5,6 +5,16 @@ import { aplicarLinkSgp } from "@/lib/sgp/links";
 import { formatarMoeda, formatarData } from "@/lib/format";
 import type { MinhaComissao } from "@/lib/comissao/minha";
 
+const MES_EXTENSO = [
+  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
+/** "2026-06-01" -> "junho/2026" */
+function rotuloMes(iso: string): string {
+  const [ano, mes] = iso.split("-");
+  return `${MES_EXTENSO[Number(mes) - 1] ?? mes}/${ano}`;
+}
+
 /**
  * Seção "Minha comissão" do Minhas vendas: resultado da faixa, contratos
  * pendentes de liberação (com o que falta) e inadimplentes dos 90 dias que
@@ -39,7 +49,9 @@ export function PainelMinhaComissao({
         <CardTitle>Minha comissão — mês corrente</CardTitle>
         <p className="text-sm text-muted-foreground">
           A venda pontua a meta ao ser cadastrada; a comissão libera com Termo + Fidelidade
-          assinados e serviço ativo. Inadimplente dos 90 dias soma na meta (precisa repor).
+          assinados e serviço ativo. O débito da meta avalia as vendas de{" "}
+          <strong>{rotuloMes(dados.mesCoorte)}</strong> (três meses atrás) que seguem
+          canceladas/suspensas sem pagar a 1ª fatura.
         </p>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -68,7 +80,7 @@ export function PainelMinhaComissao({
             <p className="text-xs text-muted-foreground">Débito na meta (90d)</p>
             <p className="text-xl font-semibold tabular-nums">{r.debitoMeta > 0 ? `+${r.debitoMeta}` : "0"}</p>
             <p className="text-[11px] text-muted-foreground">
-              {dados.debitoTravado ? "travado no dia 1º" : r.debitoMeta > 0 ? "vendas a repor" : "nenhum"}
+              {dados.debitoManual ? "ajuste da gestão" : `vendas de ${rotuloMes(dados.mesCoorte)}`}
             </p>
           </div>
           <div className="rounded-lg border p-3">
@@ -140,10 +152,8 @@ export function PainelMinhaComissao({
         <div className="rounded-lg border">
           <div className="border-b bg-rose-50/60 px-4 py-2.5">
             <p className="text-sm font-semibold text-rose-900">
-              Inadimplentes dos 90 dias ({dados.inadimplentes.length})
-              {dados.debitoTravado
-                ? " — acompanhamento ao vivo; o débito oficial foi travado no dia 1º"
-                : " — cada um soma +1 na sua meta do mês"}
+              Clientes de {rotuloMes(dados.mesCoorte)} pendentes ({dados.inadimplentes.length}) — cada um
+              soma +1 na sua meta deste mês. Recuperou o cliente até o fechamento? Sai do débito.
             </p>
           </div>
           <div className="max-h-64 overflow-y-auto overflow-x-auto">

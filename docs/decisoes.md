@@ -494,3 +494,26 @@ grava via client admin para gestor e coordenador (cruza POPs); a vendedora exter
 segue restrita às suas próprias visitas pela RLS. Se no futuro houver mais de um
 coordenador e for preciso segmentar por praça, marcar o coordenador do PAP e trocar
 a leitura admin por uma política RLS específica de venda externa.
+
+## D14 — Débito de meta por COORTE MENSAL (M-3) — 28/08/2026
+**Substitui** a janela móvel de 90 dias (Instrução Geral AGO/2026, seção 6).
+Formalizado no **Adendo 01/2026**.
+
+- A competência M avalia **somente as vendas do mês M-3**: agosto→maio,
+  setembro→junho, outubro→julho.
+- **Lista fixa** (a coorte não muda), **status reavaliado** até o fechamento:
+  cliente reativado ou que quitou a 1ª fatura **sai do débito** (opção B).
+- **Critério mantido**: cancelado/suspenso **E** 1ª fatura vencida não liquidada.
+- **Motivo**: na janela móvel, o mesmo contrato podia debitar a agente em até 3
+  competências seguidas (dupla/tripla contagem). Na coorte, cada venda é
+  julgada uma única vez.
+- **Override**: linha em `debitos_meta_mensal` com origem 'manual' prevalece
+  (ajuste validado pela gestão), auditável.
+- Implementação: `lib/comissao/debito.ts` (usado por `comissoesDoMes` e
+  `minhaComissao`). O congelador automático do dia 1º foi removido — a coorte
+  é auto-travada por definição.
+
+**Números de agosto/2026 (coorte de maio) na virada da regra:**
+Andrea 6 · Karoline 6 · Ivanilda VTX 2 · Aline Santos 1 · Janaína 1 · Tamiris 1.
+(Pela regra antiga seriam: Karoline 11 · Damely 10 · Jessica 7 · Andrea 6 ·
+Ivanilda 4 · Tamiris 3 · Aline 3 · Janaína 2 · Loja VTX 1 · Maclicya 1.)

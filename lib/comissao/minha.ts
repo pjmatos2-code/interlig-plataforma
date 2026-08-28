@@ -38,8 +38,10 @@ export type InadimplenteDebito = {
 
 export type MinhaComissao = {
   temRegra: boolean;
-  /** débito congelado no dia 1º (regra 28/08); false = cálculo ao vivo (transição) */
-  debitoTravado: boolean;
+  /** mês da coorte avaliada (M-3) — as vendas que geram o débito deste mês */
+  mesCoorte: string;
+  /** número veio de ajuste manual validado pela gestão */
+  debitoManual: boolean;
   metaMensal: number | null;
   faixaAtual: string | null;
   resultado: ResultadoComissao | null;
@@ -75,12 +77,14 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
   const fim = ultimoDiaDoMes(mes);
   const ateData = fim < hoje ? fim : hoje;
 
+  const { debitoPorCoorte, mesDaCoorte } = await import("@/lib/comissao/debito");
   const vazio: MinhaComissao = {
-    temRegra: false, debitoTravado: false, metaMensal: null, faixaAtual: null, resultado: null,
-    pendentes: [], liberadas: 0, inadimplentes: [], entradaSimulador: null,
+    temRegra: false, mesCoorte: mesDaCoorte(mes), debitoManual: false, metaMensal: null,
+    faixaAtual: null, resultado: null, pendentes: [], liberadas: 0, inadimplentes: [],
+    entradaSimulador: null,
   };
 
-  const [{ data: vend }, { data: contratosBrutos }, { data: metaRow }, regras, { data: ticketsConvertidos }, { data: monitorados }] =
+  const [{ data: vend }, { data: contratosBrutos }, { data: metaRow }, regras, { data: ticketsConvertidos }] =
     await Promise.all([
       admin.from("vendedores").select("id, pop_id").eq("id", vendedorId).maybeSingle(),
       admin
@@ -112,17 +116,6 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
         .eq("desfecho", "convertido")
         .not("contrato_id", "is", null)
         .limit(3000),
-      admin
-        .from("contratos")
-        .select(
-          "id, sgp_contrato_id, status, data_venda, clientes(nome, sgp_cliente_id), titulos!inner(numero_parcela, status, vencimento)"
-        )
-        .eq("vendedor_id", vendedorId)
-        .gte("data_venda", somarDias(mes, -90))
-        .lt("data_venda", mes)
-        .in("status", ["suspenso", "cancelado"])
-        .eq("titulos.numero_parcela", 1)
-        .limit(500),
     ]);
 
   if (!vend) return vazio;
@@ -137,32 +130,19 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
       .map((t) => [t.contrato_id as string, t])
   );
 
-  // ---- inadimplentes dos 90 dias (débito soma na meta) ----
-  const inadimplentes: InadimplenteDebito[] = [];
-  for (const m of (monitorados ?? []) as unknown as {
-    sgp_contrato_id: string | null;
-    status: string;
-    clientes: { nome: string; sgp_cliente_id: string | null } | null;
-    titulos: { numero_parcela: number; status: string; vencimento: string }[];
-  }[]) {
-    const primeira = (m.titulos ?? []).find((t) => t.numero_parcela === 1);
-    const naoPagou =
-      primeira !== undefined && primeira.status !== "liquidado" && primeira.vencimento < hoje;
-    if (!naoPagou) continue;
-    inadimplentes.push({
-      sgpContratoId: m.sgp_contrato_id,
-      sgpClienteId: m.clientes?.sgp_cliente_id ?? null,
-      cliente: m.clientes?.nome ?? "—",
-      status: m.status,
-      vencimento1a: primeira?.vencimento ?? null,
-    });
-  }
-  // débito TRAVADO no dia 1º (regra 28/08); a lista ao vivo segue exibida
-  // como acompanhamento, mas o número oficial é o congelado
-  const { debitosTravados } = await import("@/lib/comissao/congelar");
-  const travados = await debitosTravados(mes);
-  const debitoTravado = travados !== null;
-  const debitoMeta = travados ? (travados.get(vendedorId) ?? 0) : inadimplentes.length;
+  // ---- débito por COORTE M-3 (adendo 28/08) ----
+  const coorteDebito = await debitoPorCoorte(mes);
+  const inadimplentes: InadimplenteDebito[] = (
+    coorteDebito.itensPorVendedora.get(vendedorId) ?? []
+  ).map((i) => ({
+    sgpContratoId: i.sgpContratoId,
+    sgpClienteId: i.sgpClienteId,
+    cliente: i.cliente,
+    status: i.status,
+    vencimento1a: i.vencimento1a,
+  }));
+  const debitoMeta = coorteDebito.porVendedora.get(vendedorId) ?? 0;
+  const debitoManual = coorteDebito.manuais.has(vendedorId);
 
   // ---- vendas do mês + liberação D5/D8 + pendências detalhadas ----
   const proprias = vendasDoPeriodo(contratos, mes, ateData) as ContratoM[];
@@ -214,7 +194,8 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
 
   return {
     temRegra: true,
-    debitoTravado,
+    mesCoorte: coorteDebito.coorte,
+    debitoManual,
     metaMensal: meta,
     faixaAtual,
     resultado,
