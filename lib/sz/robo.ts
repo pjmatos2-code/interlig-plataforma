@@ -95,12 +95,18 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
 
       let existente: string | null = null;
       if (tel) {
+        // dedup: considera abertos E fechados nos últimos 15 dias — sem isso o
+        // robô recriava o ticket depois que a venda fechava (duplicata que
+        // depois travava a liberação da comissão)
+        const corteDedup = new Date(Date.now() - 15 * 86_400_000).toISOString();
         const { data: abertos } = await admin
           .from("tickets")
-          .select("id, telefone, vendedor_id")
-          .neq("etapa", "fechado")
-          .limit(2000);
+          .select("id, telefone, vendedor_id, etapa, fechado_em")
+          .or(`etapa.neq.fechado,fechado_em.gte.${corteDedup}`)
+          .limit(3000);
         const achado = (abertos ?? []).find((t) => soDigitos(t.telefone) === tel);
+        // ticket já fechado (venda concluída): não recria nem reabre
+        if (achado && achado.etapa === "fechado") continue;
         existente = achado?.id ?? null;
         // quem atende no SZ é a responsável pelo cliente: preenche quando vazio
         if (achado && !achado.vendedor_id && vendedorId) {

@@ -124,11 +124,15 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
   if (!meta || !regra) return { ...vazio, metaMensal: meta };
 
   const contratos = (contratosBrutos ?? []) as unknown as ContratoM[];
-  const ticketPorContrato = new Map(
-    (ticketsConvertidos ?? [])
-      .filter((t) => t.vendedor_id === vendedorId || true)
-      .map((t) => [t.contrato_id as string, t])
-  );
+  const { consistenciaCrm } = await import("@/lib/comissao/consistencia");
+  const ticketsPorContrato = new Map<string, { contrato_id: string | null; vendedor_id: string | null; plano_id: string | null }[]>();
+  for (const t of ticketsConvertidos ?? []) {
+    const k = t.contrato_id as string;
+    ticketsPorContrato.set(k, [...(ticketsPorContrato.get(k) ?? []), t]);
+  }
+  const { data: vendsNomes } = await admin.from("vendedores").select("id, nome");
+  const nomeVend = (id: string | null) =>
+    (vendsNomes ?? []).find((v) => v.id === id)?.nome ?? "não atribuído";
 
   // ---- débito por COORTE M-3 (adendo 28/08) ----
   const coorteDebito = await debitoPorCoorte(mes);
@@ -152,11 +156,12 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
     const referencia = c.data_ativacao ?? c.data_venda;
     const estornada =
       c.data_cancelamento !== null && dias(referencia, c.data_cancelamento) <= regra.estorno_dias;
-    const ticket = ticketPorContrato.get(c.id);
-    const crmConsistente =
-      ticket === undefined ||
-      (ticket.vendedor_id === vendedorId &&
-        (ticket.plano_id === null || c.plano_id === null || ticket.plano_id === c.plano_id));
+    const cons = consistenciaCrm(
+      ticketsPorContrato.get(c.id) ?? [],
+      { vendedor_id: vendedorId, plano_id: c.plano_id },
+      nomeVend
+    );
+    const crmConsistente = cons.ok;
     const assinaturasOk = c.termo_adesao_assinado === true && c.fidelidade_assinada === true;
     const liberada = crmConsistente && assinaturasOk && c.status === "ativo";
 
@@ -165,7 +170,7 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
       if (c.termo_adesao_assinado !== true) p.push("Termo de Adesão sem assinatura");
       if (c.fidelidade_assinada !== true) p.push("Contrato de Fidelidade sem assinatura");
       if (c.status !== "ativo") p.push(`serviço ${c.status.replace(/_/g, " ")}`);
-      if (!crmConsistente) p.push("ticket do CRM inconsistente");
+      if (!crmConsistente) p.push(cons.motivo ?? "CRM divergente");
       pendentes.push({
         sgpContratoId: c.sgp_contrato_id,
         sgpClienteId: c.clientes?.sgp_cliente_id ?? null,
