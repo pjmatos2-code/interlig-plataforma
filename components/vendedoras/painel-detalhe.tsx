@@ -11,6 +11,43 @@ import type { DetalheVendedora } from "@/lib/vendedoras/dados";
  * Corpo do drill-down da vendedora (PRD 3.2). Reutilizado em duas telas:
  * /vendedoras/[id] (gestor/supervisor) e /minhas-vendas (a própria vendedora).
  */
+/** Resumo colorido da situação atual das vendas do período (ao lado do título). */
+function ResumoStatus({ vendas }: { vendas: { status: string }[] }) {
+  const contagem = new Map<string, number>();
+  for (const v of vendas) contagem.set(v.status, (contagem.get(v.status) ?? 0) + 1);
+
+  const ORDEM: { chave: string; rotulo: string; classe: string }[] = [
+    { chave: "ativo", rotulo: "ativos", classe: "bg-farol-verde/12 text-farol-verde ring-farol-verde/25" },
+    { chave: "aguardando_ativacao", rotulo: "aguardando ativação", classe: "bg-amber-100 text-amber-800 ring-amber-300/60" },
+    { chave: "pendente_assinatura", rotulo: "pendente assinatura", classe: "bg-sky-100 text-sky-800 ring-sky-300/60" },
+    { chave: "suspenso", rotulo: "suspensos", classe: "bg-orange-100 text-orange-800 ring-orange-300/60" },
+    { chave: "cancelado", rotulo: "cancelados", classe: "bg-rose-100 text-rose-800 ring-rose-300/60" },
+  ];
+  const visiveis = ORDEM.filter((o) => (contagem.get(o.chave) ?? 0) > 0);
+  if (visiveis.length === 0) return null;
+
+  const naoAtivos = vendas.length - (contagem.get("ativo") ?? 0);
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {visiveis.map((o) => (
+        <span
+          key={o.chave}
+          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${o.classe}`}
+          title={`${contagem.get(o.chave)} ${o.rotulo} no período`}
+        >
+          {contagem.get(o.chave)} {o.rotulo}
+        </span>
+      ))}
+      {naoAtivos > 0 && (
+        <span className="text-xs text-muted-foreground">
+          · {naoAtivos} não {naoAtivos === 1 ? "ativo" : "ativos"} (
+          {Math.round((naoAtivos / Math.max(1, vendas.length)) * 100)}%)
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function PainelDetalheVendedora({ detalhe }: { detalhe: DetalheVendedora }) {
   const k = detalhe.kpis;
 
@@ -64,7 +101,10 @@ export function PainelDetalheVendedora({ detalhe }: { detalhe: DetalheVendedora 
 
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle>Vendas do período ({detalhe.vendas.length})</CardTitle>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <CardTitle>Vendas do período ({detalhe.vendas.length})</CardTitle>
+              <ResumoStatus vendas={detalhe.vendas} />
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
