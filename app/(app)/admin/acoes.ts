@@ -165,6 +165,24 @@ export async function salvarPlanosExterna(_e: EstadoAdmin, dados: FormData): Pro
   return { ok: true };
 }
 
+// Tabela oficial de preços: valor do plano COM fidelidade — é ele que define
+// o valor da venda quando o boleto pró-rata vem menor (migração 0043).
+export async function salvarPrecoPlano(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
+  await exigirPerfil(["gestor"]);
+  const planoId = String(dados.get("plano_id") ?? "");
+  const valor = Number(String(dados.get("valor") ?? "").replace(",", "."));
+  if (!planoId || !Number.isFinite(valor) || valor <= 0)
+    return { erro: "Informe um valor válido (maior que zero)." };
+  const supabase = criarClienteServidor();
+  const { error } = await supabase
+    .from("planos")
+    .update({ valor_referencia: valor })
+    .eq("id", planoId);
+  if (error) return { erro: error.message };
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
 export async function alternarUsuario(id: string, ativo: boolean): Promise<EstadoAdmin> {
   const usuario = await exigirPerfil(["gestor"]);
   if (id === usuario.id) return { erro: "Você não pode desativar a si mesmo." };

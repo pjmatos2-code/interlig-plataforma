@@ -8,6 +8,7 @@ import {
   alternarUsuario,
   definirAgentesCoordenador,
   salvarPlanosExterna,
+  salvarPrecoPlano,
   salvarOrigem,
   excluirOrigem,
   salvarAtendente,
@@ -464,5 +465,68 @@ export function GestaoPlanosExterna({
         <Mensagem estado={estado} />
       </div>
     </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tabela oficial de preços dos planos (com fidelidade) — define o valor da
+// venda quando o 1º boleto vem pró-rata (menor que o preço do plano).
+// ---------------------------------------------------------------------------
+function LinhaPreco({ plano }: { plano: { id: string; nome: string; valor_referencia: number } }) {
+  const [estado, acao] = useFormState(salvarPrecoPlano, inicial);
+  return (
+    <li className="flex items-center gap-3 px-3 py-2 text-sm">
+      <span className="min-w-0 flex-1 truncate">{plano.nome}</span>
+      <form action={acao} className="flex items-center gap-2">
+        <input type="hidden" name="plano_id" value={plano.id} />
+        <span className="text-xs text-muted-foreground">R$</span>
+        <Input
+          name="valor"
+          defaultValue={plano.valor_referencia.toFixed(2).replace(".", ",")}
+          className="h-8 w-24 text-right tabular-nums"
+        />
+        <BotaoSalvar rotulo="Salvar" />
+        {estado.ok && <span className="text-xs text-farol-verde">✓</span>}
+        {estado.erro && <span className="text-xs text-destructive">{estado.erro}</span>}
+      </form>
+    </li>
+  );
+}
+
+export function GestaoPrecosPlanos({
+  planos,
+}: {
+  planos: { id: string; nome: string; valor_referencia: number }[];
+}) {
+  const [busca, setBusca] = useState("");
+  const filtro = busca.trim().toLowerCase();
+  const visiveis = filtro ? planos.filter((p) => p.nome.toLowerCase().includes(filtro)) : planos;
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <Input
+          placeholder="Buscar plano pelo nome…"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          className="max-w-sm"
+        />
+        <span className="text-xs text-muted-foreground">
+          Valor oficial COM fidelidade. Boleto pró-rata menor que este valor é elevado ao preço
+          da tabela; contrato com valor MAIOR (ex.: condomínio) é preservado.
+        </span>
+      </div>
+      <div className="max-h-72 overflow-y-auto rounded-md border">
+        <ul className="divide-y">
+          {visiveis.map((p) => (
+            <LinhaPreco key={p.id} plano={p} />
+          ))}
+          {visiveis.length === 0 && (
+            <li className="px-3 py-6 text-center text-sm text-muted-foreground">
+              Nenhum plano com esse nome.
+            </li>
+          )}
+        </ul>
+      </div>
+    </div>
   );
 }
