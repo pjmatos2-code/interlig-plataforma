@@ -62,7 +62,7 @@ export function GraficoVendasDiarias({
 }) {
   return (
     <ResponsiveContainer width="100%" height={240}>
-      <ComposedChart data={dados} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
+      <ComposedChart data={dados} margin={{ top: 22, right: 8, bottom: 0, left: -18 }}>
         <CartesianGrid stroke={GRADE} strokeWidth={1} vertical={false} />
         <XAxis
           dataKey="dia"
@@ -100,7 +100,16 @@ export function GraficoVendasDiarias({
             }}
           />
         )}
-        <Bar dataKey="vendas" fill={AZUL_SERIE} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+        <Bar dataKey="vendas" fill={AZUL_SERIE} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false}>
+          {/* número acima da barra; dia sem venda não recebe rótulo */}
+          <LabelList
+            dataKey="vendas"
+            position="top"
+            offset={6}
+            formatter={(v: unknown) => (Number(v) > 0 ? formatarNumero(Number(v)) : "")}
+            style={{ fontSize: 11, fontWeight: 600, fill: "#0F2A54" }}
+          />
+        </Bar>
       </ComposedChart>
     </ResponsiveContainer>
   );
