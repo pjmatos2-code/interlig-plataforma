@@ -83,8 +83,10 @@ export default async function EsteiraPage({
     ? { data: [] as { id: string; nome: string }[] }
     : await supabase.from("pops").select("id, nome").order("nome");
 
+  // busca personalizada: o kanban inteiro passa a refletir o período escolhido
+  const buscaPorPeriodo = searchParams.periodo === "personalizado";
   const [d, linkTemplate] = await Promise.all([
-    carregarEsteira(periodo, popFiltro),
+    carregarEsteira(periodo, popFiltro, buscaPorPeriodo),
     templateLinkSgp(),
   ]);
   const ehGestorSemFiltro = usuario.perfil === "gestor" && !popFiltro;
@@ -111,9 +113,11 @@ export default async function EsteiraPage({
         descricao={
           busca
             ? `Filtrando por "${busca}" — limpe a busca para ver tudo`
-            : ehVend
-              ? "Acompanhe seus clientes: quem falta assinar, quem já está agendado e quem foi instalado"
-              : `Pendências mostram o estoque atual · taxa e tempos seguem o período ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`
+            : buscaPorPeriodo
+              ? `Vendas de ${formatarData(periodo.de)} a ${formatarData(periodo.ate)} — as três colunas mostram só esse período`
+              : ehVend
+                ? "Acompanhe seus clientes: quem falta assinar, quem já está agendado e quem foi instalado"
+                : `Pendências mostram o estoque atual · taxa e tempos seguem o período ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`
         }
       />
 

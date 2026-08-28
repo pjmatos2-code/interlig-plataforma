@@ -78,12 +78,16 @@ function dias(deIso: string, ateIso: string) {
  */
 export async function carregarEsteira(
   periodo: Periodo,
-  popId: string | null
+  popId: string | null,
+  /** true = as pendências também respeitam o período (busca personalizada);
+   *  false = kanban mostra o estoque atual, útil na operação do dia a dia */
+  pendenciasNoPeriodo = false
 ): Promise<DadosEsteira> {
   const supabase = criarClienteServidor();
   const hoje = hojeIso();
 
-  // estoque de pendências (sem filtro de data)
+  // pendências: estoque atual por padrão; na busca por período, só as vendas
+  // feitas dentro do intervalo selecionado
   let consultaPendencias = supabase
     .from("contratos")
     .select(CAMPOS)
@@ -91,6 +95,10 @@ export async function carregarEsteira(
     .or("data_assinatura.is.null,data_ativacao.is.null")
     .limit(3000);
   if (popId) consultaPendencias = consultaPendencias.eq("pop_id", popId);
+  if (pendenciasNoPeriodo)
+    consultaPendencias = consultaPendencias
+      .gte("data_venda", periodo.de)
+      .lte("data_venda", periodo.ate);
 
   // vendas do período (para 5.9) e ativações do período (tempo médio + coluna)
   let consultaVendas = supabase
@@ -116,6 +124,10 @@ export async function carregarEsteira(
     .eq("situacao", "aberta")
     .limit(500);
   if (popId) consultaOs = consultaOs.eq("contratos.pop_id", popId);
+  if (pendenciasNoPeriodo)
+    consultaOs = consultaOs
+      .gte("contratos.data_venda", periodo.de)
+      .lte("contratos.data_venda", periodo.ate);
 
   const [{ data: pendenciasBrutas }, { data: vendasBrutas }, { data: ativadasBrutas }, { data: osBrutas }] =
     await Promise.all([consultaPendencias, consultaVendas, consultaAtivadas, consultaOs]);

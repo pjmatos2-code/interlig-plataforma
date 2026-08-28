@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
 
 const PERIODOS = [
@@ -31,6 +31,18 @@ export function FiltrosDashboard({
   const periodoAtivo = params.get("periodo") ?? "mes";
   const popAtivo = params.get("pop") ?? "";
 
+  // datas ficam em estado local: a busca só roda no "Buscar" (antes, cada
+  // campo disparava sozinho e consultava com a outra data ainda antiga)
+  const [deLocal, setDeLocal] = useState(de);
+  const [ateLocal, setAteLocal] = useState(ate);
+  useEffect(() => {
+    setDeLocal(de);
+    setAteLocal(ate);
+  }, [de, ate]);
+
+  const alterado = deLocal !== de || ateLocal !== ate;
+  const invalido = Boolean(deLocal && ateLocal && deLocal > ateLocal);
+
   function aplicar(mudancas: Record<string, string | null>) {
     const novos = new URLSearchParams(params.toString());
     for (const [chave, valor] of Object.entries(mudancas)) {
@@ -38,6 +50,11 @@ export function FiltrosDashboard({
       else novos.set(chave, valor);
     }
     iniciar(() => router.replace(`${caminho}?${novos.toString()}`, { scroll: false }));
+  }
+
+  function buscar() {
+    if (!deLocal || !ateLocal || invalido) return;
+    aplicar({ periodo: "personalizado", de: deLocal, ate: ateLocal });
   }
 
   return (
@@ -72,22 +89,52 @@ export function FiltrosDashboard({
       </div>
 
       {periodoAtivo === "personalizado" && (
-        <div className="flex items-center gap-1.5 text-sm">
+        <div className="flex flex-wrap items-center gap-1.5 text-sm">
           <input
             type="date"
-            defaultValue={de}
-            onChange={(e) => e.target.value && aplicar({ de: e.target.value })}
-            className="h-9 rounded-md border bg-background px-2"
+            value={deLocal}
+            onChange={(e) => setDeLocal(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && buscar()}
+            className={cn(
+              "h-9 rounded-md border bg-background px-2",
+              invalido && "border-destructive"
+            )}
             aria-label="Data inicial"
           />
           <span className="text-muted-foreground">até</span>
           <input
             type="date"
-            defaultValue={ate}
-            onChange={(e) => e.target.value && aplicar({ ate: e.target.value })}
-            className="h-9 rounded-md border bg-background px-2"
+            value={ateLocal}
+            onChange={(e) => setAteLocal(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && buscar()}
+            className={cn(
+              "h-9 rounded-md border bg-background px-2",
+              invalido && "border-destructive"
+            )}
             aria-label="Data final"
           />
+          <button
+            type="button"
+            onClick={buscar}
+            disabled={!deLocal || !ateLocal || invalido}
+            className={cn(
+              "h-9 rounded-md px-4 text-sm font-semibold transition-colors disabled:opacity-50",
+              alterado && !invalido
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "border bg-background text-foreground hover:border-interlig-ceu"
+            )}
+            title="Aplicar o período selecionado"
+          >
+            {pendente ? "Buscando…" : "🔎 Buscar"}
+          </button>
+          {invalido && (
+            <span className="text-xs text-destructive">
+              a data inicial não pode ser maior que a final
+            </span>
+          )}
+          {alterado && !invalido && (
+            <span className="text-xs text-muted-foreground">clique em Buscar para aplicar</span>
+          )}
         </div>
       )}
 
