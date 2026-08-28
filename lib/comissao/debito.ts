@@ -17,8 +17,10 @@ import { hojeIso, mesAtras, primeiroDiaDoMes, ultimoDiaDoMes } from "@/lib/datas
  * uma única vez — o mesmo cliente nunca debita em dois meses (o que acontecia
  * na janela móvel de 90 dias).
  *
- * Critério de débito (mantido): contrato suspenso/cancelado E 1ª fatura
- * vencida sem pagamento (churn precoce de quem nunca pagou).
+ * Critério de débito: contrato suspenso/cancelado que NÃO tenha a 1ª fatura
+ * liquidada — inclui o cancelado que sequer chegou a ter fatura gerada (caso
+ * mais grave de churn precoce, que antes era silenciosamente ignorado por um
+ * INNER JOIN com títulos).
  *
  * Override: uma linha em debitos_meta_mensal com origem 'manual' para a
  * competência/vendedora tem precedência (ajuste validado pela gestão).
@@ -60,17 +62,19 @@ export async function debitoPorCoorte(competenciaIso?: string): Promise<DebitoCo
   const coorte = mesDaCoorte(competencia);
   const fimCoorte = ultimoDiaDoMes(coorte);
 
-  // vendas do mês da coorte que HOJE estão suspensas/canceladas
+  // vendas do mês da coorte que HOJE estão suspensas/canceladas.
+  // ATENÇÃO: join à esquerda de propósito — contrato cancelado costuma vir SEM
+  // títulos do SGP e um INNER JOIN o eliminaria do cálculo (bug corrigido em
+  // 28/08: 12 dos 16 cancelados de maio estavam invisíveis).
   const { data: candidatos } = await admin
     .from("contratos")
     .select(
-      "vendedor_id, sgp_contrato_id, status, data_venda, planos(nome), clientes(nome, sgp_cliente_id), titulos!inner(numero_parcela, status, vencimento)"
+      "vendedor_id, sgp_contrato_id, status, data_venda, planos(nome), clientes(nome, sgp_cliente_id), titulos(numero_parcela, status, vencimento)"
     )
     .gte("data_venda", coorte)
     .lte("data_venda", fimCoorte)
     .in("status", ["suspenso", "cancelado"])
     .not("vendedor_id", "is", null)
-    .eq("titulos.numero_parcela", 1)
     .limit(5000);
 
   const porVendedora = new Map<string, number>();
@@ -85,11 +89,11 @@ export async function debitoPorCoorte(competenciaIso?: string): Promise<DebitoCo
     clientes: { nome: string; sgp_cliente_id: string | null } | null;
     titulos: { numero_parcela: number; status: string; vencimento: string }[];
   }[]) {
+    // status reavaliado AGORA: quitou a 1ª fatura → sai do débito.
+    // Sem 1ª fatura liquidada (inclusive sem fatura alguma) → debita.
     const primeira = (c.titulos ?? []).find((t) => t.numero_parcela === 1);
-    // status reavaliado AGORA: quitou a 1ª fatura → sai do débito
-    const naoPagou =
-      primeira !== undefined && primeira.status !== "liquidado" && primeira.vencimento < hoje;
-    if (!naoPagou) continue;
+    const pagouPrimeira = primeira !== undefined && primeira.status === "liquidado";
+    if (pagouPrimeira) continue;
 
     porVendedora.set(c.vendedor_id, (porVendedora.get(c.vendedor_id) ?? 0) + 1);
     const lista = itensPorVendedora.get(c.vendedor_id) ?? [];
