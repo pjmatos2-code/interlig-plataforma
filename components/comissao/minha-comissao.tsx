@@ -50,8 +50,8 @@ export function PainelMinhaComissao({
         <p className="text-sm text-muted-foreground">
           A venda pontua a meta ao ser cadastrada; a comissão libera com Termo + Fidelidade
           assinados e serviço ativo. O débito da meta avalia as vendas de{" "}
-          <strong>{rotuloMes(dados.mesCoorte)}</strong> (três meses atrás) que seguem
-          canceladas/suspensas sem pagar a 1ª fatura.
+          <strong>{rotuloMes(dados.mesCoorte)}</strong> (três meses atrás) que hoje NÃO estão
+          ativas: pendentes de instalação, inativas, suspensas ou canceladas.
         </p>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -152,8 +152,9 @@ export function PainelMinhaComissao({
         <div className="rounded-lg border">
           <div className="border-b bg-rose-50/60 px-4 py-2.5">
             <p className="text-sm font-semibold text-rose-900">
-              Clientes de {rotuloMes(dados.mesCoorte)} pendentes ({dados.inadimplentes.length}) — cada um
-              soma +1 na sua meta deste mês. Recuperou o cliente até o fechamento? Sai do débito.
+              Clientes de {rotuloMes(dados.mesCoorte)} que não estão ativos ({dados.inadimplentes.length}) —
+              cada um soma +1 na sua meta deste mês. Cliente que voltar a ficar ATIVO até o
+              fechamento sai do débito.
             </p>
           </div>
           <div className="max-h-64 overflow-y-auto overflow-x-auto">
@@ -163,7 +164,7 @@ export function PainelMinhaComissao({
                   <th className="px-4 py-2 font-medium">Contrato</th>
                   <th className="px-3 py-2 font-medium">Cliente</th>
                   <th className="px-3 py-2 font-medium">Situação</th>
-                  <th className="px-3 py-2 font-medium">1ª fatura venceu em</th>
+                  <th className="px-3 py-2 font-medium">1ª fatura</th>
                 </tr>
               </thead>
               <tbody>
@@ -180,10 +181,16 @@ export function PainelMinhaComissao({
                       </td>
                       <td className="max-w-[16rem] truncate px-3 py-2">{i.cliente}</td>
                       <td className="px-3 py-2">
-                        <Badge variant={i.status === "cancelado" ? "vermelho" : "amarelo"}>{i.status}</Badge>
+                        <Badge variant={i.status === "cancelado" ? "vermelho" : "amarelo"}>
+                          {i.status === "aguardando_ativacao"
+                            ? "pendente instalação"
+                            : i.status === "pendente_assinatura"
+                              ? "pendente assinatura"
+                              : i.status}
+                        </Badge>
                       </td>
                       <td className="px-3 py-2 tabular-nums text-muted-foreground">
-                        {i.vencimento1a ? formatarData(i.vencimento1a) : "—"}
+                        {i.vencimento1a ? `venc. ${formatarData(i.vencimento1a)}` : "sem fatura gerada"}
                       </td>
                     </tr>
                   );

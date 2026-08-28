@@ -503,7 +503,12 @@ Formalizado no **Adendo 01/2026**.
   setembro→junho, outubro→julho.
 - **Lista fixa** (a coorte não muda), **status reavaliado** até o fechamento:
   cliente reativado ou que quitou a 1ª fatura **sai do débito** (opção B).
-- **Critério mantido**: cancelado/suspenso **E** 1ª fatura vencida não liquidada.
+- **Critério final (28/08, após validação com dados reais)**: conta como
+  pendente todo contrato da coorte que **não esteja ATIVO** no fechamento —
+  pendente de instalação, inativo/aguardando ativação, suspenso ou cancelado.
+  (Duas versões anteriores foram descartadas: "1ª fatura não paga" zerava
+  vendedoras com muitos suspensos, e o INNER JOIN com títulos escondia os
+  cancelados sem fatura — 12 dos 16 cancelados de maio ficavam invisíveis.)
 - **Motivo**: na janela móvel, o mesmo contrato podia debitar a agente em até 3
   competências seguidas (dupla/tripla contagem). Na coorte, cada venda é
   julgada uma única vez.
@@ -513,7 +518,7 @@ Formalizado no **Adendo 01/2026**.
   `minhaComissao`). O congelador automático do dia 1º foi removido — a coorte
   é auto-travada por definição.
 
-**Números de agosto/2026 (coorte de maio) na virada da regra:**
-Andrea 6 · Karoline 6 · Ivanilda VTX 2 · Aline Santos 1 · Janaína 1 · Tamiris 1.
-(Pela regra antiga seriam: Karoline 11 · Damely 10 · Jessica 7 · Andrea 6 ·
-Ivanilda 4 · Tamiris 3 · Aline 3 · Janaína 2 · Loja VTX 1 · Maclicya 1.)
+**Números finais de agosto/2026 (coorte de maio, critério "não ativo"):**
+Karoline 30 (de 143 vendas) · Damely 15 (56) · Andrea 11 (30) · Janaína 6 (21) ·
+Tamiris 5 (26) · Ivanilda VTX 3 (12) · Aline Santos 3 (20) · Loja VTX 0 (6).
+Total: 73 pendentes de 314 vendas de maio (23%).

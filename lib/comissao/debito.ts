@@ -17,10 +17,11 @@ import { hojeIso, mesAtras, primeiroDiaDoMes, ultimoDiaDoMes } from "@/lib/datas
  * uma única vez — o mesmo cliente nunca debita em dois meses (o que acontecia
  * na janela móvel de 90 dias).
  *
- * Critério de débito: contrato suspenso/cancelado que NÃO tenha a 1ª fatura
- * liquidada — inclui o cancelado que sequer chegou a ter fatura gerada (caso
- * mais grave de churn precoce, que antes era silenciosamente ignorado por um
- * INNER JOIN com títulos).
+ * Critério de débito (definição do gestor, 28/08): conta como PENDENTE todo
+ * contrato da coorte que, no fechamento, NÃO esteja ATIVO — ou seja, que
+ * esteja pendente de instalação, inativo (aguardando ativação), suspenso ou
+ * cancelado. A venda só se sustenta quando o cliente está ativo e pagando; o
+ * que não estiver ativo a agente repõe.
  *
  * Override: uma linha em debitos_meta_mensal com origem 'manual' para a
  * competência/vendedora tem precedência (ajuste validado pela gestão).
@@ -62,10 +63,10 @@ export async function debitoPorCoorte(competenciaIso?: string): Promise<DebitoCo
   const coorte = mesDaCoorte(competencia);
   const fimCoorte = ultimoDiaDoMes(coorte);
 
-  // vendas do mês da coorte que HOJE estão suspensas/canceladas.
-  // ATENÇÃO: join à esquerda de propósito — contrato cancelado costuma vir SEM
-  // títulos do SGP e um INNER JOIN o eliminaria do cálculo (bug corrigido em
-  // 28/08: 12 dos 16 cancelados de maio estavam invisíveis).
+  // vendas do mês da coorte que HOJE não estão ativas (pendente de assinatura,
+  // aguardando ativação/inativo, suspenso ou cancelado).
+  // Join à esquerda de propósito: contrato cancelado costuma vir SEM títulos do
+  // SGP e um INNER JOIN o eliminaria do cálculo.
   const { data: candidatos } = await admin
     .from("contratos")
     .select(
@@ -73,7 +74,7 @@ export async function debitoPorCoorte(competenciaIso?: string): Promise<DebitoCo
     )
     .gte("data_venda", coorte)
     .lte("data_venda", fimCoorte)
-    .in("status", ["suspenso", "cancelado"])
+    .neq("status", "ativo")
     .not("vendedor_id", "is", null)
     .limit(5000);
 
@@ -89,11 +90,10 @@ export async function debitoPorCoorte(competenciaIso?: string): Promise<DebitoCo
     clientes: { nome: string; sgp_cliente_id: string | null } | null;
     titulos: { numero_parcela: number; status: string; vencimento: string }[];
   }[]) {
-    // status reavaliado AGORA: quitou a 1ª fatura → sai do débito.
-    // Sem 1ª fatura liquidada (inclusive sem fatura alguma) → debita.
+    // status reavaliado AGORA: se o contrato voltar a ATIVO até o fechamento,
+    // ele deixa de constar aqui (a consulta já filtra) — recuperar o cliente
+    // continua sendo alternativa à reposição.
     const primeira = (c.titulos ?? []).find((t) => t.numero_parcela === 1);
-    const pagouPrimeira = primeira !== undefined && primeira.status === "liquidado";
-    if (pagouPrimeira) continue;
 
     porVendedora.set(c.vendedor_id, (porVendedora.get(c.vendedor_id) ?? 0) + 1);
     const lista = itensPorVendedora.get(c.vendedor_id) ?? [];
