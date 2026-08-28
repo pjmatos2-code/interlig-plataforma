@@ -56,16 +56,28 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
       (equipes ?? []).filter((e) => e.ativo).map((e) => [e.nome, e.pop_id as string | null])
     );
     const { data: vends } = await admin.from("vendedores").select("id, nome, pop_id").eq("ativo", true);
+    const { data: mapaAtendentes } = await admin
+      .from("sz_atendentes_map")
+      .select("sz_atendente_nome, vendedor_id");
     const { data: planosData } = await admin
       .from("planos")
       .select("id, nome, velocidade")
       .eq("ativo", true)
       .gt("valor_referencia", 0);
     const planos = (planosData ?? []) as PlanoRef[];
+    const semAcento = (t: string) =>
+      t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const acharVendedora = (agente: string | null, popId: string | null) => {
       if (!agente) return null;
-      const primeiro = agente.split(/\s+/)[0].toLowerCase();
-      const cands = (vends ?? []).filter((v) => v.nome.toLowerCase().includes(primeiro));
+      // 1º: mapa explícito atendente→vendedora do Administração (D1)
+      const doMapa = (mapaAtendentes ?? []).find(
+        (m) => m.sz_atendente_nome && semAcento(m.sz_atendente_nome) === semAcento(agente)
+      );
+      if (doMapa?.vendedor_id) return doMapa.vendedor_id as string;
+      // 2º: heurística pelo primeiro nome, ignorando acentos ("Dâmely"≈"Damely")
+      const primeiro = semAcento(agente).split(/\s+/)[0];
+      if (!primeiro) return null;
+      const cands = (vends ?? []).filter((v) => semAcento(v.nome).includes(primeiro));
       return (cands.find((v) => v.pop_id === popId) ?? cands[0])?.id ?? null;
     };
 
@@ -85,10 +97,19 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
       if (tel) {
         const { data: abertos } = await admin
           .from("tickets")
-          .select("id, telefone")
+          .select("id, telefone, vendedor_id")
           .neq("etapa", "fechado")
           .limit(2000);
-        existente = (abertos ?? []).find((t) => soDigitos(t.telefone) === tel)?.id ?? null;
+        const achado = (abertos ?? []).find((t) => soDigitos(t.telefone) === tel);
+        existente = achado?.id ?? null;
+        // quem atende no SZ é a responsável pelo cliente: preenche quando vazio
+        if (achado && !achado.vendedor_id && vendedorId) {
+          await admin
+            .from("tickets")
+            .update({ vendedor_id: vendedorId, pop_id: popId })
+            .eq("id", achado.id)
+            .is("vendedor_id", null);
+        }
       }
 
       const base = {
