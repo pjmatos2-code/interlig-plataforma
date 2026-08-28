@@ -5,6 +5,9 @@ import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { FiltrosDashboard } from "@/components/dashboard/filtros";
 import { PainelDetalheVendedora } from "@/components/vendedoras/painel-detalhe";
 import { Card, CardContent } from "@/components/ui/card";
+import { minhaComissao } from "@/lib/comissao/minha";
+import { PainelMinhaComissao } from "@/components/comissao/minha-comissao";
+import { templateLinkSgp } from "@/lib/sgp/links-server";
 import { formatarData } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +49,12 @@ export default async function MinhasVendasPage({
       />
       <FiltrosDashboard pops={[]} mostrarPop={false} de={periodo.de} ate={periodo.ate} />
       {detalhe && <PainelDetalheVendedora detalhe={detalhe} />}
+      {usuario.vendedor_id && (
+        <PainelMinhaComissao
+          dados={await minhaComissao(usuario.vendedor_id)}
+          linkTemplate={await templateLinkSgp()}
+        />
+      )}
     </>
   );
 }
