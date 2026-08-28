@@ -48,7 +48,7 @@ export default async function MinhasVendasPage({
         descricao={`${detalhe?.pop ?? ""} · ${formatarData(periodo.de)} a ${formatarData(periodo.ate)} · meta e pace do mês corrente`}
       />
       <FiltrosDashboard pops={[]} mostrarPop={false} de={periodo.de} ate={periodo.ate} />
-      {detalhe && <PainelDetalheVendedora detalhe={detalhe} />}
+      {detalhe && <PainelDetalheVendedora detalhe={detalhe} linkTemplate={await templateLinkSgp()} />}
       {usuario.vendedor_id && (
         <PainelMinhaComissao
           dados={await minhaComissao(usuario.vendedor_id)}

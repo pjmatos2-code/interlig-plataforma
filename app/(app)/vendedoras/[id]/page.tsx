@@ -7,6 +7,7 @@ import { criarClienteServidor } from "@/lib/supabase/server";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { FiltrosDashboard } from "@/components/dashboard/filtros";
 import { PainelDetalheVendedora } from "@/components/vendedoras/painel-detalhe";
+import { templateLinkSgp } from "@/lib/sgp/links-server";
 import { formatarData } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +48,7 @@ export default async function VendedoraDetalhePage({
         descricao={`${detalhe.pop} · ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`}
       />
       <FiltrosDashboard pops={[]} mostrarPop={false} de={periodo.de} ate={periodo.ate} />
-      <PainelDetalheVendedora detalhe={detalhe} />
+      <PainelDetalheVendedora detalhe={detalhe} linkTemplate={await templateLinkSgp()} />
     </>
   );
 }

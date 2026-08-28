@@ -157,6 +157,10 @@ export async function listaVendedoras(
 export type VendaListada = {
   id: string;
   cliente: string;
+  /** ids do SGP para abrir o cliente/contrato direto no painel */
+  sgpContratoId: string | null;
+  sgpClienteId: string | null;
+  cpf: string | null;
   plano: string;
   valor: number;
   status: string;
@@ -210,7 +214,7 @@ export async function detalheVendedora(
     supabase
       .from("contratos")
       .select(
-        "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, origem_cadastro, clientes(nome), planos(nome)"
+        "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, origem_cadastro, clientes(nome, sgp_cliente_id, cpf), planos(nome)"
       )
       .eq("vendedor_id", vendedorId)
       .gte("data_venda", [periodo.de, seisMesesAtras].sort()[0])
@@ -228,8 +232,9 @@ export async function detalheVendedora(
 
   type Bruto = ContratoIndicador & {
     id: string;
+    sgp_contrato_id: string | null;
     origem_cadastro: CategoriaOrigem | null;
-    clientes: { nome: string } | null;
+    clientes: { nome: string; sgp_cliente_id: string | null; cpf: string | null } | null;
     planos: { nome: string } | null;
   };
   const contratos = (contratosBrutos ?? []) as unknown as Bruto[];
@@ -304,6 +309,9 @@ export async function detalheVendedora(
     vendas: vendasP.map((c) => ({
       id: c.id,
       cliente: c.clientes?.nome ?? "—",
+      sgpContratoId: c.sgp_contrato_id,
+      sgpClienteId: c.clientes?.sgp_cliente_id ?? null,
+      cpf: c.clientes?.cpf ?? null,
       plano: c.planos?.nome ?? "—",
       valor: c.valor_mensalidade,
       status: c.status,

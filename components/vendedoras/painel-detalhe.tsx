@@ -1,4 +1,5 @@
 import { CartaoKpi } from "@/components/dashboard/cartao-kpi";
+import { aplicarLinkSgp } from "@/lib/sgp/links";
 import { GraficoHistorico } from "@/components/vendedoras/grafico-historico";
 import { GraficoBarrasHorizontais } from "@/components/dashboard/graficos";
 import { BadgeStatus } from "@/components/vendedoras/badges";
@@ -57,7 +58,14 @@ function ResumoStatus({ vendas }: { vendas: { status: string }[] }) {
   );
 }
 
-export function PainelDetalheVendedora({ detalhe }: { detalhe: DetalheVendedora }) {
+export function PainelDetalheVendedora({
+  detalhe,
+  linkTemplate = "",
+}: {
+  detalhe: DetalheVendedora;
+  /** template do link do SGP — deixa cliente e contrato clicáveis */
+  linkTemplate?: string;
+}) {
   const k = detalhe.kpis;
 
   return (
@@ -134,6 +142,7 @@ export function PainelDetalheVendedora({ detalhe }: { detalhe: DetalheVendedora 
                 <thead>
                   <tr className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
                     <th className="px-4 py-2 font-medium">Data</th>
+                    <th className="px-3 py-2 font-medium">Contrato</th>
                     <th className="px-3 py-2 font-medium">Cliente</th>
                     <th className="px-3 py-2 font-medium">Plano</th>
                     <th className="px-3 py-2 text-right font-medium">Valor</th>
@@ -142,12 +151,47 @@ export function PainelDetalheVendedora({ detalhe }: { detalhe: DetalheVendedora 
                   </tr>
                 </thead>
                 <tbody>
-                  {detalhe.vendas.map((v) => (
+                  {detalhe.vendas.map((v) => {
+                    const link = aplicarLinkSgp(linkTemplate, {
+                      clienteId: v.sgpClienteId,
+                      contratoId: v.sgpContratoId,
+                      cpf: v.cpf,
+                    });
+                    return (
                     <tr key={v.id} className="border-b last:border-0">
                       <td className="px-4 py-2 tabular-nums text-muted-foreground">
                         {formatarData(v.data_venda)}
                       </td>
-                      <td className="px-3 py-2 font-medium">{v.cliente}</td>
+                      <td className="px-3 py-2 font-mono text-xs">
+                        {v.sgpContratoId && link ? (
+                          <a
+                            href={link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-interlig-ceu hover:underline"
+                            title="Abrir contrato no SGP"
+                          >
+                            #{v.sgpContratoId} ↗
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">{v.sgpContratoId ? `#${v.sgpContratoId}` : "—"}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 font-medium">
+                        {link ? (
+                          <a
+                            href={link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                            title="Abrir cliente no SGP"
+                          >
+                            {v.cliente}
+                          </a>
+                        ) : (
+                          v.cliente
+                        )}
+                      </td>
                       <td className="px-3 py-2">{v.plano}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{formatarMoeda(v.valor)}</td>
                       <td className="px-3 py-2 text-muted-foreground">
@@ -157,10 +201,11 @@ export function PainelDetalheVendedora({ detalhe }: { detalhe: DetalheVendedora 
                         <BadgeStatus status={v.status} />
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                   {detalhe.vendas.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                      <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                         Nenhuma venda no período.
                       </td>
                     </tr>
