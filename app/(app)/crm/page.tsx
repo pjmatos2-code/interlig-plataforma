@@ -76,6 +76,11 @@ function CartaoVendida({ t, linkTemplate }: { t: CartaoTicket; linkTemplate: str
           </span>
         )}
       </div>
+      {t.clienteSgpNome && t.clienteSgpNome.toLowerCase() !== t.cliente_nome.toLowerCase() && (
+        <p className="mt-0.5 truncate text-[11px] text-emerald-700" title={`Titular no SGP: ${t.clienteSgpNome}`}>
+          🪪 {t.clienteSgpNome}
+        </p>
+      )}
       <p className="mt-0.5 truncate text-xs text-slate-500">{t.plano ?? "—"}</p>
       <p className="mt-1 truncate text-[11px] text-slate-400">{t.vendedora ?? "Sem vendedora"}</p>
       <div className="mt-2 flex items-center justify-between gap-2 border-t border-emerald-100 pt-2">
@@ -291,7 +296,7 @@ export default async function CrmPage({
           <input
             name="q"
             defaultValue={searchParams.q ?? ""}
-            placeholder="Buscar cliente, telefone ou nº do contrato"
+            placeholder="Buscar por nome (WhatsApp ou SGP), telefone ou nº do contrato"
             className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
           />
         </div>

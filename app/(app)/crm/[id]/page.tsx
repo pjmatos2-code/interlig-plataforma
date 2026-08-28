@@ -204,6 +204,12 @@ export default async function TicketPage({ params }: { params: { id: string } })
               <span className="text-muted-foreground">Fonte:</span>{" "}
               {t.origem_criacao === "sz_auto" ? "WhatsApp / SZ Chat" : t.origem_criacao === "site" ? "Site (Contratar Online)" : "Cadastro manual"}
             </p>
+            {t.cliente_sgp_nome && (
+              <p>
+                <span className="text-muted-foreground">Titular no SGP:</span>{" "}
+                <span className="font-medium">{t.cliente_sgp_nome}</span>
+              </p>
+            )}
             <p><span className="text-muted-foreground">CPF:</span> {t.cpf ?? "—"}</p>
             <p><span className="text-muted-foreground">Vendedora:</span> {t.vendedora ?? "Não atribuído"}</p>
             <p><span className="text-muted-foreground">POP:</span> {t.pop ?? "—"}</p>

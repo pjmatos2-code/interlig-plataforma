@@ -18,6 +18,8 @@ export type CartaoTicket = {
   cpf: string | null;
   sgpContratoId: string | null;
   sgpClienteId: string | null;
+  /** nome do titular no SGP — costuma diferir do nome do WhatsApp */
+  clienteSgpNome: string | null;
   vendedor_id: string | null;
   plano: string | null;
   vendedora: string | null;
@@ -111,7 +113,7 @@ type Bruto = TicketIndicador & {
   valor_estimado: number | null;
   etapa_encerramento: string | null;
   cpf: string | null;
-  contratos: { sgp_contrato_id: string | null; clientes: { sgp_cliente_id: string | null } | null } | null;
+  contratos: { sgp_contrato_id: string | null; clientes: { sgp_cliente_id: string | null; nome: string } | null } | null;
   planos: { nome: string } | null;
   vendedores: { nome: string } | null;
   pops: { nome: string } | null;
@@ -121,7 +123,7 @@ type Bruto = TicketIndicador & {
 const CAMPOS = `id, cliente_nome, telefone, cpf, vendedor_id, pop_id, etapa, criado_em,
   primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por, origem_criacao,
   motivo_id, contrato_id, reconciliado_em, atualizado_em, valor_estimado, etapa_encerramento,
-  contratos(sgp_contrato_id, clientes(sgp_cliente_id)),
+  contratos(sgp_contrato_id, clientes(sgp_cliente_id, nome)),
   vendedores(nome), pops(nome), planos(nome), motivos_nao_conversao(nome)`;
 
 /**
@@ -183,8 +185,10 @@ export async function carregarCrm(
       const b = semAcento(filtros.busca);
       const tel = (t.telefone ?? "").replace(/\D/g, "");
       const contrato = t.contratos?.sgp_contrato_id ?? "";
+      const nomeSgp = t.contratos?.clientes?.nome ?? "";
       if (
         !semAcento(t.cliente_nome).includes(b) &&
+        !semAcento(nomeSgp).includes(b) &&
         !tel.includes(b.replace(/\D/g, "") || "\u0000") &&
         !(contrato && contrato.includes(b.replace(/\D/g, "") || "\u0000"))
       )
@@ -230,6 +234,7 @@ export async function carregarCrm(
       cpf: t.cpf,
       sgpContratoId: t.contratos?.sgp_contrato_id ?? null,
       sgpClienteId: t.contratos?.clientes?.sgp_cliente_id ?? null,
+      clienteSgpNome: t.contratos?.clientes?.nome ?? null,
       vendedor_id: t.vendedor_id,
       plano: t.planos?.nome ?? null,
       vendedora: t.vendedores?.nome ?? null,
@@ -524,6 +529,8 @@ export type DetalheTicket = {
   contrato_id: string | null;
   contrato_sgp_id: string | null;
   cliente_sgp_id: string | null;
+  /** nome do titular no SGP (pode diferir do nome do WhatsApp) */
+  cliente_sgp_nome: string | null;
   reconciliado_em: string | null;
   valor_estimado: number | null;
   resumo_tratativa: string | null;
@@ -553,7 +560,7 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
          origem_cadastro, contrato_id, reconciliado_em, valor_estimado,
          resumo_tratativa, proxima_abordagem, urgencia,
          vendedores(nome), pops(nome), motivos_nao_conversao(nome), planos(nome),
-         contratos(sgp_contrato_id, clientes(sgp_cliente_id))`
+         contratos(sgp_contrato_id, clientes(sgp_cliente_id, nome))`
       )
       .eq("id", id)
       .maybeSingle(),
@@ -577,7 +584,7 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
     pops: Rel;
     motivos_nao_conversao: Rel;
     planos: Rel;
-    contratos: { sgp_contrato_id: string | null; clientes: { sgp_cliente_id: string | null } | null } | null;
+    contratos: { sgp_contrato_id: string | null; clientes: { sgp_cliente_id: string | null; nome: string } | null } | null;
   };
 
   return {
@@ -603,6 +610,7 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
     contrato_id: registro.contrato_id,
     contrato_sgp_id: registro.contratos?.sgp_contrato_id ?? null,
     cliente_sgp_id: registro.contratos?.clientes?.sgp_cliente_id ?? null,
+    cliente_sgp_nome: registro.contratos?.clientes?.nome ?? null,
     reconciliado_em: registro.reconciliado_em,
     valor_estimado: (registro as { valor_estimado: number | null }).valor_estimado ?? null,
     resumo_tratativa: (registro as { resumo_tratativa?: string | null }).resumo_tratativa ?? null,
