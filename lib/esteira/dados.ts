@@ -49,6 +49,8 @@ export type DadosEsteira = {
   tempoPorVendedora: { nome: string; dias: number; ativacoes: number }[];
   // assinaturas pendentes agrupadas por vendedora (ajuste do gestor)
   assinaturaPorVendedora: { vendedora: string; total: number; emAlerta: number }[];
+  /** pendências de vendas ANTERIORES ao período filtrado (não somem da vista) */
+  foraDoPeriodo: { assinatura: number; instalacao: number };
 };
 
 type Bruto = ContratoIndicador & {
@@ -79,9 +81,8 @@ function dias(deIso: string, ateIso: string) {
 export async function carregarEsteira(
   periodo: Periodo,
   popId: string | null,
-  /** true = as pendências também respeitam o período (busca personalizada);
-   *  false = kanban mostra o estoque atual, útil na operação do dia a dia */
-  pendenciasNoPeriodo = false
+  /** true = ignora o período e mostra TODAS as pendências (link "ver todas") */
+  todasAsPendencias = false
 ): Promise<DadosEsteira> {
   const supabase = criarClienteServidor();
   const hoje = hojeIso();
@@ -95,10 +96,6 @@ export async function carregarEsteira(
     .or("data_assinatura.is.null,data_ativacao.is.null")
     .limit(3000);
   if (popId) consultaPendencias = consultaPendencias.eq("pop_id", popId);
-  if (pendenciasNoPeriodo)
-    consultaPendencias = consultaPendencias
-      .gte("data_venda", periodo.de)
-      .lte("data_venda", periodo.ate);
 
   // vendas do período (para 5.9) e ativações do período (tempo médio + coluna)
   let consultaVendas = supabase
@@ -124,10 +121,6 @@ export async function carregarEsteira(
     .eq("situacao", "aberta")
     .limit(500);
   if (popId) consultaOs = consultaOs.eq("contratos.pop_id", popId);
-  if (pendenciasNoPeriodo)
-    consultaOs = consultaOs
-      .gte("contratos.data_venda", periodo.de)
-      .lte("contratos.data_venda", periodo.ate);
 
   const [{ data: pendenciasBrutas }, { data: vendasBrutas }, { data: ativadasBrutas }, { data: osBrutas }] =
     await Promise.all([consultaPendencias, consultaVendas, consultaAtivadas, consultaOs]);
@@ -163,9 +156,12 @@ export async function carregarEsteira(
 
   // 5.8 — sem assinatura; idade desde a venda; alerta ≥ 48h
   // ordem: mais recentes no topo, mais atrasados no fim (pedido do gestor)
-  const semAssinatura = pendentesAssinatura(pendencias, hoje)
+  const noPeriodo = (i: ItemEsteira) =>
+    todasAsPendencias || (i.dataVenda >= periodo.de && i.dataVenda <= periodo.ate);
+  const semAssinaturaTudo = pendentesAssinatura(pendencias, hoje)
     .map((p) => paraItem(p.contrato as Bruto, p.idadeDias, p.alerta))
     .sort((a, b) => a.idadeDias - b.idadeDias);
+  const semAssinatura = semAssinaturaTudo.filter(noPeriodo);
 
   // 5.7 — aguardando instalação = OS de instalação ABERTA no SGP (D9) ∪
   // assinados sem ativação; idade desde a venda; alerta > 7 dias
@@ -183,12 +179,13 @@ export async function carregarEsteira(
     item.prontaOperacional = ehStart(os.responsavel);
     comOs.set(c.id, item);
   }
-  const semAtivacao = [
+  const semAtivacaoTudo = [
     ...comOs.values(),
     ...ativacoesPendentes(pendencias, hoje)
       .filter((p) => !comOs.has((p.contrato as Bruto).id))
       .map((p) => paraItem(p.contrato as Bruto, p.idadeDias, p.alerta)),
   ].sort((a, b) => a.idadeDias - b.idadeDias); // recentes no topo, atrasados no fim
+  const semAtivacao = semAtivacaoTudo.filter(noPeriodo);
 
   // instaladas no período (idade = venda → ativação; nunca alerta)
   // ordem: instalação mais recente no topo
@@ -237,6 +234,10 @@ export async function carregarEsteira(
     },
     tempoPorPop: agrupar((c) => c.pops?.nome ?? "—"),
     tempoPorVendedora: agrupar((c) => c.vendedores?.nome ?? "Não atribuída"),
+    foraDoPeriodo: {
+      assinatura: semAssinaturaTudo.length - semAssinatura.length,
+      instalacao: semAtivacaoTudo.length - semAtivacao.length,
+    },
     assinaturaPorVendedora: (() => {
       const grupos = new Map<string, { total: number; emAlerta: number }>();
       for (const i of semAssinatura) {

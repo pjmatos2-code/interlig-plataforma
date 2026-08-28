@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { exigirPerfil } from "@/lib/auth";
 import { ehVendedora } from "@/lib/tipos";
 import { resolverPeriodo } from "@/lib/datas";
@@ -63,7 +64,7 @@ function TabelaTempos({
 export default async function EsteiraPage({
   searchParams,
 }: {
-  searchParams: { periodo?: string; de?: string; ate?: string; pop?: string; q?: string };
+  searchParams: { periodo?: string; de?: string; ate?: string; pop?: string; q?: string; tudo?: string };
 }) {
   const usuario = await exigirPerfil([
     "gestor",
@@ -83,10 +84,11 @@ export default async function EsteiraPage({
     ? { data: [] as { id: string; nome: string }[] }
     : await supabase.from("pops").select("id, nome").order("nome");
 
-  // busca personalizada: o kanban inteiro passa a refletir o período escolhido
-  const buscaPorPeriodo = searchParams.periodo === "personalizado";
+  // o kanban inteiro reflete o período filtrado; "?tudo=1" mostra o estoque
+  // completo (as pendências antigas continuam a um clique de distância)
+  const verTudo = searchParams.tudo === "1";
   const [d, linkTemplate] = await Promise.all([
-    carregarEsteira(periodo, popFiltro, buscaPorPeriodo),
+    carregarEsteira(periodo, popFiltro, verTudo),
     templateLinkSgp(),
   ]);
   const ehGestorSemFiltro = usuario.perfil === "gestor" && !popFiltro;
@@ -113,11 +115,9 @@ export default async function EsteiraPage({
         descricao={
           busca
             ? `Filtrando por "${busca}" — limpe a busca para ver tudo`
-            : buscaPorPeriodo
-              ? `Vendas de ${formatarData(periodo.de)} a ${formatarData(periodo.ate)} — as três colunas mostram só esse período`
-              : ehVend
-                ? "Acompanhe seus clientes: quem falta assinar, quem já está agendado e quem foi instalado"
-                : `Pendências mostram o estoque atual · taxa e tempos seguem o período ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`
+            : verTudo
+              ? "Estoque completo — todas as pendências, de qualquer data de venda"
+              : `Vendas de ${formatarData(periodo.de)} a ${formatarData(periodo.ate)} — as três colunas seguem esse período`
         }
       />
 
@@ -189,6 +189,39 @@ export default async function EsteiraPage({
           contexto={`${formatarNumero(d.kpis.instaladasNoPeriodo)} ativações no período`}
         />
       </div>
+
+      {!verTudo && (d.foraDoPeriodo.assinatura > 0 || d.foraDoPeriodo.instalacao > 0) && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-300/70 bg-amber-50/70 px-4 py-3">
+          <p className="text-sm text-amber-900">
+            ⚠ Fora deste período há{" "}
+            <strong>
+              {d.foraDoPeriodo.assinatura > 0 && `${d.foraDoPeriodo.assinatura} sem assinar`}
+              {d.foraDoPeriodo.assinatura > 0 && d.foraDoPeriodo.instalacao > 0 && " e "}
+              {d.foraDoPeriodo.instalacao > 0 && `${d.foraDoPeriodo.instalacao} aguardando instalação`}
+            </strong>{" "}
+            de vendas mais antigas — geralmente os casos mais críticos.
+          </p>
+          <Link
+            href={{ query: { ...searchParams, tudo: "1" } }}
+            className="ml-auto rounded-md border border-amber-400 bg-white px-3 py-1.5 text-sm font-semibold text-amber-900 hover:bg-amber-100"
+          >
+            Ver todas as pendências →
+          </Link>
+        </div>
+      )}
+      {verTudo && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border bg-muted/40 px-4 py-3">
+          <p className="text-sm text-muted-foreground">
+            Mostrando <strong>todas as pendências</strong>, de qualquer data de venda.
+          </p>
+          <Link
+            href={{ query: { ...searchParams, tudo: undefined } }}
+            className="ml-auto rounded-md border px-3 py-1.5 text-sm font-medium hover:border-interlig-ceu"
+          >
+            ← Voltar ao período filtrado
+          </Link>
+        </div>
+      )}
 
       {/* Kanban da esteira: vendida → assinatura → instalação → instalada */}
       <div className="mb-6 grid gap-3 lg:grid-cols-3">
