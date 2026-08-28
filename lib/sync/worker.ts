@@ -1,5 +1,6 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
+import { dataHoraSgp } from "@/lib/sgp/datas";
 import { criarClienteSgp } from "@/lib/sgp/client";
 import type { SgpContrato } from "@/lib/sgp/tipos";
 
@@ -454,8 +455,8 @@ export async function executarSync(): Promise<ResultadoSync> {
                 motivo: os.os_motivo_descricao ?? null,
                 setor: os.os_setor ?? null,
                 responsavel: os.os_tecnico_responsavel?.trim() || null,
-                agendamento: os.os_data_agendamento || null,
-                os_cadastrada_em: os.os_data_cadastro || null,
+                agendamento: dataHoraSgp(os.os_data_agendamento),
+                os_cadastrada_em: dataHoraSgp(os.os_data_cadastro),
                 situacao: "aberta",
                 visto_em: new Date().toISOString(),
               },

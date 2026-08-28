@@ -1,6 +1,7 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { lerConfigSgp } from "@/lib/integracoes/config";
+import { dataHoraSgp } from "@/lib/sgp/datas";
 
 /**
  * Atualização sob demanda de UM contrato no SGP (botão "Atualizar do SGP" no
@@ -138,8 +139,8 @@ export async function atualizarContratoDoSgp(contratoId: string): Promise<Resumo
             motivo: os.os_motivo_descricao ?? null,
             setor: os.os_setor ?? null,
             responsavel: os.os_tecnico_responsavel?.trim() || null,
-            agendamento: os.os_data_agendamento || null,
-            os_cadastrada_em: os.os_data_cadastro || null,
+            agendamento: dataHoraSgp(os.os_data_agendamento),
+            os_cadastrada_em: dataHoraSgp(os.os_data_cadastro),
             situacao: "aberta",
             visto_em: new Date().toISOString(),
           },
@@ -147,7 +148,7 @@ export async function atualizarContratoDoSgp(contratoId: string): Promise<Resumo
         );
         osAbertas.push({
           protocolo: os.os_protocolo ?? null,
-          agendamento: os.os_data_agendamento || null,
+          agendamento: dataHoraSgp(os.os_data_agendamento),
           responsavel: os.os_tecnico_responsavel?.trim() || null,
         });
       }

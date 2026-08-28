@@ -81,7 +81,7 @@ function LinhaOs({ item, linkTemplate }: { item: ItemEsteira; linkTemplate: stri
         month: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
-        timeZone: "America/Belem",
+        timeZone: "America/Santarem",
       })
     : null;
   const conteudo = (
