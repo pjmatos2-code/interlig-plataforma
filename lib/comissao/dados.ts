@@ -129,21 +129,25 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
     (ticketsConvertidos ?? []).map((t) => [t.contrato_id as string, t])
   );
 
-  // débito: suspenso/cancelado ≤90d E 1ª fatura vencida sem pagamento
+  // débito TRAVADO no dia 1º (regra 28/08): usa a fotografia do mês quando
+  // existir; sem fotografia (transição), cai no cálculo ao vivo dos 90 dias.
+  const { debitosTravados } = await import("@/lib/comissao/congelar");
+  const travados = await debitosTravados(mes);
   const hojeIsoStr = hoje;
-  const debitoPorVendedora = new Map<string, number>();
-  for (const m of (monitorados ?? []) as unknown as {
-    vendedor_id: string;
-    titulos: { numero_parcela: number; status: string; vencimento: string }[];
-  }[]) {
-    const primeira = (m.titulos ?? []).find((t) => t.numero_parcela === 1);
-    const naoPagou =
-      primeira !== undefined &&
-      primeira.status !== "liquidado" &&
-      primeira.vencimento < hojeIsoStr;
-    if (!naoPagou) continue;
-    debitoPorVendedora.set(m.vendedor_id, (debitoPorVendedora.get(m.vendedor_id) ?? 0) + 1);
-  }
+  const debitoPorVendedora = travados ?? new Map<string, number>();
+  if (!travados)
+    for (const m of (monitorados ?? []) as unknown as {
+      vendedor_id: string;
+      titulos: { numero_parcela: number; status: string; vencimento: string }[];
+    }[]) {
+      const primeira = (m.titulos ?? []).find((t) => t.numero_parcela === 1);
+      const naoPagou =
+        primeira !== undefined &&
+        primeira.status !== "liquidado" &&
+        primeira.vencimento < hojeIsoStr;
+      if (!naoPagou) continue;
+      debitoPorVendedora.set(m.vendedor_id, (debitoPorVendedora.get(m.vendedor_id) ?? 0) + 1);
+    }
 
   const contratos = (contratosBrutos ?? []) as unknown as ContratoC[];
   const metaPor = new Map(

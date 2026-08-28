@@ -47,6 +47,8 @@ async function roboSzSeDevido() {
 async function cicloCompleto() {
   const resultado = await executarSync();
   const rotinas = await executarRotinasCrm();
+  const { congelarDebitosSeNecessario } = await import("@/lib/comissao/congelar");
+  await congelarDebitosSeNecessario().catch((e) => console.error("congelar débitos falhou:", e));
   await roboSzSeDevido().catch((e) => console.error("robô SZ diurno falhou:", e));
   return { ...resultado, rotinas };
 }

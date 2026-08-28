@@ -38,6 +38,8 @@ export type InadimplenteDebito = {
 
 export type MinhaComissao = {
   temRegra: boolean;
+  /** débito congelado no dia 1º (regra 28/08); false = cálculo ao vivo (transição) */
+  debitoTravado: boolean;
   metaMensal: number | null;
   faixaAtual: string | null;
   resultado: ResultadoComissao | null;
@@ -74,7 +76,7 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
   const ateData = fim < hoje ? fim : hoje;
 
   const vazio: MinhaComissao = {
-    temRegra: false, metaMensal: null, faixaAtual: null, resultado: null,
+    temRegra: false, debitoTravado: false, metaMensal: null, faixaAtual: null, resultado: null,
     pendentes: [], liberadas: 0, inadimplentes: [], entradaSimulador: null,
   };
 
@@ -155,7 +157,12 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
       vencimento1a: primeira?.vencimento ?? null,
     });
   }
-  const debitoMeta = inadimplentes.length;
+  // débito TRAVADO no dia 1º (regra 28/08); a lista ao vivo segue exibida
+  // como acompanhamento, mas o número oficial é o congelado
+  const { debitosTravados } = await import("@/lib/comissao/congelar");
+  const travados = await debitosTravados(mes);
+  const debitoTravado = travados !== null;
+  const debitoMeta = travados ? (travados.get(vendedorId) ?? 0) : inadimplentes.length;
 
   // ---- vendas do mês + liberação D5/D8 + pendências detalhadas ----
   const proprias = vendasDoPeriodo(contratos, mes, ateData) as ContratoM[];
@@ -207,6 +214,7 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
 
   return {
     temRegra: true,
+    debitoTravado,
     metaMensal: meta,
     faixaAtual,
     resultado,
