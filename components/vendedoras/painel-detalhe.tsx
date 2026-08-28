@@ -11,6 +11,15 @@ import type { DetalheVendedora } from "@/lib/vendedoras/dados";
  * Corpo do drill-down da vendedora (PRD 3.2). Reutilizado em duas telas:
  * /vendedoras/[id] (gestor/supervisor) e /minhas-vendas (a própria vendedora).
  */
+const MESES_CURTO = [
+  "jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez",
+];
+/** "2026-05-01" -> "mai/26" */
+function rotuloMesCurto(iso: string): string {
+  const [ano, mes] = iso.split("-");
+  return `${MESES_CURTO[Number(mes) - 1] ?? mes}/${ano.slice(2)}`;
+}
+
 /** Resumo colorido da situação atual das vendas do período (ao lado do título). */
 function ResumoStatus({ vendas }: { vendas: { status: string }[] }) {
   const contagem = new Map<string, number>();
@@ -54,18 +63,31 @@ export function PainelDetalheVendedora({ detalhe }: { detalhe: DetalheVendedora 
   return (
     <>
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <CartaoKpi rotulo="Vendas no mês" valor={formatarNumero(k.vendasMes)} />
+        <CartaoKpi
+          rotulo={k.doPeriodo ? "Vendas no período" : "Vendas no mês"}
+          valor={formatarNumero(k.vendasMes)}
+        />
         <CartaoKpi rotulo="Receita contratada" valor={formatarMoeda(k.receitaMes)} />
         <CartaoKpi rotulo="Ticket médio" valor={formatarMoeda(k.ticketMedio)} />
         <CartaoKpi
-          rotulo="Meta do mês"
+          rotulo={
+            k.doPeriodo
+              ? k.mesReferencia
+                ? `Meta de ${rotuloMesCurto(k.mesReferencia)}`
+                : "Meta"
+              : "Meta do mês"
+          }
           valor={k.percentualMeta === null ? "—" : formatarPercentual(k.percentualMeta, 0)}
           contexto={
             k.metaMensal === null
-              ? "sem meta cadastrada"
-              : k.pace === 0
-                ? "meta batida 🎉"
-                : `pace: ${k.pace!.toFixed(1).replace(".", ",")}/dia útil · meta ${k.metaMensal} (${k.metaDiaria!.toFixed(1).replace(".", ",")}/dia)`
+              ? k.doPeriodo
+                ? "período não coincide com um mês fechado"
+                : "sem meta cadastrada"
+              : k.doPeriodo
+                ? `${k.vendasMes} de ${k.metaMensal} no período`
+                : k.pace === 0
+                  ? "meta batida 🎉"
+                  : `pace: ${k.pace!.toFixed(1).replace(".", ",")}/dia útil · meta ${k.metaMensal} (${k.metaDiaria!.toFixed(1).replace(".", ",")}/dia)`
           }
           tom={k.farol ?? undefined}
         />

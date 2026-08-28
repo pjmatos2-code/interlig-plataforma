@@ -179,6 +179,10 @@ export type DetalheVendedora = {
     pace: number | null;
     projecao: number | null;
     farol: "verde" | "amarelo" | "vermelho" | null;
+    /** true = os KPIs referem-se ao período filtrado, não ao mês corrente */
+    doPeriodo: boolean;
+    /** mês da meta usada na comparação (quando o período cabe num único mês) */
+    mesReferencia: string | null;
   };
   vendas: VendaListada[];
   funil: { etapa: string; quantidade: number }[];
@@ -250,6 +254,17 @@ export async function detalheVendedora(
 
   // ---------- vendas listadas + funil do período filtrado ----------
   const vendasP = vendasDoPeriodo(contratos, periodo.de, periodo.ate);
+
+  // KPIs seguem o PERÍODO quando ele não é o mês corrente (ex.: busca por maio).
+  // A meta comparada é a do mês do período, desde que o intervalo caiba nele.
+  const mesDoPeriodo = primeiroDiaDoMes(periodo.de);
+  const periodoEhMesCorrente = mesDoPeriodo === cal.inicioMes;
+  const cabeEmUmMes = primeiroDiaDoMes(periodo.ate) === mesDoPeriodo;
+  const metaDoPeriodo = cabeEmUmMes
+    ? ((metas ?? []).find((m) => m.mes_ano === mesDoPeriodo)?.quantidade_vendas ?? null)
+    : null;
+  const vendasKpi = periodoEhMesCorrente ? vendasMes : vendasP;
+  const metaKpi = periodoEhMesCorrente ? meta : metaDoPeriodo;
   const funil = [
     { etapa: "Vendidas", quantidade: vendasP.length },
     { etapa: "Assinadas", quantidade: vendasP.filter((c) => c.data_assinatura !== null).length },
@@ -273,15 +288,18 @@ export async function detalheVendedora(
     nome: vend.nome,
     pop: popRel?.nome ?? "—",
     kpis: {
-      vendasMes: vendasMes.length,
-      receitaMes: receitaContratada(vendasMes),
-      ticketMedio: ticketMedio(vendasMes),
-      metaMensal: meta,
-      metaDiaria: meta ? metaDiariaIndividual(meta, cal.uteis.length) : null,
-      percentualMeta: meta ? percentualMeta(vendasMes.length, meta) : null,
-      pace: meta ? pace(meta, vendasMes.length, cal.restantesInclusiveHoje) : null,
-      projecao,
-      farol,
+      vendasMes: vendasKpi.length,
+      receitaMes: receitaContratada(vendasKpi),
+      ticketMedio: ticketMedio(vendasKpi),
+      metaMensal: metaKpi,
+      // pace/projeção/farol só fazem sentido no mês corrente (mês em andamento)
+      metaDiaria: periodoEhMesCorrente && meta ? metaDiariaIndividual(meta, cal.uteis.length) : null,
+      percentualMeta: metaKpi ? percentualMeta(vendasKpi.length, metaKpi) : null,
+      pace: periodoEhMesCorrente && meta ? pace(meta, vendasMes.length, cal.restantesInclusiveHoje) : null,
+      projecao: periodoEhMesCorrente ? projecao : null,
+      farol: periodoEhMesCorrente ? farol : null,
+      doPeriodo: !periodoEhMesCorrente,
+      mesReferencia: cabeEmUmMes ? mesDoPeriodo : null,
     },
     vendas: vendasP.map((c) => ({
       id: c.id,
