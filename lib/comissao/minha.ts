@@ -51,6 +51,10 @@ export type MinhaComissao = {
   mesCoorte: string;
   /** número veio de ajuste manual validado pela gestão */
   debitoManual: boolean;
+  /** false: a competência fecha sem débito — a lista é só acompanhamento */
+  debitoAplicado: boolean;
+  /** o porquê, escrito pela gestão (aparece para a vendedora) */
+  debitoObservacao: string | null;
   metaMensal: number | null;
   faixaAtual: string | null;
   resultado: ResultadoComissao | null;
@@ -90,7 +94,8 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
 
   const { debitoPorCoorte, mesDaCoorte } = await import("@/lib/comissao/debito");
   const vazio: MinhaComissao = {
-    temRegra: false, mesCoorte: mesDaCoorte(mes), debitoManual: false, metaMensal: null,
+    temRegra: false, mesCoorte: mesDaCoorte(mes), debitoManual: false,
+    debitoAplicado: true, debitoObservacao: null, metaMensal: null,
     faixaAtual: null, resultado: null, pendentes: [], liberadasPorAprovacao: [], liberadas: 0, inadimplentes: [],
     entradaSimulador: null,
   };
@@ -198,6 +203,8 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
     temRegra: true,
     mesCoorte: coorteDebito.coorte,
     debitoManual,
+    debitoAplicado: coorteDebito.aplicado,
+    debitoObservacao: coorteDebito.observacao,
     metaMensal: meta,
     faixaAtual,
     resultado,

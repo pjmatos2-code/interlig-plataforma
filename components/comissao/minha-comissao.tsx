@@ -189,14 +189,30 @@ export function PainelMinhaComissao({
           </div>
         </div>
 
-        {/* inadimplentes 90 dias */}
+        {/* clientes da coorte que não estão ativos */}
         <div className="rounded-lg border">
-          <div className="border-b bg-rose-50/60 px-4 py-2.5">
-            <p className="text-sm font-semibold text-rose-900">
-              Clientes de {rotuloMes(dados.mesCoorte)} que não estão ativos ({dados.inadimplentes.length}) —
-              cada um soma +1 na sua meta deste mês. Cliente que voltar a ficar ATIVO até o
-              fechamento sai do débito.
-            </p>
+          <div
+            className={`border-b px-4 py-2.5 ${
+              dados.debitoAplicado ? "bg-rose-50/60" : "bg-sky-50/60"
+            }`}
+          >
+            {dados.debitoAplicado ? (
+              <p className="text-sm font-semibold text-rose-900">
+                Clientes de {rotuloMes(dados.mesCoorte)} que não estão ativos (
+                {dados.inadimplentes.length}) — cada um soma +1 na sua meta deste mês. Cliente
+                que voltar a ficar ATIVO até o fechamento sai do débito.
+              </p>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-sky-900">
+                  Clientes de {rotuloMes(dados.mesCoorte)} que não estão ativos (
+                  {dados.inadimplentes.length}) — neste mês NÃO descontam da sua meta.
+                </p>
+                {dados.debitoObservacao && (
+                  <p className="mt-0.5 text-xs text-sky-800">{dados.debitoObservacao}</p>
+                )}
+              </>
+            )}
           </div>
           <div className="max-h-64 overflow-y-auto overflow-x-auto">
             <table className="w-full text-sm">
@@ -239,7 +255,7 @@ export function PainelMinhaComissao({
                 {dados.inadimplentes.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-4 py-6 text-center text-farol-verde">
-                      ✓ Nenhum inadimplente nos 90 dias — sua meta segue sem débito.
+                      ✓ Nenhum cliente pendente nesta coorte — sua meta segue sem débito.
                     </td>
                   </tr>
                 )}

@@ -30,9 +30,12 @@ const br = (n: number) => n.toFixed(2).replace(".", ",");
 export function RelatorioFechamento({
   comissoes,
   competencia,
+  debitoAplicado,
 }: {
   comissoes: ComissaoVendedora[];
   competencia: string;
+  /** false: o mês fechou sem débito — a planilha precisa dizer isso */
+  debitoAplicado: boolean;
 }) {
   const mes = competencia.slice(0, 7);
   const comRegra = comissoes.filter((c) => c.resultado !== null);
@@ -74,7 +77,7 @@ export function RelatorioFechamento({
       [
         "Vendedora",
         "Meta",
-        "Débito na meta",
+        debitoAplicado ? "Débito na meta" : "Débito na meta (NÃO aplicado)",
         "Meta efetiva",
         "Vendas liberadas",
         "Vendas pendentes",
@@ -99,7 +102,7 @@ export function RelatorioFechamento({
       className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
       title="Planilha por vendedora com meta, faixa e valor a pagar"
     >
-      ↓ Relatório de fechamento ({mes})
+      ↓ Relatório de fechamento ({mes}){debitoAplicado ? "" : " · sem débito"}
     </button>
   );
 }

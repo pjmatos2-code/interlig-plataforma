@@ -9,6 +9,8 @@ import { templateLinkSgp } from "@/lib/sgp/links-server";
 import { formatarNumero } from "@/lib/format";
 import { PainelAprovacoes } from "./painel";
 import { RelatorioFechamento } from "@/components/comissao/relatorio-fechamento";
+import { ChaveDebito } from "@/components/comissao/chave-debito";
+import { debitoPorCoorte } from "@/lib/comissao/debito";
 
 export const dynamic = "force-dynamic";
 
@@ -23,10 +25,11 @@ export default async function AprovacoesPage({
     ? `${searchParams.mes}-01`
     : primeiroDiaDoMes(hojeIso());
 
-  const [fila, comissoes, template] = await Promise.all([
+  const [fila, comissoes, template, debito] = await Promise.all([
     filaAprovacao(mes),
     comissoesDoMes(mes),
     templateLinkSgp(),
+    debitoPorCoorte(mes),
   ]);
 
   return (
@@ -59,7 +62,19 @@ export default async function AprovacoesPage({
             Aplicar
           </button>
         </form>
-        <RelatorioFechamento comissoes={comissoes} competencia={mes} />
+        <RelatorioFechamento
+          comissoes={comissoes}
+          competencia={mes}
+          debitoAplicado={debito.aplicado}
+        />
+      </div>
+
+      <div className="mb-4">
+        <ChaveDebito
+          competencia={mes}
+          aplicado={debito.aplicado}
+          observacao={debito.observacao}
+        />
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">

@@ -157,3 +157,39 @@ export async function reexigirAssinatura(contratoId: string): Promise<Resultado>
   revalidar();
   return { ok: "Contrato volta a exigir assinatura." };
 }
+
+/**
+ * Liga/desliga o débito de inadimplentes na competência inteira. Usado na
+ * transição de regra (agosto/2026): a lista de pendentes continua visível para
+ * a vendedora acompanhar, mas não desconta da meta.
+ */
+export async function definirDebitoCompetencia(
+  competencia: string,
+  aplicar: boolean,
+  observacao: string
+): Promise<Resultado> {
+  const usuario = await exigirPerfil(["gestor"]);
+  if (!competencia) return { erro: "Competência ausente." };
+  const texto = observacao.trim();
+  if (!aplicar && texto.length < 5)
+    return { erro: "Explique por que este mês fecha sem débito (mín. 5 caracteres)." };
+
+  const admin = criarClienteAdmin();
+  const { error } = await admin.from("comissao_competencia_config").upsert(
+    {
+      competencia,
+      aplicar_debito: aplicar,
+      observacao: aplicar ? null : texto,
+      definido_por: usuario.id,
+      definido_em: new Date().toISOString(),
+    },
+    { onConflict: "competencia" }
+  );
+  if (error) return { erro: error.message };
+  revalidar();
+  return {
+    ok: aplicar
+      ? "Débito de inadimplentes voltou a contar nesta competência."
+      : "Competência fechará sem débito de inadimplentes.",
+  };
+}

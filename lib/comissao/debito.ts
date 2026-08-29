@@ -25,6 +25,11 @@ import { hojeIso, mesAtras, primeiroDiaDoMes, ultimoDiaDoMes } from "@/lib/datas
  *
  * Override: uma linha em debitos_meta_mensal com origem 'manual' para a
  * competência/vendedora tem precedência (ajuste validado pela gestão).
+ *
+ * Chave da competência: comissao_competencia_config.aplicar_debito=false
+ * zera o débito do mês inteiro — a LISTA de pendentes continua sendo montada e
+ * exibida (acompanhamento), mas não desconta da meta de ninguém. Foi o caso de
+ * agosto/2026, mês de transição entre as duas regras.
  */
 
 export type ItemDebito = {
@@ -49,6 +54,10 @@ export type DebitoCoorte = {
   itensPorVendedora: Map<string, ItemDebito[]>;
   /** vendedoras cujo número veio de ajuste manual da gestão */
   manuais: Set<string>;
+  /** false quando a competência foi fechada sem débito (lista só informativa) */
+  aplicado: boolean;
+  /** por que o mês não aplica débito */
+  observacao: string | null;
 };
 
 /** Mês da coorte avaliada por uma competência (M-3). */
@@ -110,6 +119,15 @@ export async function debitoPorCoorte(competenciaIso?: string): Promise<DebitoCo
     itensPorVendedora.set(c.vendedor_id, lista);
   }
 
+  // a competência aplica débito? (decisão do mês, acima do cálculo)
+  const { data: cfg } = await admin
+    .from("comissao_competencia_config")
+    .select("aplicar_debito, observacao")
+    .eq("competencia", competencia)
+    .maybeSingle();
+  const aplicado = cfg?.aplicar_debito !== false;
+  const observacao = (cfg?.observacao as string | null) ?? null;
+
   // override manual da gestão (precedência sobre o cálculo)
   const manuais = new Set<string>();
   const { data: ajustes } = await admin
@@ -122,5 +140,10 @@ export async function debitoPorCoorte(competenciaIso?: string): Promise<DebitoCo
     manuais.add(a.vendedor_id as string);
   }
 
-  return { competencia, coorte, porVendedora, itensPorVendedora, manuais };
+  // mês sem débito: mantém a lista (para a vendedora acompanhar) e zera o peso
+  if (!aplicado) {
+    for (const id of porVendedora.keys()) porVendedora.set(id, 0);
+  }
+
+  return { competencia, coorte, porVendedora, itensPorVendedora, manuais, aplicado, observacao };
 }
