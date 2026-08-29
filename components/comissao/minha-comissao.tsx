@@ -21,10 +21,13 @@ function rotuloMes(iso: string): string {
  * somam débito na meta — a vendedora acompanha e age antes do fechamento.
  */
 export function PainelMinhaComissao({
+  demonstrativo,
   dados,
   linkTemplate,
 }: {
   dados: MinhaComissao;
+  /** competência já fechada: a agente pode baixar o próprio demonstrativo */
+  demonstrativo?: { vendedorId: string; mes: string } | null;
   linkTemplate: string;
 }) {
   if (!dados.temRegra || !dados.resultado) {
@@ -46,7 +49,18 @@ export function PainelMinhaComissao({
   return (
     <Card className="mt-6">
       <CardHeader className="pb-3">
-        <CardTitle>Minha comissão — mês corrente</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle>Minha comissão — mês corrente</CardTitle>
+          {demonstrativo && (
+            <a
+              href={`/api/comissao/demonstrativo?vendedor=${demonstrativo.vendedorId}&mes=${demonstrativo.mes}`}
+              className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+              title="Demonstrativo oficial da última competência fechada"
+            >
+              ↓ Meu demonstrativo ({rotuloMes(demonstrativo.mes)})
+            </a>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">
           A venda pontua a meta ao ser cadastrada; a comissão libera com Termo + Fidelidade
           assinados e serviço ativo. O débito da meta avalia as vendas de{" "}

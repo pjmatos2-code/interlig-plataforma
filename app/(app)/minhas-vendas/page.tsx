@@ -12,6 +12,22 @@ import { formatarData } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Última competência FECHADA da agente — só aí existe demonstrativo oficial
+ * para baixar (o mês corrente ainda muda).
+ */
+async function ultimoDemonstrativo(vendedorId: string) {
+  const { criarClienteAdmin } = await import("@/lib/supabase/admin");
+  const { data } = await criarClienteAdmin()
+    .from("comissoes_fechadas")
+    .select("mes_ano")
+    .eq("vendedor_id", vendedorId)
+    .order("mes_ano", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ? { vendedorId, mes: data.mes_ano as string } : null;
+}
+
 export default async function MinhasVendasPage({
   searchParams,
 }: {
@@ -52,6 +68,7 @@ export default async function MinhasVendasPage({
       {usuario.vendedor_id && (
         <PainelMinhaComissao
           dados={await minhaComissao(usuario.vendedor_id)}
+          demonstrativo={await ultimoDemonstrativo(usuario.vendedor_id)}
           linkTemplate={await templateLinkSgp()}
         />
       )}

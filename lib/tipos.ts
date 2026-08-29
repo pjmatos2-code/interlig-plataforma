@@ -1,4 +1,11 @@
-export type Perfil = "gestor" | "supervisor" | "vendedora" | "vendedora_externa" | "agente_corporativo";
+export type Perfil =
+  | "gestor"
+  | "supervisor"
+  | "vendedora"
+  | "vendedora_externa"
+  | "agente_corporativo"
+  /** somente leitura do que é pagamento: comissões fechadas e demonstrativos */
+  | "financeiro";
 
 /** Interna e externa compartilham o mesmo escopo de dados (só o que é delas). */
 export const ehVendedora = (p: Perfil): boolean =>
@@ -20,6 +27,7 @@ export const ROTULO_PERFIL: Record<Perfil, string> = {
   vendedora: "Vendedora interna",
   vendedora_externa: "Vendedora externa",
   agente_corporativo: "Agente corporativo",
+  financeiro: "Financeiro",
 };
 
 export type CategoriaOrigem =

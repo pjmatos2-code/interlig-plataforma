@@ -12,12 +12,27 @@ export function PainelFechamento({ mesAnterior, jaFechado }: { mesAnterior: stri
   const rotuloMes = mesAnterior.slice(0, 7).split("-").reverse().join("/");
 
   async function executar(refazer: boolean) {
-    const confirmacao = refazer
-      ? `Refazer o fechamento de ${rotuloMes}? Os snapshots atuais serão substituídos (recálculo retroativo explícito).`
-      : `Fechar as comissões de ${rotuloMes}? Os valores viram snapshot imutável.`;
-    if (!confirm(confirmacao)) return;
+    if (refazer) {
+      // reabrir invalida demonstrativos já entregues: exige motivo, que fica
+      // no histórico e no próximo documento
+      const motivo = prompt(
+        `Reabrir o fechamento de ${rotuloMes}?\n\nO fechamento atual vai para o histórico, a versão sobe e os demonstrativos já entregues deixam de valer. Descreva o motivo:`
+      );
+      if (motivo === null) return;
+      setAguardando(true);
+      setEstado(await refazerFechamento(mesAnterior, motivo));
+      setAguardando(false);
+      router.refresh();
+      return;
+    }
+    if (
+      !confirm(
+        `Fechar as comissões de ${rotuloMes}? Os valores viram snapshot imutável e liberam o módulo Financeiro.`
+      )
+    )
+      return;
     setAguardando(true);
-    setEstado(refazer ? await refazerFechamento(mesAnterior) : await fecharComissoes(mesAnterior));
+    setEstado(await fecharComissoes(mesAnterior));
     setAguardando(false);
     router.refresh();
   }
@@ -29,7 +44,7 @@ export function PainelFechamento({ mesAnterior, jaFechado }: { mesAnterior: stri
       </Button>
       {jaFechado && (
         <Button variant="outline" onClick={() => executar(true)} disabled={aguardando}>
-          Refazer (recálculo explícito)
+          Reabrir (com motivo)
         </Button>
       )}
       {estado?.erro && <p className="text-sm text-destructive">{estado.erro}</p>}

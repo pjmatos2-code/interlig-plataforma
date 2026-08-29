@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { exigirPerfil } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { comissoesDoMes } from "@/lib/comissao/dados";
 
 export type EstadoMeta = { erro?: string; ok?: boolean };
@@ -57,48 +58,103 @@ export async function excluirMeta(id: string): Promise<EstadoMeta> {
 export type EstadoFechamento = { erro?: string; fechadas?: number; total?: number };
 
 /**
- * Fechamento de comissão do mês (PRD seção 6): gera snapshot IMUTÁVEL por
- * vendedora em comissoes_fechadas. Recalcular exige refazer explicitamente.
+ * Fechamento de comissão do mês (PRD seção 6): grava o snapshot IMUTÁVEL por
+ * vendedora em comissoes_fechadas. A partir daqui o financeiro paga sobre ESTE
+ * número — nada que mude no SGP depois altera o que já foi apurado.
+ *
+ * O snapshot precisa se explicar sozinho numa auditoria futura, então congela
+ * a regra inteira, a lista nominal de contratos e cada exceção aplicada
+ * (liberação manual, dispensa de assinatura, débito) — ver lib/comissao/snapshot.
  */
 export async function fecharComissoes(mesAno: string): Promise<EstadoFechamento> {
   const usuario = await exigirPerfil(["gestor"]);
   if (!/^\d{4}-\d{2}-01$/.test(mesAno)) return { erro: "Mês inválido." };
 
   const supabase = criarClienteServidor();
-  const comissoes = await comissoesDoMes(mesAno);
-  const calculaveis = comissoes.filter((c) => c.resultado !== null);
-  if (calculaveis.length === 0)
+  const { montarSnapshots } = await import("@/lib/comissao/snapshot");
+  const snapshots = await montarSnapshots(mesAno, usuario.nome ?? null);
+  if (snapshots.size === 0)
     return { erro: "Nenhuma vendedora com meta e regra vigente neste mês." };
 
+  // versão preservada quando é refechamento (o histórico já guardou a anterior)
+  const { data: existentes } = await supabase
+    .from("comissoes_fechadas")
+    .select("vendedor_id, versao")
+    .eq("mes_ano", mesAno);
+  const versaoDe = new Map((existentes ?? []).map((e) => [e.vendedor_id as string, e.versao as number]));
+
   let fechadas = 0;
-  for (const c of calculaveis) {
+  for (const [vendedorId, snap] of snapshots) {
     const { error } = await supabase.from("comissoes_fechadas").upsert(
       {
-        vendedor_id: c.vendedorId,
+        vendedor_id: vendedorId,
         mes_ano: mesAno,
-        snapshot: {
-          regra_id: c.regra!.id,
-          meta: c.metaMensal,
-          resultado: c.resultado,
-          fechado_em: new Date().toISOString(),
-        },
-        valor_total: c.resultado!.total,
+        snapshot: snap as unknown as Record<string, unknown>,
+        valor_total: snap.resultado.total,
+        fechado_em: snap.fechadoEm,
         fechado_por: usuario.id,
+        versao: versaoDe.get(vendedorId) ?? 1,
       },
-      { onConflict: "vendedor_id,mes_ano", ignoreDuplicates: true }
+      { onConflict: "vendedor_id,mes_ano" }
     );
     if (!error) fechadas += 1;
   }
   revalidatePath("/metas");
-  return { fechadas, total: calculaveis.length };
+  revalidatePath("/financeiro");
+  revalidatePath("/minhas-vendas");
+  return { fechadas, total: snapshots.size };
 }
 
-/** Recálculo retroativo: só por ação explícita do gestor (PRD 6). */
-export async function refazerFechamento(mesAno: string): Promise<EstadoFechamento> {
-  await exigirPerfil(["gestor"]);
-  const supabase = criarClienteServidor();
-  const { error } = await supabase.from("comissoes_fechadas").delete().eq("mes_ano", mesAno);
-  if (error) return { erro: error.message };
+/**
+ * Reabertura: só o Administrador, com motivo. O fechamento anterior NÃO é
+ * apagado — vai para comissoes_fechadas_historico e a versão sobe, de modo que
+ * um demonstrativo já entregue continue identificável pelo código de
+ * verificação impresso nele.
+ */
+export async function refazerFechamento(
+  mesAno: string,
+  motivo?: string
+): Promise<EstadoFechamento> {
+  const usuario = await exigirPerfil(["gestor"]);
+  const texto = (motivo ?? "").trim();
+  if (texto.length < 5)
+    return { erro: "Descreva o motivo da reabertura (mín. 5 caracteres) — ele fica no histórico." };
+
+  const admin = criarClienteAdmin();
+  const { data: atuais } = await admin
+    .from("comissoes_fechadas")
+    .select("vendedor_id, mes_ano, versao, snapshot, valor_total, fechado_em, fechado_por")
+    .eq("mes_ano", mesAno);
+
+  if (atuais && atuais.length > 0) {
+    await admin.from("comissoes_fechadas_historico").insert(
+      atuais.map((a) => ({
+        vendedor_id: a.vendedor_id,
+        mes_ano: a.mes_ano,
+        versao: a.versao,
+        snapshot: a.snapshot,
+        valor_total: a.valor_total,
+        fechado_em: a.fechado_em,
+        fechado_por: a.fechado_por,
+        motivo: texto,
+      }))
+    );
+    // pagamento e versão são zerados/incrementados no refechamento
+    for (const a of atuais) {
+      await admin
+        .from("comissoes_fechadas")
+        .update({
+          versao: (a.versao as number) + 1,
+          reaberto_em: new Date().toISOString(),
+          reaberto_por: usuario.id,
+          reaberto_motivo: texto,
+          pago_em: null,
+          pago_por: null,
+        })
+        .eq("vendedor_id", a.vendedor_id)
+        .eq("mes_ano", mesAno);
+    }
+  }
   return fecharComissoes(mesAno);
 }
 
