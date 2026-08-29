@@ -26,7 +26,8 @@ type ContratoC = ContratoIndicador & {
   plano_id: string | null;
   termo_adesao_assinado: boolean | null;
   fidelidade_assinada: boolean | null;
-  planos: { nome: string } | null;
+  assinatura_dispensada: boolean | null;
+  planos: { nome: string; exige_assinatura: boolean | null } | null;
 };
 
 const dias = (de: string, ate: string) =>
@@ -91,7 +92,7 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
       supabase
         .from("contratos")
         .select(
-          "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, plano_id, termo_adesao_assinado, fidelidade_assinada, planos(nome)"
+          "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, plano_id, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, planos(nome, exige_assinatura)"
         )
         .gte("data_venda", mes)
         .lte("data_venda", fim)
@@ -255,7 +256,7 @@ export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
   const { data: contratos } = await supabase
     .from("contratos")
     .select(
-      "id, status, termo_adesao_assinado, fidelidade_assinada, plano_id, vendedor_id, data_venda, planos(nome), clientes(nome, sgp_cliente_id)"
+      "id, status, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, plano_id, vendedor_id, data_venda, planos(nome, exige_assinatura), clientes(nome, sgp_cliente_id)"
     )
     .in("id", contratoIds.length ? contratoIds : ["00000000-0000-0000-0000-000000000000"]);
 

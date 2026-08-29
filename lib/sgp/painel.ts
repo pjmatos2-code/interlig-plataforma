@@ -144,14 +144,22 @@ export type ResultadoLeitor = {
   ok: boolean;
   verificados: number;
   atribuidos: number;
+  /** contratos cuja vendedora estava diferente da do SGP e foi corrigida */
+  corrigidos: number;
   semVendedorNoSgp: number;
   semMapeamento: string[];
   erro?: string;
 };
 
 /**
- * Roda o leitor para os contratos SEM vendedor ainda não verificados,
- * dos mais recentes para os mais antigos (aos poucos cobre o histórico).
+ * Roda o leitor para os contratos ainda não verificados no painel, dos mais
+ * recentes para os mais antigos (aos poucos cobre o histórico).
+ *
+ * Antes só varria contratos SEM vendedora, e como o CRM atribui primeiro, o
+ * painel quase nunca chegava a olhar: em agosto/2026, 236 dos 297 contratos
+ * tinham vendedora vinda do ticket, sem confirmação no SGP. Como a autoria da
+ * venda é a do campo vendedor do SGP (decisão 29/08/2026), o leitor agora
+ * confere todos e CORRIGE quem estiver diferente.
  */
 export async function identificarVendedoresPainel(limite = 15): Promise<ResultadoLeitor> {
   const admin = criarClienteAdmin();
@@ -164,7 +172,7 @@ export async function identificarVendedoresPainel(limite = 15): Promise<Resultad
   const cfg = (cfgRow?.config ?? {}) as Record<string, string>;
   if (!cfg.painel_usuario || !cfg.painel_senha) {
     return {
-      ok: false, verificados: 0, atribuidos: 0, semVendedorNoSgp: 0, semMapeamento: [],
+      ok: false, verificados: 0, atribuidos: 0, corrigidos: 0, semVendedorNoSgp: 0, semMapeamento: [],
       erro: "credencial do painel não configurada (scripts/salvar-credencial-sgp-painel.mjs)",
     };
   }
@@ -172,14 +180,13 @@ export async function identificarVendedoresPainel(limite = 15): Promise<Resultad
 
   const { data: pendentes } = await admin
     .from("contratos")
-    .select("id, sgp_contrato_id, clientes(sgp_cliente_id)")
-    .is("vendedor_id", null)
+    .select("id, sgp_contrato_id, vendedor_id, clientes(sgp_cliente_id)")
     .is("vendedor_painel_verificado_em", null)
     .not("sgp_contrato_id", "is", null)
     .order("data_venda", { ascending: false })
     .limit(limite);
   if (!pendentes || pendentes.length === 0) {
-    return { ok: true, verificados: 0, atribuidos: 0, semVendedorNoSgp: 0, semMapeamento: [] };
+    return { ok: true, verificados: 0, atribuidos: 0, corrigidos: 0, semVendedorNoSgp: 0, semMapeamento: [] };
   }
 
   const { data: vends } = await admin
@@ -199,6 +206,7 @@ export async function identificarVendedoresPainel(limite = 15): Promise<Resultad
   const painel = new PainelSgp(base, cfg.painel_usuario, cfg.painel_senha);
   let verificados = 0;
   let atribuidos = 0;
+  let corrigidos = 0;
   let semVendedorNoSgp = 0;
   const semMapeamento = new Set<string>();
 
@@ -206,7 +214,7 @@ export async function identificarVendedoresPainel(limite = 15): Promise<Resultad
     await painel.login();
   } catch (e) {
     return {
-      ok: false, verificados: 0, atribuidos: 0, semVendedorNoSgp: 0, semMapeamento: [],
+      ok: false, verificados: 0, atribuidos: 0, corrigidos: 0, semVendedorNoSgp: 0, semMapeamento: [],
       erro: e instanceof Error ? e.message : String(e),
     };
   }
@@ -223,12 +231,12 @@ export async function identificarVendedoresPainel(limite = 15): Promise<Resultad
         const alvo =
           (v.login ? porLogin.get(v.login.toLowerCase()) : null) ?? acharPorNome(v.nome);
         if (alvo) {
-          await admin
-            .from("contratos")
-            .update({ vendedor_id: alvo.id })
-            .eq("id", c.id)
-            .is("vendedor_id", null);
-          atribuidos += 1;
+          // o SGP é a fonte da verdade — corrige inclusive o que o CRM atribuiu
+          if (alvo.id !== c.vendedor_id) {
+            await admin.from("contratos").update({ vendedor_id: alvo.id }).eq("id", c.id);
+            if (c.vendedor_id) corrigidos += 1;
+            else atribuidos += 1;
+          }
           // aprendizado: memoriza o login para os próximos casarem direto
           if (v.login && !alvo.sgp_login) {
             await admin.from("vendedores").update({ sgp_login: v.login }).eq("id", alvo.id);
@@ -247,5 +255,5 @@ export async function identificarVendedoresPainel(limite = 15): Promise<Resultad
     }
   }
 
-  return { ok: true, verificados, atribuidos, semVendedorNoSgp, semMapeamento: [...semMapeamento] };
+  return { ok: true, verificados, atribuidos, corrigidos, semVendedorNoSgp, semMapeamento: [...semMapeamento] };
 }

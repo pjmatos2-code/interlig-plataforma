@@ -110,3 +110,50 @@ export async function atribuirVendedoraContrato(
   revalidar();
   return { ok: "Vendedora atribuída." };
 }
+
+/**
+ * Marca que o contrato NÃO requer assinatura — cortesia, ponto de licitação,
+ * aditivo de um contrato que já tem instrumento. É diferente de aprovar uma
+ * venda sem assinatura: aqui o documento não existe por natureza do negócio.
+ */
+export async function dispensarAssinatura(
+  contratoId: string,
+  motivo: string
+): Promise<Resultado> {
+  const usuario = await exigirPerfil(["gestor"]);
+  const texto = motivo.trim();
+  if (!contratoId) return { erro: "Contrato ausente." };
+  if (texto.length < 5) return { erro: "Descreva o motivo (mín. 5 caracteres)." };
+
+  const admin = criarClienteAdmin();
+  const { error } = await admin
+    .from("contratos")
+    .update({
+      assinatura_dispensada: true,
+      assinatura_dispensada_motivo: texto,
+      assinatura_dispensada_por: usuario.id,
+      assinatura_dispensada_em: new Date().toISOString(),
+    })
+    .eq("id", contratoId);
+  if (error) return { erro: error.message };
+  revalidar();
+  return { ok: "Assinatura dispensada para este contrato." };
+}
+
+/** Volta a exigir assinatura (desfaz a dispensa). */
+export async function reexigirAssinatura(contratoId: string): Promise<Resultado> {
+  await exigirPerfil(["gestor"]);
+  const admin = criarClienteAdmin();
+  const { error } = await admin
+    .from("contratos")
+    .update({
+      assinatura_dispensada: false,
+      assinatura_dispensada_motivo: null,
+      assinatura_dispensada_por: null,
+      assinatura_dispensada_em: null,
+    })
+    .eq("id", contratoId);
+  if (error) return { erro: error.message };
+  revalidar();
+  return { ok: "Contrato volta a exigir assinatura." };
+}

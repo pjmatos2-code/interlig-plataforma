@@ -73,7 +73,8 @@ type ContratoM = ContratoIndicador & {
   plano_id: string | null;
   termo_adesao_assinado: boolean | null;
   fidelidade_assinada: boolean | null;
-  planos: { nome: string } | null;
+  assinatura_dispensada: boolean | null;
+  planos: { nome: string; exige_assinatura: boolean | null } | null;
   clientes: { nome: string; sgp_cliente_id: string | null } | null;
 };
 
@@ -100,7 +101,7 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
       admin
         .from("contratos")
         .select(
-          "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, plano_id, termo_adesao_assinado, fidelidade_assinada, planos(nome), clientes(nome, sgp_cliente_id)"
+          "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, plano_id, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, planos(nome, exige_assinatura), clientes(nome, sgp_cliente_id)"
         )
         .eq("vendedor_id", vendedorId)
         .gte("data_venda", mes)

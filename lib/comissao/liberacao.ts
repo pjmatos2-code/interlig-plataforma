@@ -26,6 +26,10 @@ export type ContratoLiberacao = {
   status: string;
   termo_adesao_assinado: boolean | null;
   fidelidade_assinada: boolean | null;
+  /** gestor marcou que este contrato não requer assinatura (cortesia, licitação) */
+  assinatura_dispensada?: boolean | null;
+  /** false em produtos sem Termo/Fidelidade — LigChip e afins */
+  planos?: { exige_assinatura?: boolean | null } | null;
 };
 
 export type Aprovacao = {
@@ -44,8 +48,19 @@ export type Veredito = {
   aprovacaoManual: Aprovacao | null;
 };
 
-/** Pendências que o gestor NÃO pode dispensar. */
+/**
+ * O contrato exige as duas assinaturas? LigChip é só serviço (não tem os
+ * documentos), e cortesia/licitação são dispensados caso a caso pelo gestor.
+ */
+export function exigeAssinatura(c: ContratoLiberacao): boolean {
+  if (c.assinatura_dispensada === true) return false;
+  if (c.planos && c.planos.exige_assinatura === false) return false;
+  return true;
+}
+
+/** Pendências que o gestor NÃO pode dispensar pela tela de aprovação. */
 export function temPendenciaDeAssinatura(c: ContratoLiberacao): boolean {
+  if (!exigeAssinatura(c)) return false;
   return c.termo_adesao_assinado !== true || c.fidelidade_assinada !== true;
 }
 
@@ -81,8 +96,11 @@ export function avaliarLiberacao(
   aprovacao: Aprovacao | null
 ): Veredito {
   const pendencias: string[] = [];
-  if (contrato.termo_adesao_assinado !== true) pendencias.push("Termo de Adesão sem assinatura");
-  if (contrato.fidelidade_assinada !== true) pendencias.push("Contrato de Fidelidade sem assinatura");
+  if (exigeAssinatura(contrato)) {
+    if (contrato.termo_adesao_assinado !== true) pendencias.push("Termo de Adesão sem assinatura");
+    if (contrato.fidelidade_assinada !== true)
+      pendencias.push("Contrato de Fidelidade sem assinatura");
+  }
   if (contrato.status !== "ativo") pendencias.push(`serviço ${contrato.status.replace(/_/g, " ")}`);
 
   const bloqueioAbsoluto = temPendenciaDeAssinatura(contrato);

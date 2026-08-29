@@ -6,7 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatarData, formatarMoeda } from "@/lib/format";
 import type { FilaAprovacao, ItemAprovacao } from "@/lib/comissao/aprovacoes";
-import { aprovarVenda, revogarAprovacao, atribuirVendedoraContrato } from "./acoes";
+import {
+  aprovarVenda,
+  revogarAprovacao,
+  atribuirVendedoraContrato,
+  dispensarAssinatura,
+} from "./acoes";
 
 function LinkSgp({ id, template }: { id: string | null; template: string | null }) {
   if (!id) return <span className="text-muted-foreground">—</span>;
@@ -38,6 +43,7 @@ function Linha({
 }) {
   const router = useRouter();
   const [abrindo, setAbrindo] = useState(false);
+  const [dispensando, setDispensando] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -49,6 +55,7 @@ function Linha({
     setOcupado(false);
     if (r.erro) return setErro(r.erro);
     setAbrindo(false);
+    setDispensando(false);
     setMotivo("");
     router.refresh();
   }
@@ -109,12 +116,49 @@ function Linha({
             Revogar
           </button>
         ) : item.bloqueioAbsoluto ? (
-          <span
-            className="text-xs text-muted-foreground"
-            title="Política da empresa: venda sem assinatura não comissiona"
-          >
-            🔒 exige assinatura
-          </span>
+          dispensando ? (
+            <div className="flex items-center justify-end gap-1">
+              <input
+                autoFocus
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+                placeholder="cortesia, licitação, aditivo…"
+                className="h-8 w-52 rounded-md border border-input bg-background px-2 text-xs"
+              />
+              <button
+                type="button"
+                disabled={ocupado}
+                onClick={() => executar(() => dispensarAssinatura(item.contratoId, motivo))}
+                className="rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
+              >
+                Dispensar
+              </button>
+              <button
+                type="button"
+                onClick={() => setDispensando(false)}
+                className="rounded-md border px-2 py-1 text-xs hover:bg-muted"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-end gap-1">
+              <span
+                className="text-xs text-muted-foreground"
+                title="Política da empresa: venda sem assinatura não comissiona"
+              >
+                🔒 exige assinatura
+              </span>
+              <button
+                type="button"
+                onClick={() => setDispensando(true)}
+                className="text-[11px] text-muted-foreground underline hover:text-foreground"
+                title="Só para contratos que por natureza não têm assinatura"
+              >
+                não requer assinatura
+              </button>
+            </div>
+          )
         ) : abrindo ? (
           <div className="flex items-center justify-end gap-1">
             <input
