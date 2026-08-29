@@ -54,7 +54,7 @@ export function SimuladorComissao({
             )}
             {atual.vendasPendentes > 0 && (
               <p className="mt-1 rounded bg-farol-amarelo/10 px-2 py-1 text-xs text-yellow-700">
-                ⏳ {atual.vendasPendentes} venda(s) com comissão pendente (assinaturas/ativação/CRM)
+                ⏳ {atual.vendasPendentes} venda(s) com comissão pendente (assinaturas/ativação)
                 — libera até {formatarMoeda(atual.totalSeLiberar)}
               </p>
             )}

@@ -94,7 +94,7 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
     entradaSimulador: null,
   };
 
-  const [{ data: vend }, { data: contratosBrutos }, { data: metaRow }, regras, { data: ticketsConvertidos }] =
+  const [{ data: vend }, { data: contratosBrutos }, { data: metaRow }, regras] =
     await Promise.all([
       admin.from("vendedores").select("id, pop_id").eq("id", vendedorId).maybeSingle(),
       admin
@@ -119,13 +119,6 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
         .lte("vigencia_inicio", mes)
         .or(`vigencia_fim.is.null,vigencia_fim.gte.${mes}`)
         .then((r) => (r.data ?? []) as unknown as RegraComissao[]),
-      admin
-        .from("tickets")
-        .select("contrato_id, vendedor_id, plano_id")
-        .eq("etapa", "fechado")
-        .eq("desfecho", "convertido")
-        .not("contrato_id", "is", null)
-        .limit(3000),
     ]);
 
   if (!vend) return vazio;
@@ -136,15 +129,6 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
   const contratos = (contratosBrutos ?? []) as unknown as ContratoM[];
   const { avaliarLiberacao, liberacoesManuais } = await import("@/lib/comissao/liberacao");
   const aprovacoes = await liberacoesManuais(mes);
-  const ticketsPorContrato = new Map<string, { contrato_id: string | null; vendedor_id: string | null; plano_id: string | null }[]>();
-  for (const t of ticketsConvertidos ?? []) {
-    const k = t.contrato_id as string;
-    ticketsPorContrato.set(k, [...(ticketsPorContrato.get(k) ?? []), t]);
-  }
-  const { data: vendsNomes } = await admin.from("vendedores").select("id, nome");
-  const nomeVend = (id: string | null) =>
-    (vendsNomes ?? []).find((v) => v.id === id)?.nome ?? "não atribuído";
-
   // ---- débito por COORTE M-3 (adendo 28/08) ----
   const coorteDebito = await debitoPorCoorte(mes);
   const inadimplentes: InadimplenteDebito[] = (
@@ -168,12 +152,7 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
     const referencia = c.data_ativacao ?? c.data_venda;
     const estornada =
       c.data_cancelamento !== null && dias(referencia, c.data_cancelamento) <= regra.estorno_dias;
-    const veredito = avaliarLiberacao(
-      { ...c, vendedor_id: vendedorId },
-      ticketsPorContrato.get(c.id) ?? [],
-      nomeVend,
-      aprovacoes.get(c.id) ?? null
-    );
+    const veredito = avaliarLiberacao(c, aprovacoes.get(c.id) ?? null);
     const liberada = veredito.liberada;
 
     // liberada PELO GESTOR: some da fila de pendências e vira crédito visível

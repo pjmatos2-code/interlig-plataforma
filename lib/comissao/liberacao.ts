@@ -1,33 +1,29 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
-import { consistenciaCrm } from "@/lib/comissao/consistencia";
 
 /**
  * Regra ÚNICA de liberação da venda para comissão (D5/D8 + adendo 29/08/2026).
  *
- * Antes essa decisão estava escrita duas vezes — no painel do gestor e no
- * "Minhas vendas" da vendedora — e as duas precisavam mudar juntas. Agora as
- * duas telas chamam daqui, e por isso o número que a vendedora vê é sempre o
- * mesmo que o gestor vê.
+ * Decisões da gestão em 29/08/2026:
  *
- * O que libera automaticamente: contrato ATIVO + Termo de Adesão e Fidelidade
- * assinados + CRM consistente. O que NÃO libera pode ser liberado à mão pelo
- * gestor (comissao_liberacoes) — caso clássico: venda do último dia do mês
- * cuja instalação só cabe na agenda do mês seguinte. A vendedora não pode ser
- * penalizada por uma fila que não é dela.
+ * 1. A vendedora da venda é a do campo "vendedor" do SGP — sempre. O cliente
+ *    pode ter sido atendido no CRM por outra pessoa; isso não muda a autoria
+ *    da venda. Por isso divergência de ticket NÃO segura mais a comissão (era
+ *    a regra D5 antiga, aposentada aqui).
+ * 2. Assinatura é inegociável: sem Termo de Adesão e Contrato de Fidelidade
+ *    assinados a venda não comissiona, e nem o gestor pode liberar. É o único
+ *    bloqueio absoluto.
+ * 3. Serviço ainda não ativo PODE ser liberado à mão pelo gestor — o caso da
+ *    venda do dia 31 cuja instalação só cabe na agenda do mês seguinte. A
+ *    vendedora não responde pela fila do operacional.
+ *
+ * As duas telas (painel do gestor e "Minhas vendas") chamam daqui, então o
+ * número que a vendedora vê é sempre o mesmo que o gestor vê.
  */
-
-export type TicketConsistencia = {
-  contrato_id: string | null;
-  vendedor_id: string | null;
-  plano_id: string | null;
-};
 
 export type ContratoLiberacao = {
   id: string;
   status: string;
-  vendedor_id: string | null;
-  plano_id: string | null;
   termo_adesao_assinado: boolean | null;
   fidelidade_assinada: boolean | null;
 };
@@ -42,9 +38,16 @@ export type Veredito = {
   liberada: boolean;
   /** o que trava a liberação automática — vazio quando nada trava */
   pendencias: string[];
+  /** falta assinatura: nem a gestão pode liberar */
+  bloqueioAbsoluto: boolean;
   /** preenchido quando quem liberou foi o gestor, não a regra */
   aprovacaoManual: Aprovacao | null;
 };
+
+/** Pendências que o gestor NÃO pode dispensar. */
+export function temPendenciaDeAssinatura(c: ContratoLiberacao): boolean {
+  return c.termo_adesao_assinado !== true || c.fidelidade_assinada !== true;
+}
 
 /** Liberações manuais vigentes (não revogadas) de uma competência. */
 export async function liberacoesManuais(
@@ -75,24 +78,24 @@ export async function liberacoesManuais(
  */
 export function avaliarLiberacao(
   contrato: ContratoLiberacao,
-  tickets: TicketConsistencia[],
-  nomeVendedora: (id: string | null) => string,
   aprovacao: Aprovacao | null
 ): Veredito {
   const pendencias: string[] = [];
-
   if (contrato.termo_adesao_assinado !== true) pendencias.push("Termo de Adesão sem assinatura");
   if (contrato.fidelidade_assinada !== true) pendencias.push("Contrato de Fidelidade sem assinatura");
   if (contrato.status !== "ativo") pendencias.push(`serviço ${contrato.status.replace(/_/g, " ")}`);
 
-  const cons = consistenciaCrm(
-    tickets,
-    { vendedor_id: contrato.vendedor_id, plano_id: contrato.plano_id },
-    nomeVendedora
-  );
-  if (!cons.ok) pendencias.push(cons.motivo ?? "CRM divergente");
+  const bloqueioAbsoluto = temPendenciaDeAssinatura(contrato);
 
-  if (pendencias.length === 0) return { liberada: true, pendencias: [], aprovacaoManual: null };
-  if (aprovacao) return { liberada: true, pendencias, aprovacaoManual: aprovacao };
-  return { liberada: false, pendencias, aprovacaoManual: null };
+  if (pendencias.length === 0)
+    return { liberada: true, pendencias: [], bloqueioAbsoluto: false, aprovacaoManual: null };
+
+  // assinatura pendente não comissiona nem com aprovação registrada
+  if (bloqueioAbsoluto)
+    return { liberada: false, pendencias, bloqueioAbsoluto: true, aprovacaoManual: null };
+
+  if (aprovacao)
+    return { liberada: true, pendencias, bloqueioAbsoluto: false, aprovacaoManual: aprovacao };
+
+  return { liberada: false, pendencias, bloqueioAbsoluto: false, aprovacaoManual: null };
 }

@@ -85,7 +85,7 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
   const fim = ultimoDiaDoMes(mes);
   const ateData = fim < hoje ? fim : hoje;
 
-  const [{ data: vendedoras }, { data: contratosBrutos }, { data: metas }, regras, { data: ticketsConvertidos }] =
+  const [{ data: vendedoras }, { data: contratosBrutos }, { data: metas }, regras] =
     await Promise.all([
       supabase.from("vendedores").select("id, nome, pop_id").eq("ativo", true).order("nome"),
       supabase
@@ -102,27 +102,12 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
         .eq("escopo", "vendedora")
         .eq("mes_ano", mes),
       regrasVigentes(mes),
-      supabase
-        .from("tickets")
-        .select("contrato_id, vendedor_id, plano_id")
-        .eq("etapa", "fechado")
-        .eq("desfecho", "convertido")
-        .not("contrato_id", "is", null)
-        .limit(3000),
     ]);
 
   // critério D5 (revisado 28/08) + aprovação manual do gestor (29/08):
   // regra única em lib/comissao/liberacao.ts
   const { avaliarLiberacao, liberacoesManuais } = await import("@/lib/comissao/liberacao");
   const aprovacoes = await liberacoesManuais(mes);
-  const ticketsPorContrato = new Map<string, typeof ticketsConvertidos>();
-  for (const t of ticketsConvertidos ?? []) {
-    const k = t.contrato_id as string;
-    ticketsPorContrato.set(k, [...(ticketsPorContrato.get(k) ?? []), t]);
-  }
-  const nomeVend = (id: string | null) =>
-    (vendedoras ?? []).find((v) => v.id === id)?.nome ?? "não atribuído";
-
   // débito por COORTE M-3 (adendo 28/08): a competência avalia só as vendas
   // de três meses atrás; status reavaliado até o fechamento.
   const { debitoPorCoorte } = await import("@/lib/comissao/debito");
@@ -162,12 +147,7 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
 
       // liberação D5/D8, com a aprovação manual do gestor sobrepondo as
       // pendências (venda do fim do mês que só instala no mês seguinte)
-      const { liberada } = avaliarLiberacao(
-        c,
-        ticketsPorContrato.get(c.id) ?? [],
-        nomeVend,
-        aprovacoes.get(c.id) ?? null
-      );
+      const { liberada } = avaliarLiberacao(c, aprovacoes.get(c.id) ?? null);
 
       return {
         valor_mensalidade: c.valor_mensalidade,
@@ -270,35 +250,16 @@ export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
   };
   if (!itens || itens.length === 0) return vazio;
 
-  // dados dos contratos casados, para rodar a nossa validação D5
+  // dados dos contratos casados, para rodar a nossa validação
   const contratoIds = itens.map((i) => i.contrato_id).filter(Boolean) as string[];
-  const [{ data: contratos }, { data: ticketsConvertidos }] = await Promise.all([
-    supabase
-      .from("contratos")
-      .select(
-        "id, status, termo_adesao_assinado, fidelidade_assinada, plano_id, vendedor_id, data_venda, planos(nome), clientes(nome, sgp_cliente_id)"
-      )
-      .in("id", contratoIds.length ? contratoIds : ["00000000-0000-0000-0000-000000000000"]),
-    supabase
-      .from("tickets")
-      .select("contrato_id, vendedor_id, plano_id")
-      .eq("etapa", "fechado")
-      .eq("desfecho", "convertido")
-      .not("contrato_id", "is", null)
-      .in("contrato_id", contratoIds.length ? contratoIds : ["00000000-0000-0000-0000-000000000000"]),
-  ]);
+  const { data: contratos } = await supabase
+    .from("contratos")
+    .select(
+      "id, status, termo_adesao_assinado, fidelidade_assinada, plano_id, vendedor_id, data_venda, planos(nome), clientes(nome, sgp_cliente_id)"
+    )
+    .in("id", contratoIds.length ? contratoIds : ["00000000-0000-0000-0000-000000000000"]);
 
   const contratoPor = new Map((contratos ?? []).map((c) => [c.id, c]));
-  const ticketsPor = new Map<string, { contrato_id: string | null; vendedor_id: string | null; plano_id: string | null }[]>();
-  for (const t of ticketsConvertidos ?? []) {
-    const k = t.contrato_id as string;
-    ticketsPor.set(k, [...(ticketsPor.get(k) ?? []), t]);
-  }
-  const { consistenciaCrm: consistenciaConf } = await import("@/lib/comissao/consistencia");
-  const { data: vendsNomes } = await supabase.from("vendedores").select("id, nome");
-  const nomeVendConf = (id: string | null) =>
-    (vendsNomes ?? []).find((v) => v.id === id)?.nome ?? "não atribuído";
-
   const porVend = new Map<string, ConferenciaVendedora>();
   const motivos = new Map<string, number>();
   const detalhes: ConferenciaItem[] = [];
@@ -312,20 +273,12 @@ export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
     else t.sgpGlosado++;
     if (pagavelSgp) t.receitaBaseElegivel += Number(it.vl_base ?? 0);
 
-    // nossa validação D5 (revisado — decisão D8): venda nativa do SGP não exige
-    // ticket no CRM; havendo ticket, precisa ser convertido e consistente
+    // nossa validação (adendo 29/08): a vendedora é a do SGP — ticket do CRM
+    // não julga mais a venda. Assinatura e ativação continuam valendo.
     const c = it.contrato_id ? contratoPor.get(it.contrato_id) : undefined;
-    const cons = c
-      ? consistenciaConf(
-          (it.contrato_id ? ticketsPor.get(it.contrato_id) : []) ?? [],
-          { vendedor_id: c.vendedor_id, plano_id: c.plano_id },
-          nomeVendConf
-        )
-      : { ok: true, motivo: null };
-    const crmConsistente = cons.ok;
     const assinaturasOk =
       c?.termo_adesao_assinado === true && c?.fidelidade_assinada === true;
-    const nossaLiberada = Boolean(c) && crmConsistente && assinaturasOk && c?.status === "ativo";
+    const nossaLiberada = Boolean(c) && assinaturasOk && c?.status === "ativo";
     if (nossaLiberada) t.nossaLiberada++;
 
     const diverge = pagavelSgp !== nossaLiberada;
@@ -335,7 +288,6 @@ export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
       if (pagavelSgp && !nossaLiberada) {
         if (!c) motivos.set("contrato ainda não sincronizado", (motivos.get("contrato ainda não sincronizado") ?? 0) + 1);
         else {
-          if (!crmConsistente) motivos.set(cons.motivo ?? "CRM divergente", (motivos.get(cons.motivo ?? "CRM divergente") ?? 0) + 1);
           if (!assinaturasOk) motivos.set("assinatura eletrônica pendente", (motivos.get("assinatura eletrônica pendente") ?? 0) + 1);
           if (c.status !== "ativo") motivos.set(`serviço ${c.status}`, (motivos.get(`serviço ${c.status}`) ?? 0) + 1);
         }
@@ -354,7 +306,6 @@ export async function conferenciaSgp(mesIso: string): Promise<ConferenciaSgp> {
       if (c.termo_adesao_assinado !== true) pendencias.push("Termo de Adesão sem assinatura");
       if (c.fidelidade_assinada !== true) pendencias.push("Contrato de Fidelidade sem assinatura");
       if (c.status !== "ativo") pendencias.push(`serviço ${c.status.replace(/_/g, " ")}`);
-      if (!crmConsistente) pendencias.push(cons.motivo ?? "CRM divergente");
     }
     if (pendencias.length === 0 && it.status_sgp === "pendente")
       pendencias.push("nada pendente do nosso lado — conferir o motivo no SGP");

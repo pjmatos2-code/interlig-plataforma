@@ -108,6 +108,13 @@ function Linha({
           >
             Revogar
           </button>
+        ) : item.bloqueioAbsoluto ? (
+          <span
+            className="text-xs text-muted-foreground"
+            title="Política da empresa: venda sem assinatura não comissiona"
+          >
+            🔒 exige assinatura
+          </span>
         ) : abrindo ? (
           <div className="flex items-center justify-end gap-1">
             <input

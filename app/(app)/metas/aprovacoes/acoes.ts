@@ -30,6 +30,22 @@ export async function aprovarVenda(
   if (texto.length < 5) return { erro: "Descreva o motivo (mín. 5 caracteres)." };
 
   const admin = criarClienteAdmin();
+
+  // trava dura (decisão 29/08): sem Termo de Adesão e Fidelidade assinados a
+  // venda não comissiona — nem por aprovação da gestão. Revalidado aqui no
+  // servidor porque esconder o botão na tela não é controle de verdade.
+  const { data: contrato } = await admin
+    .from("contratos")
+    .select("termo_adesao_assinado, fidelidade_assinada")
+    .eq("id", contratoId)
+    .maybeSingle();
+  if (!contrato) return { erro: "Contrato não encontrado." };
+  const { temPendenciaDeAssinatura } = await import("@/lib/comissao/liberacao");
+  if (temPendenciaDeAssinatura({ id: contratoId, status: "", ...contrato })) {
+    return {
+      erro: "Contrato sem Termo de Adesão ou Fidelidade assinado — a política não permite liberar.",
+    };
+  }
   const { error } = await admin.from("comissao_liberacoes").upsert(
     {
       contrato_id: contratoId,

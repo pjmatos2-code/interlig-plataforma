@@ -171,7 +171,7 @@ export default async function MetasPage({
         <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
           <span className="text-sm">
             <strong>Fechamento:</strong> libere as vendas seguradas por atraso de instalação ou
-            divergência de CRM e exporte a planilha da competência.
+            instalação e exporte a planilha da competência.
           </span>
           <Link
             href={`/metas/aprovacoes?mes=${mesSelecionado.slice(0, 7)}`}
@@ -254,7 +254,7 @@ export default async function MetasPage({
                           </td>
                           <td className="px-3 py-2.5 text-right tabular-nums">
                             {c.resultado.vendasPendentes > 0 ? (
-                              <Badge variant="amarelo" title="Aguardando assinaturas/ativação/CRM">
+                              <Badge variant="amarelo" title="Aguardando assinaturas ou ativação">
                                 {c.resultado.vendasPendentes}
                               </Badge>
                             ) : (
@@ -331,11 +331,7 @@ export default async function MetasPage({
               </div>
             )}
             <p className="text-xs text-muted-foreground">
-              Durante a implantação, a venda nativa do SGP não exige tratativa no CRM (decisão D8):
-              a nossa validação libera com as duas assinaturas eletrônicas + serviço ativo, igual
-              ao SGP. O ticket do CRM só é exigido quando a venda passou pelo funil (WhatsApp/SZ).
-              As divergências que sobram são assinatura pendente ou serviço não ativo.
-            </p>
+              A vendedora da venda é sempre a do campo <strong>vendedor</strong> do SGP (decisão 29/08/2026) — o cliente pode ter sido atendido no CRM por outra pessoa, e isso não muda a autoria. Para comissionar, a venda precisa de Termo de Adesão e Contrato de Fidelidade assinados (inegociável) e do serviço ativo. Só a ativação pendente pode ser liberada pelo Administrador, em Aprovação de vendas.</p>
           </CardContent>
         </Card>
       )}

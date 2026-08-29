@@ -38,7 +38,7 @@ export default async function AprovacoesPage({
       </div>
       <CabecalhoPagina
         titulo="Aprovação de vendas"
-        descricao="Libere as vendas que a regra automática segurou e feche a competência sem penalizar a vendedora por atraso operacional."
+        descricao="A vendedora da venda é a do campo vendedor do SGP. Instalação pendente você libera; sem Termo de Adesão e Fidelidade assinados, ninguém libera."
       />
 
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -67,7 +67,7 @@ export default async function AprovacoesPage({
         <CartaoKpi
           rotulo="Liberadas pela regra"
           valor={formatarNumero(fila.totais.liberadasAuto)}
-          contexto="contrato ativo, assinaturas e CRM ok"
+          contexto="contrato ativo e assinaturas em dia"
         />
         <CartaoKpi
           rotulo="Liberadas pela gestão"

@@ -21,6 +21,8 @@ export type ItemAprovacao = {
   vendedorId: string | null;
   vendedora: string;
   pendencias: string[];
+  /** assinatura pendente: fica na fila, mas sem botão — ninguém libera */
+  bloqueioAbsoluto: boolean;
   aprovacao: Aprovacao | null;
 };
 
@@ -50,7 +52,7 @@ export async function filaAprovacao(mesIso?: string): Promise<FilaAprovacao> {
   const fim = ultimoDiaDoMes(mes);
   const ateData = fim < hoje ? fim : hoje;
 
-  const [{ data: contratosBrutos }, { data: vendedoras }, { data: ticketsConvertidos }, aprovacoes] =
+  const [{ data: contratosBrutos }, { data: vendedoras }, aprovacoes] =
     await Promise.all([
       admin
         .from("contratos")
@@ -61,24 +63,11 @@ export async function filaAprovacao(mesIso?: string): Promise<FilaAprovacao> {
         .lte("data_venda", fim)
         .limit(5000),
       admin.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
-      admin
-        .from("tickets")
-        .select("contrato_id, vendedor_id, plano_id")
-        .eq("etapa", "fechado")
-        .eq("desfecho", "convertido")
-        .not("contrato_id", "is", null)
-        .limit(3000),
-      liberacoesManuais(mesIso ?? primeiroDiaDoMes(hojeIso())),
+      liberacoesManuais(mes),
     ]);
 
   const nomeVend = (id: string | null) =>
     (vendedoras ?? []).find((v) => v.id === id)?.nome ?? "não atribuído";
-
-  const ticketsPorContrato = new Map<string, { contrato_id: string | null; vendedor_id: string | null; plano_id: string | null }[]>();
-  for (const t of ticketsConvertidos ?? []) {
-    const k = t.contrato_id as string;
-    ticketsPorContrato.set(k, [...(ticketsPorContrato.get(k) ?? []), t]);
-  }
 
   const contratos = (contratosBrutos ?? []) as unknown as ContratoA[];
   const doMes = vendasDoPeriodo(contratos, mes, ateData) as ContratoA[];
@@ -89,7 +78,7 @@ export async function filaAprovacao(mesIso?: string): Promise<FilaAprovacao> {
 
   for (const c of doMes) {
     const aprovacao = aprovacoes.get(c.id) ?? null;
-    const v = avaliarLiberacao(c, ticketsPorContrato.get(c.id) ?? [], nomeVend, aprovacao);
+    const v = avaliarLiberacao(c, aprovacao);
     if (v.pendencias.length === 0) {
       liberadasAuto += 1;
       continue;
@@ -105,9 +94,10 @@ export async function filaAprovacao(mesIso?: string): Promise<FilaAprovacao> {
       vendedorId: c.vendedor_id,
       vendedora: c.vendedor_id ? nomeVend(c.vendedor_id) : "não atribuída",
       pendencias: v.pendencias,
+      bloqueioAbsoluto: v.bloqueioAbsoluto,
       aprovacao,
     };
-    if (aprovacao) aprovados.push(item);
+    if (aprovacao && !v.bloqueioAbsoluto) aprovados.push(item);
     else pendentes.push(item);
   }
 
