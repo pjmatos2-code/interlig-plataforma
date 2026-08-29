@@ -71,7 +71,11 @@ export async function criarUsuario(_e: EstadoAdmin, dados: FormData): Promise<Es
 
   if (!nome || !email) return { erro: "Informe nome e e-mail." };
   if (senha.length < 8) return { erro: "Senha provisória precisa de 8+ caracteres." };
-  if (!["gestor", "supervisor", "vendedora", "vendedora_externa", "agente_corporativo"].includes(perfil))
+  if (
+    !["gestor", "supervisor", "vendedora", "vendedora_externa", "agente_corporativo", "financeiro"].includes(
+      perfil
+    )
+  )
     return { erro: "Perfil inválido." };
   const ehVend = ehVendedora(perfil as Perfil);
   if (perfil === "supervisor" && !popId) return { erro: "Coordenador precisa de POP." };
@@ -97,7 +101,8 @@ export async function criarUsuario(_e: EstadoAdmin, dados: FormData): Promise<Es
     nome,
     email,
     perfil,
-    pop_id: perfil === "gestor" ? null : popFinal,
+    // financeiro é transversal: enxerga o pagamento de todas as POPs
+    pop_id: perfil === "gestor" || perfil === "financeiro" ? null : popFinal,
     vendedor_id: ehVend ? vendedorId : null,
     ativo: true,
   });
