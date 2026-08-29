@@ -118,3 +118,79 @@ export async function competenciaFinanceiro(mesIso: string): Promise<Competencia
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Apuração em andamento — o mês que ainda não fechou.
+//
+// O financeiro acompanha para se organizar (provisão, previsão de caixa), mas
+// estes números NÃO pagam: mudam até o fechamento. Por isso a leitura é feita
+// por um caminho separado do pagamento e não expõe nenhuma ação — o financeiro
+// ajuda no direcionamento, não na decisão.
+// ---------------------------------------------------------------------------
+
+export type LinhaApuracao = {
+  vendedorId: string;
+  vendedora: string;
+  meta: number;
+  metaEfetiva: number;
+  atingimentoPct: number;
+  faixa: string;
+  vendasLiberadas: number;
+  vendasPendentes: number;
+  estornos: number;
+  debitoAplicado: boolean;
+  debitoQuantidade: number;
+  valorBase: number;
+  parcial: number;
+  seLiberarPendentes: number;
+};
+
+export type ApuracaoAndamento = {
+  competencia: string;
+  linhas: LinhaApuracao[];
+  totais: { parcial: number; seLiberarPendentes: number; pendentes: number };
+};
+
+export async function apuracaoEmAndamento(mesIso: string): Promise<ApuracaoAndamento> {
+  const { comissoesDoMes } = await import("@/lib/comissao/dados");
+  const { debitoPorCoorte } = await import("@/lib/comissao/debito");
+  const [comissoes, debito] = await Promise.all([
+    comissoesDoMes(mesIso, { ignorarRls: true }),
+    debitoPorCoorte(mesIso),
+  ]);
+
+  const linhas: LinhaApuracao[] = comissoes
+    .filter((c) => c.resultado !== null)
+    .map((c) => {
+      const r = c.resultado!;
+      return {
+        vendedorId: c.vendedorId,
+        vendedora: c.nome,
+        meta: c.metaMensal ?? 0,
+        metaEfetiva: r.metaEfetiva,
+        atingimentoPct: r.atingimentoPct,
+        faixa: r.degrau
+          ? `${r.degrau.valor}${r.degrau.tipo === "valor_por_venda" ? " R$/venda" : "% do VTV"}`
+          : "sem faixa",
+        vendasLiberadas: r.vendasComissionaveis,
+        vendasPendentes: r.vendasPendentes,
+        estornos: r.estornos,
+        debitoAplicado: debito.aplicado,
+        debitoQuantidade: debito.porVendedora.get(c.vendedorId) ?? 0,
+        valorBase: r.valorBase,
+        parcial: r.total,
+        seLiberarPendentes: r.totalSeLiberar,
+      };
+    })
+    .sort((a, b) => b.parcial - a.parcial);
+
+  return {
+    competencia: mesIso,
+    linhas,
+    totais: {
+      parcial: linhas.reduce((s, l) => s + l.parcial, 0),
+      seLiberarPendentes: linhas.reduce((s, l) => s + l.seLiberarPendentes, 0),
+      pendentes: linhas.reduce((s, l) => s + l.vendasPendentes, 0),
+    },
+  };
+}

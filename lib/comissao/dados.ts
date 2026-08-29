@@ -1,4 +1,5 @@
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
 import {
   calcularComissao,
   type DegrauComissao,
@@ -79,8 +80,19 @@ export type ComissaoVendedora = {
  * venda do mês cancelada em ≤ N dias (da ativação; sem ativação, da venda)
  * sai da base — casa com o churn precoce.
  */
-export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora[]> {
-  const supabase = criarClienteServidor();
+export async function comissoesDoMes(
+  mesIso?: string,
+  opcoes?: {
+    /**
+     * Lê com o client de serviço em vez da RLS. Usado pelo módulo Financeiro:
+     * o perfil dele não passa em contratos_sel (app.no_escopo) e receberia
+     * zeros em silêncio — pior que um erro. Quem chama assim devolve só o
+     * resumo por vendedora, nunca a base crua.
+     */
+    ignorarRls?: boolean;
+  }
+): Promise<ComissaoVendedora[]> {
+  const supabase = opcoes?.ignorarRls ? criarClienteAdmin() : criarClienteServidor();
   const hoje = hojeIso();
   const mes = mesIso ?? primeiroDiaDoMes(hoje);
   const fim = ultimoDiaDoMes(mes);
