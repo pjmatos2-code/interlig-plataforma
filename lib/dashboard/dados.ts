@@ -40,8 +40,8 @@ export type DadosDashboard = {
   paceNecessario: number;
   projecao: number;
   farol: "verde" | "amarelo" | "vermelho";
-  ativacoesPendentes: { total: number; emAlerta: number };
-  pendentesAssinatura: { total: number; emAlerta: number };
+  ativacoesPendentes: { total: number; emAlerta: number; foraDoPeriodo: number };
+  pendentesAssinatura: { total: number; emAlerta: number; foraDoPeriodo: number };
   // gráficos
   vendasDiarias: { dia: string; vendas: number }[];
   metaDiaria: number | null;
@@ -86,7 +86,8 @@ export async function carregarDashboard(
     .limit(5000);
   if (popId) consulta = consulta.eq("pop_id", popId);
 
-  // pendências (5.7/5.8) não dependem do filtro de data — pegam o estoque atual
+  // pendências (5.7/5.8): busca o estoque inteiro e separa depois entre o que
+  // foi vendido dentro do período filtrado e o passivo antigo (foraDoPeriodo)
   let consultaPendencias = supabase
     .from("contratos")
     .select(
@@ -194,7 +195,12 @@ export async function carregarDashboard(
 
   // ---------- 5.7 / 5.8 (5.7 revisado pela D9) ----------
   const pendencias = (contratosPendentes ?? []) as ContratoIndicador[];
-  const assin = pendentesAssinatura(pendencias, hoje);
+  // o card acompanha o filtro: conta o que foi VENDIDO no período selecionado
+  const noPeriodo = (dataVenda: string) => dataVenda >= periodo.de && dataVenda <= periodo.ate;
+  const assinTodas = pendentesAssinatura(pendencias, hoje);
+  const assin = assinTodas.filter((p) =>
+    noPeriodo((p.contrato as { data_venda: string }).data_venda)
+  );
 
   // aguardando instalação: OS abertas ∪ assinados sem ativação (D9)
   type OsAberta = { contrato_id: string; contratos: { id: string; data_venda: string; status: string } };
@@ -205,10 +211,19 @@ export async function carregarDashboard(
     Math.round((Date.parse(`${hoje}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000);
   const idsComOs = new Set(osAbertas.map((o) => o.contratos.id));
   const ativLegado = ativacoesPendentes(pendencias, hoje);
-  const ativ = [
-    ...osAbertas.map((o) => ({ alerta: diasDesde(o.contratos.data_venda) > 7 })),
-    ...ativLegado.filter((p) => !idsComOs.has((p.contrato as { id?: string }).id ?? "")),
+  const ativTodas = [
+    ...osAbertas.map((o) => ({
+      alerta: diasDesde(o.contratos.data_venda) > 7,
+      dataVenda: o.contratos.data_venda,
+    })),
+    ...ativLegado
+      .filter((p) => !idsComOs.has((p.contrato as { id?: string }).id ?? ""))
+      .map((p) => ({
+        alerta: p.alerta,
+        dataVenda: (p.contrato as { data_venda: string }).data_venda,
+      })),
   ];
+  const ativ = ativTodas.filter((p) => noPeriodo(p.dataVenda));
 
   // ---------- gráficos ----------
   const vendasDiarias: { dia: string; vendas: number }[] = [];
@@ -300,8 +315,16 @@ export async function carregarDashboard(
     paceNecessario: metaMensal ? pace(metaMensal, vendasM.length, diasUteisRestantes) : 0,
     projecao,
     farol: metaMensal ? farolProjecao(projecao, metaMensal) : "vermelho",
-    ativacoesPendentes: { total: ativ.length, emAlerta: ativ.filter((p) => p.alerta).length },
-    pendentesAssinatura: { total: assin.length, emAlerta: assin.filter((p) => p.alerta).length },
+    ativacoesPendentes: {
+      total: ativ.length,
+      emAlerta: ativ.filter((p) => p.alerta).length,
+      foraDoPeriodo: ativTodas.length - ativ.length,
+    },
+    pendentesAssinatura: {
+      total: assin.length,
+      emAlerta: assin.filter((p) => p.alerta).length,
+      foraDoPeriodo: assinTodas.length - assin.length,
+    },
     vendasDiarias,
     metaDiaria: metaMensal && diasUteisMes.length > 0 ? metaMensal / diasUteisMes.length : null,
     vendasPorPop: [...porPop.entries()]

@@ -93,21 +93,21 @@ export default async function DashboardPage({
         <CartaoKpi
           rotulo="Ativações pendentes"
           valor={formatarNumero(d.ativacoesPendentes.total)}
-          contexto={
-            d.ativacoesPendentes.emAlerta > 0
-              ? `${d.ativacoesPendentes.emAlerta} há mais de 7 dias`
-              : "nenhuma em alerta"
-          }
+          contexto={contextoPendencia(
+            d.ativacoesPendentes,
+            "há mais de 7 dias",
+            "nenhuma em alerta"
+          )}
           tom={d.ativacoesPendentes.emAlerta > 0 ? "vermelho" : undefined}
         />
         <CartaoKpi
           rotulo="Pendentes de assinatura"
           valor={formatarNumero(d.pendentesAssinatura.total)}
-          contexto={
-            d.pendentesAssinatura.emAlerta > 0
-              ? `${d.pendentesAssinatura.emAlerta} há 48h ou mais`
-              : "nenhuma em alerta"
-          }
+          contexto={contextoPendencia(
+            d.pendentesAssinatura,
+            "há 48h ou mais",
+            "nenhuma em alerta"
+          )}
           tom={d.pendentesAssinatura.emAlerta > 0 ? "vermelho" : undefined}
         />
       </div>
@@ -195,4 +195,18 @@ export default async function DashboardPage({
       </div>
     </>
   );
+}
+
+/**
+ * Os cards de pendência contam apenas as vendas do período filtrado (pedido do
+ * gestor). O passivo mais antigo não some da vista: vira o sufixo "+N de antes".
+ */
+function contextoPendencia(
+  p: { total: number; emAlerta: number; foraDoPeriodo: number },
+  textoAlerta: string,
+  semAlerta: string
+) {
+  const partes = [p.emAlerta > 0 ? `${p.emAlerta} ${textoAlerta}` : semAlerta];
+  if (p.foraDoPeriodo > 0) partes.push(`+${p.foraDoPeriodo} de antes`);
+  return partes.join(" · ");
 }
