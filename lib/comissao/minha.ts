@@ -28,6 +28,15 @@ export type PendenteLiberacao = {
   pendencias: string[];
 };
 
+/** venda que a gestão liberou à mão (fica transparente para a vendedora) */
+export type LiberadaPorAprovacao = {
+  sgpContratoId: string | null;
+  cliente: string;
+  dataVenda: string;
+  motivo: string;
+  aprovadoPor: string | null;
+};
+
 export type InadimplenteDebito = {
   sgpContratoId: string | null;
   sgpClienteId: string | null;
@@ -46,6 +55,7 @@ export type MinhaComissao = {
   faixaAtual: string | null;
   resultado: ResultadoComissao | null;
   pendentes: PendenteLiberacao[];
+  liberadasPorAprovacao: LiberadaPorAprovacao[];
   liberadas: number;
   inadimplentes: InadimplenteDebito[];
   entradaSimulador: {
@@ -80,7 +90,7 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
   const { debitoPorCoorte, mesDaCoorte } = await import("@/lib/comissao/debito");
   const vazio: MinhaComissao = {
     temRegra: false, mesCoorte: mesDaCoorte(mes), debitoManual: false, metaMensal: null,
-    faixaAtual: null, resultado: null, pendentes: [], liberadas: 0, inadimplentes: [],
+    faixaAtual: null, resultado: null, pendentes: [], liberadasPorAprovacao: [], liberadas: 0, inadimplentes: [],
     entradaSimulador: null,
   };
 
@@ -124,7 +134,8 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
   if (!meta || !regra) return { ...vazio, metaMensal: meta };
 
   const contratos = (contratosBrutos ?? []) as unknown as ContratoM[];
-  const { consistenciaCrm } = await import("@/lib/comissao/consistencia");
+  const { avaliarLiberacao, liberacoesManuais } = await import("@/lib/comissao/liberacao");
+  const aprovacoes = await liberacoesManuais(mes);
   const ticketsPorContrato = new Map<string, { contrato_id: string | null; vendedor_id: string | null; plano_id: string | null }[]>();
   for (const t of ticketsConvertidos ?? []) {
     const k = t.contrato_id as string;
@@ -151,26 +162,32 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
   // ---- vendas do mês + liberação D5/D8 + pendências detalhadas ----
   const proprias = vendasDoPeriodo(contratos, mes, ateData) as ContratoM[];
   const pendentes: PendenteLiberacao[] = [];
+  const liberadasPorAprovacao: LiberadaPorAprovacao[] = [];
   let liberadas = 0;
   const vendas: VendaComissao[] = proprias.map((c) => {
     const referencia = c.data_ativacao ?? c.data_venda;
     const estornada =
       c.data_cancelamento !== null && dias(referencia, c.data_cancelamento) <= regra.estorno_dias;
-    const cons = consistenciaCrm(
+    const veredito = avaliarLiberacao(
+      { ...c, vendedor_id: vendedorId },
       ticketsPorContrato.get(c.id) ?? [],
-      { vendedor_id: vendedorId, plano_id: c.plano_id },
-      nomeVend
+      nomeVend,
+      aprovacoes.get(c.id) ?? null
     );
-    const crmConsistente = cons.ok;
-    const assinaturasOk = c.termo_adesao_assinado === true && c.fidelidade_assinada === true;
-    const liberada = crmConsistente && assinaturasOk && c.status === "ativo";
+    const liberada = veredito.liberada;
 
+    // liberada PELO GESTOR: some da fila de pendências e vira crédito visível
+    if (!estornada && veredito.aprovacaoManual) {
+      liberadasPorAprovacao.push({
+        sgpContratoId: c.sgp_contrato_id,
+        cliente: c.clientes?.nome ?? "—",
+        dataVenda: c.data_venda,
+        motivo: veredito.aprovacaoManual.motivo,
+        aprovadoPor: veredito.aprovacaoManual.aprovadoPor,
+      });
+    }
     if (!estornada && !liberada) {
-      const p: string[] = [];
-      if (c.termo_adesao_assinado !== true) p.push("Termo de Adesão sem assinatura");
-      if (c.fidelidade_assinada !== true) p.push("Contrato de Fidelidade sem assinatura");
-      if (c.status !== "ativo") p.push(`serviço ${c.status.replace(/_/g, " ")}`);
-      if (!crmConsistente) p.push(cons.motivo ?? "CRM divergente");
+      const p = veredito.pendencias;
       pendentes.push({
         sgpContratoId: c.sgp_contrato_id,
         sgpClienteId: c.clientes?.sgp_cliente_id ?? null,
@@ -205,6 +222,7 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
     faixaAtual,
     resultado,
     pendentes: pendentes.sort((a, b) => (a.dataVenda < b.dataVenda ? -1 : 1)),
+    liberadasPorAprovacao,
     liberadas,
     inadimplentes,
     entradaSimulador: entrada,

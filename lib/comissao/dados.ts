@@ -111,9 +111,10 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
         .limit(3000),
     ]);
 
-  // critério D5 (revisado 28/08): ticket sem vendedora não bloqueia e, havendo
-  // duplicatas no mesmo contrato, basta uma consistente — ver consistenciaCrm
-  const { consistenciaCrm } = await import("@/lib/comissao/consistencia");
+  // critério D5 (revisado 28/08) + aprovação manual do gestor (29/08):
+  // regra única em lib/comissao/liberacao.ts
+  const { avaliarLiberacao, liberacoesManuais } = await import("@/lib/comissao/liberacao");
+  const aprovacoes = await liberacoesManuais(mes);
   const ticketsPorContrato = new Map<string, typeof ticketsConvertidos>();
   for (const t of ticketsConvertidos ?? []) {
     const k = t.contrato_id as string;
@@ -159,17 +160,14 @@ export async function comissoesDoMes(mesIso?: string): Promise<ComissaoVendedora
         c.data_cancelamento !== null &&
         dias(referencia, c.data_cancelamento) <= regra.estorno_dias;
 
-      // ---- liberação da comissão (critério D5, revisado — decisão D8) ----
-      // Em implantação as vendedoras ainda não operam o CRM, então a venda
-      // nativa do SGP (sem ticket) NÃO exige tratativa no CRM. Quando existe
-      // ticket, ele precisa estar convertido e consistente (mesma vendedora/plano).
-      const crmConsistente = consistenciaCrm(
+      // liberação D5/D8, com a aprovação manual do gestor sobrepondo as
+      // pendências (venda do fim do mês que só instala no mês seguinte)
+      const { liberada } = avaliarLiberacao(
+        c,
         ticketsPorContrato.get(c.id) ?? [],
-        { vendedor_id: c.vendedor_id, plano_id: c.plano_id },
-        nomeVend
-      ).ok;
-      const assinaturasOk = c.termo_adesao_assinado === true && c.fidelidade_assinada === true;
-      const liberada = crmConsistente && assinaturasOk && c.status === "ativo";
+        nomeVend,
+        aprovacoes.get(c.id) ?? null
+      );
 
       return {
         valor_mensalidade: c.valor_mensalidade,

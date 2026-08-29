@@ -89,6 +89,47 @@ export function PainelMinhaComissao({
           </div>
         </div>
 
+        {/* liberadas pela gestão — a vendedora precisa enxergar esse crédito */}
+        {dados.liberadasPorAprovacao.length > 0 && (
+          <div className="rounded-lg border border-farol-verde/40">
+            <div className="border-b bg-emerald-50/60 px-4 py-2.5">
+              <p className="text-sm font-semibold text-emerald-900">
+                ✓ Liberadas pela gestão ({dados.liberadasPorAprovacao.length}) — já contam na sua
+                comissão deste mês
+              </p>
+            </div>
+            <div className="max-h-60 overflow-y-auto overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-background">
+                  <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+                    <th className="px-4 py-2 font-medium">Data</th>
+                    <th className="px-3 py-2 font-medium">Contrato</th>
+                    <th className="px-3 py-2 font-medium">Cliente</th>
+                    <th className="px-3 py-2 font-medium">Motivo da liberação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dados.liberadasPorAprovacao.map((a) => (
+                    <tr key={`${a.sgpContratoId}-${a.dataVenda}`} className="border-b last:border-0">
+                      <td className="px-4 py-2 tabular-nums text-muted-foreground">
+                        {formatarData(a.dataVenda)}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs">
+                        {a.sgpContratoId ? `#${a.sgpContratoId}` : "—"}
+                      </td>
+                      <td className="max-w-[14rem] truncate px-3 py-2">{a.cliente}</td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {a.motivo}
+                        {a.aprovadoPor && ` · ${a.aprovadoPor}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* pendentes de liberação */}
         <div className="rounded-lg border">
           <div className="border-b bg-amber-50/60 px-4 py-2.5">

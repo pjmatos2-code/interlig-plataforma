@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { exigirPerfil } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { hojeIso, primeiroDiaDoMes, ultimoDiaDoMes, mesAtras } from "@/lib/datas";
@@ -165,6 +166,21 @@ export default async function MetasPage({
             : "Sua meta do mês e o ritmo necessário para bater."
         }
       />
+
+      {ehGestor && (
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+          <span className="text-sm">
+            <strong>Fechamento:</strong> libere as vendas seguradas por atraso de instalação ou
+            divergência de CRM e exporte a planilha da competência.
+          </span>
+          <Link
+            href={`/metas/aprovacoes?mes=${mesSelecionado.slice(0, 7)}`}
+            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+          >
+            Aprovação de vendas →
+          </Link>
+        </div>
+      )}
 
       {minhaMeta && (
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
