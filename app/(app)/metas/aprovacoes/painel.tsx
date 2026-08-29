@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatarData, formatarMoeda } from "@/lib/format";
+import { aplicarLinkSgp } from "@/lib/sgp/links";
 import type { FilaAprovacao, ItemAprovacao } from "@/lib/comissao/aprovacoes";
 import {
   aprovarVenda,
@@ -13,17 +14,30 @@ import {
   dispensarAssinatura,
 } from "./acoes";
 
-function LinkSgp({ id, template }: { id: string | null; template: string | null }) {
-  if (!id) return <span className="text-muted-foreground">—</span>;
-  if (!template) return <span className="tabular-nums">#{id}</span>;
+/**
+ * O template do SGP abre a FICHA DO CLIENTE (/cliente/{cliente_id}/edit/), por
+ * isso o link precisa do id do cliente — o número exibido é o do contrato.
+ */
+function LinkSgp({
+  contratoId,
+  clienteId,
+  template,
+}: {
+  contratoId: string | null;
+  clienteId: string | null;
+  template: string | null;
+}) {
+  if (!contratoId) return <span className="text-muted-foreground">—</span>;
+  const url = aplicarLinkSgp(template, { clienteId, contratoId, cpf: null });
+  if (!url) return <span className="tabular-nums">#{contratoId}</span>;
   return (
     <a
-      href={template.replace("{contrato}", id)}
+      href={url}
       target="_blank"
       rel="noreferrer"
       className="tabular-nums text-primary hover:underline"
     >
-      #{id} ↗
+      #{contratoId} ↗
     </a>
   );
 }
@@ -66,7 +80,11 @@ function Linha({
         {formatarData(item.dataVenda)}
       </td>
       <td className="whitespace-nowrap px-3 py-2">
-        <LinkSgp id={item.sgpContratoId} template={template} />
+        <LinkSgp
+          contratoId={item.sgpContratoId}
+          clienteId={item.sgpClienteId}
+          template={template}
+        />
       </td>
       <td className="px-3 py-2">{item.cliente}</td>
       <td className="px-3 py-2 text-muted-foreground">{item.plano ?? "—"}</td>
