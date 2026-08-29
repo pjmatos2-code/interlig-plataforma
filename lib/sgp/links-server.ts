@@ -3,7 +3,12 @@ import { criarClienteAdmin } from "@/lib/supabase/admin";
 
 /**
  * Template do link do SGP (editável em Admin → Integrações). Default derivado
- * da URL base cadastrada; abre a ficha do cliente no painel.
+ * da URL base cadastrada.
+ *
+ * Aponta para a LISTA DE CONTRATOS do cliente, não para o formulário de edição
+ * (/edit/): quem clica quer conferir o contrato — número, status, serviços,
+ * tratativa — e não alterar o cadastro. Vale para todas as telas (Esteira,
+ * Minhas vendas, fila de aprovação), inclusive as das vendedoras.
  */
 export async function templateLinkSgp(): Promise<string> {
   const admin = criarClienteAdmin();
@@ -21,5 +26,5 @@ export async function templateLinkSgp(): Promise<string> {
   )
     .replace(/\/+$/, "")
     .replace(/\/api$/, "");
-  return `${base}/cliente/{cliente_id}/edit/`;
+  return `${base}/cliente/{cliente_id}/contratos/`;
 }
