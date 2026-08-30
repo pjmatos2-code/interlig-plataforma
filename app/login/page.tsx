@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default function LoginPage({
   searchParams,
 }: {
-  searchParams: { proximo?: string };
+  searchParams: { proximo?: string; motivo?: string };
 }) {
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-interlig-marinho p-4">
@@ -30,7 +30,11 @@ export default function LoginPage({
         <Card className="w-full border-white/10 bg-white/95 shadow-2xl backdrop-blur">
           <CardHeader>
             <CardTitle className="text-lg text-interlig-marinho">Inteligência Comercial</CardTitle>
-            <CardDescription>Entre com seu e-mail corporativo.</CardDescription>
+            <CardDescription>
+              {searchParams.motivo === "sem-cadastro"
+                ? "Sua sessão anterior era de um usuário que não existe mais. Entre novamente."
+                : "Entre com seu e-mail corporativo."}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <FormularioLogin proximo={searchParams.proximo ?? "/"} />
