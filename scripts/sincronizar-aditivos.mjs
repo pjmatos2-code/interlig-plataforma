@@ -38,8 +38,10 @@ const ids=[...new Set(linhas.map(l=>l.cels[1]).filter(Boolean))];
 const { rows:ctr } = await cli.query(`
   select c.sgp_contrato_id, c.id, c.valor_mensalidade, coalesce(p.valor_referencia,0) ref
   from contratos c left join planos p on p.id=c.plano_id where c.sgp_contrato_id = any($1)`,[ids]);
+// base = valor de TABELA do plano (ja e o valor COM fidelidade). O valor do
+// contrato guarda o que o cliente pagava sem fidelidade, mais caro.
 const info=new Map(ctr.map(c=>{const v=Number(c.valor_mensalidade), r=Number(c.ref);
-  return [c.sgp_contrato_id,{id:c.id, mensal: r>0 && v>=r*5 ? r : v, ajustado: r>0 && v>=r*5}];}));
+  return [c.sgp_contrato_id,{id:c.id, mensal: r>0 ? r : v, ajustado: r>0 && Math.abs(r-v)>0.01}];}));
 
 let n=0, ajustados=0;
 for (const l of linhas) {

@@ -231,8 +231,13 @@ export async function sincronizarAditivos(mesIso: string): Promise<ResultadoSync
     (contratos ?? []).map((c) => {
       const ref = Number((c.planos as unknown as { valor_referencia: number } | null)?.valor_referencia ?? 0);
       const doContrato = Number(c.valor_mensalidade ?? 0);
-      // 5x ou mais que a tabela = cobrança não mensal; usa o valor de tabela
-      const mensal = ref > 0 && doContrato >= ref * 5 ? ref : doContrato;
+      // O valor gravado no contrato é o que o cliente pagava ANTES de
+      // refidelizar — quem perde a fidelidade perde o desconto e passa a pagar
+      // cheio (400MB: R$ 129,90 em vez de R$ 99,90). Refidelizar devolve o
+      // benefício, então a base é o valor de TABELA do plano, que já é o valor
+      // com fidelidade. O valor do contrato só entra quando não há plano
+      // casado, e aí vale o que existir.
+      const mensal = ref > 0 ? ref : doContrato;
       return [c.sgp_contrato_id as string, { id: c.id as string, mensal }];
     })
   );
