@@ -7,6 +7,7 @@ import { PainelDetalheVendedora } from "@/components/vendedoras/painel-detalhe";
 import { Card, CardContent } from "@/components/ui/card";
 import { minhaComissao } from "@/lib/comissao/minha";
 import { PainelMinhaComissao } from "@/components/comissao/minha-comissao";
+import { MinhaRefidelizacao } from "@/components/refidelizacao/minha-refidelizacao";
 import { templateLinkSgp } from "@/lib/sgp/links-server";
 import { formatarData } from "@/lib/format";
 
@@ -16,6 +17,25 @@ export const dynamic = "force-dynamic";
  * Última competência FECHADA da agente — só aí existe demonstrativo oficial
  * para baixar (o mês corrente ainda muda).
  */
+/**
+ * Setor de Atendimento: se a usuária tem login do SGP com aditivos no mês, a
+ * página mostra a refidelização dela — inclusive os que ainda não contam.
+ */
+async function minhaRefidelizacao(vendedorId: string) {
+  const { criarClienteAdmin } = await import("@/lib/supabase/admin");
+  const { data: v } = await criarClienteAdmin()
+    .from("vendedores")
+    .select("sgp_login")
+    .eq("id", vendedorId)
+    .maybeSingle();
+  const login = (v?.sgp_login as string | null)?.toLowerCase();
+  if (!login) return null;
+  const { refidelizacaoDoMes, AGENTES_SETOR } = await import("@/lib/refidelizacao/dados");
+  if (!AGENTES_SETOR.includes(login)) return null;
+  const r = await refidelizacaoDoMes(undefined, [login]);
+  return r.agentes[0] ?? null;
+}
+
 async function ultimoDemonstrativo(vendedorId: string) {
   const { criarClienteAdmin } = await import("@/lib/supabase/admin");
   const { data } = await criarClienteAdmin()
@@ -72,6 +92,10 @@ export default async function MinhasVendasPage({
           linkTemplate={await templateLinkSgp()}
         />
       )}
+      {usuario.vendedor_id &&
+        (await minhaRefidelizacao(usuario.vendedor_id).then((r) =>
+          r ? <MinhaRefidelizacao dados={r} /> : null
+        ))}
     </>
   );
 }
