@@ -33,6 +33,8 @@ export type ContratoSnapshot = {
 
 export type SnapshotComissao = {
   competencia: string;
+  /** de onde veio a comissão — muda os rótulos do demonstrativo */
+  tipo?: "venda" | "refidelizacao";
   vendedora: string;
   pop: string | null;
   /** regra congelada — as faixas COMO ESTAVAM no fechamento */
@@ -192,4 +194,95 @@ export function codigoVerificacao(
   const bruto = (h1.toString(36) + h2.toString(36)).toUpperCase().replace(/[^A-Z0-9]/g, "");
   const cod = (bruto + "0000000000").slice(0, 10);
   return `${cod.slice(0, 5)}-${cod.slice(5, 10)}`;
+}
+
+/**
+ * Snapshots do Setor de Atendimento (refidelização). Mesma estrutura da
+ * comissão de venda, para o fechamento, o financeiro e o demonstrativo em PDF
+ * tratarem os dois casos pelo mesmo caminho — o que muda são os rótulos e a
+ * régua, que vive em lib/refidelizacao.
+ */
+export async function montarSnapshotsRefidelizacao(
+  competenciaIso: string,
+  fechadoPorNome: string | null
+): Promise<Map<string, SnapshotComissao>> {
+  const admin = criarClienteAdmin();
+  const mes = primeiroDiaDoMes(competenciaIso);
+  const { refidelizacaoDoMes, META_REFIDELIZACAO, FAIXAS_REFIDELIZACAO } = await import(
+    "@/lib/refidelizacao/dados"
+  );
+  const dados = await refidelizacaoDoMes(mes);
+  const fechadoEm = new Date().toISOString();
+  const saida = new Map<string, SnapshotComissao>();
+
+  const { data: agentes } = await admin
+    .from("vendedores")
+    .select("id, nome, sgp_login, pops(nome)")
+    .eq("setor", "atendimento");
+
+  for (const a of dados.agentes) {
+    const cadastro = (agentes ?? []).find(
+      (v) => String(v.sgp_login ?? "").toLowerCase() === a.agente
+    );
+    if (!cadastro) continue; // sem cadastro não há a quem pagar
+
+    const linhas: ContratoSnapshot[] = a.linhas
+      .filter((l) => l.conta)
+      .map((l) => ({
+        sgpContratoId: l.sgpContratoId,
+        cliente: l.cliente,
+        plano: l.plano,
+        valor: l.valorMensal,
+        dataVenda: l.data,
+        status: "refidelizado",
+        liberadaPor: l.decisao === "aprovado" ? "gestao" : "regra",
+        ...(l.decisao === "aprovado"
+          ? { aprovacaoMotivo: l.decisaoMotivo ?? "liberado pela gestão", aprovadoPor: null }
+          : {}),
+      }));
+
+    saida.set(cadastro.id as string, {
+      competencia: mes,
+      tipo: "refidelizacao",
+      vendedora: a.nome ?? (cadastro.nome as string),
+      pop: (cadastro.pops as unknown as { nome: string } | null)?.nome ?? null,
+      regra: {
+        degraus: FAIXAS_REFIDELIZACAO.map((f) => ({
+          atingimento_min: f.min,
+          atingimento_max: null,
+          tipo: "percentual_receita" as const,
+          valor: f.pct,
+        })),
+        gatilhos: [],
+        estornoDias: 0,
+      },
+      meta: META_REFIDELIZACAO,
+      resultado: {
+        atingimentoPct: a.atingimentoPct / 100,
+        degrau: {
+          atingimento_min: 0,
+          atingimento_max: null,
+          tipo: "percentual_receita",
+          valor: a.percentual,
+        },
+        vendasComissionaveis: a.validos,
+        vendasPendentes: a.pendentes,
+        estornos: a.reprovados,
+        valorBase: a.comissao,
+        bonusFixo: 0,
+        gatilhos: [],
+        total: a.comissao,
+        totalSeLiberar: a.comissao,
+        debitoMeta: 0,
+        metaEfetiva: META_REFIDELIZACAO,
+      },
+      debito: { aplicado: false, quantidade: 0, coorte: mes, observacao: null },
+      contratos: linhas,
+      assinaturasDispensadas: [],
+      fechadoEm,
+      fechadoPor: fechadoPorNome,
+    });
+  }
+
+  return saida;
 }

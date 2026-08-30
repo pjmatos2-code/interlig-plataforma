@@ -74,6 +74,12 @@ export async function gerarDemonstrativoPdf(
     // sem logo o documento continua válido — só perde o brasão
   }
 
+  // o Setor de Atendimento comissiona refidelização, não venda: os rótulos
+  // mudam para o documento fazer sentido para quem o recebe
+  const ehRefid = snap.tipo === "refidelizacao";
+  const rotuloItem = ehRefid ? "planos refidelizados" : "contratos considerados";
+  const rotuloQtd = ehRefid ? "Planos refidelizados" : "Vendas liberadas para comissão";
+
   const codigo = codigoVerificacao(
     meta.vendedorId,
     snap.competencia,
@@ -126,10 +132,18 @@ export async function gerarDemonstrativoPdf(
       x: MARGEM, y: A4[1] - 58, size: 22, font: negrito, color: rgb(1, 1, 1),
     });
   }
-  pagina.drawText("DEMONSTRATIVO DE COMISSÃO", {
-    x: A4[0] - MARGEM - negrito.widthOfTextAtSize("DEMONSTRATIVO DE COMISSÃO", 13),
+  const titulo = ehRefid ? "DEMONSTRATIVO DE COMISSÃO" : "DEMONSTRATIVO DE COMISSÃO";
+  pagina.drawText(titulo, {
+    x: A4[0] - MARGEM - negrito.widthOfTextAtSize(titulo, 13),
     y: A4[1] - 52, size: 13, font: negrito, color: rgb(1, 1, 1),
   });
+  if (ehRefid) {
+    const sub = "Setor de Atendimento - Refidelizacao";
+    pagina.drawText(limpar(sub), {
+      x: A4[0] - MARGEM - regular.widthOfTextAtSize(limpar(sub), 8.5),
+      y: A4[1] - 84, size: 8.5, font: regular, color: rgb(0.72, 0.82, 0.94),
+    });
+  }
   const comp = limpar(`Competência: ${mesBr(snap.competencia)}`);
   pagina.drawText(comp, {
     x: A4[0] - MARGEM - regular.widthOfTextAtSize(comp, 10),
@@ -160,13 +174,13 @@ export async function gerarDemonstrativoPdf(
   pagina.drawText(limpar(moeda(snap.resultado.total)), {
     x: MARGEM + 16, y: y - 50, size: 26, font: negrito, color: AZUL,
   });
-  const faixa = snap.resultado.degrau
+  const faixa: string = snap.resultado.degrau
     ? `${snap.resultado.degrau.valor}${snap.resultado.degrau.tipo === "valor_por_venda" ? " R$/venda" : "% do valor contratado"}`
     : "abaixo da faixa mínima";
   const infoDir = [
     `Atingimento: ${(snap.resultado.atingimentoPct * 100).toFixed(1).replace(".", ",")}%`,
     `Faixa aplicada: ${faixa}`,
-    `Vendas liberadas: ${snap.resultado.vendasComissionaveis}`,
+    `${ehRefid ? "Planos" : "Vendas liberadas"}: ${snap.resultado.vendasComissionaveis}`,
   ];
   infoDir.forEach((linha, i) => {
     const t = limpar(linha);
@@ -215,12 +229,25 @@ export async function gerarDemonstrativoPdf(
   } else if (!snap.debito.aplicado) {
     linhaValor(`Débito de inadimplentes (${mesBr(snap.debito.coorte)})`, "não aplicado nesta competência");
   }
-  linhaValor("Vendas liberadas para comissão", String(snap.resultado.vendasComissionaveis));
-  if (snap.resultado.estornos > 0) linhaValor("Estornos (cancelamento precoce)", `-${snap.resultado.estornos}`);
+  linhaValor(rotuloQtd, String(snap.resultado.vendasComissionaveis));
+  if (snap.resultado.estornos > 0)
+    linhaValor(
+      ehRefid ? "Aditivos reprovados pela gestão" : "Estornos (cancelamento precoce)",
+      `-${snap.resultado.estornos}`
+    );
   if (snap.resultado.vendasPendentes > 0)
-    linhaValor("Vendas ainda pendentes (não pagas aqui)", String(snap.resultado.vendasPendentes));
+    linhaValor(
+      ehRefid ? "Aditivos sem as duas assinaturas (não pagos aqui)" : "Vendas ainda pendentes (não pagas aqui)",
+      String(snap.resultado.vendasPendentes)
+    );
   y -= 4;
-  linhaValor("Base de cálculo", moeda(snap.resultado.valorBase));
+  if (ehRefid) {
+    const vtv = snap.contratos.reduce((t, c) => t + c.valor, 0);
+    linhaValor("VTV dos planos refidelizados (valor mensal)", moeda(vtv));
+    linhaValor(`Comissão aplicada (${faixa})`, moeda(snap.resultado.valorBase));
+  } else {
+    linhaValor("Base de cálculo", moeda(snap.resultado.valorBase));
+  }
   if (snap.resultado.bonusFixo > 0) linhaValor("Bônus fixo", moeda(snap.resultado.bonusFixo));
   for (const g of snap.resultado.gatilhos) linhaValor(g.descricao, moeda(g.adicional));
   y -= 2;
@@ -233,7 +260,7 @@ export async function gerarDemonstrativoPdf(
   y -= 10;
 
   // ---------------- anexo I: contratos ----------------
-  secao(`Anexo I — contratos considerados (${snap.contratos.length})`);
+  secao(`Anexo I — ${rotuloItem} (${snap.contratos.length})`);
   const cols = [MARGEM, MARGEM + 52, MARGEM + 232, MARGEM + 392, A4[0] - MARGEM];
   const cabTabela = () => {
     garantir(22);
@@ -307,7 +334,9 @@ export async function gerarDemonstrativoPdf(
     const manuais = snap.contratos.filter((c) => c.liberadaPor === "gestao");
     if (manuais.length > 0) {
       nota(
-        `${manuais.length} venda(s) liberada(s) manualmente pela gestão — a instalação estava pendente por agenda do operacional, e a venda foi reconhecida na competência. Detalhe por contrato no Anexo I.`
+        ehRefid
+          ? `${manuais.length} aditivo(s) liberado(s) manualmente pela gestão, sem as duas assinaturas no SGPsign. Detalhe por contrato no Anexo I.`
+          : `${manuais.length} venda(s) liberada(s) manualmente pela gestão — a instalação estava pendente por agenda do operacional, e a venda foi reconhecida na competência. Detalhe por contrato no Anexo I.`
       );
     }
     for (const d of snap.assinaturasDispensadas) {
