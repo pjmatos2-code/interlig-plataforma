@@ -113,7 +113,10 @@ export async function listaVendedoras(
   // Sem isso elas apareceriam zeradas ao lado das vendedoras, o que é pior do
   // que não aparecer.
   const temAtendimento = (vendedoras ?? []).some((v) => v.setor === "atendimento");
-  const refidPorAgente = new Map<string, { planos: number; vtv: number; meta: number }>();
+  const refidPorAgente = new Map<
+    string,
+    { planos: number; vtv: number; meta: number; porDia: Map<string, number> }
+  >();
   if (temAtendimento) {
     const { refidelizacaoDoMes, META_REFIDELIZACAO } = await import("@/lib/refidelizacao/dados");
     const { data: logins } = await supabase
@@ -128,7 +131,19 @@ export async function listaVendedoras(
     const r = await refidelizacaoDoMes(cal.inicioMes, [...porLogin.keys()]);
     for (const a of r.agentes) {
       const id = porLogin.get(a.agente);
-      if (id) refidPorAgente.set(id, { planos: a.validos, vtv: a.vtv, meta: META_REFIDELIZACAO });
+      if (!id) continue;
+      // série diária: alimenta projeção e tendência do mesmo jeito que as vendas
+      const porDia = new Map<string, number>();
+      for (const l of a.linhas) {
+        if (!l.conta) continue;
+        porDia.set(l.data, (porDia.get(l.data) ?? 0) + 1);
+      }
+      refidPorAgente.set(id, {
+        planos: a.validos,
+        vtv: a.vtv,
+        meta: META_REFIDELIZACAO,
+        porDia,
+      });
     }
   }
 
@@ -143,6 +158,18 @@ export async function listaVendedoras(
     const refid = refidPorAgente.get(v.id);
     if (refid) {
       const popRelR = v.pops as unknown as { nome: string } | null;
+      const noIntervalo = (de: string, ate: string) =>
+        [...refid.porDia.entries()]
+          .filter(([d]) => d >= de && d <= ate)
+          .reduce((t, [, n]) => t + n, 0);
+
+      const projR = projecaoFechamento({
+        acumuladoMes: refid.planos,
+        mediaUltimos7DiasUteis: mediaUltimosNDiasUteis(refid.porDia, cal.decorridos, 7),
+        mediaDiariaMes: cal.decorridos.length ? refid.planos / cal.decorridos.length : 0,
+        diasUteisRestantes: cal.aposHoje,
+      });
+
       return {
         id: v.id,
         setor: v.setor as SetorAgente,
@@ -154,8 +181,11 @@ export async function listaVendedoras(
         metaMensal: refid.meta,
         percentualMeta: percentualMeta(refid.planos, refid.meta),
         pace: pace(refid.meta, refid.planos, cal.restantesInclusiveHoje),
-        farol: null as LinhaVendedora["farol"],
-        tendencia: "estavel" as LinhaVendedora["tendencia"],
+        farol: farolProjecao(projR, refid.meta),
+        tendencia: tendencia(
+          noIntervalo(seteAtras, cal.hoje),
+          noIntervalo(quatorzeAtras, somarDias(seteAtras, -1))
+        ),
       };
     }
     const proprios = contratos.filter((c) => c.vendedor_id === v.id);
