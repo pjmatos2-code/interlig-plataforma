@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ROTULO_ORIGEM, ROTULO_PERFIL, exigeVinculoAgente, type CategoriaOrigem, type Perfil } from "@/lib/tipos";
+import { EditarUsuario } from "@/components/admin/editar-usuario";
 
 const inicial: EstadoAdmin = {};
 const selectCls = "flex h-10 rounded-md border border-input bg-background px-3 text-sm";
@@ -79,7 +80,11 @@ export function GestaoUsuarios({
   pops,
   vendedoras,
 }: {
-  usuarios: { id: string; nome: string; email: string; perfil: Perfil; ativo: boolean; pop: string | null; vendedora: string | null }[];
+  usuarios: {
+    id: string; nome: string; email: string; perfil: Perfil; ativo: boolean;
+    pop: string | null; vendedora: string | null;
+    popId: string | null; vendedorId: string | null;
+  }[];
   pops: { id: string; nome: string }[];
   vendedoras: { id: string; nome: string }[];
 }) {
@@ -144,7 +149,17 @@ export function GestaoUsuarios({
                   {u.ativo ? <Badge variant="verde">ativo</Badge> : <Badge variant="outline">inativo</Badge>}
                 </td>
                 <td className="px-3 py-2 text-right">
-                  <BotaoAlternar ativo={u.ativo} acao={() => alternarUsuario(u.id, !u.ativo)} />
+                  <div className="flex justify-end gap-2">
+                    <EditarUsuario
+                      usuario={{
+                        id: u.id, nome: u.nome, email: u.email, perfil: u.perfil,
+                        vendedorId: u.vendedorId, popId: u.popId,
+                      }}
+                      pops={pops}
+                      vendedoras={vendedoras}
+                    />
+                    <BotaoAlternar ativo={u.ativo} acao={() => alternarUsuario(u.id, !u.ativo)} />
+                  </div>
                 </td>
               </tr>
             ))}

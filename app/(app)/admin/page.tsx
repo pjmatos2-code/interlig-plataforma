@@ -34,7 +34,7 @@ export default async function AdminPage() {
     supabase.from("motivos_nao_conversao").select("id, nome, ativo").order("ordem"),
     supabase
       .from("usuarios")
-      .select("id, nome, email, perfil, ativo, pops!usuarios_pop_id_fkey(nome), vendedores!usuarios_vendedor_fk(nome)")
+      .select("id, nome, email, perfil, ativo, pop_id, vendedor_id, pops!usuarios_pop_id_fkey(nome), vendedores!usuarios_vendedor_fk(nome)")
       .order("nome"),
     supabase.from("pops").select("id, nome").order("nome"),
     supabase.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
@@ -143,6 +143,8 @@ export default async function AdminPage() {
               ativo: u.ativo,
               pop: (u.pops as unknown as Rel)?.nome ?? null,
               vendedora: (u.vendedores as unknown as Rel)?.nome ?? null,
+              popId: u.pop_id ?? null,
+              vendedorId: u.vendedor_id ?? null,
             }))}
             pops={pops ?? []}
             vendedoras={vendedoras ?? []}

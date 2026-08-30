@@ -278,3 +278,109 @@ export async function alternarEquipe(id: string, ativo: boolean): Promise<Estado
   revalidatePath("/admin");
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// Edição de usuário já cadastrado (Admin → Usuários e perfis)
+// ---------------------------------------------------------------------------
+
+export type EstadoEdicao = { erro?: string; ok?: string };
+
+const PERFIS_VALIDOS = [
+  "gestor", "supervisor", "vendedora", "vendedora_externa",
+  "agente_corporativo", "financeiro", "agente_atendimento",
+];
+
+/**
+ * Altera nome, e-mail, perfil e vínculo de um usuário existente.
+ *
+ * O e-mail vive em dois lugares (Auth e `usuarios`) e precisa mudar nos dois —
+ * se divergirem, a pessoa loga com um e a plataforma procura pelo outro.
+ * Trocar o perfil para um que exige vínculo sem informar o agente deixaria a
+ * pessoa numa tela vazia, então isso é barrado aqui.
+ */
+export async function editarUsuario(
+  _e: EstadoEdicao,
+  dados: FormData
+): Promise<EstadoEdicao> {
+  const eu = await exigirPerfil(["gestor"]);
+  const id = String(dados.get("id") ?? "");
+  const nome = String(dados.get("nome") ?? "").trim();
+  const email = String(dados.get("email") ?? "").trim().toLowerCase();
+  const perfil = String(dados.get("perfil") ?? "");
+  const popId = String(dados.get("pop_id") ?? "") || null;
+  const vendedorId = String(dados.get("vendedor_id") ?? "") || null;
+
+  if (!id) return { erro: "Usuário não informado." };
+  if (!nome || !email) return { erro: "Informe nome e e-mail." };
+  if (!PERFIS_VALIDOS.includes(perfil)) return { erro: "Perfil inválido." };
+
+  const precisaVinculo = ehVendedora(perfil as Perfil) || perfil === "agente_atendimento";
+  if (precisaVinculo && !vendedorId)
+    return { erro: "Este perfil precisa do vínculo com o cadastro do agente no SGP." };
+  if (perfil === "supervisor" && !popId) return { erro: "Coordenador precisa de POP." };
+
+  const admin = criarClienteAdmin();
+
+  // não deixar a plataforma ficar sem administrador ativo
+  if (id === eu.id && perfil !== "gestor") {
+    const { count } = await admin
+      .from("usuarios")
+      .select("id", { count: "exact", head: true })
+      .eq("perfil", "gestor")
+      .eq("ativo", true)
+      .neq("id", id);
+    if (!count) return { erro: "Você é o único administrador ativo — não é possível trocar o próprio perfil." };
+  }
+
+  const { data: atual } = await admin.from("usuarios").select("email").eq("id", id).maybeSingle();
+  if (!atual) return { erro: "Usuário não encontrado." };
+
+  if (atual.email !== email) {
+    const { error } = await admin.auth.admin.updateUserById(id, { email, email_confirm: true });
+    if (error) return { erro: `Auth: ${error.message}` };
+  }
+
+  // o vínculo com a agente define a POP de quem tem agente
+  let popFinal = popId;
+  if (vendedorId) {
+    const { data: v } = await admin.from("vendedores").select("pop_id").eq("id", vendedorId).maybeSingle();
+    popFinal = v?.pop_id ?? popFinal;
+  }
+
+  const { error } = await admin
+    .from("usuarios")
+    .update({
+      nome,
+      email,
+      perfil,
+      pop_id: perfil === "gestor" || perfil === "financeiro" ? null : popFinal,
+      vendedor_id: precisaVinculo ? vendedorId : null,
+    })
+    .eq("id", id);
+  if (error) return { erro: error.message };
+
+  revalidatePath("/admin");
+  return { ok: "Cadastro atualizado." };
+}
+
+/**
+ * Define uma nova senha provisória. Quem informa a senha é o Administrador,
+ * na tela — a plataforma só repassa ao Auth e não guarda cópia.
+ */
+export async function redefinirSenha(
+  _e: EstadoEdicao,
+  dados: FormData
+): Promise<EstadoEdicao> {
+  await exigirPerfil(["gestor"]);
+  const id = String(dados.get("id") ?? "");
+  const senha = String(dados.get("senha") ?? "");
+  if (!id) return { erro: "Usuário não informado." };
+  if (senha.length < 8) return { erro: "A senha precisa de 8 ou mais caracteres." };
+
+  const admin = criarClienteAdmin();
+  const { error } = await admin.auth.admin.updateUserById(id, { password: senha });
+  if (error) return { erro: `Auth: ${error.message}` };
+
+  revalidatePath("/admin");
+  return { ok: "Senha redefinida — informe à pessoa e peça para trocá-la." };
+}
