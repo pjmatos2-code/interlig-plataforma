@@ -4,6 +4,7 @@ import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { Card, CardContent } from "@/components/ui/card";
 import { MinhaRefidelizacao } from "@/components/refidelizacao/minha-refidelizacao";
 import { refidelizacaoDoMes } from "@/lib/refidelizacao/dados";
+import { lerConfigSgp } from "@/lib/integracoes/config";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,8 @@ export default async function AtendimentoPage() {
   const login = (v?.sgp_login as string | null)?.toLowerCase();
 
   const dados = login ? (await refidelizacaoDoMes(undefined, [login])).agentes[0] ?? null : null;
+  const cfg = await lerConfigSgp();
+  const baseSgp = (cfg.base_url ?? "").replace(/\/+$/, "").replace(/\/admin$/, "") + "/admin";
 
   return (
     <>
@@ -45,7 +48,7 @@ export default async function AtendimentoPage() {
         descricao={`${v?.nome ?? ""} · Setor de Atendimento · mês corrente`}
       />
       {dados ? (
-        <MinhaRefidelizacao dados={dados} />
+        <MinhaRefidelizacao dados={dados} baseSgp={baseSgp} />
       ) : (
         <Card>
           <CardContent className="p-8 text-center text-sm text-muted-foreground">

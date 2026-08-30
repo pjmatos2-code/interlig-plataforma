@@ -34,6 +34,8 @@ export type AditivoLinha = {
   id: string;
   sgpAditivoId: string;
   sgpContratoId: string | null;
+  /** id do cliente no SGP — abre a aba de aditivos dele no painel */
+  sgpClienteId: string | null;
   cliente: string;
   agente: string;
   plano: string | null;
@@ -89,7 +91,7 @@ export async function refidelizacaoDoMes(
     admin
       .from("aditivos")
       .select(
-        "id, sgp_aditivo_id, sgp_contrato_id, cliente_nome, agente_login, plano_rotulo, descricao, desconto, valor_mensal, valor_mensal_ajustado, valor_ajuste_motivo, data_aditivo, status_sgp, finalizado, decisao, decisao_motivo"
+        "id, sgp_aditivo_id, sgp_contrato_id, cliente_nome, agente_login, plano_rotulo, descricao, desconto, valor_mensal, valor_mensal_ajustado, valor_ajuste_motivo, data_aditivo, status_sgp, finalizado, decisao, decisao_motivo, contratos(clientes(sgp_cliente_id))"
       )
       .gte("data_aditivo", mes)
       .lte("data_aditivo", fim)
@@ -118,6 +120,9 @@ export async function refidelizacaoDoMes(
       id: a.id as string,
       sgpAditivoId: a.sgp_aditivo_id as string,
       sgpContratoId: (a.sgp_contrato_id as string) ?? null,
+      sgpClienteId:
+        (a.contratos as unknown as { clientes: { sgp_cliente_id: string | null } | null } | null)
+          ?.clientes?.sgp_cliente_id ?? null,
       cliente: (a.cliente_nome as string) ?? "—",
       agente: a.agente_login as string,
       plano: (a.plano_rotulo as string) ?? null,

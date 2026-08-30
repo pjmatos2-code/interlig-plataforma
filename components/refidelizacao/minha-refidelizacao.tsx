@@ -7,8 +7,19 @@ import { META_REFIDELIZACAO, type ResultadoAgente } from "@/lib/refidelizacao/da
  * principalmente, quais aditivos ainda não contam — para ela correr atrás da
  * assinatura antes do fechamento.
  */
-export function MinhaRefidelizacao({ dados }: { dados: ResultadoAgente }) {
+export function MinhaRefidelizacao({
+  dados,
+  baseSgp,
+}: {
+  dados: ResultadoAgente;
+  /** raiz do painel do SGP, para abrir os aditivos do cliente */
+  baseSgp?: string | null;
+}) {
   const pendentes = dados.linhas.filter((l) => !l.conta && l.decisao !== "reprovado");
+  const aprovadas = dados.linhas.filter((l) => l.conta);
+  // a aba de aditivos do cliente é a tela mais útil: mostra o histórico dele
+  const linkDe = (clienteId: string | null) =>
+    baseSgp && clienteId ? `${baseSgp}/cliente/${clienteId}/aditivos/` : null;
   const proxima = [
     { nome: "MÍNIMA", planos: Math.ceil(0.8 * META_REFIDELIZACAO) },
     { nome: "SUPERAÇÃO", planos: Math.ceil(1.01 * META_REFIDELIZACAO) },
@@ -102,6 +113,77 @@ export function MinhaRefidelizacao({ dados }: { dados: ResultadoAgente }) {
                   </tr>
                 )}
               </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="rounded-lg border">
+          <div className="border-b bg-emerald-50/60 px-4 py-2.5">
+            <p className="text-sm font-semibold text-emerald-900">
+              ✓ Fidelizações aprovadas ({aprovadas.length}) — já contam na sua comissão
+            </p>
+          </div>
+          <div className="max-h-96 overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-background">
+                <tr className="border-b text-left text-xs uppercase text-muted-foreground">
+                  <th className="px-4 py-2 font-medium">Data</th>
+                  <th className="px-3 py-2 font-medium">Contrato</th>
+                  <th className="px-3 py-2 font-medium">Cliente</th>
+                  <th className="px-3 py-2 font-medium">Plano</th>
+                  <th className="px-3 py-2 text-right font-medium">Valor mensal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {aprovadas.map((l) => {
+                  const link = linkDe(l.sgpClienteId);
+                  return (
+                    <tr key={l.id} className="border-b last:border-0">
+                      <td className="px-4 py-2 tabular-nums text-muted-foreground">
+                        {formatarData(l.data)}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs">
+                        {link ? (
+                          <a
+                            href={link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-interlig-ceu hover:underline"
+                            title="Abrir os aditivos deste cliente no SGP"
+                          >
+                            {l.sgpContratoId ?? l.sgpAditivoId} ↗
+                          </a>
+                        ) : (
+                          <span>{l.sgpContratoId ?? "—"}</span>
+                        )}
+                      </td>
+                      <td className="max-w-[15rem] truncate px-3 py-2">{l.cliente}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{l.plano ?? "—"}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {formatarMoeda(l.valorMensal)}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {aprovadas.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+                      Nenhuma fidelização aprovada ainda neste mês.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+              {aprovadas.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 font-semibold">
+                    <td className="px-4 py-2" colSpan={4}>
+                      Total ({aprovadas.length} planos)
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">
+                      {formatarMoeda(dados.vtv)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>
