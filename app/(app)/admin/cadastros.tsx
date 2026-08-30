@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ROTULO_ORIGEM, ROTULO_PERFIL, ehVendedora, type CategoriaOrigem, type Perfil } from "@/lib/tipos";
+import { ROTULO_ORIGEM, ROTULO_PERFIL, exigeVinculoAgente, type CategoriaOrigem, type Perfil } from "@/lib/tipos";
 
 const inicial: EstadoAdmin = {};
 const selectCls = "flex h-10 rounded-md border border-input bg-background px-3 text-sm";
@@ -96,6 +96,7 @@ export function GestaoUsuarios({
           <option value="vendedora">{ROTULO_PERFIL.vendedora}</option>
           <option value="vendedora_externa">{ROTULO_PERFIL.vendedora_externa}</option>
           <option value="agente_corporativo">{ROTULO_PERFIL.agente_corporativo}</option>
+          <option value="agente_atendimento">{ROTULO_PERFIL.agente_atendimento}</option>
           <option value="supervisor">{ROTULO_PERFIL.supervisor}</option>
           <option value="financeiro">{ROTULO_PERFIL.financeiro}</option>
           <option value="gestor">{ROTULO_PERFIL.gestor}</option>
@@ -108,7 +109,7 @@ export function GestaoUsuarios({
             ))}
           </select>
         )}
-        {ehVendedora(perfil) && (
+        {exigeVinculoAgente(perfil) && (
           <select name="vendedor_id" className={selectCls} required>
             <option value="">Vendedora do SGP…</option>
             {vendedoras.map((v) => (

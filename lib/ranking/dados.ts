@@ -152,7 +152,9 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
   let consultaVend = admin
     .from("vendedores")
     .select("id, nome, pop_id, foto_url, pops(nome)")
-    .eq("ativo", true);
+    .eq("ativo", true)
+    // Atendimento refideliza, não vende: fora do ranking comercial
+    .eq("setor", "comercial");
   if (popId) consultaVend = consultaVend.eq("pop_id", popId);
 
   const [

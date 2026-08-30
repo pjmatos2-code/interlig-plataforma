@@ -76,6 +76,7 @@ export async function listaVendedoras(
     .from("vendedores")
     .select("id, nome, pop_id, pops(nome)")
     .eq("ativo", true)
+    .eq("setor", "comercial")
     .order("nome");
   if (ehCoord) consultaVend = consultaVend.eq("coordenador_id", usuario.id);
   else if (popFiltro) consultaVend = consultaVend.eq("pop_id", popFiltro);

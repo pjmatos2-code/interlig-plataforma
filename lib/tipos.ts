@@ -5,11 +5,21 @@ export type Perfil =
   | "vendedora_externa"
   | "agente_corporativo"
   /** somente leitura do que é pagamento: comissões fechadas e demonstrativos */
-  | "financeiro";
+  | "financeiro"
+  /** Setor de Atendimento: refidelização, não vende */
+  | "agente_atendimento";
 
 /** Interna e externa compartilham o mesmo escopo de dados (só o que é delas). */
 export const ehVendedora = (p: Perfil): boolean =>
   p === "vendedora" || p === "vendedora_externa" || p === "agente_corporativo";
+
+/**
+ * Perfis que precisam de vínculo com um cadastro de agente no SGP. O
+ * Atendimento entra aqui: não vende, mas o vínculo é o que liga a pessoa aos
+ * aditivos que ela gerou.
+ */
+export const exigeVinculoAgente = (p: Perfil): boolean =>
+  ehVendedora(p) || p === "agente_atendimento";
 
 export type Usuario = {
   id: string;
@@ -28,6 +38,7 @@ export const ROTULO_PERFIL: Record<Perfil, string> = {
   vendedora_externa: "Vendedora externa",
   agente_corporativo: "Agente corporativo",
   financeiro: "Financeiro",
+  agente_atendimento: "Agente de atendimento",
 };
 
 export type CategoriaOrigem =

@@ -106,6 +106,8 @@ export async function comissoesDoMes(
         .from("vendedores")
         .select("id, nome, pop_id, usuario_id, coordenador_id")
         .eq("ativo", true)
+        // a comissão do Atendimento tem régua própria (lib/refidelizacao)
+        .eq("setor", "comercial")
         .order("nome"),
       supabase
         .from("contratos")

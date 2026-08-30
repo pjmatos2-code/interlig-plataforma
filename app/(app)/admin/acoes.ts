@@ -72,15 +72,17 @@ export async function criarUsuario(_e: EstadoAdmin, dados: FormData): Promise<Es
   if (!nome || !email) return { erro: "Informe nome e e-mail." };
   if (senha.length < 8) return { erro: "Senha provisória precisa de 8+ caracteres." };
   if (
-    !["gestor", "supervisor", "vendedora", "vendedora_externa", "agente_corporativo", "financeiro"].includes(
-      perfil
-    )
+    ![
+      "gestor", "supervisor", "vendedora", "vendedora_externa",
+      "agente_corporativo", "financeiro", "agente_atendimento",
+    ].includes(perfil)
   )
     return { erro: "Perfil inválido." };
   const ehVend = ehVendedora(perfil as Perfil);
+  const precisaVinculo = ehVend || perfil === "agente_atendimento";
   if (perfil === "supervisor" && !popId) return { erro: "Coordenador precisa de POP." };
-  if (ehVend && !vendedorId)
-    return { erro: "Vendedora precisa do vínculo com a vendedora do SGP." };
+  if (precisaVinculo && !vendedorId)
+    return { erro: "Este perfil precisa do vínculo com o cadastro do agente no SGP." };
 
   const admin = criarClienteAdmin();
   const { data: novo, error: erroAuth } = await admin.auth.admin.createUser({
@@ -103,7 +105,7 @@ export async function criarUsuario(_e: EstadoAdmin, dados: FormData): Promise<Es
     perfil,
     // financeiro é transversal: enxerga o pagamento de todas as POPs
     pop_id: perfil === "gestor" || perfil === "financeiro" ? null : popFinal,
-    vendedor_id: ehVend ? vendedorId : null,
+    vendedor_id: precisaVinculo ? vendedorId : null,
     ativo: true,
   });
   if (error) {
