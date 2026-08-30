@@ -20,12 +20,17 @@ export function MinhaRefidelizacao({
   // a aba de aditivos do cliente é a tela mais útil: mostra o histórico dele
   const linkDe = (clienteId: string | null) =>
     baseSgp && clienteId ? `${baseSgp}/cliente/${clienteId}/aditivos/` : null;
+  // quanto falta para a próxima faixa, e quanto ela passaria a receber. A
+  // projeção usa o ticket médio dela — é estimativa, e o texto diz isso.
+  const ticketMedio = dados.validos > 0 ? dados.vtv / dados.validos : 0;
   const proxima = [
-    { nome: "MÍNIMA", planos: Math.ceil(0.8 * META_REFIDELIZACAO) },
-    { nome: "SUPERAÇÃO", planos: Math.ceil(1.01 * META_REFIDELIZACAO) },
-    { nome: "ALTA", planos: Math.ceil(1.21 * META_REFIDELIZACAO) },
-    { nome: "DESAFIO", planos: 250 },
+    { nome: "MÍNIMA", planos: Math.ceil(0.8 * META_REFIDELIZACAO), pct: 3.5 },
+    { nome: "SUPERAÇÃO", planos: Math.ceil(1.01 * META_REFIDELIZACAO), pct: 4 },
+    { nome: "ALTA", planos: Math.ceil(1.21 * META_REFIDELIZACAO), pct: 5 },
+    { nome: "DESAFIO", planos: 250, pct: 7 },
   ].find((f) => dados.validos < f.planos);
+  const comissaoNaProxima = proxima ? (ticketMedio * proxima.planos * proxima.pct) / 100 : 0;
+  const pendentesAjudam = proxima ? Math.min(pendentes.length, proxima.planos - dados.validos) : 0;
 
   return (
     <Card className="mt-6">
@@ -62,11 +67,29 @@ export function MinhaRefidelizacao({
           </div>
         </div>
 
-        {proxima && (
-          <p className="rounded-md bg-muted px-3 py-2 text-sm">
-            Faltam <strong>{proxima.planos - dados.validos}</strong> plano(s) para a faixa{" "}
-            <strong>{proxima.nome}</strong>.
-          </p>
+        {proxima ? (
+          <div className="rounded-md border border-farol-amarelo/50 bg-farol-amarelo/10 px-3 py-2 text-sm">
+            🎯 Faltam <strong>{proxima.planos - dados.validos} plano(s)</strong> para a faixa{" "}
+            <strong>{proxima.nome}</strong> ({proxima.pct}%) — sua comissão passaria a cerca de{" "}
+            <strong>{formatarMoeda(comissaoNaProxima)}</strong>
+            {pendentesAjudam > 0 && (
+              <>
+                .{" "}
+                <span className="text-amber-900">
+                  Você tem {pendentes.length} aguardando assinatura: {pendentesAjudam} deles já
+                  {pendentesAjudam === proxima.planos - dados.validos
+                    ? " fecham a faixa"
+                    : " contam para isso"}
+                  .
+                </span>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-md border border-farol-verde/50 bg-farol-verde/10 px-3 py-2 text-sm">
+            🏆 Você está na faixa máxima — <strong>{dados.faixa}</strong>, {dados.percentual}% sobre
+            o VTV refidelizado.
+          </div>
         )}
 
         <div className="rounded-lg border">
