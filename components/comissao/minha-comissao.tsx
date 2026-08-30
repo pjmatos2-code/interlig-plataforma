@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SimuladorComissao } from "@/components/comissao/simulador";
+import { proximoDegrau } from "@/lib/indicadores/comissao";
 import { aplicarLinkSgp } from "@/lib/sgp/links";
 import { formatarMoeda, formatarData } from "@/lib/format";
 import type { MinhaComissao } from "@/lib/comissao/minha";
@@ -43,6 +44,12 @@ export function PainelMinhaComissao({
     );
   }
   const r = dados.resultado;
+  // o alvo da próxima faixa vivia só dentro do simulador, lá embaixo — subiu
+  // para junto dos números, que é onde ela olha primeiro
+  const proximo = dados.entradaSimulador ? proximoDegrau(dados.entradaSimulador) : null;
+  const pendentesAjudam = proximo
+    ? Math.min(r.vendasPendentes, proximo.faltamVendas)
+    : 0;
   const linkDe = (clienteId: string | null, contratoId: string | null) =>
     aplicarLinkSgp(linkTemplate, { clienteId, contratoId, cpf: null });
 
@@ -102,6 +109,32 @@ export function PainelMinhaComissao({
             <p className="text-xl font-semibold tabular-nums">{r.estornos}</p>
           </div>
         </div>
+
+        {proximo ? (
+          <div className="rounded-md border border-farol-amarelo/50 bg-farol-amarelo/10 px-3 py-2 text-sm">
+            🎯 Faltam <strong>{proximo.faltamVendas} venda(s)</strong> para o degrau de{" "}
+            {proximo.degrau.atingimento_min}% — sua comissão passa a{" "}
+            <strong>{formatarMoeda(proximo.totalLa)}</strong>
+            {pendentesAjudam > 0 && (
+              <>
+                .{" "}
+                <span className="text-amber-900">
+                  Você tem {r.vendasPendentes} pendente(s) de liberação: {pendentesAjudam}
+                  {pendentesAjudam === proximo.faltamVendas
+                    ? " já fecham o degrau"
+                    : " contam para isso"}
+                  .
+                </span>
+              </>
+            )}
+          </div>
+        ) : (
+          r.degrau && (
+            <div className="rounded-md border border-farol-verde/50 bg-farol-verde/10 px-3 py-2 text-sm">
+              🏆 Você está no degrau máximo — <strong>{dados.faixaAtual}</strong>.
+            </div>
+          )
+        )}
 
         {/* liberadas pela gestão — a vendedora precisa enxergar esse crédito */}
         {dados.liberadasPorAprovacao.length > 0 && (
