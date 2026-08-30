@@ -72,3 +72,17 @@ export const ROTULO_ETAPA: Record<EtapaTicket, string> = {
   aguardando: "Criação do contrato",
   fechado: "Fechado",
 };
+
+/** Setor do agente — define régua de comissão, ranking e filtro do painel. */
+export type SetorAgente =
+  | "comercial_interno"
+  | "comercial_externo"
+  | "atendimento"
+  | "corporativo";
+
+export const ROTULO_SETOR: Record<SetorAgente, string> = {
+  comercial_interno: "Comercial interno",
+  comercial_externo: "Comercial externo",
+  atendimento: "Refidelização",
+  corporativo: "Setor corporativo",
+};

@@ -1,3 +1,4 @@
+import type { SetorAgente } from "@/lib/tipos";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import {
   vendasDoPeriodo,
@@ -21,6 +22,7 @@ type ContratoVend = ContratoIndicador & {
 };
 
 export type LinhaVendedora = {
+  setor: SetorAgente;
   id: string;
   nome: string;
   pop: string;
@@ -63,7 +65,8 @@ async function diasUteisDoMes(supabase: ReturnType<typeof criarClienteServidor>)
 export async function listaVendedoras(
   periodo: Periodo,
   usuario: Usuario,
-  popFiltro: string | null
+  popFiltro: string | null,
+  setorFiltro: SetorAgente | null = null
 ): Promise<LinhaVendedora[]> {
   const supabase = criarClienteServidor();
   const cal = await diasUteisDoMes(supabase);
@@ -74,10 +77,12 @@ export async function listaVendedoras(
   const ehCoord = usuario.perfil === "supervisor";
   let consultaVend = supabase
     .from("vendedores")
-    .select("id, nome, pop_id, pops(nome)")
+    .select("id, nome, pop_id, setor, pops(nome)")
     .eq("ativo", true)
-    .eq("setor", "comercial")
     .order("nome");
+  // sem filtro, o painel mostra TODOS os setores — inclusive refidelização,
+  // que tem métrica própria (planos, não vendas)
+  if (setorFiltro) consultaVend = consultaVend.eq("setor", setorFiltro);
   if (ehCoord) consultaVend = consultaVend.eq("coordenador_id", usuario.id);
   else if (popFiltro) consultaVend = consultaVend.eq("pop_id", popFiltro);
 
@@ -103,6 +108,30 @@ export async function listaVendedoras(
   ]);
 
   const contratos = (contratosBrutos ?? []) as ContratoVend[];
+
+  // Atendimento não vende: o "resultado" delas são os planos refidelizados.
+  // Sem isso elas apareceriam zeradas ao lado das vendedoras, o que é pior do
+  // que não aparecer.
+  const temAtendimento = (vendedoras ?? []).some((v) => v.setor === "atendimento");
+  const refidPorAgente = new Map<string, { planos: number; vtv: number; meta: number }>();
+  if (temAtendimento) {
+    const { refidelizacaoDoMes, META_REFIDELIZACAO } = await import("@/lib/refidelizacao/dados");
+    const { data: logins } = await supabase
+      .from("vendedores")
+      .select("id, sgp_login")
+      .eq("setor", "atendimento");
+    const porLogin = new Map(
+      (logins ?? [])
+        .filter((v) => v.sgp_login)
+        .map((v) => [String(v.sgp_login).toLowerCase(), v.id as string])
+    );
+    const r = await refidelizacaoDoMes(cal.inicioMes, [...porLogin.keys()]);
+    for (const a of r.agentes) {
+      const id = porLogin.get(a.agente);
+      if (id) refidPorAgente.set(id, { planos: a.validos, vtv: a.vtv, meta: META_REFIDELIZACAO });
+    }
+  }
+
   const metaPorVendedora = new Map(
     (metas ?? []).map((m) => [m.referencia_id as string, m.quantidade_vendas as number])
   );
@@ -111,6 +140,24 @@ export async function listaVendedoras(
   const quatorzeAtras = somarDias(cal.hoje, -13);
 
   const linhas = (vendedoras ?? []).map((v) => {
+    const refid = refidPorAgente.get(v.id);
+    if (refid) {
+      const popRelR = v.pops as unknown as { nome: string } | null;
+      return {
+        id: v.id,
+        setor: v.setor as SetorAgente,
+        nome: v.nome,
+        pop: popRelR?.nome ?? "—",
+        vendas: refid.planos,
+        receita: refid.vtv,
+        ticketMedio: refid.planos > 0 ? refid.vtv / refid.planos : 0,
+        metaMensal: refid.meta,
+        percentualMeta: percentualMeta(refid.planos, refid.meta),
+        pace: pace(refid.meta, refid.planos, cal.restantesInclusiveHoje),
+        farol: null as LinhaVendedora["farol"],
+        tendencia: "estavel" as LinhaVendedora["tendencia"],
+      };
+    }
     const proprios = contratos.filter((c) => c.vendedor_id === v.id);
     const vendasP = vendasDoPeriodo(proprios, periodo.de, periodo.ate);
     const vendasMes = vendasDoPeriodo(proprios, cal.inicioMes, cal.hoje).length;
@@ -136,6 +183,7 @@ export async function listaVendedoras(
     const popRel = v.pops as unknown as { nome: string } | null;
     return {
       id: v.id,
+      setor: v.setor as SetorAgente,
       nome: v.nome,
       pop: popRel?.nome ?? "—",
       vendas: vendasP.length,

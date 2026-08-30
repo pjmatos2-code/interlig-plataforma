@@ -2,6 +2,8 @@ import Link from "next/link";
 import { exigirPerfil } from "@/lib/auth";
 import { resolverPeriodo } from "@/lib/datas";
 import { listaVendedoras } from "@/lib/vendedoras/dados";
+import { ROTULO_SETOR, type SetorAgente } from "@/lib/tipos";
+import { FiltroSetor } from "@/components/vendedoras/filtro-setor";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { FiltrosDashboard } from "@/components/dashboard/filtros";
@@ -15,7 +17,7 @@ export const dynamic = "force-dynamic";
 export default async function VendedorasPage({
   searchParams,
 }: {
-  searchParams: { periodo?: string; de?: string; ate?: string; pop?: string };
+  searchParams: { periodo?: string; de?: string; ate?: string; pop?: string; setor?: string };
 }) {
   const usuario = await exigirPerfil(["gestor", "supervisor"]);
   const periodo = resolverPeriodo(searchParams);
@@ -23,7 +25,12 @@ export default async function VendedorasPage({
   const supabase = criarClienteServidor();
   const { data: pops } = await supabase.from("pops").select("id, nome").order("nome");
 
-  const linhas = await listaVendedoras(periodo, usuario, searchParams.pop || null);
+  const setor = (["comercial_interno", "comercial_externo", "atendimento", "corporativo"].includes(
+    searchParams.setor ?? ""
+  )
+    ? searchParams.setor
+    : null) as SetorAgente | null;
+  const linhas = await listaVendedoras(periodo, usuario, searchParams.pop || null, setor);
   const { data: fotos } = await supabase.from("vendedores").select("id, foto_url");
   const fotoPor = new Map((fotos ?? []).map((f) => [f.id as string, f.foto_url as string | null]));
   const totais = linhas.reduce(
@@ -45,6 +52,7 @@ export default async function VendedorasPage({
           de={periodo.de}
           ate={periodo.ate}
         />
+        <FiltroSetor atual={setor} />
         <Link
           href="/vendedoras/atribuir"
           className="mb-5 rounded-md border px-3 py-2 text-sm font-medium hover:border-interlig-ceu"
@@ -91,7 +99,14 @@ export default async function VendedorasPage({
                         </Link>
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 text-muted-foreground">{l.pop}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">
+                      {l.pop}
+                      {!setor && (
+                        <span className="ml-1 text-[11px] text-muted-foreground/80">
+                          · {ROTULO_SETOR[l.setor]}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 py-2.5 text-right tabular-nums">{formatarNumero(l.vendas)}</td>
                     <td className="px-3 py-2.5 text-right tabular-nums">{formatarMoeda(l.receita)}</td>
                     <td className="px-3 py-2.5 text-right tabular-nums">{formatarMoeda(l.ticketMedio)}</td>
