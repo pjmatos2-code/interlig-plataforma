@@ -19,6 +19,8 @@ export type RegraComissao = {
   degraus: DegrauComissao[];
   gatilhos: GatilhoComissao[];
   estorno_dias: number;
+  /** de onde sai a base: vendas próprias, equipe sob coordenação ou POP */
+  base_calculo: "proprias" | "equipe" | "pop";
 };
 
 type ContratoC = ContratoIndicador & {
@@ -39,7 +41,7 @@ export async function regrasVigentes(mesIso: string): Promise<RegraComissao[]> {
   const supabase = criarClienteServidor();
   const { data } = await supabase
     .from("regras_comissao")
-    .select("id, escopo, referencia_id, vigencia_inicio, vigencia_fim, degraus, gatilhos, estorno_dias")
+    .select("id, escopo, referencia_id, vigencia_inicio, vigencia_fim, degraus, gatilhos, estorno_dias, base_calculo")
     .lte("vigencia_inicio", mesIso)
     .or(`vigencia_fim.is.null,vigencia_fim.gte.${mesIso}`);
   return (data ?? []) as unknown as RegraComissao[];
@@ -100,11 +102,15 @@ export async function comissoesDoMes(
 
   const [{ data: vendedoras }, { data: contratosBrutos }, { data: metas }, regras] =
     await Promise.all([
-      supabase.from("vendedores").select("id, nome, pop_id").eq("ativo", true).order("nome"),
+      supabase
+        .from("vendedores")
+        .select("id, nome, pop_id, usuario_id, coordenador_id")
+        .eq("ativo", true)
+        .order("nome"),
       supabase
         .from("contratos")
         .select(
-          "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, plano_id, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, planos(nome, exige_assinatura)"
+          "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, pop_id, plano_id, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, planos(nome, exige_assinatura)"
         )
         .gte("data_venda", mes)
         .lte("data_venda", fim)
@@ -128,6 +134,28 @@ export async function comissoesDoMes(
   const debitoPorVendedora = coorte.porVendedora;
 
   const contratos = (contratosBrutos ?? []) as unknown as ContratoC[];
+
+  // Comissão de liderança conta por ATIVAÇÃO: um contrato vendido em julho e
+  // ativado em agosto entra aqui, e por isso não cabe na consulta acima (que
+  // filtra por data de venda). Só busca se alguma regra vigente precisar.
+  const temLideranca = regras.some((r) => r.base_calculo && r.base_calculo !== "proprias");
+  let ativadosNoMes: ContratoC[] = [];
+  if (temLideranca) {
+    const { data } = await supabase
+      .from("contratos")
+      .select(
+        "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, pop_id, plano_id, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, planos(nome, exige_assinatura)"
+      )
+      .gte("data_ativacao", mes)
+      .lte("data_ativacao", ateData)
+      .limit(5000);
+    ativadosNoMes = (data ?? []) as unknown as ContratoC[];
+  }
+  const coordenadorDoVendedor = new Map(
+    (vendedoras ?? []).map((v) => [v.id as string, (v.coordenador_id as string | null) ?? null])
+  );
+  const { contratosDaBase } = await import("@/lib/comissao/base");
+
   const metaPor = new Map(
     (metas ?? []).map((m) => [m.referencia_id as string, m.quantidade_vendas as number])
   );
@@ -146,11 +174,21 @@ export async function comissoesDoMes(
       };
     }
 
-    const proprias = vendasDoPeriodo(
-      contratos.filter((c) => c.vendedor_id === v.id),
-      mes,
-      ateData
-    );
+    const base = regra.base_calculo ?? "proprias";
+    const proprias =
+      base === "proprias"
+        ? vendasDoPeriodo(contratos.filter((c) => c.vendedor_id === v.id), mes, ateData)
+        : contratosDaBase(
+            base,
+            ativadosNoMes,
+            {
+              vendedorId: v.id,
+              usuarioId: (v.usuario_id as string | null) ?? null,
+              popId: v.pop_id,
+              coordenadorDoVendedor,
+            },
+            { de: mes, ate: ateData }
+          );
     const vendas: VendaComissao[] = proprias.map((contrato) => {
       const c = contrato as ContratoC;
       const referencia = c.data_ativacao ?? c.data_venda;
@@ -160,7 +198,12 @@ export async function comissoesDoMes(
 
       // liberação D5/D8, com a aprovação manual do gestor sobrepondo as
       // pendências (venda do fim do mês que só instala no mês seguinte)
-      const { liberada } = avaliarLiberacao(c, aprovacoes.get(c.id) ?? null);
+      // liderança remunera o que ATIVOU: o contrato já entrou na base, então
+      // não se prende à assinatura de cada venda (isso é cobrança da agente)
+      const { liberada } =
+        base === "proprias"
+          ? avaliarLiberacao(c, aprovacoes.get(c.id) ?? null)
+          : { liberada: true };
 
       return {
         valor_mensalidade: c.valor_mensalidade,
