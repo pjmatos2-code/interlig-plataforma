@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ehVendedora } from "@/lib/tipos";
+import { ehAgenteCrm } from "@/lib/tipos";
 import { exigirUsuario } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
@@ -32,7 +32,7 @@ export default async function NovoTicketPage() {
         <CardContent className="pt-5">
           <FormularioNovoTicket
             vendedoras={vendedoras ?? []}
-            perfilVendedora={ehVendedora(usuario.perfil)}
+            perfilVendedora={ehAgenteCrm(usuario.perfil)}
           />
         </CardContent>
       </Card>

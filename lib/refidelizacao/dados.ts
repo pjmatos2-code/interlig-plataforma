@@ -51,6 +51,10 @@ export type AditivoLinha = {
   decisaoMotivo: string | null;
   conta: boolean;
   pendencia: string | null;
+  /** data da venda do contrato — separa refidelização de venda nova */
+  dataVendaContrato: string | null;
+  /** contrato novo demais: o aditivo provavelmente é o termo da venda */
+  vendaRecente: boolean;
 };
 
 export type ResultadoAgente = {
@@ -91,7 +95,7 @@ export async function refidelizacaoDoMes(
     admin
       .from("aditivos")
       .select(
-        "id, sgp_aditivo_id, sgp_contrato_id, cliente_nome, agente_login, plano_rotulo, descricao, desconto, valor_mensal, valor_mensal_ajustado, valor_ajuste_motivo, data_aditivo, status_sgp, finalizado, decisao, decisao_motivo, contratos(clientes(sgp_cliente_id))"
+        "id, sgp_aditivo_id, sgp_contrato_id, cliente_nome, agente_login, plano_rotulo, descricao, desconto, valor_mensal, valor_mensal_ajustado, valor_ajuste_motivo, data_aditivo, status_sgp, finalizado, decisao, decisao_motivo, contratos(data_venda, clientes(sgp_cliente_id))"
       )
       .gte("data_aditivo", mes)
       .lte("data_aditivo", fim)
@@ -106,23 +110,39 @@ export async function refidelizacaoDoMes(
 
   const porAgente = new Map<string, AditivoLinha[]>();
   for (const a of data ?? []) {
+    const rel = a.contratos as unknown as
+      | { data_venda: string | null; clientes: { sgp_cliente_id: string | null } | null }
+      | null;
+    const dataVendaContrato = rel?.data_venda ?? null;
+
+    // Aditivo de fidelidade num contrato vendido na PRÓPRIA competência não é
+    // refidelização: é o termo da venda nova, que já remunera a vendedora.
+    // Pagar os dois seria comissionar a mesma assinatura duas vezes.
+    const vendaRecente = dataVendaContrato !== null && dataVendaContrato >= mes;
+
     const assinado = a.finalizado === true;
     const decisao = (a.decisao as "aprovado" | "reprovado" | null) ?? null;
-    // a decisão do gestor manda; sem decisão, vale a assinatura
-    const conta = decisao === "reprovado" ? false : decisao === "aprovado" ? true : assinado;
+    // a decisão do gestor manda; sem decisão, vale a assinatura — e a venda
+    // nova só entra se o gestor aprovar explicitamente
+    const conta =
+      decisao === "reprovado"
+        ? false
+        : decisao === "aprovado"
+          ? true
+          : assinado && !vendaRecente;
     const pendencia = conta
       ? null
       : decisao === "reprovado"
         ? (a.decisao_motivo as string) || "reprovado pela gestão"
-        : "aguardando assinatura do cliente ou do provedor";
+        : vendaRecente
+          ? `contrato vendido em ${dataVendaContrato?.slice(8, 10)}/${dataVendaContrato?.slice(5, 7)} — é venda nova, não refidelização`
+          : "aguardando assinatura do cliente ou do provedor";
 
     const linha: AditivoLinha = {
       id: a.id as string,
       sgpAditivoId: a.sgp_aditivo_id as string,
       sgpContratoId: (a.sgp_contrato_id as string) ?? null,
-      sgpClienteId:
-        (a.contratos as unknown as { clientes: { sgp_cliente_id: string | null } | null } | null)
-          ?.clientes?.sgp_cliente_id ?? null,
+      sgpClienteId: rel?.clientes?.sgp_cliente_id ?? null,
       cliente: (a.cliente_nome as string) ?? "—",
       agente: a.agente_login as string,
       plano: (a.plano_rotulo as string) ?? null,
@@ -138,6 +158,8 @@ export async function refidelizacaoDoMes(
       decisaoMotivo: (a.decisao_motivo as string) ?? null,
       conta,
       pendencia,
+      dataVendaContrato,
+      vendaRecente,
     };
     porAgente.set(linha.agente, [...(porAgente.get(linha.agente) ?? []), linha]);
   }

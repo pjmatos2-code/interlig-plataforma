@@ -21,6 +21,13 @@ export const ehVendedora = (p: Perfil): boolean =>
 export const exigeVinculoAgente = (p: Perfil): boolean =>
   ehVendedora(p) || p === "agente_atendimento";
 
+/**
+ * No CRM, quem trabalha apenas os PRÓPRIOS tickets — sem reatribuir nem
+ * escolher a responsável. Inclui o Setor de Atendimento, que opera o CRM mas
+ * não vende (por isso é diferente de ehVendedora).
+ */
+export const ehAgenteCrm = (p: Perfil): boolean => ehVendedora(p) || p === "agente_atendimento";
+
 export type Usuario = {
   id: string;
   nome: string;

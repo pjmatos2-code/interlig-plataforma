@@ -11,7 +11,7 @@ import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatarData, formatarDataHora } from "@/lib/format";
-import { ROTULO_ETAPA, ROTULO_ORIGEM, ehVendedora } from "@/lib/tipos";
+import { ROTULO_ETAPA, ROTULO_ORIGEM, ehAgenteCrm } from "@/lib/tipos";
 import {
   BarraEtapas,
   BotaoReabrir,
@@ -63,7 +63,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
       .select("id, nome")
       .eq("ativo", true)
       .order("ordem"),
-    ehVendedora(usuario.perfil)
+    ehAgenteCrm(usuario.perfil)
       ? Promise.resolve({ data: [] as { id: string; nome: string }[] })
       : supabase.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
   ]);
@@ -112,7 +112,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
 
   const fechado = t.etapa === "fechado";
   const reabrivel = podeReabrir(t, new Date().toISOString());
-  const podeReatribuir = !ehVendedora(usuario.perfil);
+  const podeReatribuir = !ehAgenteCrm(usuario.perfil);
 
   return (
     <>

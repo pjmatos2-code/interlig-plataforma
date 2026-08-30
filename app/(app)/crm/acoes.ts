@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ehVendedora } from "@/lib/tipos";
+import { ehAgenteCrm } from "@/lib/tipos";
 import { redirect } from "next/navigation";
 import { exigirUsuario, exigirPerfil } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -63,7 +63,7 @@ export async function criarTicket(_e: EstadoAcao, dados: FormData): Promise<Esta
   // vendedora cria para si; supervisor/gestor podem deixar "não atribuído"
   const vendedorForm = String(dados.get("vendedor_id") ?? "");
   const vendedorId =
-    ehVendedora(usuario.perfil) ? usuario.vendedor_id : vendedorForm || null;
+    ehAgenteCrm(usuario.perfil) ? usuario.vendedor_id : vendedorForm || null;
 
   let popId = usuario.pop_id;
   if (vendedorId) {
