@@ -166,7 +166,7 @@ function Memoria({ l, onFechar }: { l: LinhaApuracao; onFechar: () => void }) {
 
         <p className="rounded-md bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
           Prévia para provisão — os valores ainda mudam até o fechamento administrativo. O
-          pagamento sai da competência fechada, na aba "A pagar".
+          pagamento sai da competência fechada, na aba “A pagar”.
         </p>
       </CardContent>
     </Card>
