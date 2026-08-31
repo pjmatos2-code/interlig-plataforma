@@ -16,19 +16,8 @@ import { primeiroDiaDoMes, ultimoDiaDoMes, hojeIso } from "@/lib/datas";
  * Faixas sobre o atingimento da meta de 150 planos, sem acúmulo entre elas.
  */
 
-export const META_REFIDELIZACAO = 150;
-
-export const FAIXAS_REFIDELIZACAO = [
-  { nome: "MÍNIMA", min: 80, pct: 3.5 },
-  { nome: "SUPERAÇÃO", min: 101, pct: 4.0 },
-  { nome: "ALTA", min: 121, pct: 5.0 },
-  { nome: "DESAFIO", min: 167, pct: 7.0 }, // 250 planos sobre a meta de 150
-] as const;
-
-export function faixaDe(atingimentoPct: number) {
-  const p = Math.round(atingimentoPct);
-  return [...FAIXAS_REFIDELIZACAO].reverse().find((f) => p >= f.min) ?? null;
-}
+export { META_REFIDELIZACAO, FAIXAS_REFIDELIZACAO, faixaDe } from "./regras";
+import { META_REFIDELIZACAO, faixaDe } from "./regras";
 
 export type AditivoLinha = {
   id: string;

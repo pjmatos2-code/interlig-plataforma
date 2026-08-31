@@ -89,3 +89,28 @@ export async function sincronizar(mes: string): Promise<Resultado> {
   revalidar();
   return { ok: `${r.lidos} aditivo(s) lidos · ${r.validos} com as duas assinaturas.` };
 }
+
+/**
+ * Aprova vários aditivos de uma vez, com um único motivo. Só aprovação — a
+ * reprovação continua caso a caso, porque cada uma precisa da sua justificativa.
+ */
+export async function decidirEmLote(ids: string[], motivo: string): Promise<Resultado> {
+  const usuario = await exigirPerfil(["gestor"]);
+  const texto = motivo.trim();
+  if (!ids.length) return { erro: "Nenhum aditivo selecionado." };
+  if (texto.length < 5) return { erro: "Descreva o motivo (mín. 5 caracteres)." };
+
+  const admin = criarClienteAdmin();
+  const { error } = await admin
+    .from("aditivos")
+    .update({
+      decisao: "aprovado",
+      decisao_motivo: texto,
+      decisao_por: usuario.id,
+      decisao_em: new Date().toISOString(),
+    })
+    .in("id", ids);
+  if (error) return { erro: error.message };
+  revalidar();
+  return { ok: `${ids.length} aditivo(s) liberados.` };
+}
