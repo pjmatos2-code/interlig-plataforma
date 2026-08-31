@@ -508,6 +508,8 @@ export function crmDiasInatividade() {
 // ---------------------------------------------------------------------------
 export type DetalheTicket = {
   id: string;
+  analise_followup: Record<string, unknown> | null;
+  followup_analisado_em: string | null;
   cliente_nome: string;
   telefone: string | null;
   cpf: string | null;
@@ -559,6 +561,7 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
          criado_em, primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por,
          origem_cadastro, contrato_id, reconciliado_em, valor_estimado,
          resumo_tratativa, proxima_abordagem, urgencia,
+         analise_followup, followup_analisado_em,
          vendedores(nome), pops(nome), motivos_nao_conversao(nome), planos(nome),
          contratos(sgp_contrato_id, clientes(sgp_cliente_id, nome))`
       )
@@ -589,6 +592,12 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
 
   return {
     id: registro.id,
+    analise_followup:
+      ((registro as unknown as { analise_followup?: Record<string, unknown> | null })
+        .analise_followup) ?? null,
+    followup_analisado_em:
+      ((registro as unknown as { followup_analisado_em?: string | null })
+        .followup_analisado_em) ?? null,
     cliente_nome: registro.cliente_nome,
     telefone: registro.telefone,
     cpf: registro.cpf,

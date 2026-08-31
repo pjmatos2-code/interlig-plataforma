@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatarData, formatarDataHora } from "@/lib/format";
 import { ROTULO_ETAPA, ROTULO_ORIGEM, ehAgenteCrm } from "@/lib/tipos";
+import { FollowupIa } from "@/components/crm/followup-ia";
 import {
   BarraEtapas,
   BotaoReabrir,
@@ -232,6 +233,14 @@ export default async function TicketPage({ params }: { params: { id: string } })
                 <span className="text-muted-foreground">Conversa SZ:</span> {t.sz_conversa_id}
               </p>
             )}
+            <div className="pt-2">
+              <FollowupIa
+                ticketId={t.id}
+                analise={t.analise_followup as never}
+                analisadoEm={t.followup_analisado_em}
+                temConversa={Boolean(t.sz_conversa_id)}
+              />
+            </div>
             {fechado && (
               <>
                 <hr className="my-2" />

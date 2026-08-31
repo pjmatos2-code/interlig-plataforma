@@ -507,3 +507,30 @@ export async function adiarFollowup(ticketId: string, dias: number): Promise<Est
   revalidar();
   return { ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// Follow-up por IA (analista de conversas)
+// ---------------------------------------------------------------------------
+
+/** Analisa a conversa SZ deste ticket e grava a sugestão de follow-up nele. */
+export async function analisarFollowup(ticketId: string): Promise<{ erro?: string; ok?: string }> {
+  const usuario = await exigirUsuario();
+  if (!["gestor", "supervisor", "vendedora", "vendedora_externa", "agente_corporativo"].includes(usuario.perfil))
+    return { erro: "Sem permissão." };
+  const { analisarFollowupTicket } = await import("@/lib/crm/followup-ia");
+  const r = await analisarFollowupTicket(ticketId);
+  if (!r.ok) return { erro: r.erro };
+  revalidar();
+  return { ok: "Conversa analisada — sugestão de follow-up gravada no ticket." };
+}
+
+/** Lote do gestor: analisa os tickets abertos com conversa nova sem análise. */
+export async function analisarFollowupsEmLote(): Promise<{ erro?: string; ok?: string }> {
+  await exigirPerfil(["gestor", "supervisor"]);
+  const { analisarFollowupsPendentes } = await import("@/lib/crm/followup-ia");
+  const r = await analisarFollowupsPendentes(20);
+  revalidar();
+  return {
+    ok: `${r.analisados} ticket(s) analisado(s)${r.erros ? ` · ${r.erros} com erro (${r.detalhes.join("; ")})` : ""}`,
+  };
+}
