@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BadgeCheck,
   Clock3,
@@ -9,12 +10,14 @@ import {
   Target,
   Eye,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvatarAgente } from "@/components/ui/avatar-agente";
 import { formatarData, formatarMoeda, formatarPercentual } from "@/lib/format";
 import type { AditivoLinha, ResultadoAgente } from "@/lib/refidelizacao/dados";
 import { META_REFIDELIZACAO } from "@/lib/refidelizacao/regras";
+import { sincronizar } from "@/app/(app)/refidelizacao/acoes";
 
 /**
  * Visão da própria agente do Setor de Atendimento, no MESMO layout do painel
@@ -215,10 +218,13 @@ export function MinhaRefidelizacao({
   /** raiz do painel do SGP, para abrir os aditivos do cliente */
   baseSgp?: string | null;
 }) {
+  const router = useRouter();
   const [busca, setBusca] = useState("");
   const [statusFiltro, setStatusFiltro] = useState("todos");
   const [soPendentes, setSoPendentes] = useState(true);
   const [detalheId, setDetalheId] = useState<string | null>(null);
+  const [sincronizando, setSincronizando] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
 
   const pendentes = dados.linhas.filter((l) => !l.conta && l.decisao !== "reprovado");
   const pctMeta = dados.atingimentoPct;
@@ -400,6 +406,26 @@ export function MinhaRefidelizacao({
             <input type="checkbox" checked={soPendentes} onChange={(e) => setSoPendentes(e.target.checked)} />
             Somente pendentes
           </label>
+          <div className="ml-auto flex items-center gap-2">
+            {aviso && <span className="max-w-[16rem] text-xs text-muted-foreground">{aviso}</span>}
+            <button
+              type="button"
+              disabled={sincronizando}
+              onClick={async () => {
+                setSincronizando(true);
+                setAviso(null);
+                const r = await sincronizar();
+                setSincronizando(false);
+                setAviso(r.erro ?? r.ok ?? null);
+                router.refresh();
+              }}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              title="Regularizou a assinatura no SGP? Atualize aqui — o aditivo sai de pendente na hora."
+            >
+              <RefreshCw className={`h-4 w-4 ${sincronizando ? "animate-spin" : ""}`} />
+              {sincronizando ? "Buscando no SGP…" : "Atualizar com o SGP"}
+            </button>
+          </div>
         </CardContent>
       </Card>
 

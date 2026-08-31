@@ -8,6 +8,7 @@ export type Resultado = { erro?: string; ok?: string };
 
 function revalidar() {
   revalidatePath("/refidelizacao");
+  revalidatePath("/minha-comissao");
   revalidatePath("/minhas-vendas");
   revalidatePath("/metas");
 }
@@ -80,11 +81,14 @@ export async function ajustarValor(
   return { ok: "Valor ajustado." };
 }
 
-/** Busca os aditivos do mês no SGP e atualiza a base. */
-export async function sincronizar(mes: string): Promise<Resultado> {
-  await exigirPerfil(["gestor"]);
+/** Busca os aditivos do mês no SGP e atualiza a base. A agente também pode
+ * rodar: depois de regularizar a assinatura no SGP, ela mesma atualiza e o
+ * aditivo sai de pendente. Sem mês informado, vale o mês corrente. */
+export async function sincronizar(mes?: string): Promise<Resultado> {
+  await exigirPerfil(["gestor", "agente_atendimento"]);
+  const { primeiroDiaDoMes, hojeIso } = await import("@/lib/datas");
   const { sincronizarAditivos } = await import("@/lib/sgp/aditivos");
-  const r = await sincronizarAditivos(mes);
+  const r = await sincronizarAditivos(mes ?? primeiroDiaDoMes(hojeIso()));
   if (!r.ok) return { erro: r.erro ?? "Falha na sincronização." };
   revalidar();
   return { ok: `${r.lidos} aditivo(s) lidos · ${r.validos} com as duas assinaturas.` };
