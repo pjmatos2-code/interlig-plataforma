@@ -74,7 +74,7 @@ function ChipAting({ pct }: { pct: number }) {
 
 /** memória de cálculo do agente selecionado — o "por que esse valor?" */
 function Memoria({ l, onFechar }: { l: LinhaApuracao; onFechar: () => void }) {
-  const pct = l.atingimentoPct * 100;
+  const pct = l.atingimentoPct;
   const potencial = l.seLiberarPendentes - l.parcial;
   const total = l.vendasLiberadas + l.vendasPendentes;
   const passos: [string, string][] = [
@@ -184,7 +184,7 @@ export function PainelApuracao({ dados }: { dados: ApuracaoAndamento }) {
   }, [dados.linhas, busca]);
 
   const sel = dados.linhas.find((l) => l.vendedorId === selecionado) ?? null;
-  const metaBatida = dados.linhas.filter((l) => l.atingimentoPct >= 1).length;
+  const metaBatida = dados.linhas.filter((l) => l.atingimentoPct >= 100).length;
   const baseTotal = dados.linhas.reduce((s, l) => s + l.valorBase, 0);
 
   if (dados.linhas.length === 0) {
@@ -223,7 +223,7 @@ export function PainelApuracao({ dados }: { dados: ApuracaoAndamento }) {
             className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
           />
           {linhas.slice(0, 6).map((l) => {
-            const pct = l.atingimentoPct * 100;
+            const pct = l.atingimentoPct;
             return (
               <button
                 key={l.vendedorId}
@@ -286,7 +286,7 @@ export function PainelApuracao({ dados }: { dados: ApuracaoAndamento }) {
                 </thead>
                 <tbody>
                   {linhas.map((l) => {
-                    const pct = l.atingimentoPct * 100;
+                    const pct = l.atingimentoPct;
                     return (
                       <tr
                         key={l.vendedorId}

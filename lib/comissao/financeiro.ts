@@ -158,12 +158,20 @@ export async function apuracaoEmAndamento(mesIso: string): Promise<ApuracaoAndam
   const { comissoesDoMes } = await import("@/lib/comissao/dados");
   const { debitoPorCoorte } = await import("@/lib/comissao/debito");
   const admin = criarClienteAdmin();
-  const [comissoes, debito, { data: vends }] = await Promise.all([
+  const { refidelizacaoDoMes } = await import("@/lib/refidelizacao/dados");
+  const { faixaDe: faixaRefid, META_REFIDELIZACAO } = await import("@/lib/refidelizacao/regras");
+  const { retencaoDoMes, faixaRetencao, PISO_ELEGIVEIS } = await import("@/lib/retencao/dados");
+  const [comissoes, debito, { data: vends }, refid, retencao] = await Promise.all([
     comissoesDoMes(mesIso, { ignorarRls: true }),
     debitoPorCoorte(mesIso),
-    admin.from("vendedores").select("id, foto_url"),
+    admin.from("vendedores").select("id, foto_url, sgp_login"),
+    refidelizacaoDoMes(mesIso),
+    retencaoDoMes(mesIso),
   ]);
   const fotoDe = new Map((vends ?? []).map((v) => [v.id as string, (v.foto_url as string | null) ?? null]));
+  const idPorLogin = new Map(
+    (vends ?? []).filter((v) => v.sgp_login).map((v) => [String(v.sgp_login).toLowerCase(), v.id as string])
+  );
 
   const linhas: LinhaApuracao[] = comissoes
     .filter((c) => c.resultado !== null)
@@ -190,6 +198,61 @@ export async function apuracaoEmAndamento(mesIso: string): Promise<ApuracaoAndam
       };
     })
     .sort((a, b) => b.parcial - a.parcial);
+
+  // Setor de Atendimento: a refidelização entra na mesma apuração, com a
+  // régua própria (taxa sobre a meta de 150 planos, base = VTV mensal)
+  for (const a of refid.agentes) {
+    const pendentesRef = a.linhas.filter((l) => !l.conta && l.decisao !== "reprovado");
+    const vtvPendente = pendentesRef.reduce((s2, l) => s2 + l.valorMensal, 0);
+    const validosSe = a.validos + pendentesRef.length;
+    const atingSe = (validosSe / META_REFIDELIZACAO) * 100;
+    const fSe = faixaRefid(atingSe);
+    linhas.push({
+      vendedorId: idPorLogin.get(a.agente) ?? a.agente,
+      vendedora: a.nome ?? a.agente,
+      foto: a.foto,
+      meta: META_REFIDELIZACAO,
+      metaEfetiva: META_REFIDELIZACAO,
+      atingimentoPct: a.atingimentoPct,
+      faixa: a.percentual > 0 ? `${a.percentual}% do VTV (${a.faixa})` : "sem faixa",
+      vendasLiberadas: a.validos,
+      vendasPendentes: pendentesRef.length,
+      estornos: 0,
+      debitoAplicado: false,
+      debitoQuantidade: 0,
+      valorBase: a.vtv,
+      parcial: a.comissao,
+      seLiberarPendentes: ((fSe?.pct ?? 0) / 100) * (a.vtv + vtvPendente),
+    });
+  }
+
+  // Setor de Retenção: régua por taxa — "pendentes" são os em risco
+  // (suspensos), que viram retidos se o cliente reativar até o fechamento
+  for (const m of retencao) {
+    const vtvEmRisco = m.linhas
+      .filter((l) => l.desfecho === "em_risco")
+      .reduce((s2, l) => s2 + l.valorMensal, 0);
+    const retidosSe = m.retidos + m.emRisco;
+    const taxaSe = m.elegiveis > 0 ? (retidosSe / m.elegiveis) * 100 : 0;
+    const faixaSe = m.elegiveis < PISO_ELEGIVEIS ? 0 : faixaRetencao(taxaSe);
+    linhas.push({
+      vendedorId: idPorLogin.get(m.agente) ?? m.agente,
+      vendedora: m.nomeAgente ?? m.agente,
+      foto: m.foto,
+      meta: m.elegiveis,
+      metaEfetiva: m.elegiveis,
+      atingimentoPct: m.taxaPct,
+      faixa: m.faixaPct > 0 ? `${m.faixaPct}% do VTV (taxa ${m.taxaPct.toFixed(0)}%)` : "sem faixa",
+      vendasLiberadas: m.retidos,
+      vendasPendentes: m.emRisco,
+      estornos: m.clawbacks,
+      debitoAplicado: false,
+      debitoQuantidade: 0,
+      valorBase: m.vtvRetido,
+      parcial: m.comissao,
+      seLiberarPendentes: (faixaSe / 100) * (m.vtvRetido + vtvEmRisco),
+    });
+  }
 
   return {
     competencia: mesIso,
