@@ -2,6 +2,7 @@ import { BadgeCheck, Clock3, CircleDollarSign, Wallet, Target } from "lucide-rea
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatarData, formatarMoeda, formatarPercentual } from "@/lib/format";
 import type { ResultadoAgente } from "@/lib/refidelizacao/dados";
+import { AvatarAgente } from "@/components/ui/avatar-agente";
 import { META_REFIDELIZACAO } from "@/lib/refidelizacao/regras";
 
 /**
@@ -68,6 +69,55 @@ export function MinhaRefidelizacao({
 
   return (
     <div className="mt-6 space-y-4">
+      {/* identificação da agente com resumo de produtividade e comissão */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <AvatarAgente nome={dados.nome ?? dados.agente} foto={dados.foto} tamanho="lg" />
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 truncate text-base font-semibold">
+                  {dados.nome ?? dados.agente}
+                  <span
+                    className="inline-block h-2 w-2 rounded-full"
+                    style={{ backgroundColor: pctMeta >= 100 ? "#22c55e" : pctMeta >= 80 ? "#2563eb" : "#f59e0b" }}
+                  />
+                </p>
+                <p className="text-sm text-muted-foreground tabular-nums">
+                  {dados.validos} planos · {formatarPercentual(pctMeta / 100, 0)} da meta
+                </p>
+              </div>
+            </div>
+            <div className="ml-auto grid grid-cols-3 gap-6 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">VTV</p>
+                <p className="font-semibold tabular-nums">{formatarMoeda(dados.vtv)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Pendências</p>
+                <p className="font-semibold tabular-nums">{pendentes.length}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Comissão</p>
+                <p className="font-semibold tabular-nums text-emerald-700">{formatarMoeda(dados.comissao)}</p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${Math.min(100, pctMeta)}%`,
+                backgroundColor: pctMeta >= 100 ? "#059669" : pctMeta >= 80 ? "#2563eb" : "#d97706",
+              }}
+            />
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Faixa {dados.faixa} · {dados.percentual}% · meta {META_REFIDELIZACAO} planos
+          </p>
+        </CardContent>
+      </Card>
+
       {/* KPIs no padrão do painel do setor */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <Kpi
