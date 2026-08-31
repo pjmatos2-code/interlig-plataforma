@@ -248,3 +248,36 @@ export async function excluirRegra(id: string): Promise<EstadoRegra> {
   revalidatePath("/metas");
   return { ok: true };
 }
+
+
+/**
+ * Exclui um fechamento lançado por engano (ex.: competência errada no clique).
+ * Só o gestor, e só enquanto NENHUM pagamento daquela competência foi
+ * registrado — depois disso, o caminho é reabrir com motivo, nunca apagar.
+ */
+export async function excluirFechamento(mesAno: string, motivo: string): Promise<EstadoFechamento> {
+  await exigirPerfil(["gestor"]);
+  if (!/^\d{4}-\d{2}-01$/.test(mesAno)) return { erro: "Mês inválido." };
+  if (motivo.trim().length < 5) return { erro: "Descreva o motivo (mín. 5 caracteres)." };
+
+  const { criarClienteAdmin } = await import("@/lib/supabase/admin");
+  const admin = criarClienteAdmin();
+  const { data: pagos } = await admin
+    .from("comissoes_fechadas")
+    .select("vendedor_id")
+    .eq("mes_ano", mesAno)
+    .not("pago_em", "is", null)
+    .limit(1);
+  if ((pagos ?? []).length > 0)
+    return { erro: "Há pagamento registrado nesta competência — use Reabrir, não excluir." };
+
+  const { error, count } = await admin
+    .from("comissoes_fechadas")
+    .delete({ count: "exact" })
+    .eq("mes_ano", mesAno);
+  if (error) return { erro: error.message };
+  revalidatePath("/metas");
+  revalidatePath("/financeiro");
+  revalidatePath("/historico");
+  return { fechadas: 0, total: count ?? 0 };
+}

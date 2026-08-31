@@ -154,7 +154,7 @@ export default async function MetasPage({
     .select("vendedor_id, mes_ano, valor_total, fechado_em, vendedores(nome)")
     .order("mes_ano", { ascending: false })
     .limit(50);
-  const fechamentoMesAnterior = (fechadas ?? []).some((f) => f.mes_ano === mesAnterior);
+  const mesesFechados = [...new Set((fechadas ?? []).map((f) => f.mes_ano as string))];
 
   return (
     <>
@@ -358,7 +358,7 @@ export default async function MetasPage({
             <CardTitle>Fechamento de comissões (snapshot imutável)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <PainelFechamento mesAnterior={mesAnterior} jaFechado={fechamentoMesAnterior} />
+            <PainelFechamento mesAtual={mesAtual} mesAnterior={mesAnterior} fechados={mesesFechados} />
             {(fechadas ?? []).length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
