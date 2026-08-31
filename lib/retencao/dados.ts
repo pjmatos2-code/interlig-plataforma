@@ -22,7 +22,10 @@ export const FAIXAS_RETENCAO = [
 export const PISO_ELEGIVEIS = 15;
 
 export function faixaRetencao(taxaPct: number): number {
-  return [...FAIXAS_RETENCAO].reverse().find((f) => taxaPct >= f.min)?.pct ?? 0;
+  // mesma regra da refidelização: o atingimento arredonda antes de comparar
+  // com o piso da faixa (64,5%+ conta como 65) — decisão do gestor em 31/08.
+  const p = Math.round(taxaPct);
+  return [...FAIXAS_RETENCAO].reverse().find((f) => p >= f.min)?.pct ?? 0;
 }
 
 export type CasoLinha = {
