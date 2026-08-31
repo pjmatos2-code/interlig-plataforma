@@ -7,6 +7,7 @@ import { FiltrosDashboard } from "@/components/dashboard/filtros";
 import { PainelDetalheVendedora } from "@/components/vendedoras/painel-detalhe";
 import { Card, CardContent } from "@/components/ui/card";
 import { templateLinkSgp } from "@/lib/sgp/links-server";
+import { CartaoAgenteComercial } from "@/components/agentes/cartao-agente-comercial";
 import { formatarData } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +47,7 @@ export default async function MinhasVendasPage({
         titulo="Minhas vendas"
         descricao={`${detalhe?.pop ?? ""} · ${formatarData(periodo.de)} a ${formatarData(periodo.ate)} · meta e pace do mês corrente`}
       />
+      <CartaoAgenteComercial vendedorId={usuario.vendedor_id} />
       <FiltrosDashboard pops={[]} mostrarPop={false} de={periodo.de} ate={periodo.ate} />
       {detalhe && <PainelDetalheVendedora detalhe={detalhe} linkTemplate={await templateLinkSgp()} />}
       {usuario.vendedor_id && (

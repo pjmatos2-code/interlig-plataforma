@@ -4,6 +4,7 @@ import { exigirPerfil } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { FormularioVisita } from "@/components/externa/formulario-visita";
 import { formatarMoeda } from "@/lib/format";
+import { CartaoAgenteComercial } from "@/components/agentes/cartao-agente-comercial";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,10 @@ export default async function ExternaPage() {
             Registre a visita em 3 passos — o ticket entra direto no CRM
           </p>
         </div>
+
+        {ehVendedora(usuario.perfil) && usuario.vendedor_id && (
+          <CartaoAgenteComercial vendedorId={usuario.vendedor_id} />
+        )}
 
         <FormularioVisita
           planos={planosPap}

@@ -4,6 +4,7 @@ import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { Card, CardContent } from "@/components/ui/card";
 import { PainelMinhaComissao } from "@/components/comissao/minha-comissao";
 import { MinhaRefidelizacao } from "@/components/refidelizacao/minha-refidelizacao";
+import { CartaoAgenteComercial } from "@/components/agentes/cartao-agente-comercial";
 import { minhaComissao } from "@/lib/comissao/minha";
 import { refidelizacaoDoMes } from "@/lib/refidelizacao/dados";
 import { templateLinkSgp } from "@/lib/sgp/links-server";
@@ -79,6 +80,7 @@ export default async function MinhaComissaoPage() {
         titulo="Minha comissão"
         descricao={`${agente?.nome ?? ""} · resultado, pendências e simulador do mês corrente`}
       />
+      <CartaoAgenteComercial vendedorId={usuario.vendedor_id} />
       <PainelMinhaComissao
         dados={await minhaComissao(usuario.vendedor_id)}
         demonstrativo={await ultimoDemonstrativo(usuario.vendedor_id)}
