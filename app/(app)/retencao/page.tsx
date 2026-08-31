@@ -2,6 +2,7 @@ import { exigirUsuario } from "@/lib/auth";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { retencaoDoMes } from "@/lib/retencao/dados";
+import { templateLinkSgp } from "@/lib/sgp/links-server";
 import { PainelRetencao } from "./painel";
 import { redirect } from "next/navigation";
 
@@ -26,6 +27,7 @@ export default async function RetencaoPage({
   }
 
   const meses = await retencaoDoMes(mes, login);
+  const linkTemplate = await templateLinkSgp();
 
   return (
     <>
@@ -43,7 +45,7 @@ export default async function RetencaoPage({
           Aplicar
         </button>
       </form>
-      <PainelRetencao meses={meses} ehGestor={usuario.perfil === "gestor"} />
+      <PainelRetencao meses={meses} ehGestor={usuario.perfil === "gestor"} linkTemplate={linkTemplate} />
     </>
   );
 }

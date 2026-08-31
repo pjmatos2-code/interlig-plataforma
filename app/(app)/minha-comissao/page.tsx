@@ -40,6 +40,12 @@ export default async function MinhaComissaoPage() {
     .eq("id", usuario.vendedor_id)
     .maybeSingle();
 
+  // ---------- Setor de Retenção: o painel dela já mostra taxa/faixa/comissão ----------
+  if (agente?.setor === "retencao") {
+    const { redirect } = await import("next/navigation");
+    redirect("/retencao");
+  }
+
   // ---------- Setor de Atendimento: refidelização ----------
   if (agente?.setor === "atendimento") {
     const login = (agente.sgp_login as string | null)?.toLowerCase();

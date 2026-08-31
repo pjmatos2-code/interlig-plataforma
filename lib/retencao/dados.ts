@@ -29,6 +29,7 @@ export type CasoLinha = {
   id: string;
   clienteNome: string;
   sgpContratoId: string | null;
+  sgpClienteId: string | null;
   telefone: string | null;
   valorMensal: number;
   etapa: string;
@@ -77,7 +78,7 @@ export async function retencaoDoMes(
   let q = admin
     .from("casos_retencao")
     .select(
-      "id, cliente_nome, sgp_contrato_id, telefone, valor_mensal, etapa, desfecho, desfecho_auto, trilha, motivo_declarado, alcada_usada, resumo, irreversivel_motivo, clawback_em, reincidente_de, origem, criado_em, analise, agente_login"
+      "id, cliente_nome, sgp_contrato_id, telefone, valor_mensal, etapa, desfecho, desfecho_auto, trilha, motivo_declarado, alcada_usada, resumo, irreversivel_motivo, clawback_em, reincidente_de, origem, criado_em, analise, agente_login, contratos(clientes(sgp_cliente_id))"
     )
     .gte("criado_em", mes)
     .lte("criado_em", fim)
@@ -92,6 +93,9 @@ export async function retencaoDoMes(
       id: c.id as string,
       clienteNome: c.cliente_nome as string,
       sgpContratoId: (c.sgp_contrato_id as string) ?? null,
+      sgpClienteId:
+        ((c.contratos as unknown as { clientes: { sgp_cliente_id: string | null } | null } | null)
+          ?.clientes?.sgp_cliente_id) ?? null,
       telefone: (c.telefone as string) ?? null,
       valorMensal: Number(c.valor_mensal ?? 0),
       etapa: c.etapa as string,

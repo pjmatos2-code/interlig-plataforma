@@ -34,7 +34,7 @@ export type ContratoSnapshot = {
 export type SnapshotComissao = {
   competencia: string;
   /** de onde veio a comissão — muda os rótulos do demonstrativo */
-  tipo?: "venda" | "refidelizacao";
+  tipo?: "venda" | "refidelizacao" | "retencao";
   vendedora: string;
   pop: string | null;
   /** regra congelada — as faixas COMO ESTAVAM no fechamento */
@@ -284,5 +284,94 @@ export async function montarSnapshotsRefidelizacao(
     });
   }
 
+  return saida;
+}
+
+/**
+ * Snapshots do Setor de Retenção (régua por taxa, aprovada 31/08/2026 — sem
+ * mês de sombra, valendo desde agosto). Mesma estrutura dos demais para o
+ * fechamento, o financeiro e o PDF tratarem tudo pelo mesmo caminho.
+ *
+ * Tradução da régua para o formato do snapshot: "meta" = casos elegíveis,
+ * "vendas comissionáveis" = clientes retidos, atingimento = taxa de retenção.
+ */
+export async function montarSnapshotsRetencao(
+  competenciaIso: string,
+  fechadoPorNome: string | null
+): Promise<Map<string, SnapshotComissao>> {
+  const admin = criarClienteAdmin();
+  const mes = primeiroDiaDoMes(competenciaIso);
+  const { retencaoDoMes, FAIXAS_RETENCAO } = await import("@/lib/retencao/dados");
+  const dados = await retencaoDoMes(mes);
+  const fechadoEm = new Date().toISOString();
+  const saida = new Map<string, SnapshotComissao>();
+
+  const { data: agentes } = await admin
+    .from("vendedores")
+    .select("id, nome, sgp_login, pops(nome)")
+    .eq("setor", "retencao");
+
+  for (const a of dados) {
+    const cadastro = (agentes ?? []).find(
+      (v) => String(v.sgp_login ?? "").toLowerCase() === a.agente
+    );
+    if (!cadastro) continue;
+
+    const linhas: ContratoSnapshot[] = a.linhas
+      .filter((l) => l.desfecho === "retido" && !l.clawback)
+      .map((l) => ({
+        sgpContratoId: l.sgpContratoId,
+        cliente: l.clienteNome,
+        plano: l.trilha ? `trilha ${l.trilha}` : null,
+        valor: l.valorMensal,
+        dataVenda: l.criadoEm.slice(0, 10),
+        status: "retido",
+        liberadaPor: "regra",
+      }));
+
+    saida.set(cadastro.id as string, {
+      competencia: mes,
+      tipo: "retencao",
+      vendedora: (cadastro.nome as string) ?? a.agente,
+      pop: (cadastro.pops as unknown as { nome: string } | null)?.nome ?? null,
+      regra: {
+        degraus: FAIXAS_RETENCAO.map((f) => ({
+          atingimento_min: f.min,
+          atingimento_max: null,
+          tipo: "percentual_receita" as const,
+          valor: f.pct,
+        })),
+        gatilhos: [],
+        estornoDias: 30,
+      },
+      meta: a.elegiveis,
+      resultado: {
+        atingimentoPct: a.taxaPct / 100,
+        degrau: a.faixaPct
+          ? {
+              atingimento_min: 0,
+              atingimento_max: null,
+              tipo: "percentual_receita",
+              valor: a.faixaPct,
+            }
+          : null,
+        vendasComissionaveis: a.retidos,
+        vendasPendentes: a.emRisco,
+        estornos: a.clawbacks,
+        valorBase: a.comissao,
+        bonusFixo: 0,
+        gatilhos: [],
+        total: a.comissao,
+        totalSeLiberar: a.comissao,
+        debitoMeta: 0,
+        metaEfetiva: a.elegiveis,
+      },
+      debito: { aplicado: false, quantidade: 0, coorte: mes, observacao: null },
+      contratos: linhas,
+      assinaturasDispensadas: [],
+      fechadoEm,
+      fechadoPor: fechadoPorNome,
+    });
+  }
   return saida;
 }

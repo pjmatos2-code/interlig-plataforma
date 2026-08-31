@@ -77,8 +77,9 @@ export async function gerarDemonstrativoPdf(
   // o Setor de Atendimento comissiona refidelização, não venda: os rótulos
   // mudam para o documento fazer sentido para quem o recebe
   const ehRefid = snap.tipo === "refidelizacao";
-  const rotuloItem = ehRefid ? "planos refidelizados" : "contratos considerados";
-  const rotuloQtd = ehRefid ? "Planos refidelizados" : "Vendas liberadas para comissão";
+  const ehRet = snap.tipo === "retencao";
+  const rotuloItem = ehRet ? "clientes retidos" : ehRefid ? "planos refidelizados" : "contratos considerados";
+  const rotuloQtd = ehRet ? "Clientes retidos (validados no SGP)" : ehRefid ? "Planos refidelizados" : "Vendas liberadas para comissão";
 
   const codigo = codigoVerificacao(
     meta.vendedorId,
@@ -137,6 +138,13 @@ export async function gerarDemonstrativoPdf(
     x: A4[0] - MARGEM - negrito.widthOfTextAtSize(titulo, 13),
     y: A4[1] - 52, size: 13, font: negrito, color: rgb(1, 1, 1),
   });
+  if (ehRet) {
+    const subR = "Setor de Retencao";
+    pagina.drawText(limpar(subR), {
+      x: A4[0] - MARGEM - regular.widthOfTextAtSize(limpar(subR), 8.5),
+      y: A4[1] - 84, size: 8.5, font: regular, color: rgb(0.72, 0.82, 0.94),
+    });
+  }
   if (ehRefid) {
     const sub = "Setor de Atendimento - Refidelizacao";
     pagina.drawText(limpar(sub), {
@@ -180,7 +188,7 @@ export async function gerarDemonstrativoPdf(
   const infoDir = [
     `Atingimento: ${(snap.resultado.atingimentoPct * 100).toFixed(1).replace(".", ",")}%`,
     `Faixa aplicada: ${faixa}`,
-    `${ehRefid ? "Planos" : "Vendas liberadas"}: ${snap.resultado.vendasComissionaveis}`,
+    `${ehRet ? "Retidos" : ehRefid ? "Planos" : "Vendas liberadas"}: ${snap.resultado.vendasComissionaveis}`,
   ];
   infoDir.forEach((linha, i) => {
     const t = limpar(linha);
@@ -219,7 +227,7 @@ export async function gerarDemonstrativoPdf(
   };
 
   secao("Memória de cálculo");
-  linhaValor("Meta do mês", String(snap.meta));
+  linhaValor(ehRet ? "Casos elegíveis no mês" : "Meta do mês", String(snap.meta));
   if (snap.debito.aplicado && snap.debito.quantidade > 0) {
     linhaValor(
       `Débito de clientes não ativos (vendas de ${mesBr(snap.debito.coorte)})`,
@@ -230,20 +238,22 @@ export async function gerarDemonstrativoPdf(
     linhaValor(`Débito de inadimplentes (${mesBr(snap.debito.coorte)})`, "não aplicado nesta competência");
   }
   linhaValor(rotuloQtd, String(snap.resultado.vendasComissionaveis));
+  if (ehRet)
+    linhaValor("Taxa de retenção (irreversíveis fora)", `${(snap.resultado.atingimentoPct * 100).toFixed(0).replace(".", ",")}%`);
   if (snap.resultado.estornos > 0)
     linhaValor(
-      ehRefid ? "Aditivos reprovados pela gestão" : "Estornos (cancelamento precoce)",
+      ehRet ? "Clawback (cancelou em até 30 dias)" : ehRefid ? "Aditivos reprovados pela gestão" : "Estornos (cancelamento precoce)",
       `-${snap.resultado.estornos}`
     );
   if (snap.resultado.vendasPendentes > 0)
     linhaValor(
-      ehRefid ? "Aditivos sem as duas assinaturas (não pagos aqui)" : "Vendas ainda pendentes (não pagas aqui)",
+      ehRet ? "Em risco (suspensos — pagam se reativarem)" : ehRefid ? "Aditivos sem as duas assinaturas (não pagos aqui)" : "Vendas ainda pendentes (não pagas aqui)",
       String(snap.resultado.vendasPendentes)
     );
   y -= 4;
-  if (ehRefid) {
+  if (ehRefid || ehRet) {
     const vtv = snap.contratos.reduce((t, c) => t + c.valor, 0);
-    linhaValor("VTV dos planos refidelizados (valor mensal)", moeda(vtv));
+    linhaValor(ehRet ? "VTV dos clientes retidos (valor mensal)" : "VTV dos planos refidelizados (valor mensal)", moeda(vtv));
     linhaValor(`Comissão aplicada (${faixa})`, moeda(snap.resultado.valorBase));
   } else {
     linhaValor("Base de cálculo", moeda(snap.resultado.valorBase));
