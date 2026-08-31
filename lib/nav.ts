@@ -25,6 +25,7 @@ export const ITENS_NAV: ItemNav[] = [
   { href: "/refidelizacao", rotulo: "Refidelização", icone: "RefreshCw",     perfis: ["gestor"] },
   { href: "/retencao",      rotulo: "Retenção",    icone: "ShieldAlert",     perfis: ["gestor", "agente_retencao"] },
   { href: "/financeiro",    rotulo: "Financeiro",  icone: "Receipt",         perfis: ["gestor", "financeiro"] },
+  { href: "/historico",     rotulo: "Histórico",   icone: "History",         perfis: ["gestor", "financeiro"] },
   { href: "/qualidade",     rotulo: "Qualidade",   icone: "ShieldCheck",     perfis: ["gestor", "supervisor"] },
   { href: "/mapa",          rotulo: "Mapa",        icone: "Map",             perfis: ["gestor", "supervisor"] },
   { href: "/admin",         rotulo: "Administração", icone: "Settings",      perfis: ["gestor"] },

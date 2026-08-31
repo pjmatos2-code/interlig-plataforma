@@ -7,13 +7,10 @@ import {
   competenciaFinanceiro,
   competenciasFechadas,
   apuracaoEmAndamento,
-  historicoPorAgente,
 } from "@/lib/comissao/financeiro";
 import { hojeIso, primeiroDiaDoMes } from "@/lib/datas";
 import { PainelFinanceiro } from "./painel";
 import { PainelApuracao } from "./apuracao";
-import { HistoricoTab } from "./historico-tab";
-import { criarClienteAdmin } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -32,30 +29,9 @@ export default async function FinanceiroPage({
   const fechadas = await competenciasFechadas();
   const mesCorrente = primeiroDiaDoMes(hojeIso());
   const emApuracao = searchParams.aba === "apuracao";
-  const emHistorico = searchParams.aba === "historico";
 
-  const agentesAtivos = async () => {
-    const { data } = await criarClienteAdmin()
-      .from("vendedores")
-      .select("id, nome, foto_url")
-      .eq("ativo", true)
-      .order("nome");
-    return (data ?? []).map((v) => ({
-      id: v.id as string,
-      nome: v.nome as string,
-      foto: (v.foto_url as string | null) ?? null,
-    }));
-  };
 
   if (fechadas.length === 0) {
-    if (emHistorico) {
-      return (
-        <>
-          <CabecalhoPagina titulo="Financeiro — comissões" descricao="Histórico por agente." />
-          <HistoricoTab dados={{ meses: [], agentes: [] }} ativos={await agentesAtivos()} />
-        </>
-      );
-    }
     const apuracao = await apuracaoEmAndamento(mesCorrente);
     return (
       <>
@@ -79,10 +55,7 @@ export default async function FinanceiroPage({
   const mes = fechadas.includes(`${searchParams.mes}-01`)
     ? `${searchParams.mes}-01`
     : fechadas[0];
-  const [dados, historico] = await Promise.all([
-    competenciaFinanceiro(mes),
-    historicoPorAgente(mes),
-  ]);
+  const dados = await competenciaFinanceiro(mes);
   const apuracao = emApuracao ? await apuracaoEmAndamento(mesCorrente) : null;
 
   // filtro por agente: o financeiro confere um a um sem perder o resto de vista
@@ -124,19 +97,9 @@ export default async function FinanceiroPage({
         >
           Em apuração (mês corrente)
         </a>
-        <a
-          href={`/financeiro?mes=${mes.slice(0, 7)}&aba=historico`}
-          className={`px-4 py-2 text-sm font-medium ${
-            emHistorico
-              ? "-mb-px border-b-2 border-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Histórico
-        </a>
       </div>
 
-      {!emApuracao && !emHistorico && (
+      {!emApuracao && (
         <form method="get" className="mb-4 flex flex-wrap items-end gap-2">
           <label className="text-sm">
             <span className="mb-1 block text-xs text-muted-foreground">Competência</span>
@@ -184,9 +147,7 @@ export default async function FinanceiroPage({
         </form>
       )}
 
-      {emHistorico ? (
-        <HistoricoTab dados={historico} ativos={await agentesAtivos()} />
-      ) : emApuracao && apuracao ? (
+      {emApuracao && apuracao ? (
         <PainelApuracao dados={apuracao} />
       ) : (
       <>
