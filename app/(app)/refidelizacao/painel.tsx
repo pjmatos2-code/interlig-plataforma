@@ -15,6 +15,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AvatarAgente } from "@/components/ui/avatar-agente";
 import { formatarData, formatarMoeda, formatarPercentual } from "@/lib/format";
 import type { AditivoLinha, RefidelizacaoMes } from "@/lib/refidelizacao/dados";
 import { META_REFIDELIZACAO } from "@/lib/refidelizacao/regras";
@@ -554,9 +555,7 @@ export function PainelRefidelizacao({
               }`}
             >
               <div className="flex items-center gap-2.5">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                  {(a.nome ?? a.agente).slice(0, 1).toUpperCase()}
-                </span>
+                <AvatarAgente nome={a.nome ?? a.agente} foto={a.foto} />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{a.nome ?? a.agente}</p>
                   <p className="text-xs text-muted-foreground tabular-nums">
@@ -676,8 +675,12 @@ export function PainelRefidelizacao({
                 .sort((a, b) => b.comissao - a.comissao)
                 .map((a, i) => (
                   <div key={a.agente}>
-                    <div className="flex items-baseline justify-between text-sm">
-                      <span>{i + 1}. {a.nome ?? a.agente}</span>
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="text-muted-foreground tabular-nums">{i + 1}.</span>
+                        <AvatarAgente nome={a.nome ?? a.agente} foto={a.foto} tamanho="sm" />
+                        <span className="truncate">{a.nome ?? a.agente}</span>
+                      </span>
                       <strong className="tabular-nums">{formatarMoeda(a.comissao)}</strong>
                     </div>
                     <div className="mt-1">

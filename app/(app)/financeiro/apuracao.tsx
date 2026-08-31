@@ -1,3 +1,4 @@
+import { AvatarAgente } from "@/components/ui/avatar-agente";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatarMoeda, formatarPercentual } from "@/lib/format";
 import type { ApuracaoAndamento } from "@/lib/comissao/financeiro";
@@ -45,7 +46,12 @@ export function PainelApuracao({ dados }: { dados: ApuracaoAndamento }) {
             <tbody>
               {dados.linhas.map((l) => (
                 <tr key={l.vendedorId} className="border-t">
-                  <td className="px-3 py-2 font-medium">{l.vendedora}</td>
+                  <td className="px-3 py-2 font-medium">
+                    <span className="flex items-center gap-2">
+                      <AvatarAgente nome={l.vendedora} foto={l.foto} tamanho="sm" />
+                      {l.vendedora}
+                    </span>
+                  </td>
                   <td className="px-3 py-2 text-center tabular-nums">{l.vendasLiberadas}</td>
                   <td className="px-3 py-2 text-center tabular-nums">
                     {l.vendasPendentes > 0 ? (

@@ -49,6 +49,7 @@ export type AditivoLinha = {
 export type ResultadoAgente = {
   agente: string;
   nome: string | null;
+  foto: string | null;
   validos: number;
   pendentes: number;
   reprovados: number;
@@ -90,11 +91,16 @@ export async function refidelizacaoDoMes(
       .lte("data_aditivo", fim)
       .in("agente_login", logins)
       .order("data_aditivo"),
-    admin.from("vendedores").select("nome, sgp_login"),
+    admin.from("vendedores").select("nome, sgp_login, foto_url"),
   ]);
 
   const nomeDe = new Map(
     (vends ?? []).filter((v) => v.sgp_login).map((v) => [String(v.sgp_login).toLowerCase(), v.nome])
+  );
+  const fotoDe = new Map(
+    (vends ?? [])
+      .filter((v) => v.sgp_login)
+      .map((v) => [String(v.sgp_login).toLowerCase(), (v.foto_url as string | null) ?? null])
   );
 
   const porAgente = new Map<string, AditivoLinha[]>();
@@ -162,6 +168,7 @@ export async function refidelizacaoDoMes(
       return {
         agente,
         nome: nomeDe.get(agente) ?? null,
+        foto: fotoDe.get(agente) ?? null,
         validos: validas.length,
         pendentes: linhas.filter((l) => !l.conta && l.decisao !== "reprovado").length,
         reprovados: linhas.filter((l) => l.decisao === "reprovado").length,

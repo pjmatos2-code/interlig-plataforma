@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormState } from "react-dom";
 import { Card, CardContent } from "@/components/ui/card";
+import { AvatarAgente } from "@/components/ui/avatar-agente";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { formatarMoeda, formatarData } from "@/lib/format";
@@ -353,7 +354,7 @@ export function PainelRetencao({
           <select value={fAgente} onChange={(e) => setFAgente(e.target.value)}
             className="h-9 rounded-md border border-input bg-background px-2 text-sm">
             <option value="">Agente: todos</option>
-            {meses.map((m) => <option key={m.agente} value={m.agente}>{m.agente}</option>)}
+            {meses.map((m) => <option key={m.agente} value={m.agente}>{m.nomeAgente ?? m.agente}</option>)}
           </select>
         )}
         <button type="button" onClick={() => setMostraNovo(!mostraNovo)}
@@ -454,7 +455,10 @@ export function PainelRetencao({
             <Card key={m.agente}>
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">Desempenho — {m.agente}</p>
+                  <span className="flex items-center gap-2">
+                    <AvatarAgente nome={m.nomeAgente ?? m.agente} foto={m.foto} />
+                    <p className="text-sm font-semibold">{m.nomeAgente ?? m.agente}</p>
+                  </span>
                   <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
                     {m.taxaPct.toFixed(0)}%
                   </span>

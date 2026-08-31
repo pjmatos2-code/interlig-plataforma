@@ -12,6 +12,7 @@ import { codigoVerificacao } from "@/lib/comissao/snapshot";
 export type LinhaPagamento = {
   vendedorId: string;
   vendedora: string;
+  foto: string | null;
   pop: string | null;
   meta: number;
   metaEfetiva: number;
@@ -56,7 +57,7 @@ export async function competenciaFinanceiro(mesIso: string): Promise<Competencia
   const { data } = await admin
     .from("comissoes_fechadas")
     .select(
-      "vendedor_id, snapshot, valor_total, versao, fechado_em, pago_em, pagamento_obs, reaberto_motivo, vendedores(nome), usuarios!comissoes_fechadas_fechado_por_fkey(nome), pagador:usuarios!comissoes_fechadas_pago_por_fkey(nome)"
+      "vendedor_id, snapshot, valor_total, versao, fechado_em, pago_em, pagamento_obs, reaberto_motivo, vendedores(nome, foto_url), usuarios!comissoes_fechadas_fechado_por_fkey(nome), pagador:usuarios!comissoes_fechadas_pago_por_fkey(nome)"
     )
     .eq("mes_ano", mesIso);
 
@@ -79,6 +80,7 @@ export async function competenciaFinanceiro(mesIso: string): Promise<Competencia
     return {
       vendedorId: d.vendedor_id as string,
       vendedora: snap?.vendedora ?? (d.vendedores as unknown as { nome: string } | null)?.nome ?? "—",
+      foto: (d.vendedores as unknown as { foto_url: string | null } | null)?.foto_url ?? null,
       pop: snap?.pop ?? null,
       meta: snap?.meta ?? 0,
       metaEfetiva: r?.metaEfetiva ?? snap?.meta ?? 0,
@@ -131,6 +133,7 @@ export async function competenciaFinanceiro(mesIso: string): Promise<Competencia
 export type LinhaApuracao = {
   vendedorId: string;
   vendedora: string;
+  foto: string | null;
   meta: number;
   metaEfetiva: number;
   atingimentoPct: number;
@@ -154,10 +157,13 @@ export type ApuracaoAndamento = {
 export async function apuracaoEmAndamento(mesIso: string): Promise<ApuracaoAndamento> {
   const { comissoesDoMes } = await import("@/lib/comissao/dados");
   const { debitoPorCoorte } = await import("@/lib/comissao/debito");
-  const [comissoes, debito] = await Promise.all([
+  const admin = criarClienteAdmin();
+  const [comissoes, debito, { data: vends }] = await Promise.all([
     comissoesDoMes(mesIso, { ignorarRls: true }),
     debitoPorCoorte(mesIso),
+    admin.from("vendedores").select("id, foto_url"),
   ]);
+  const fotoDe = new Map((vends ?? []).map((v) => [v.id as string, (v.foto_url as string | null) ?? null]));
 
   const linhas: LinhaApuracao[] = comissoes
     .filter((c) => c.resultado !== null)
@@ -166,6 +172,7 @@ export async function apuracaoEmAndamento(mesIso: string): Promise<ApuracaoAndam
       return {
         vendedorId: c.vendedorId,
         vendedora: c.nome,
+        foto: fotoDe.get(c.vendedorId) ?? null,
         meta: c.metaMensal ?? 0,
         metaEfetiva: r.metaEfetiva,
         atingimentoPct: r.atingimentoPct,

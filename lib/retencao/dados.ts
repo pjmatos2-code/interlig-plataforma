@@ -51,6 +51,8 @@ export type CasoLinha = {
 export type RetencaoMes = {
   competencia: string;
   agente: string;
+  nomeAgente: string | null;
+  foto: string | null;
   casos: number;
   retidos: number;
   perdidos: number;
@@ -87,7 +89,18 @@ export async function retencaoDoMes(
     .order("criado_em", { ascending: false })
     .limit(2000);
   if (agenteLogin) q = q.eq("agente_login", agenteLogin.toLowerCase());
-  const { data } = await q;
+  const [{ data }, { data: vends }] = await Promise.all([
+    q,
+    admin.from("vendedores").select("nome, sgp_login, foto_url"),
+  ]);
+  const perfilDe = new Map(
+    (vends ?? [])
+      .filter((v) => v.sgp_login)
+      .map((v) => [
+        String(v.sgp_login).toLowerCase(),
+        { nome: v.nome as string, foto: (v.foto_url as string | null) ?? null },
+      ])
+  );
 
   const porAgente = new Map<string, CasoLinha[]>();
   for (const c of data ?? []) {
@@ -139,6 +152,8 @@ export async function retencaoDoMes(
     return {
       competencia: mes,
       agente,
+      nomeAgente: perfilDe.get(agente)?.nome ?? null,
+      foto: perfilDe.get(agente)?.foto ?? null,
       casos: linhas.length,
       retidos,
       perdidos,

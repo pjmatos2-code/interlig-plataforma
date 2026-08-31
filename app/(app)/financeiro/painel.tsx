@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AvatarAgente } from "@/components/ui/avatar-agente";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatarMoeda, formatarPercentual } from "@/lib/format";
 import type { CompetenciaFinanceiro, LinhaPagamento } from "@/lib/comissao/financeiro";
@@ -38,7 +39,10 @@ function Linha({
   return (
     <tr className={`border-t align-top ${l.pagoEm ? "bg-emerald-50/40" : ""}`}>
       <td className="px-3 py-2">
-        <p className="font-medium">{l.vendedora}</p>
+        <span className="flex items-center gap-2">
+          <AvatarAgente nome={l.vendedora} foto={l.foto} tamanho="sm" />
+          <p className="font-medium">{l.vendedora}</p>
+        </span>
         <p className="text-xs text-muted-foreground">
           {l.pop ?? "—"} · cód. {l.codigo}
           {l.versao > 1 && ` · v${l.versao}`}
