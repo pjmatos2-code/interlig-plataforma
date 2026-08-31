@@ -48,6 +48,12 @@ async function cicloCompleto() {
   const resultado = await executarSync();
   const rotinas = await executarRotinasCrm();
   await roboSzSeDevido().catch((e) => console.error("robô SZ diurno falhou:", e));
+  // canal de cancelamento: mesmo ciclo diurno do comercial — todo mundo que
+  // entra no canal vira caso de retenção, sem depender de registro manual
+  {
+    const { rodarRoboRetencao } = await import("@/lib/retencao/robo");
+    await rodarRoboRetencao().catch((e) => console.error("robô retenção falhou:", e));
+  }
   return { ...resultado, rotinas };
 }
 

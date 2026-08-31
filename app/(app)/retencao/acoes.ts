@@ -163,3 +163,16 @@ export async function analisarCaso(id: string, transcript: string): Promise<Resu
     return { erro: e instanceof Error ? e.message : String(e) };
   }
 }
+
+/** Busca manual das conversas do canal de cancelamento no SZ (dia corrente). */
+export async function buscarConversasCanal(): Promise<Resultado & { detalhe?: string }> {
+  await exigirPerfil(["gestor"]);
+  const { rodarRoboRetencao } = await import("@/lib/retencao/robo");
+  const r = await rodarRoboRetencao();
+  if (!r.ok) return { erro: r.erro };
+  revalidar();
+  return {
+    ok: "Canal varrido.",
+    detalhe: `${r.lidas} conversa(s) no canal · ${r.criados} caso(s) novo(s) · ${r.reincidentes} reincidente(s)`,
+  };
+}

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { formatarMoeda, formatarData } from "@/lib/format";
 import type { RetencaoMes, CasoLinha } from "@/lib/retencao/dados";
-import { criarCasoRetencao, atualizarCaso, rodarAuditoria, analisarCaso, type Resultado } from "./acoes";
+import { criarCasoRetencao, atualizarCaso, rodarAuditoria, analisarCaso, buscarConversasCanal, type Resultado } from "./acoes";
 import { useFormState } from "react-dom";
 
 const ROTULO_DESFECHO: Record<string, { t: string; cls: string }> = {
@@ -194,6 +194,17 @@ export function PainelRetencao({
         {ehGestor && (
           <div className="flex items-center gap-2">
             {msgAud && <span className="text-xs text-muted-foreground">{msgAud}</span>}
+            <button type="button" disabled={auditando}
+              onClick={async () => {
+                setAuditando(true);
+                const r = await buscarConversasCanal();
+                setMsgAud(r.detalhe ?? r.erro ?? null);
+                setAuditando(false);
+                router.refresh();
+              }}
+              className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">
+              💬 Buscar canal SZ
+            </button>
             <button type="button" disabled={auditando}
               onClick={async () => {
                 setAuditando(true);
