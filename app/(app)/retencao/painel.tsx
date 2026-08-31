@@ -416,8 +416,9 @@ export function PainelRetencao({
 
   return (
     <div className="space-y-4">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+      {/* KPIs + desempenho do agente */}
+      <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Kpi icone={<ShieldCheck className="h-4 w-4" />} cor="#059669" rotulo="Retidos" valor={String(tot.retidos)} sub={`taxa ${tot.taxa.toFixed(0)}%`} />
         <Kpi icone={<XCircle className="h-4 w-4" />} cor="#e11d48" rotulo="Perdidos" valor={String(tot.perdidos)} sub={pct(tot.perdidos)} />
         <Kpi icone={<AlertTriangle className="h-4 w-4" />} cor="#d97706" rotulo="Em risco" valor={String(tot.emRisco)} sub={pct(tot.emRisco)} />
@@ -426,6 +427,40 @@ export function PainelRetencao({
         <Kpi icone={<Percent className="h-4 w-4" />} cor="#0369a1" rotulo="Taxa de retenção" valor={`${tot.taxa.toFixed(0)}%`} sub={`${tot.retidos} de ${tot.eleg}`} />
         <Kpi icone={<CircleDollarSign className="h-4 w-4" />} cor="#0284c7" rotulo="VTV retido" valor={formatarMoeda(tot.vtv)} sub="total no período" />
         <Kpi icone={<Wallet className="h-4 w-4" />} cor="#059669" rotulo="Comissão" valor={formatarMoeda(tot.com)} sub="total no período" />
+      </div>
+
+        <div className="space-y-2">
+          {meses.map((m) => (
+            <Card key={m.agente} className="h-full">
+              <CardContent className="flex h-full flex-col justify-center gap-2 p-3">
+                <div className="flex items-center gap-2.5">
+                  <AvatarAgente nome={m.nomeAgente ?? m.agente} foto={m.foto} />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{m.nomeAgente ?? m.agente}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">{m.retidos} / {m.elegiveis} elegíveis</p>
+                  </div>
+                  <span className="ml-auto rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+                    {m.taxaPct.toFixed(0)}%
+                  </span>
+                </div>
+                <Donut
+                  centro={`${m.taxaPct.toFixed(0)}%`}
+                  partes={[
+                    { valor: m.retidos, cor: "#10b981", rotulo: "Retidos" },
+                    { valor: m.perdidos, cor: "#f43f5e", rotulo: "Perdidos" },
+                    { valor: m.emRisco, cor: "#f59e0b", rotulo: "Em risco" },
+                    { valor: m.irreversiveis, cor: "#94a3b8", rotulo: "Irreversíveis" },
+                  ]}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  {m.abaixoDoPiso
+                    ? "Abaixo do piso (15 elegíveis) — avaliação manual."
+                    : <>VTV retido <strong className="tabular-nums text-foreground">{formatarMoeda(m.vtvRetido)}</strong> · faixa {m.faixaPct}% · comissão <strong className="tabular-nums text-emerald-700">{formatarMoeda(m.comissao)}</strong></>}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
 
       {/* filtros + ações */}
@@ -576,42 +611,6 @@ export function PainelRetencao({
             </CardContent></Card>
           )}
 
-          {/* desempenho por agente */}
-          {meses.map((m) => (
-            <Card key={m.agente}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Desempenho do agente</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 pt-0">
-                <div className="flex items-center gap-2.5">
-                  <AvatarAgente nome={m.nomeAgente ?? m.agente} foto={m.foto} />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">{m.nomeAgente ?? m.agente}</p>
-                    <p className="text-xs text-muted-foreground tabular-nums">
-                      {m.retidos} / {m.elegiveis} elegíveis
-                    </p>
-                  </div>
-                  <span className="ml-auto rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
-                    {m.taxaPct.toFixed(0)}%
-                  </span>
-                </div>
-                <Donut
-                  centro={`${m.taxaPct.toFixed(0)}%`}
-                  partes={[
-                    { valor: m.retidos, cor: "#10b981", rotulo: "Retidos" },
-                    { valor: m.perdidos, cor: "#f43f5e", rotulo: "Perdidos" },
-                    { valor: m.emRisco, cor: "#f59e0b", rotulo: "Em risco" },
-                    { valor: m.irreversiveis, cor: "#94a3b8", rotulo: "Irreversíveis" },
-                  ]}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {m.abaixoDoPiso
-                    ? "Abaixo do piso (15 elegíveis) — avaliação manual."
-                    : <>VTV retido <strong className="tabular-nums text-foreground">{formatarMoeda(m.vtvRetido)}</strong> · faixa {m.faixaPct}% · comissão <strong className="tabular-nums text-emerald-700">{formatarMoeda(m.comissao)}</strong></>}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
 
         </div>
       </div>
