@@ -444,12 +444,12 @@ export function PainelRetencao({
       {/* KPIs + desempenho do agente */}
       <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Kpi icone={<ShieldCheck className="h-4 w-4" />} cor="#059669" rotulo="Retidos" valor={String(tot.retidos)} sub={`taxa ${tot.taxa.toFixed(0)}%`} />
+        <Kpi icone={<ShieldCheck className="h-4 w-4" />} cor="#059669" rotulo="Retidos" valor={String(tot.retidos)} sub={`taxa ${tot.taxa.toFixed(1).replace(".", ",")}%`} />
         <Kpi icone={<XCircle className="h-4 w-4" />} cor="#e11d48" rotulo="Perdidos" valor={String(tot.perdidos)} sub={pct(tot.perdidos)} />
         <Kpi icone={<AlertTriangle className="h-4 w-4" />} cor="#d97706" rotulo="Em risco" valor={String(tot.emRisco)} sub={pct(tot.emRisco)} />
         <Kpi icone={<Lock className="h-4 w-4" />} cor={tot.irrevPend > 0 ? "#d97706" : "#64748b"} rotulo="Irreversíveis" valor={String(tot.irrev)} sub={tot.irrevPend > 0 ? `${tot.irrevPend} aguardando aprovação` : "todos aprovados"} />
         <Kpi icone={<Crosshair className="h-4 w-4" />} cor="#e11d48" rotulo="Clawback" valor={String(tot.claw)} sub={pct(tot.claw)} />
-        <Kpi icone={<Percent className="h-4 w-4" />} cor="#0369a1" rotulo="Taxa de retenção" valor={`${tot.taxa.toFixed(0)}%`} sub={`${tot.retidos} de ${tot.eleg}`} />
+        <Kpi icone={<Percent className="h-4 w-4" />} cor="#0369a1" rotulo="Taxa de retenção" valor={`${tot.taxa.toFixed(1).replace(".", ",")}%`} sub={`${tot.retidos} de ${tot.eleg}`} />
         <Kpi icone={<CircleDollarSign className="h-4 w-4" />} cor="#0284c7" rotulo="VTV retido" valor={formatarMoeda(tot.vtv)} sub="total no período" />
         <Kpi icone={<Wallet className="h-4 w-4" />} cor="#059669" rotulo="Comissão" valor={formatarMoeda(tot.com)} sub="total no período" />
       </div>
@@ -465,11 +465,11 @@ export function PainelRetencao({
                     <p className="text-xs text-muted-foreground tabular-nums">{m.retidos} / {m.elegiveis} elegíveis</p>
                   </div>
                   <span className="ml-auto rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
-                    {m.taxaPct.toFixed(0)}%
+                    {m.taxaPct.toFixed(1).replace(".", ",")}%
                   </span>
                 </div>
                 <Donut
-                  centro={`${m.taxaPct.toFixed(0)}%`}
+                  centro={`${m.taxaPct.toFixed(1).replace(".", ",")}%`}
                   partes={[
                     { valor: m.retidos, cor: "#10b981", rotulo: "Retidos" },
                     { valor: m.perdidos, cor: "#f43f5e", rotulo: "Perdidos" },

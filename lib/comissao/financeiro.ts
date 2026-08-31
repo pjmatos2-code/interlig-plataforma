@@ -246,7 +246,7 @@ export async function apuracaoEmAndamento(mesIso: string): Promise<ApuracaoAndam
       meta: m.elegiveis,
       metaEfetiva: m.elegiveis,
       atingimentoPct: m.taxaPct,
-      faixa: m.faixaPct > 0 ? `${m.faixaPct}% do VTV (taxa ${m.taxaPct.toFixed(0)}%)` : "sem faixa",
+      faixa: m.faixaPct > 0 ? `${m.faixaPct}% do VTV (taxa ${m.taxaPct.toFixed(1).replace(".", ",")}%)` : "sem faixa",
       vendasLiberadas: m.retidos,
       vendasPendentes: m.emRisco,
       estornos: m.clawbacks,
