@@ -1,4 +1,9 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CartaoKpi } from "@/components/dashboard/cartao-kpi";
+import { aprovarVenda, revogarAprovacao } from "@/app/(app)/metas/aprovacoes/acoes";
 import { aplicarLinkSgp } from "@/lib/sgp/links";
 import { GraficoHistorico } from "@/components/vendedoras/grafico-historico";
 import { GraficoBarrasHorizontais } from "@/components/dashboard/graficos";
@@ -61,12 +66,43 @@ function ResumoStatus({ vendas }: { vendas: { status: string }[] }) {
 export function PainelDetalheVendedora({
   detalhe,
   linkTemplate = "",
+  ehGestor = false,
 }: {
   detalhe: DetalheVendedora;
   /** template do link do SGP — deixa cliente e contrato clicáveis */
   linkTemplate?: string;
+  /** gestor aprova/revoga a liberação direto na lista */
+  ehGestor?: boolean;
 }) {
   const k = detalhe.kpis;
+  const router = useRouter();
+  const [fStatus, setFStatus] = useState("");
+  const [aprovando, setAprovando] = useState<string | null>(null);
+  const [motivo, setMotivo] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  const statusDisponiveis = useMemo(
+    () => [...new Set(detalhe.vendas.map((v) => v.status))].sort(),
+    [detalhe.vendas]
+  );
+  const vendasFiltradas = useMemo(
+    () => (fStatus ? detalhe.vendas.filter((v) => v.status === fStatus) : detalhe.vendas),
+    [detalhe.vendas, fStatus]
+  );
+
+  async function executar(fn: () => Promise<{ erro?: string; ok?: string }>) {
+    setOcupado(true);
+    setAviso(null);
+    const r = await fn();
+    setOcupado(false);
+    setAviso(r.erro ?? r.ok ?? null);
+    if (!r.erro) {
+      setAprovando(null);
+      setMotivo("");
+      router.refresh();
+    }
+  }
 
   return (
     <>
@@ -132,8 +168,19 @@ export function PainelDetalheVendedora({
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <CardTitle>Vendas do período ({detalhe.vendas.length})</CardTitle>
+              <CardTitle>Vendas do período ({vendasFiltradas.length})</CardTitle>
               <ResumoStatus vendas={detalhe.vendas} />
+              <select
+                value={fStatus}
+                onChange={(e) => setFStatus(e.target.value)}
+                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+              >
+                <option value="">Status: todos</option>
+                {statusDisponiveis.map((st) => (
+                  <option key={st} value={st}>{st}</option>
+                ))}
+              </select>
+              {aviso && <span className="text-xs text-muted-foreground">{aviso}</span>}
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -148,10 +195,11 @@ export function PainelDetalheVendedora({
                     <th className="px-3 py-2 text-right font-medium">Valor</th>
                     <th className="px-3 py-2 font-medium">Origem</th>
                     <th className="px-3 py-2 font-medium">Status</th>
+                    {ehGestor && <th className="px-3 py-2 font-medium">Comissão</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {detalhe.vendas.map((v) => {
+                  {vendasFiltradas.map((v) => {
                     const link = aplicarLinkSgp(linkTemplate, {
                       clienteId: v.sgpClienteId,
                       contratoId: v.sgpContratoId,
@@ -200,12 +248,85 @@ export function PainelDetalheVendedora({
                       <td className="px-3 py-2">
                         <BadgeStatus status={v.status} />
                       </td>
+                      {ehGestor && (
+                        <td className="whitespace-nowrap px-3 py-2">
+                          {v.liberada ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+                                liberada pela gestão
+                              </span>
+                              <button
+                                type="button"
+                                disabled={ocupado}
+                                onClick={() =>
+                                  executar(() =>
+                                    revogarAprovacao(v.id, `${v.data_venda.slice(0, 7)}-01`)
+                                  )
+                                }
+                                className="rounded-md border px-2 py-0.5 text-[11px] hover:bg-muted disabled:opacity-50"
+                                title="Desfaz a liberação — a venda volta a depender da ativação"
+                              >
+                                Revogar
+                              </button>
+                            </span>
+                          ) : v.assinaturaPendente ? (
+                            <span
+                              className="text-[11px] text-rose-700"
+                              title="Sem Termo de Adesão + Fidelidade assinados a política não permite liberar — nem pela gestão."
+                            >
+                              🔒 sem assinatura
+                            </span>
+                          ) : v.status === "ativo" ? (
+                            <span className="text-[11px] text-muted-foreground">conta ✓</span>
+                          ) : v.status === "cancelado" ? (
+                            <span className="text-[11px] text-muted-foreground">—</span>
+                          ) : aprovando === v.id ? (
+                            <span className="inline-flex items-center gap-1">
+                              <input
+                                autoFocus
+                                value={motivo}
+                                onChange={(e) => setMotivo(e.target.value)}
+                                placeholder="motivo (ex.: instala amanhã)"
+                                className="h-7 w-44 rounded-md border border-input bg-background px-2 text-[11px]"
+                              />
+                              <button
+                                type="button"
+                                disabled={ocupado}
+                                onClick={() =>
+                                  executar(() =>
+                                    aprovarVenda(v.id, `${v.data_venda.slice(0, 7)}-01`, motivo, [v.status])
+                                  )
+                                }
+                                className="rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-medium text-white disabled:opacity-50"
+                              >
+                                OK
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setAprovando(null)}
+                                className="rounded-md border px-1.5 py-1 text-[11px] hover:bg-muted"
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => { setAprovando(v.id); setMotivo(""); }}
+                              className="rounded-md border border-emerald-300 px-2 py-0.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50"
+                              title="Libera a venda para a comissão mesmo antes da ativação"
+                            >
+                              Aprovar p/ comissão
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                     );
                   })}
-                  {detalhe.vendas.length === 0 && (
+                  {vendasFiltradas.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                      <td colSpan={ehGestor ? 8 : 7} className="px-4 py-8 text-center text-muted-foreground">
                         Nenhuma venda no período.
                       </td>
                     </tr>

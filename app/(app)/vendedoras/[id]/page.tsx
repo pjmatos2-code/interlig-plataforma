@@ -50,7 +50,11 @@ export default async function VendedoraDetalhePage({
       />
       <CartaoAgenteComercial vendedorId={params.id} />
       <FiltrosDashboard pops={[]} mostrarPop={false} de={periodo.de} ate={periodo.ate} />
-      <PainelDetalheVendedora detalhe={detalhe} linkTemplate={await templateLinkSgp()} />
+      <PainelDetalheVendedora
+        detalhe={detalhe}
+        linkTemplate={await templateLinkSgp()}
+        ehGestor={usuario.perfil === "gestor"}
+      />
     </>
   );
 }

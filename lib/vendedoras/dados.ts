@@ -1,5 +1,6 @@
 import type { SetorAgente } from "@/lib/tipos";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
 import {
   vendasDoPeriodo,
   receitaContratada,
@@ -246,6 +247,10 @@ export type VendaListada = {
   origem: CategoriaOrigem | null;
   data_venda: string;
   data_ativacao: string | null;
+  /** trava absoluta: sem Termo + Fidelidade nem a gestão libera */
+  assinaturaPendente: boolean;
+  /** já liberada à mão pela gestão para a competência da venda */
+  liberada: boolean;
 };
 
 export type DetalheVendedora = {
@@ -293,7 +298,7 @@ export async function detalheVendedora(
     supabase
       .from("contratos")
       .select(
-        "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, origem_cadastro, clientes(nome, sgp_cliente_id, cpf), planos(nome)"
+        "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, origem_cadastro, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, clientes(nome, sgp_cliente_id, cpf), planos(nome, exige_assinatura)"
       )
       .eq("vendedor_id", vendedorId)
       .gte("data_venda", [periodo.de, seisMesesAtras].sort()[0])
@@ -385,7 +390,18 @@ export async function detalheVendedora(
       doPeriodo: !periodoEhMesCorrente,
       mesReferencia: cabeEmUmMes ? mesDoPeriodo : null,
     },
-    vendas: vendasP.map((c) => ({
+    vendas: await (async () => {
+      const { temPendenciaDeAssinatura } = await import("@/lib/comissao/liberacao");
+      const ids = vendasP.map((c) => c.id);
+      const { data: libs } = ids.length
+        ? await criarClienteAdmin()
+            .from("comissao_liberacoes")
+            .select("contrato_id, competencia")
+            .in("contrato_id", ids)
+            .is("revogado_em", null)
+        : { data: [] as { contrato_id: string; competencia: string }[] };
+      const liberadaEm = new Set((libs ?? []).map((l) => `${l.contrato_id}:${String(l.competencia).slice(0, 7)}`));
+      return vendasP.map((c) => ({
       id: c.id,
       cliente: c.clientes?.nome ?? "—",
       sgpContratoId: c.sgp_contrato_id,
@@ -397,7 +413,10 @@ export async function detalheVendedora(
       origem: c.origem_cadastro,
       data_venda: c.data_venda,
       data_ativacao: c.data_ativacao,
-    })),
+      assinaturaPendente: temPendenciaDeAssinatura(c as never),
+      liberada: liberadaEm.has(`${c.id}:${String(c.data_venda).slice(0, 7)}`),
+    }));
+    })(),
     funil,
     historico,
   };
