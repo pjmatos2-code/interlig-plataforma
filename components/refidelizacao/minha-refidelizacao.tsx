@@ -1,15 +1,46 @@
-import { BadgeCheck, Clock3, CircleDollarSign, Wallet, Target } from "lucide-react";
+"use client";
+
+import { useMemo, useState } from "react";
+import {
+  BadgeCheck,
+  Clock3,
+  CircleDollarSign,
+  Wallet,
+  Target,
+  Eye,
+  ExternalLink,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatarData, formatarMoeda, formatarPercentual } from "@/lib/format";
-import type { ResultadoAgente } from "@/lib/refidelizacao/dados";
 import { AvatarAgente } from "@/components/ui/avatar-agente";
+import { formatarData, formatarMoeda, formatarPercentual } from "@/lib/format";
+import type { AditivoLinha, ResultadoAgente } from "@/lib/refidelizacao/dados";
 import { META_REFIDELIZACAO } from "@/lib/refidelizacao/regras";
 
 /**
- * Visão da própria agente do Setor de Atendimento: quanto já rendeu e,
- * principalmente, quais aditivos ainda não contam — para ela correr atrás da
- * assinatura antes do fechamento.
+ * Visão da própria agente do Setor de Atendimento, no MESMO layout do painel
+ * do gestor (lista + aba lateral de detalhes) — sem os botões de decisão:
+ * quem aprova/reprova/ajusta é a gestão. O objetivo dela aqui é caçar as
+ * assinaturas pendentes antes do fechamento.
  */
+
+type Situacao = {
+  chave: "aprovado" | "liberado" | "assinatura" | "venda_nova" | "reprovado";
+  rotulo: string;
+  cls: string;
+  cor: string;
+};
+
+function situacaoDe(l: AditivoLinha): Situacao {
+  if (l.decisao === "reprovado")
+    return { chave: "reprovado", rotulo: "Reprovado", cls: "bg-rose-100 text-rose-800", cor: "#e11d48" };
+  if (l.decisao === "aprovado")
+    return { chave: "liberado", rotulo: "Liberado pela gestão", cls: "bg-sky-100 text-sky-800", cor: "#0284c7" };
+  if (l.conta)
+    return { chave: "aprovado", rotulo: "Aprovado ✓", cls: "bg-emerald-100 text-emerald-800", cor: "#059669" };
+  if (l.vendaRecente)
+    return { chave: "venda_nova", rotulo: "Venda nova", cls: "bg-violet-100 text-violet-800", cor: "#7c3aed" };
+  return { chave: "assinatura", rotulo: "Aguardando assinatura", cls: "bg-amber-100 text-amber-800", cor: "#d97706" };
+}
 
 function Kpi({
   icone,
@@ -41,6 +72,141 @@ function Kpi({
   );
 }
 
+function Donut({ fatias }: { fatias: { rotulo: string; qtd: number; cor: string }[] }) {
+  const total = fatias.reduce((s, f) => s + f.qtd, 0);
+  let acc = 0;
+  const stops = fatias
+    .filter((f) => f.qtd > 0)
+    .map((f) => {
+      const de = (acc / total) * 360;
+      acc += f.qtd;
+      return `${f.cor} ${de}deg ${(acc / total) * 360}deg`;
+    })
+    .join(", ");
+  return (
+    <div className="flex items-center gap-4">
+      <div
+        className="grid h-24 w-24 shrink-0 place-items-center rounded-full"
+        style={{ background: total ? `conic-gradient(${stops})` : "#e5e7eb" }}
+      >
+        <div className="grid h-14 w-14 place-items-center rounded-full bg-card text-sm font-semibold tabular-nums">
+          {total}
+        </div>
+      </div>
+      <ul className="space-y-1 text-xs">
+        {fatias.map((f) => (
+          <li key={f.rotulo} className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: f.cor }} />
+            <span className="text-muted-foreground">{f.rotulo}</span>
+            <span className="font-medium tabular-nums">
+              {f.qtd} ({total ? Math.round((f.qtd / total) * 100) : 0}%)
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Detalhe({
+  l,
+  baseSgp,
+  onFechar,
+}: {
+  l: AditivoLinha;
+  baseSgp: string | null;
+  onFechar: () => void;
+}) {
+  const st = situacaoDe(l);
+  const linkAditivos =
+    baseSgp && l.sgpClienteId ? `${baseSgp}/cliente/${l.sgpClienteId}/aditivos/` : null;
+  const linkContratos =
+    baseSgp && l.sgpClienteId ? `${baseSgp}/cliente/${l.sgpClienteId}/contratos/` : null;
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-start justify-between space-y-0 pb-2">
+        <div>
+          <CardTitle className="text-base">Detalhes do aditivo</CardTitle>
+          <p className="mt-1 truncate text-sm font-medium">{l.cliente}</p>
+          <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${st.cls}`}>
+            {st.rotulo}
+          </span>
+        </div>
+        <button type="button" onClick={onFechar} className="text-muted-foreground hover:text-foreground">
+          ✕
+        </button>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+          <div>
+            <p className="text-muted-foreground">Aditivo</p>
+            <p className="font-mono">#{l.sgpAditivoId}{l.sgpContratoId ? ` · ct ${l.sgpContratoId}` : ""}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Data</p>
+            <p className="tabular-nums">{formatarData(l.data)}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Plano</p>
+            <p>{l.plano ?? "—"}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Mensal (base da comissão)</p>
+            <p className="tabular-nums font-medium">
+              {formatarMoeda(l.valorMensal)}
+              {l.valorAjustado !== null && (
+                <span className="ml-1 text-[11px] text-primary" title={l.ajusteMotivo ?? ""}>ajustado</span>
+              )}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Desconto (não entra)</p>
+            <p className="tabular-nums">{formatarMoeda(l.desconto)}</p>
+          </div>
+        </div>
+
+        {!l.conta && l.pendencia && (
+          <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <p className="font-medium">O que falta</p>
+            <p>{l.pendencia}</p>
+          </div>
+        )}
+        {l.decisaoMotivo && (
+          <div className="rounded-md bg-muted px-3 py-2 text-xs">
+            <p className="font-medium">Observação da gestão</p>
+            <p className="text-muted-foreground">{l.decisaoMotivo}</p>
+          </div>
+        )}
+        {l.descricao && <p className="text-xs text-muted-foreground">{l.descricao}</p>}
+
+        <div className="grid grid-cols-2 gap-2">
+          {linkAditivos && (
+            <a
+              href={linkAditivos}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
+            >
+              <ExternalLink className="h-3.5 w-3.5" /> Aditivos SGP
+            </a>
+          )}
+          {linkContratos && (
+            <a
+              href={linkContratos}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
+            >
+              <ExternalLink className="h-3.5 w-3.5" /> Ver contrato
+            </a>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function MinhaRefidelizacao({
   dados,
   baseSgp,
@@ -49,13 +215,43 @@ export function MinhaRefidelizacao({
   /** raiz do painel do SGP, para abrir os aditivos do cliente */
   baseSgp?: string | null;
 }) {
+  const [busca, setBusca] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState("todos");
+  const [soPendentes, setSoPendentes] = useState(true);
+  const [detalheId, setDetalheId] = useState<string | null>(null);
+
   const pendentes = dados.linhas.filter((l) => !l.conta && l.decisao !== "reprovado");
-  const aprovadas = dados.linhas.filter((l) => l.conta);
-  // a aba de aditivos do cliente é a tela mais útil: mostra o histórico dele
-  const linkDe = (clienteId: string | null) =>
-    baseSgp && clienteId ? `${baseSgp}/cliente/${clienteId}/aditivos/` : null;
-  // quanto falta para a próxima faixa, e quanto ela passaria a receber. A
-  // projeção usa o ticket médio dela — é estimativa, e o texto diz isso.
+  const pctMeta = dados.atingimentoPct;
+
+  const linhas = useMemo(() => {
+    let ls = dados.linhas;
+    if (soPendentes) ls = ls.filter((l) => !l.conta && l.decisao !== "reprovado");
+    if (statusFiltro !== "todos") ls = ls.filter((l) => situacaoDe(l).chave === statusFiltro);
+    if (busca.trim()) {
+      const q = busca.trim().toLowerCase();
+      ls = ls.filter(
+        (l) =>
+          l.cliente.toLowerCase().includes(q) ||
+          l.sgpAditivoId.includes(q) ||
+          (l.sgpContratoId ?? "").includes(q)
+      );
+    }
+    return ls;
+  }, [dados.linhas, soPendentes, statusFiltro, busca]);
+
+  const detalhe = dados.linhas.find((l) => l.id === detalheId) ?? null;
+
+  const donut = useMemo(() => {
+    const pend = dados.linhas.filter((l) => !l.conta || l.decisao === "reprovado");
+    const conta = (ch: Situacao["chave"]) => pend.filter((l) => situacaoDe(l).chave === ch).length;
+    return [
+      { rotulo: "Aguardando assinatura", qtd: conta("assinatura"), cor: "#d97706" },
+      { rotulo: "Venda nova (não conta)", qtd: conta("venda_nova"), cor: "#7c3aed" },
+      { rotulo: "Reprovado", qtd: conta("reprovado"), cor: "#e11d48" },
+    ];
+  }, [dados.linhas]);
+
+  // próxima faixa — projeção pelo ticket médio dela (estimativa, e o texto diz isso)
   const ticketMedio = dados.validos > 0 ? dados.vtv / dados.validos : 0;
   const proxima = [
     { nome: "MÍNIMA", planos: Math.ceil(0.8 * META_REFIDELIZACAO), pct: 3.5 },
@@ -65,7 +261,6 @@ export function MinhaRefidelizacao({
   ].find((f) => dados.validos < f.planos);
   const comissaoNaProxima = proxima ? (ticketMedio * proxima.planos * proxima.pct) / 100 : 0;
   const pendentesAjudam = proxima ? Math.min(pendentes.length, proxima.planos - dados.validos) : 0;
-  const pctMeta = dados.atingimentoPct;
 
   return (
     <div className="mt-6 space-y-4">
@@ -118,42 +313,15 @@ export function MinhaRefidelizacao({
         </CardContent>
       </Card>
 
-      {/* KPIs no padrão do painel do setor */}
+      {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <Kpi
-          icone={<BadgeCheck className="h-5 w-5" />}
-          cor="#059669"
-          rotulo="Aprovados"
-          valor={String(dados.validos)}
-          sub="assinados — já contam"
-        />
-        <Kpi
-          icone={<Clock3 className="h-5 w-5" />}
-          cor="#d97706"
-          rotulo="Pendentes"
-          valor={String(pendentes.length)}
-          sub={pendentes.length > 0 ? "corra atrás da assinatura" : "nada pendente"}
-        />
-        <Kpi
-          icone={<CircleDollarSign className="h-5 w-5" />}
-          cor="#0284c7"
-          rotulo="VTV refidelizado"
-          valor={formatarMoeda(dados.vtv)}
-          sub="base: valor mensal"
-        />
-        <Kpi
-          icone={<Wallet className="h-5 w-5" />}
-          cor="#7c3aed"
-          rotulo="Minha comissão"
-          valor={formatarMoeda(dados.comissao)}
-          sub={`faixa ${dados.faixa} · ${dados.percentual}%`}
-        />
+        <Kpi icone={<BadgeCheck className="h-5 w-5" />} cor="#059669" rotulo="Aprovados" valor={String(dados.validos)} sub="assinados — já contam" />
+        <Kpi icone={<Clock3 className="h-5 w-5" />} cor="#d97706" rotulo="Pendentes" valor={String(pendentes.length)} sub={pendentes.length > 0 ? "corra atrás da assinatura" : "nada pendente"} />
+        <Kpi icone={<CircleDollarSign className="h-5 w-5" />} cor="#0284c7" rotulo="VTV refidelizado" valor={formatarMoeda(dados.vtv)} sub="base: valor mensal" />
+        <Kpi icone={<Wallet className="h-5 w-5" />} cor="#7c3aed" rotulo="Minha comissão" valor={formatarMoeda(dados.comissao)} sub={`faixa ${dados.faixa} · ${dados.percentual}%`} />
         <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2">
-            <span
-              className="flex h-10 w-10 items-center justify-center rounded-full"
-              style={{ backgroundColor: "#05966918", color: "#059669" }}
-            >
+            <span className="flex h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: "#05966918", color: "#059669" }}>
               <Target className="h-5 w-5" />
             </span>
             <div>
@@ -188,9 +356,7 @@ export function MinhaRefidelizacao({
               .{" "}
               <span className="text-amber-900">
                 Você tem {pendentes.length} aguardando assinatura: {pendentesAjudam} deles já
-                {pendentesAjudam === proxima.planos - dados.validos
-                  ? " fecham a faixa"
-                  : " contam para isso"}
+                {pendentesAjudam === proxima.planos - dados.validos ? " fecham a faixa" : " contam para isso"}
                 .
               </span>
             </>
@@ -203,154 +369,111 @@ export function MinhaRefidelizacao({
         </div>
       )}
 
+      {/* filtros */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">
-            ⚠ Aguardando assinatura ({pendentes.length})
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              resolva antes do fechamento
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0 pb-2">
-          <div className="max-h-72 overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-background">
-                <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                  <th className="px-4 py-2 font-medium">Data</th>
-                  <th className="px-3 py-2 font-medium">Aditivo</th>
-                  <th className="px-3 py-2 font-medium">Cliente</th>
-                  <th className="px-3 py-2 text-right font-medium">Mensal</th>
-                  <th className="px-3 py-2 font-medium">Situação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendentes.map((l) => {
-                  const link = linkDe(l.sgpClienteId);
-                  return (
-                    <tr key={l.id} className="border-b last:border-0">
-                      <td className="px-4 py-2 tabular-nums text-muted-foreground">
-                        {formatarData(l.data)}
-                      </td>
-                      <td className="px-3 py-2 font-mono text-xs">
-                        {link ? (
-                          <a
-                            href={link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-interlig-ceu hover:underline"
-                            title="Abrir os aditivos deste cliente no SGP"
-                          >
-                            #{l.sgpAditivoId} ↗
-                          </a>
-                        ) : (
-                          <>#{l.sgpAditivoId}</>
-                        )}
-                        {l.sgpContratoId && (
-                          <span className="text-muted-foreground"> · ct {l.sgpContratoId}</span>
-                        )}
-                      </td>
-                      <td className="max-w-[14rem] truncate px-3 py-2">{l.cliente}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {formatarMoeda(l.valorMensal)}
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
-                          {l.pendencia}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {pendentes.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-farol-verde">
-                      ✓ Nenhum aditivo pendente — todos assinados.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+        <CardContent className="flex flex-wrap items-end gap-3 p-4">
+          <label className="text-sm">
+            <span className="mb-1 block text-xs text-muted-foreground">Status</span>
+            <select
+              value={statusFiltro}
+              onChange={(e) => setStatusFiltro(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            >
+              <option value="todos">Todos</option>
+              <option value="assinatura">Aguardando assinatura</option>
+              <option value="venda_nova">Venda nova</option>
+              <option value="aprovado">Aprovado</option>
+              <option value="liberado">Liberado pela gestão</option>
+              <option value="reprovado">Reprovado</option>
+            </select>
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 block text-xs text-muted-foreground">Busca por aditivo / contrato / cliente</span>
+            <input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Ex.: #12345 ou nome"
+              className="h-9 w-56 rounded-md border border-input bg-background px-2 text-sm"
+            />
+          </label>
+          <label className="flex h-9 items-center gap-2 text-sm">
+            <input type="checkbox" checked={soPendentes} onChange={(e) => setSoPendentes(e.target.checked)} />
+            Somente pendentes
+          </label>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">
-            ✓ Fidelizações aprovadas ({aprovadas.length})
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
-              já contam na sua comissão
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0 pb-2">
-          <div className="max-h-96 overflow-auto">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-background">
-                <tr className="border-b text-left text-xs uppercase text-muted-foreground">
-                  <th className="px-4 py-2 font-medium">Data</th>
-                  <th className="px-3 py-2 font-medium">Contrato</th>
-                  <th className="px-3 py-2 font-medium">Cliente</th>
-                  <th className="px-3 py-2 font-medium">Plano</th>
-                  <th className="px-3 py-2 text-right font-medium">Valor mensal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {aprovadas.map((l) => {
-                  const link = linkDe(l.sgpClienteId);
-                  return (
-                    <tr key={l.id} className="border-b last:border-0">
-                      <td className="px-4 py-2 tabular-nums text-muted-foreground">
-                        {formatarData(l.data)}
-                      </td>
-                      <td className="px-3 py-2 font-mono text-xs">
-                        {link ? (
-                          <a
-                            href={link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-interlig-ceu hover:underline"
-                            title="Abrir os aditivos deste cliente no SGP"
-                          >
-                            {l.sgpContratoId ?? l.sgpAditivoId} ↗
-                          </a>
-                        ) : (
-                          <span>{l.sgpContratoId ?? "—"}</span>
-                        )}
-                      </td>
-                      <td className="max-w-[15rem] truncate px-3 py-2">{l.cliente}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{l.plano ?? "—"}</td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {formatarMoeda(l.valorMensal)}
+      {/* lista | lateral */}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
+        <Card className="self-start">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              {soPendentes ? "Minhas pendências" : "Meus aditivos do mês"}{" "}
+              <span className="text-sm font-normal text-muted-foreground">· {linhas.length} registro(s)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 pb-2">
+            <div className="max-h-[34rem] overflow-auto">
+              <table className="w-full min-w-[42rem] text-sm">
+                <thead className="sticky top-0 z-10 bg-background">
+                  <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="px-3 py-2">Data</th>
+                    <th className="px-2 py-2">Aditivo</th>
+                    <th className="px-2 py-2">Cliente</th>
+                    <th className="px-2 py-2">Plano</th>
+                    <th className="px-2 py-2 text-right">Mensal</th>
+                    <th className="px-2 py-2">Situação</th>
+                    <th className="px-2 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linhas.map((l) => {
+                    const st = situacaoDe(l);
+                    return (
+                      <tr
+                        key={l.id}
+                        onClick={() => setDetalheId(l.id)}
+                        className={`cursor-pointer border-b last:border-0 hover:bg-muted/40 ${detalheId === l.id ? "bg-primary/5" : ""}`}
+                      >
+                        <td className="whitespace-nowrap px-3 py-2 tabular-nums text-muted-foreground">{formatarData(l.data)}</td>
+                        <td className="whitespace-nowrap px-2 py-2 font-mono text-xs">#{l.sgpAditivoId}</td>
+                        <td className="max-w-[12rem] truncate px-2 py-2">{l.cliente}</td>
+                        <td className="whitespace-nowrap px-2 py-2 text-xs text-muted-foreground">{l.plano ?? "—"}</td>
+                        <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">{formatarMoeda(l.valorMensal)}</td>
+                        <td className="px-2 py-2">
+                          <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${st.cls}`}>{st.rotulo}</span>
+                        </td>
+                        <td className="px-2 py-2 text-muted-foreground">
+                          <Eye className="h-4 w-4" />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {linhas.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                        {soPendentes ? "✓ Nenhuma pendência com esses filtros." : "Nenhum aditivo com esses filtros."}
                       </td>
                     </tr>
-                  );
-                })}
-                {aprovadas.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
-                      Nenhuma fidelização aprovada ainda neste mês.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-              {aprovadas.length > 0 && (
-                <tfoot>
-                  <tr className="border-t-2 font-semibold">
-                    <td className="px-4 py-2" colSpan={4}>
-                      Total ({aprovadas.length} planos)
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {formatarMoeda(dados.vtv)}
-                    </td>
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-4">
+          {detalhe && <Detalhe l={detalhe} baseSgp={baseSgp ?? null} onFechar={() => setDetalheId(null)} />}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Pendências por status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Donut fatias={donut} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
