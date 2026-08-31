@@ -29,6 +29,7 @@ import {
   analisarCaso,
   buscarConversasCanal,
   decidirIrreversivel,
+  reabrirCaso,
   type Resultado,
 } from "./acoes";
 
@@ -139,6 +140,7 @@ function Detalhe({
   onFechar: () => void;
 }) {
   const [obsGestor, setObsGestor] = useState("");
+  const [motivoReabrir, setMotivoReabrir] = useState("");
   const router = useRouter();
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -295,6 +297,29 @@ function Detalhe({
             </button>
           )}
         </div>
+        {ehGestor && c.desfecho && c.desfecho !== "irreversivel" && (
+          <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3 text-xs">
+            <p className="font-semibold">Reabrir caso (gestão) — encerrou por engano?</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Input placeholder="motivo da reabertura" value={motivoReabrir}
+                onChange={(e) => setMotivoReabrir(e.target.value)} className="h-8 w-56 text-xs" />
+              <button type="button" disabled={ocupado}
+                onClick={() => executar(() => reabrirCaso(c.id, true, motivoReabrir), "Voltou para irreversível — pendente da sua aprovação.")}
+                className="rounded-md bg-slate-700 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
+                ↩ Voltar p/ irreversível (pendente)
+              </button>
+              <button type="button" disabled={ocupado}
+                onClick={() => executar(() => reabrirCaso(c.id, false, motivoReabrir), "Caso reaberto em negociação.")}
+                className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50">
+                ↩ Reabrir em negociação
+              </button>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Contrato cancelado no SGP volta a carimbar “perdido” na próxima auditoria — nesse caso, use “voltar p/ irreversível”.
+            </p>
+          </div>
+        )}
+
         {erro && <p className="text-xs text-farol-vermelho">{erro}</p>}
         {okMsg && <p className="text-xs text-farol-verde">{okMsg}</p>}
         <p className="text-[11px] text-muted-foreground">

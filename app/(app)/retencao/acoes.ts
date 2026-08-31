@@ -230,3 +230,66 @@ export async function decidirIrreversivel(
   revalidar();
   return { ok: aprovar ? "Irreversível aprovado — sai da conta da taxa." : "Rejeitado — o caso volta ao fluxo e a auditoria vai carimbar pelo SGP." };
 }
+
+/**
+ * Reabre um caso encerrado por engano (só gestor). Dois destinos:
+ * - como irreversível PENDENTE: para o caso que estava em análise de mudança
+ *   real — fica aguardando a aprovação da gestão e a auditoria não o recarimba;
+ * - reaberto em negociação: desfecho limpo. Atenção: se o contrato estiver
+ *   cancelado no SGP, a PRÓXIMA auditoria volta a carimbar "perdido" — use o
+ *   destino irreversível quando for esse o caso.
+ */
+export async function reabrirCaso(
+  id: string,
+  comoIrreversivel: boolean,
+  motivo?: string
+): Promise<Resultado> {
+  const usuario = await exigirPerfil(["gestor"]);
+  const texto = (motivo ?? "").trim();
+  const admin = criarClienteAdmin();
+
+  const { data: caso } = await admin
+    .from("casos_retencao")
+    .select("desfecho, resumo")
+    .eq("id", id)
+    .maybeSingle();
+  if (!caso) return { erro: "Caso não encontrado." };
+  if (!caso.desfecho) return { erro: "O caso já está aberto." };
+
+  const nota = `[gestor reabriu (era ${caso.desfecho})${texto ? `: ${texto}` : ""}]`;
+  const resumo = caso.resumo ? `${nota} ${caso.resumo}` : nota;
+
+  const { error } = await admin
+    .from("casos_retencao")
+    .update(
+      comoIrreversivel
+        ? {
+            desfecho: "irreversivel",
+            desfecho_em: new Date().toISOString(),
+            desfecho_auto: false,
+            irreversivel_status: "pendente",
+            irreversivel_motivo: texto || "reaberto pela gestão para análise de irreversível",
+            irreversivel_decidido_por: null,
+            irreversivel_decidido_em: null,
+            clawback_em: null,
+            resumo,
+          }
+        : {
+            desfecho: null,
+            desfecho_em: null,
+            desfecho_auto: false,
+            etapa: "negociacao",
+            clawback_em: null,
+            resumo,
+          }
+    )
+    .eq("id", id);
+  if (error) return { erro: error.message };
+  void usuario;
+  revalidar();
+  return {
+    ok: comoIrreversivel
+      ? "Caso voltou para irreversível — aguardando sua aprovação."
+      : "Caso reaberto em negociação.",
+  };
+}
