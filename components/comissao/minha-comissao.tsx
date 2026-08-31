@@ -136,6 +136,38 @@ export function PainelMinhaComissao({
           )
         )}
 
+        {/* memória de cálculo — o "por que esse valor?" (layout aprovado 31/08) */}
+        <div className="rounded-lg border p-4">
+          <p className="mb-2 text-sm font-semibold">Memória de cálculo — por que esse valor?</p>
+          <div className="space-y-1.5">
+            {(
+              [
+                ["Vendas liberadas", String(r.vendasComissionaveis)],
+                ...(r.debitoMeta > 0
+                  ? [["Débito na meta (90 dias)", `+${r.debitoMeta} · meta ${r.metaEfetiva - r.debitoMeta} → ${r.metaEfetiva}`] as [string, string]]
+                  : []),
+                ["Atingimento", `${r.vendasComissionaveis} / ${r.metaEfetiva} = ${r.atingimentoPct.toFixed(0)}%`],
+                ["Faixa aplicada", dados.faixaAtual ?? "sem faixa"],
+                ["Valor base", formatarMoeda(r.valorBase)],
+                ...(r.bonusFixo > 0 ? [["Bônus fixo da faixa", formatarMoeda(r.bonusFixo)] as [string, string]] : []),
+                ...r.gatilhos.map((g) => [`Gatilho: ${g.descricao}`, formatarMoeda(g.adicional)] as [string, string]),
+                ["Comissão estimada", formatarMoeda(r.total)],
+                ...(r.vendasPendentes > 0
+                  ? [["Se liberar as " + r.vendasPendentes + " pendente(s)", formatarMoeda(r.totalSeLiberar)] as [string, string]]
+                  : []),
+              ] as [string, string][]
+            ).map(([rot, val], i) => (
+              <div key={rot} className="flex items-baseline justify-between gap-2 text-sm">
+                <span className="flex min-w-0 items-baseline gap-2">
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">{i + 1}</span>
+                  <span className="truncate text-muted-foreground">{rot}</span>
+                </span>
+                <span className="whitespace-nowrap font-medium tabular-nums">{val}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* liberadas pela gestão — a vendedora precisa enxergar esse crédito */}
         {dados.liberadasPorAprovacao.length > 0 && (
           <div className="rounded-lg border border-farol-verde/40">
