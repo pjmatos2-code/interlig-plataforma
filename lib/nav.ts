@@ -23,6 +23,7 @@ export const ITENS_NAV: ItemNav[] = [
   { href: "/corporativo",   rotulo: "Setor Corporativo", icone: "Building2", perfis: ["gestor", "supervisor", "agente_corporativo"] },
   { href: "/metas",         rotulo: "Metas e comissão", icone: "Target",     perfis: ["gestor"] },
   { href: "/refidelizacao", rotulo: "Refidelização", icone: "RefreshCw",     perfis: ["gestor"] },
+  { href: "/retencao",      rotulo: "Retenção",    icone: "ShieldAlert",     perfis: ["gestor", "agente_retencao"] },
   { href: "/financeiro",    rotulo: "Financeiro",  icone: "Receipt",         perfis: ["gestor", "financeiro"] },
   { href: "/qualidade",     rotulo: "Qualidade",   icone: "ShieldCheck",     perfis: ["gestor", "supervisor"] },
   { href: "/mapa",          rotulo: "Mapa",        icone: "Map",             perfis: ["gestor", "supervisor"] },

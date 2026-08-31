@@ -41,5 +41,6 @@ export function rotaInicial(perfil: Perfil): string {
   if (perfil === "vendedora") return "/minhas-vendas";
   if (perfil === "financeiro") return "/financeiro";
   if (perfil === "agente_atendimento") return "/minha-comissao";
+  if (perfil === "agente_retencao") return "/retencao";
   return "/dashboard";
 }

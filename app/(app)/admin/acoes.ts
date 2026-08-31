@@ -74,12 +74,12 @@ export async function criarUsuario(_e: EstadoAdmin, dados: FormData): Promise<Es
   if (
     ![
       "gestor", "supervisor", "vendedora", "vendedora_externa",
-      "agente_corporativo", "financeiro", "agente_atendimento",
+      "agente_corporativo", "financeiro", "agente_atendimento", "agente_retencao",
     ].includes(perfil)
   )
     return { erro: "Perfil inválido." };
   const ehVend = ehVendedora(perfil as Perfil);
-  const precisaVinculo = ehVend || perfil === "agente_atendimento";
+  const precisaVinculo = ehVend || perfil === "agente_atendimento" || perfil === "agente_retencao";
   if (perfil === "supervisor" && !popId) return { erro: "Coordenador precisa de POP." };
   if (precisaVinculo && !vendedorId)
     return { erro: "Este perfil precisa do vínculo com o cadastro do agente no SGP." };
@@ -287,7 +287,7 @@ export type EstadoEdicao = { erro?: string; ok?: string };
 
 const PERFIS_VALIDOS = [
   "gestor", "supervisor", "vendedora", "vendedora_externa",
-  "agente_corporativo", "financeiro", "agente_atendimento",
+  "agente_corporativo", "financeiro", "agente_atendimento", "agente_retencao",
 ];
 
 /**
@@ -314,7 +314,7 @@ export async function editarUsuario(
   if (!nome || !email) return { erro: "Informe nome e e-mail." };
   if (!PERFIS_VALIDOS.includes(perfil)) return { erro: "Perfil inválido." };
 
-  const precisaVinculo = ehVendedora(perfil as Perfil) || perfil === "agente_atendimento";
+  const precisaVinculo = ehVendedora(perfil as Perfil) || perfil === "agente_atendimento" || perfil === "agente_retencao";
   if (precisaVinculo && !vendedorId)
     return { erro: "Este perfil precisa do vínculo com o cadastro do agente no SGP." };
   if (perfil === "supervisor" && !popId) return { erro: "Coordenador precisa de POP." };

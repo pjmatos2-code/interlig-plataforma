@@ -7,7 +7,9 @@ export type Perfil =
   /** somente leitura do que é pagamento: comissões fechadas e demonstrativos */
   | "financeiro"
   /** Setor de Atendimento: refidelização, não vende */
-  | "agente_atendimento";
+  | "agente_atendimento"
+  /** Setor de Retenção: segura quem quer cancelar */
+  | "agente_retencao";
 
 /** Interna e externa compartilham o mesmo escopo de dados (só o que é delas). */
 export const ehVendedora = (p: Perfil): boolean =>
@@ -19,7 +21,7 @@ export const ehVendedora = (p: Perfil): boolean =>
  * aditivos que ela gerou.
  */
 export const exigeVinculoAgente = (p: Perfil): boolean =>
-  ehVendedora(p) || p === "agente_atendimento";
+  ehVendedora(p) || p === "agente_atendimento" || p === "agente_retencao";
 
 /**
  * No CRM, quem trabalha apenas os PRÓPRIOS tickets — sem reatribuir nem
@@ -46,6 +48,7 @@ export const ROTULO_PERFIL: Record<Perfil, string> = {
   agente_corporativo: "Agente corporativo",
   financeiro: "Financeiro",
   agente_atendimento: "Agente de atendimento",
+  agente_retencao: "Agente de retenção",
 };
 
 export type CategoriaOrigem =
@@ -78,11 +81,13 @@ export type SetorAgente =
   | "comercial_interno"
   | "comercial_externo"
   | "atendimento"
-  | "corporativo";
+  | "corporativo"
+  | "retencao";
 
 export const ROTULO_SETOR: Record<SetorAgente, string> = {
   comercial_interno: "Comercial interno",
   comercial_externo: "Comercial externo",
   atendimento: "Refidelização",
   corporativo: "Setor corporativo",
+  retencao: "Retenção",
 };

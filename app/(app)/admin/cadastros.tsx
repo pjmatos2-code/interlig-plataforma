@@ -102,6 +102,7 @@ export function GestaoUsuarios({
           <option value="vendedora_externa">{ROTULO_PERFIL.vendedora_externa}</option>
           <option value="agente_corporativo">{ROTULO_PERFIL.agente_corporativo}</option>
           <option value="agente_atendimento">{ROTULO_PERFIL.agente_atendimento}</option>
+          <option value="agente_retencao">{ROTULO_PERFIL.agente_retencao}</option>
           <option value="supervisor">{ROTULO_PERFIL.supervisor}</option>
           <option value="financeiro">{ROTULO_PERFIL.financeiro}</option>
           <option value="gestor">{ROTULO_PERFIL.gestor}</option>
