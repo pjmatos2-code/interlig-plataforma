@@ -185,8 +185,14 @@ export async function gerarDemonstrativoPdf(
   const faixa: string = snap.resultado.degrau
     ? `${snap.resultado.degrau.valor}${snap.resultado.degrau.tipo === "valor_por_venda" ? " R$/venda" : "% do valor contratado"}`
     : "abaixo da faixa mínima";
+  const cadastradas = snap.resultado.vendasComissionaveis + snap.resultado.vendasPendentes;
   const infoDir = [
-    `Atingimento: ${(snap.resultado.atingimentoPct * 100).toFixed(1).replace(".", ",")}%`,
+    ehRet || ehRefid
+      ? `Atingimento: ${(snap.resultado.atingimentoPct * 100).toFixed(1).replace(".", ",")}%`
+      : `Atingimento: ${cadastradas} cadastradas / ${snap.resultado.metaEfetiva} = ${(snap.resultado.atingimentoPct * 100).toFixed(1).replace(".", ",")}%`,
+    ...(ehRet || ehRefid
+      ? []
+      : [`(${snap.resultado.vendasComissionaveis} liberadas + ${snap.resultado.vendasPendentes} pendentes — só a liberada recebe)`]),
     `Faixa aplicada: ${faixa}`,
     `${ehRet ? "Retidos" : ehRefid ? "Planos" : "Vendas liberadas"}: ${snap.resultado.vendasComissionaveis}`,
   ];

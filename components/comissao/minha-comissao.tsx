@@ -146,7 +146,10 @@ export function PainelMinhaComissao({
                 ...(r.debitoMeta > 0
                   ? [["Débito na meta (90 dias)", `+${r.debitoMeta} · meta ${r.metaEfetiva - r.debitoMeta} → ${r.metaEfetiva}`] as [string, string]]
                   : []),
-                ["Atingimento", `${r.vendasComissionaveis} / ${r.metaEfetiva} = ${r.atingimentoPct.toFixed(0)}%`],
+                [
+                  "Atingimento (a venda pontua ao ser cadastrada)",
+                  `${r.vendasComissionaveis + r.vendasPendentes} cadastradas / ${r.metaEfetiva} = ${r.atingimentoPct.toFixed(1).replace(".", ",")}% (${r.vendasComissionaveis} liberadas + ${r.vendasPendentes} pendentes)`,
+                ],
                 ["Faixa aplicada", dados.faixaAtual ?? "sem faixa"],
                 ["Valor base", formatarMoeda(r.valorBase)],
                 ...(r.bonusFixo > 0 ? [["Bônus fixo da faixa", formatarMoeda(r.bonusFixo)] as [string, string]] : []),

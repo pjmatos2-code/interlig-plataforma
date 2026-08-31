@@ -106,7 +106,12 @@ function Memoria({ l, onFechar }: { l: LinhaApuracao; onFechar: () => void }) {
     ...(l.debitoQuantidade > 0
       ? [[l.debitoAplicado ? "Débito na meta (early churn)" : "Débito (não aplicado nesta competência)", `+${l.debitoQuantidade} · meta ${l.meta} → ${l.metaEfetiva}`] as [string, string]]
       : []),
-    [rot.atingPasso, `${l.vendasLiberadas} / ${l.metaEfetiva} = ${pct.toFixed(1).replace(".", ",")}%`],
+    l.setor === "comercial"
+      ? ([
+          "Atingimento (a venda pontua ao ser cadastrada)",
+          `${l.vendasLiberadas + l.vendasPendentes} cadastradas / ${l.metaEfetiva} = ${pct.toFixed(1).replace(".", ",")}% (${l.vendasLiberadas} liberadas + ${l.vendasPendentes} pendentes)`,
+        ] as [string, string])
+      : ([rot.atingPasso, `${l.vendasLiberadas} / ${l.metaEfetiva} = ${pct.toFixed(1).replace(".", ",")}%`] as [string, string]),
     ["Faixa aplicada", l.faixa],
     [rot.base, formatarMoeda(l.valorBase)],
     [rot.comissao, formatarMoeda(l.parcial)],
