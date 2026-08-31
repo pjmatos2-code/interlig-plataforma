@@ -109,7 +109,11 @@ export async function atualizarCaso(
     upd.desfecho_em = new Date().toISOString();
     upd.desfecho_auto = false;
     upd.etapa = "fechado";
-    if (campos.desfecho === "irreversivel") upd.irreversivel_motivo = campos.irreversivelMotivo;
+    if (campos.desfecho === "irreversivel") {
+      upd.irreversivel_motivo = campos.irreversivelMotivo;
+      // proposta da agente: fica pendente até o gestor aprovar com evidência
+      upd.irreversivel_status = "pendente";
+    }
   }
   const { error } = await admin.from("casos_retencao").update(upd).eq("id", id);
   if (error) return { erro: error.message };
@@ -175,4 +179,54 @@ export async function buscarConversasCanal(): Promise<Resultado & { detalhe?: st
     ok: "Canal varrido.",
     detalhe: `${r.lidas} conversa(s) no canal · ${r.criados} caso(s) novo(s) · ${r.reincidentes} reincidente(s)`,
   };
+}
+
+/**
+ * Decisão do gestor sobre um irreversível proposto. Aprovado sai do
+ * denominador da taxa; rejeitado volta ao fluxo normal e a auditoria carimba
+ * pelo status do SGP na próxima rodada.
+ */
+export async function decidirIrreversivel(
+  id: string,
+  aprovar: boolean,
+  observacao?: string
+): Promise<Resultado> {
+  const usuario = await exigirPerfil(["gestor"]);
+  const admin = criarClienteAdmin();
+  if (aprovar) {
+    const { error } = await admin
+      .from("casos_retencao")
+      .update({
+        irreversivel_status: "aprovado",
+        irreversivel_decidido_por: usuario.id,
+        irreversivel_decidido_em: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("desfecho", "irreversivel");
+    if (error) return { erro: error.message };
+  } else {
+    const { data: caso } = await admin
+      .from("casos_retencao")
+      .select("irreversivel_motivo")
+      .eq("id", id)
+      .maybeSingle();
+    const { error } = await admin
+      .from("casos_retencao")
+      .update({
+        desfecho: null,
+        desfecho_em: null,
+        desfecho_auto: false,
+        etapa: "negociacao",
+        irreversivel_status: "rejeitado",
+        irreversivel_decidido_por: usuario.id,
+        irreversivel_decidido_em: new Date().toISOString(),
+        resumo: observacao
+          ? `[gestor rejeitou irreversível: ${observacao}] motivo proposto: ${caso?.irreversivel_motivo ?? "-"}`
+          : undefined,
+      })
+      .eq("id", id);
+    if (error) return { erro: error.message };
+  }
+  revalidar();
+  return { ok: aprovar ? "Irreversível aprovado — sai da conta da taxa." : "Rejeitado — o caso volta ao fluxo e a auditoria vai carimbar pelo SGP." };
 }

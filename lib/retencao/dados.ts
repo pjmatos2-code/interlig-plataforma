@@ -40,6 +40,7 @@ export type CasoLinha = {
   alcadaUsada: string | null;
   resumo: string | null;
   irreversivelMotivo: string | null;
+  irreversivelStatus: "pendente" | "aprovado" | "rejeitado" | null;
   clawback: boolean;
   reincidente: boolean;
   origem: string;
@@ -55,6 +56,7 @@ export type RetencaoMes = {
   perdidos: number;
   emRisco: number;
   irreversiveis: number;
+  irreversiveisPendentes: number;
   transferidos: number;
   semResposta: number;
   clawbacks: number;
@@ -78,7 +80,7 @@ export async function retencaoDoMes(
   let q = admin
     .from("casos_retencao")
     .select(
-      "id, cliente_nome, sgp_contrato_id, telefone, valor_mensal, etapa, desfecho, desfecho_auto, trilha, motivo_declarado, alcada_usada, resumo, irreversivel_motivo, clawback_em, reincidente_de, origem, criado_em, analise, agente_login, contratos(clientes(sgp_cliente_id))"
+      "id, cliente_nome, sgp_contrato_id, telefone, valor_mensal, etapa, desfecho, desfecho_auto, trilha, motivo_declarado, alcada_usada, resumo, irreversivel_motivo, irreversivel_status, clawback_em, reincidente_de, origem, criado_em, analise, agente_login, contratos(clientes(sgp_cliente_id))"
     )
     .gte("criado_em", mes)
     .lte("criado_em", fim)
@@ -106,6 +108,7 @@ export async function retencaoDoMes(
       alcadaUsada: (c.alcada_usada as string) ?? null,
       resumo: (c.resumo as string) ?? null,
       irreversivelMotivo: (c.irreversivel_motivo as string) ?? null,
+      irreversivelStatus: (c.irreversivel_status as "pendente" | "aprovado" | "rejeitado") ?? null,
       clawback: c.clawback_em !== null,
       reincidente: c.reincidente_de !== null,
       origem: c.origem as string,
@@ -121,7 +124,12 @@ export async function retencaoDoMes(
     const retidos = conta("retido");
     const perdidos = conta("perdido");
     const emRisco = conta("em_risco");
-    const elegiveis = retidos + perdidos + emRisco;
+    // irreversível só sai da conta DEPOIS de aprovado pelo gestor; enquanto
+    // pendente, pesa no denominador — marcar sem evidência não melhora a taxa
+    const irreversiveisPendentes = linhas.filter(
+      (l) => l.desfecho === "irreversivel" && l.irreversivelStatus !== "aprovado"
+    ).length;
+    const elegiveis = retidos + perdidos + emRisco + irreversiveisPendentes;
     const taxaPct = elegiveis > 0 ? (retidos / elegiveis) * 100 : 0;
     const abaixoDoPiso = elegiveis < PISO_ELEGIVEIS;
     const faixaPct = abaixoDoPiso ? 0 : faixaRetencao(taxaPct);
@@ -136,6 +144,7 @@ export async function retencaoDoMes(
       perdidos,
       emRisco,
       irreversiveis: conta("irreversivel"),
+      irreversiveisPendentes,
       transferidos: conta("transferido"),
       semResposta: conta("sem_resposta"),
       clawbacks: linhas.filter((l) => l.clawback).length,

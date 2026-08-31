@@ -15,6 +15,7 @@ import {
   rodarAuditoria,
   analisarCaso,
   buscarConversasCanal,
+  decidirIrreversivel,
   type Resultado,
 } from "./acoes";
 
@@ -76,12 +77,15 @@ function Donut({ partes }: { partes: { valor: number; cor: string; rotulo: strin
 function Detalhe({
   c,
   linkTemplate,
+  ehGestor,
   onFechar,
 }: {
   c: CasoLinha;
   linkTemplate: string | null;
+  ehGestor: boolean;
   onFechar: () => void;
 }) {
+  const [obsGestor, setObsGestor] = useState("");
   const router = useRouter();
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -146,6 +150,37 @@ function Detalhe({
           <p className="rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-800">
             ↩ Clawback: o contrato cancelou em até 30 dias após a retenção — estorna na competência seguinte.
           </p>
+        )}
+
+        {c.desfecho === "irreversivel" && (
+          <div className={`rounded-md border p-3 text-xs ${
+            c.irreversivelStatus === "aprovado" ? "border-emerald-200 bg-emerald-50/60"
+            : c.irreversivelStatus === "rejeitado" ? "border-rose-200 bg-rose-50/60"
+            : "border-amber-300 bg-amber-50/70"}`}>
+            <p className="font-semibold">
+              {c.irreversivelStatus === "aprovado" ? "✓ Irreversível aprovado pela gestão — fora da taxa"
+               : c.irreversivelStatus === "rejeitado" ? "✕ Irreversível rejeitado — voltou ao fluxo"
+               : "⏳ Irreversível AGUARDANDO aprovação da gestão — ainda conta no denominador"}
+            </p>
+            <p className="mt-1">Motivo proposto: {c.irreversivelMotivo ?? "—"}</p>
+            {ehGestor && c.irreversivelStatus !== "aprovado" && c.irreversivelStatus !== "rejeitado" && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button type="button" disabled={ocupado}
+                  onClick={() => executar(() => decidirIrreversivel(c.id, true), "Irreversível aprovado.")}
+                  className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">
+                  Aprovar (evidência conferida)
+                </button>
+                <Input placeholder="observação (se rejeitar)" value={obsGestor}
+                  onChange={(e) => setObsGestor(e.target.value)} className="h-8 w-52 text-xs" />
+                <button type="button" disabled={ocupado}
+                  onClick={() => executar(() => decidirIrreversivel(c.id, false, obsGestor), "Rejeitado — volta ao fluxo.")}
+                  className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50">
+                  Rejeitar
+                </button>
+                <span className="text-[11px] text-muted-foreground">Analise a conversa (IA) ou as evidências antes de aprovar.</span>
+              </div>
+            )}
+          </div>
         )}
 
         {/* tratativa: SEMPRE editável pela agente; a plataforma só valida o desfecho no SGP */}
@@ -264,10 +299,11 @@ export function PainelRetencao({
     const soma = (f: (m: RetencaoMes) => number) => meses.reduce((s, m) => s + f(m), 0);
     const retidos = soma((m) => m.retidos), perdidos = soma((m) => m.perdidos),
       emRisco = soma((m) => m.emRisco), irrev = soma((m) => m.irreversiveis),
+      irrevPend = soma((m) => m.irreversiveisPendentes),
       claw = soma((m) => m.clawbacks), eleg = soma((m) => m.elegiveis),
       vtv = soma((m) => m.vtvRetido), com = soma((m) => m.comissao),
       casos = soma((m) => m.casos);
-    return { retidos, perdidos, emRisco, irrev, claw, eleg, vtv, com, casos,
+    return { retidos, perdidos, emRisco, irrev, irrevPend, claw, eleg, vtv, com, casos,
       taxa: eleg ? (retidos / eleg) * 100 : 0 };
   }, [meses]);
 
@@ -296,7 +332,7 @@ export function PainelRetencao({
         <Kpi rotulo="Retidos" valor={String(tot.retidos)} sub={`taxa ${tot.taxa.toFixed(0)}%`} cor="#059669" />
         <Kpi rotulo="Perdidos" valor={String(tot.perdidos)} sub={pct(tot.perdidos)} cor="#e11d48" />
         <Kpi rotulo="Em risco" valor={String(tot.emRisco)} sub={pct(tot.emRisco)} cor="#d97706" />
-        <Kpi rotulo="Irreversíveis" valor={String(tot.irrev)} sub={pct(tot.irrev)} />
+        <Kpi rotulo="Irreversíveis" valor={String(tot.irrev)} sub={tot.irrevPend > 0 ? `${tot.irrevPend} aguardando aprovação` : "todos aprovados"} cor={tot.irrevPend > 0 ? "#d97706" : undefined} />
         <Kpi rotulo="Clawback" valor={String(tot.claw)} sub={pct(tot.claw)} cor="#e11d48" />
         <Kpi rotulo="Taxa de retenção" valor={`${tot.taxa.toFixed(0)}%`} sub={`${tot.retidos} de ${tot.eleg}`} cor="#0369a1" />
         <Kpi rotulo="VTV retido" valor={formatarMoeda(tot.vtv)} />
@@ -385,8 +421,12 @@ export function PainelRetencao({
                         <td className="px-3 py-2 font-mono text-xs">{l.sgpContratoId ? `#${l.sgpContratoId}` : "—"}</td>
                         <td className="px-3 py-2 text-right text-xs tabular-nums">{formatarMoeda(l.valorMensal)}</td>
                         <td className="px-3 py-2">
-                          {st ? <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${st.cls}`}>{st.t}</span>
-                            : <Badge variant="amarelo">{l.etapa}</Badge>}
+                          {st ? (
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${st.cls}`}>
+                              {st.t}
+                              {l.desfecho === "irreversivel" && l.irreversivelStatus !== "aprovado" && " ⏳"}
+                            </span>
+                          ) : <Badge variant="amarelo">{l.etapa}</Badge>}
                         </td>
                       </tr>
                     );
@@ -402,7 +442,7 @@ export function PainelRetencao({
 
         <div className="space-y-4">
           {caso ? (
-            <Detalhe c={caso} linkTemplate={linkTemplate} onFechar={() => setSelecionado(null)} />
+            <Detalhe c={caso} linkTemplate={linkTemplate} ehGestor={ehGestor} onFechar={() => setSelecionado(null)} />
           ) : (
             <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">
               Selecione um caso na lista para trabalhar.
