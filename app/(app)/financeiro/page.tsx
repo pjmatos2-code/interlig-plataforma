@@ -12,7 +12,8 @@ import {
 import { hojeIso, primeiroDiaDoMes } from "@/lib/datas";
 import { PainelFinanceiro } from "./painel";
 import { PainelApuracao } from "./apuracao";
-import { HistoricoAgentes } from "./historico";
+import { HistoricoTab } from "./historico-tab";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -31,8 +32,30 @@ export default async function FinanceiroPage({
   const fechadas = await competenciasFechadas();
   const mesCorrente = primeiroDiaDoMes(hojeIso());
   const emApuracao = searchParams.aba === "apuracao";
+  const emHistorico = searchParams.aba === "historico";
+
+  const agentesAtivos = async () => {
+    const { data } = await criarClienteAdmin()
+      .from("vendedores")
+      .select("id, nome, foto_url")
+      .eq("ativo", true)
+      .order("nome");
+    return (data ?? []).map((v) => ({
+      id: v.id as string,
+      nome: v.nome as string,
+      foto: (v.foto_url as string | null) ?? null,
+    }));
+  };
 
   if (fechadas.length === 0) {
+    if (emHistorico) {
+      return (
+        <>
+          <CabecalhoPagina titulo="Financeiro — comissões" descricao="Histórico por agente." />
+          <HistoricoTab dados={{ meses: [], agentes: [] }} ativos={await agentesAtivos()} />
+        </>
+      );
+    }
     const apuracao = await apuracaoEmAndamento(mesCorrente);
     return (
       <>
@@ -101,9 +124,19 @@ export default async function FinanceiroPage({
         >
           Em apuração (mês corrente)
         </a>
+        <a
+          href={`/financeiro?mes=${mes.slice(0, 7)}&aba=historico`}
+          className={`px-4 py-2 text-sm font-medium ${
+            emHistorico
+              ? "-mb-px border-b-2 border-primary text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Histórico
+        </a>
       </div>
 
-      {!emApuracao && (
+      {!emApuracao && !emHistorico && (
         <form method="get" className="mb-4 flex flex-wrap items-end gap-2">
           <label className="text-sm">
             <span className="mb-1 block text-xs text-muted-foreground">Competência</span>
@@ -151,7 +184,9 @@ export default async function FinanceiroPage({
         </form>
       )}
 
-      {emApuracao && apuracao ? (
+      {emHistorico ? (
+        <HistoricoTab dados={historico} ativos={await agentesAtivos()} />
+      ) : emApuracao && apuracao ? (
         <PainelApuracao dados={apuracao} />
       ) : (
       <>
@@ -176,7 +211,6 @@ export default async function FinanceiroPage({
         dados={filtrado}
         podeMarcar={usuario.perfil === "gestor" || usuario.perfil === "financeiro"}
       />
-      <HistoricoAgentes dados={historico} />
       </>
       )}
     </>
