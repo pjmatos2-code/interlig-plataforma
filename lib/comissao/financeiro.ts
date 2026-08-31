@@ -134,6 +134,7 @@ export type LinhaApuracao = {
   vendedorId: string;
   vendedora: string;
   foto: string | null;
+  setor: "comercial" | "refidelizacao" | "retencao";
   meta: number;
   metaEfetiva: number;
   atingimentoPct: number;
@@ -181,6 +182,7 @@ export async function apuracaoEmAndamento(mesIso: string): Promise<ApuracaoAndam
         vendedorId: c.vendedorId,
         vendedora: c.nome,
         foto: fotoDe.get(c.vendedorId) ?? null,
+        setor: "comercial" as const,
         meta: c.metaMensal ?? 0,
         metaEfetiva: r.metaEfetiva,
         atingimentoPct: r.atingimentoPct,
@@ -211,6 +213,7 @@ export async function apuracaoEmAndamento(mesIso: string): Promise<ApuracaoAndam
       vendedorId: idPorLogin.get(a.agente) ?? a.agente,
       vendedora: a.nome ?? a.agente,
       foto: a.foto,
+      setor: "refidelizacao",
       meta: META_REFIDELIZACAO,
       metaEfetiva: META_REFIDELIZACAO,
       atingimentoPct: a.atingimentoPct,
@@ -239,6 +242,7 @@ export async function apuracaoEmAndamento(mesIso: string): Promise<ApuracaoAndam
       vendedorId: idPorLogin.get(m.agente) ?? m.agente,
       vendedora: m.nomeAgente ?? m.agente,
       foto: m.foto,
+      setor: "retencao",
       meta: m.elegiveis,
       metaEfetiva: m.elegiveis,
       atingimentoPct: m.taxaPct,

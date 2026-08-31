@@ -72,24 +72,51 @@ function ChipAting({ pct }: { pct: number }) {
   return <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums ${cls}`}>{pct.toFixed(1).replace(".", ",")}%</span>;
 }
 
-/** memória de cálculo do agente selecionado — o "por que esse valor?" */
+/** memória de cálculo do agente selecionado — o "por que esse valor?".
+ * Cada setor tem a própria régua, e os rótulos acompanham: venda (meta),
+ * refidelização (aditivos assinados) e retenção (taxa sobre elegíveis). */
+const ROTULOS = {
+  comercial: {
+    liberadas: "Vendas liberadas", pendentes: "Vendas pendentes", meta: "Meta",
+    ating: "Atingimento", atingPasso: "Atingimento da meta", base: "Base do cálculo",
+    comissao: "Comissão liberada", potencial: "Potencial pendente",
+    compLib: "Liberadas", compPend: "Pendentes",
+  },
+  refidelizacao: {
+    liberadas: "Aditivos aprovados (2 assinaturas)", pendentes: "Aguardando assinatura", meta: "Meta (planos)",
+    ating: "Atingimento", atingPasso: "Atingimento da meta", base: "VTV refidelizado (mensal)",
+    comissao: "Comissão liberada", potencial: "Potencial se todos assinarem",
+    compLib: "Aprovados", compPend: "Aguard. assinatura",
+  },
+  retencao: {
+    liberadas: "Clientes retidos (SGP)", pendentes: "Em risco (suspensos)", meta: "Elegíveis",
+    ating: "Taxa de retenção", atingPasso: "Taxa = retidos / elegíveis", base: "VTV retido (mensal)",
+    comissao: "Comissão liberada", potencial: "Potencial se os em risco reativarem",
+    compLib: "Retidos", compPend: "Em risco",
+  },
+} as const;
+
 function Memoria({ l, onFechar }: { l: LinhaApuracao; onFechar: () => void }) {
   const pct = l.atingimentoPct;
+  const rot = ROTULOS[l.setor];
   const potencial = l.seLiberarPendentes - l.parcial;
   const total = l.vendasLiberadas + l.vendasPendentes;
   const passos: [string, string][] = [
-    ["Vendas liberadas", String(l.vendasLiberadas)],
+    [rot.liberadas, String(l.vendasLiberadas)],
     ...(l.debitoQuantidade > 0
       ? [[l.debitoAplicado ? "Débito na meta (early churn)" : "Débito (não aplicado nesta competência)", `+${l.debitoQuantidade} · meta ${l.meta} → ${l.metaEfetiva}`] as [string, string]]
       : []),
-    ["Atingimento da meta", `${l.vendasLiberadas} / ${l.metaEfetiva} = ${pct.toFixed(1).replace(".", ",")}%`],
+    [rot.atingPasso, `${l.vendasLiberadas} / ${l.metaEfetiva} = ${pct.toFixed(1).replace(".", ",")}%`],
     ["Faixa aplicada", l.faixa],
-    ["Base do cálculo", formatarMoeda(l.valorBase)],
-    ["Comissão liberada", formatarMoeda(l.parcial)],
+    [rot.base, formatarMoeda(l.valorBase)],
+    [rot.comissao, formatarMoeda(l.parcial)],
+    ...(l.setor === "retencao" && l.estornos > 0
+      ? [["Clawback (estorna na competência seguinte)", String(l.estornos)] as [string, string]]
+      : []),
     ...(l.vendasPendentes > 0
       ? [
-          ["Vendas pendentes", String(l.vendasPendentes)] as [string, string],
-          ["Potencial pendente", formatarMoeda(potencial)] as [string, string],
+          [rot.pendentes, String(l.vendasPendentes)] as [string, string],
+          [rot.potencial, formatarMoeda(potencial)] as [string, string],
         ]
       : []),
     ["Total projetado", formatarMoeda(l.seLiberarPendentes)],
@@ -106,7 +133,7 @@ function Memoria({ l, onFechar }: { l: LinhaApuracao; onFechar: () => void }) {
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{l.vendedora}</p>
             <div className="mt-0.5 flex flex-wrap gap-1">
-              {pct >= 100 && (
+              {l.setor !== "retencao" && pct >= 100 && (
                 <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800">Meta batida</span>
               )}
               <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-800">Faixa {l.faixa}</span>
@@ -116,10 +143,10 @@ function Memoria({ l, onFechar }: { l: LinhaApuracao; onFechar: () => void }) {
 
         <div className="grid grid-cols-2 gap-2 text-center text-xs">
           {[
-            ["Liberadas", String(l.vendasLiberadas)],
-            ["Pendentes", String(l.vendasPendentes)],
-            ["Meta", l.metaEfetiva !== l.meta ? `${l.meta} → ${l.metaEfetiva}` : String(l.meta)],
-            ["Atingimento", `${pct.toFixed(1).replace(".", ",")}%`],
+            [rot.compLib, String(l.vendasLiberadas)],
+            [rot.compPend, String(l.vendasPendentes)],
+            [rot.meta, l.metaEfetiva !== l.meta ? `${l.meta} → ${l.metaEfetiva}` : String(l.meta)],
+            [rot.ating, `${pct.toFixed(1).replace(".", ",")}%`],
           ].map(([r, v]) => (
             <div key={r} className="rounded-lg border p-2">
               <p className="text-muted-foreground">{r}</p>
@@ -145,7 +172,7 @@ function Memoria({ l, onFechar }: { l: LinhaApuracao; onFechar: () => void }) {
 
         {/* composição das vendas */}
         <div>
-          <p className="mb-1 text-xs font-semibold">Composição das vendas</p>
+          <p className="mb-1 text-xs font-semibold">{l.setor === "comercial" ? "Composição das vendas" : l.setor === "refidelizacao" ? "Composição dos aditivos" : "Composição dos casos"}</p>
           <div className="flex items-center gap-3">
             <div
               className="grid h-16 w-16 shrink-0 place-items-center rounded-full"
@@ -158,8 +185,8 @@ function Memoria({ l, onFechar }: { l: LinhaApuracao; onFechar: () => void }) {
               <div className="grid h-10 w-10 place-items-center rounded-full bg-card text-[10px] font-semibold tabular-nums">{total}</div>
             </div>
             <div className="space-y-0.5 text-[11px]">
-              <p><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#2563eb]" />Liberadas <strong className="tabular-nums">{l.vendasLiberadas}{total ? ` (${Math.round((l.vendasLiberadas / total) * 100)}%)` : ""}</strong></p>
-              <p><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#f59e0b]" />Pendentes <strong className="tabular-nums">{l.vendasPendentes}{total ? ` (${Math.round((l.vendasPendentes / total) * 100)}%)` : ""}</strong></p>
+              <p><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#2563eb]" />{rot.compLib} <strong className="tabular-nums">{l.vendasLiberadas}{total ? ` (${Math.round((l.vendasLiberadas / total) * 100)}%)` : ""}</strong></p>
+              <p><span className="mr-1 inline-block h-2 w-2 rounded-full bg-[#f59e0b]" />{rot.compPend} <strong className="tabular-nums">{l.vendasPendentes}{total ? ` (${Math.round((l.vendasPendentes / total) * 100)}%)` : ""}</strong></p>
             </div>
           </div>
         </div>
