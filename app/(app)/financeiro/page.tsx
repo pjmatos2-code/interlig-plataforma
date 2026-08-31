@@ -7,10 +7,12 @@ import {
   competenciaFinanceiro,
   competenciasFechadas,
   apuracaoEmAndamento,
+  historicoPorAgente,
 } from "@/lib/comissao/financeiro";
 import { hojeIso, primeiroDiaDoMes } from "@/lib/datas";
 import { PainelFinanceiro } from "./painel";
 import { PainelApuracao } from "./apuracao";
+import { HistoricoAgentes } from "./historico";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +56,10 @@ export default async function FinanceiroPage({
   const mes = fechadas.includes(`${searchParams.mes}-01`)
     ? `${searchParams.mes}-01`
     : fechadas[0];
-  const dados = await competenciaFinanceiro(mes);
+  const [dados, historico] = await Promise.all([
+    competenciaFinanceiro(mes),
+    historicoPorAgente(mes),
+  ]);
   const apuracao = emApuracao ? await apuracaoEmAndamento(mesCorrente) : null;
 
   // filtro por agente: o financeiro confere um a um sem perder o resto de vista
@@ -171,6 +176,7 @@ export default async function FinanceiroPage({
         dados={filtrado}
         podeMarcar={usuario.perfil === "gestor" || usuario.perfil === "financeiro"}
       />
+      <HistoricoAgentes dados={historico} />
       </>
       )}
     </>

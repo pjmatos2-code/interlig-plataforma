@@ -201,3 +201,71 @@ export async function apuracaoEmAndamento(mesIso: string): Promise<ApuracaoAndam
     },
   };
 }
+
+/* ------------------------------------------------------------------ histórico */
+
+export type HistoricoAgente = {
+  vendedorId: string;
+  vendedora: string;
+  foto: string | null;
+  /** valor e pagamento por competência (chave = primeiro dia do mês) */
+  valores: Record<string, { total: number; pagoEm: string | null }>;
+  total: number;
+};
+
+export type HistoricoFinanceiro = {
+  /** competências exibidas, da mais antiga para a mais recente */
+  meses: string[];
+  agentes: HistoricoAgente[];
+};
+
+/**
+ * Histórico de comissão paga por agente nas últimas competências fechadas
+ * (padrão: 3, contando a selecionada). Só entra o que existe em
+ * comissoes_fechadas — o valor congelado no fechamento, versão mais recente.
+ */
+export async function historicoPorAgente(
+  ateMesIso: string,
+  qtd = 3
+): Promise<HistoricoFinanceiro> {
+  const admin = criarClienteAdmin();
+  const { data } = await admin
+    .from("comissoes_fechadas")
+    .select("vendedor_id, mes_ano, valor_total, versao, pago_em, vendedores(nome, foto_url)")
+    .lte("mes_ano", ateMesIso)
+    .order("mes_ano", { ascending: false })
+    .limit(1000);
+
+  const meses = [...new Set((data ?? []).map((d) => d.mes_ano as string))]
+    .slice(0, qtd)
+    .reverse();
+  const noRecorte = (data ?? []).filter((d) => meses.includes(d.mes_ano as string));
+
+  const porAgente = new Map<string, HistoricoAgente>();
+  const versaoDe = new Map<string, number>();
+  for (const d of noRecorte) {
+    const id = d.vendedor_id as string;
+    const mes = d.mes_ano as string;
+    const versao = (d.versao as number) ?? 1;
+    const chave = `${id}:${mes}`;
+    // reabertura gera versão nova — vale sempre a mais recente
+    if ((versaoDe.get(chave) ?? 0) >= versao) continue;
+    versaoDe.set(chave, versao);
+
+    const v = d.vendedores as unknown as { nome: string; foto_url: string | null } | null;
+    const ag = porAgente.get(id) ?? {
+      vendedorId: id,
+      vendedora: v?.nome ?? "—",
+      foto: v?.foto_url ?? null,
+      valores: {},
+      total: 0,
+    };
+    ag.valores[mes] = { total: Number(d.valor_total ?? 0), pagoEm: (d.pago_em as string | null) ?? null };
+    porAgente.set(id, ag);
+  }
+  const agentes = [...porAgente.values()]
+    .map((a) => ({ ...a, total: Object.values(a.valores).reduce((s, x) => s + x.total, 0) }))
+    .sort((a, b) => a.vendedora.localeCompare(b.vendedora));
+
+  return { meses, agentes };
+}
