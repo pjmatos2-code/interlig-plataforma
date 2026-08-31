@@ -58,7 +58,7 @@ export async function filaAprovacao(mesIso?: string): Promise<FilaAprovacao> {
       admin
         .from("contratos")
         .select(
-          "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, plano_id, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, planos(nome, exige_assinatura), clientes(nome, sgp_cliente_id)"
+          "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, valor_mensalidade, vendedor_id, plano_id, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, planos(nome, exige_assinatura), clientes(nome, sgp_cliente_id)"
         )
         .gte("data_venda", mes)
         .lte("data_venda", fim)
@@ -84,6 +84,7 @@ export async function filaAprovacao(mesIso?: string): Promise<FilaAprovacao> {
       liberadasAuto += 1;
       continue;
     }
+    if ((c as { desistencia_em?: string | null }).desistencia_em) continue;
     const item: ItemAprovacao = {
       contratoId: c.id,
       sgpContratoId: c.sgp_contrato_id,

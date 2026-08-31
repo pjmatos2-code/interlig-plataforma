@@ -106,7 +106,7 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
       admin
         .from("contratos")
         .select(
-          "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, plano_id, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, planos(nome, exige_assinatura), clientes(nome, sgp_cliente_id)"
+          "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, valor_mensalidade, plano_id, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, planos(nome, exige_assinatura), clientes(nome, sgp_cliente_id)"
         )
         .eq("vendedor_id", vendedorId)
         .gte("data_venda", mes)
@@ -171,7 +171,7 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
         aprovadoPor: veredito.aprovacaoManual.aprovadoPor,
       });
     }
-    if (!estornada && !liberada) {
+    if (!estornada && !liberada && !(c as { desistencia_em?: string | null }).desistencia_em) {
       const p = veredito.pendencias;
       pendentes.push({
         sgpContratoId: c.sgp_contrato_id,

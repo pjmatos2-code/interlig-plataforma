@@ -5,11 +5,12 @@ import { formatarMoeda } from "@/lib/format";
 import { aplicarLinkSgp } from "@/lib/sgp/links";
 import type { ItemEsteira } from "@/lib/esteira/dados";
 import { BotaoAtualizarContrato } from "@/components/esteira/botao-atualizar";
+import { BotaoDesistencia } from "@/components/esteira/botao-desistencia";
 
 const LIMITE_VISIVEL = 25;
 
 /** Card com nome do cliente e ID do contrato clicáveis, abrindo no SGP. */
-function LinhaCliente({ item, linkTemplate, mostrarPop }: { item: ItemEsteira; linkTemplate: string; mostrarPop: boolean }) {
+function LinhaCliente({ item, linkTemplate, mostrarPop, podeDesistir }: { item: ItemEsteira; linkTemplate: string; mostrarPop: boolean; podeDesistir?: boolean }) {
   const link = aplicarLinkSgp(linkTemplate, {
     clienteId: item.sgpClienteId,
     contratoId: item.sgpContratoId,
@@ -60,6 +61,7 @@ function LinhaCliente({ item, linkTemplate, mostrarPop }: { item: ItemEsteira; l
             </a>
           )}
           <BotaoAtualizarContrato contratoId={item.id} cliente={item.cliente} />
+          {podeDesistir && <BotaoDesistencia contratoId={item.id} cliente={item.cliente} />}
         </span>
       </p>
       {item.temOs && <LinhaOs item={item} linkTemplate={linkTemplate} />}
@@ -131,6 +133,7 @@ export function ColunaKanban({
   tom,
   mostrarPop,
   linkTemplate,
+  podeDesistir,
 }: {
   titulo: string;
   descricaoIdade: string;
@@ -138,6 +141,8 @@ export function ColunaKanban({
   tom: "amarelo" | "azul" | "verde";
   mostrarPop: boolean;
   linkTemplate: string;
+  /** gestor pode marcar desistência nos cards pendentes */
+  podeDesistir?: boolean;
 }) {
   const visiveis = itens.slice(0, LIMITE_VISIVEL);
   const ocultos = itens.length - visiveis.length;
@@ -172,7 +177,7 @@ export function ColunaKanban({
               item.alerta && "border-farol-vermelho/60 bg-farol-vermelho/5"
             )}
           >
-            <LinhaCliente item={item} linkTemplate={linkTemplate} mostrarPop={mostrarPop} />
+            <LinhaCliente item={item} linkTemplate={linkTemplate} mostrarPop={mostrarPop} podeDesistir={podeDesistir} />
           </Card>
         ))}
         {itens.length === 0 && (

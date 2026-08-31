@@ -92,7 +92,7 @@ export async function listaVendedoras(
   let consultaContratos = supabase
     .from("contratos")
     .select(
-      "data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, pop_id"
+      "data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, valor_mensalidade, vendedor_id, pop_id"
     )
     .gte("data_venda", menorData)
     .limit(5000);
@@ -251,6 +251,8 @@ export type VendaListada = {
   assinaturaPendente: boolean;
   /** já liberada à mão pela gestão para a competência da venda */
   liberada: boolean;
+  /** cliente desistiu antes de ativar — fora das pendências */
+  desistiu: boolean;
 };
 
 export type DetalheVendedora = {
@@ -298,7 +300,7 @@ export async function detalheVendedora(
     supabase
       .from("contratos")
       .select(
-        "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, origem_cadastro, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, clientes(nome, sgp_cliente_id, cpf), planos(nome, exige_assinatura)"
+        "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, valor_mensalidade, origem_cadastro, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, clientes(nome, sgp_cliente_id, cpf), planos(nome, exige_assinatura)"
       )
       .eq("vendedor_id", vendedorId)
       .gte("data_venda", [periodo.de, seisMesesAtras].sort()[0])
@@ -415,6 +417,7 @@ export async function detalheVendedora(
       data_ativacao: c.data_ativacao,
       assinaturaPendente: temPendenciaDeAssinatura(c as never),
       liberada: liberadaEm.has(`${c.id}:${String(c.data_venda).slice(0, 7)}`),
+      desistiu: Boolean((c as { desistencia_em?: string | null }).desistencia_em),
     }));
     })(),
     funil,

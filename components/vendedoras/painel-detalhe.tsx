@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CartaoKpi } from "@/components/dashboard/cartao-kpi";
 import { aprovarVenda, revogarAprovacao } from "@/app/(app)/metas/aprovacoes/acoes";
+import { desfazerDesistencia } from "@/app/(app)/esteira/acoes";
 import { aplicarLinkSgp } from "@/lib/sgp/links";
 import { GraficoHistorico } from "@/components/vendedoras/grafico-historico";
 import { GraficoBarrasHorizontais } from "@/components/dashboard/graficos";
@@ -250,7 +251,22 @@ export function PainelDetalheVendedora({
                       </td>
                       {ehGestor && (
                         <td className="whitespace-nowrap px-3 py-2">
-                          {v.liberada ? (
+                          {v.desistiu ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                                desistiu
+                              </span>
+                              <button
+                                type="button"
+                                disabled={ocupado}
+                                onClick={() => executar(() => desfazerDesistencia(v.id))}
+                                className="rounded-md border px-2 py-0.5 text-[11px] hover:bg-muted disabled:opacity-50"
+                                title="Desfaz a desistência — volta às pendências"
+                              >
+                                Desfazer
+                              </button>
+                            </span>
+                          ) : v.liberada ? (
                             <span className="inline-flex items-center gap-1.5">
                               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
                                 liberada pela gestão

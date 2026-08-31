@@ -12,6 +12,8 @@ export type ContratoIndicador = {
   motivo_cancelamento: string | null;
   status: string;
   valor_mensalidade: number;
+  /** cliente desistiu antes de ativar — sai das pendências (0066) */
+  desistencia_em?: string | null;
 };
 
 const MOTIVOS_EXCLUIDOS_5_1 = ["erro de cadastro", "duplicidade"];
@@ -110,7 +112,8 @@ export function ativacoesPendentes(
       (c) =>
         c.data_assinatura !== null &&
         c.data_ativacao === null &&
-        c.status !== "cancelado"
+        c.status !== "cancelado" &&
+        !c.desistencia_em
     )
     .map((c) => {
       const idadeDias = Math.round(
@@ -127,7 +130,7 @@ export function pendentesAssinatura(
   hoje: string
 ): Pendencia[] {
   return contratos
-    .filter((c) => c.data_assinatura === null && c.status !== "cancelado")
+    .filter((c) => c.data_assinatura === null && c.status !== "cancelado" && !c.desistencia_em)
     .map((c) => {
       const idadeDias = Math.round(
         (Date.parse(`${hoje}T00:00:00Z`) - Date.parse(`${c.data_venda}T00:00:00Z`)) /

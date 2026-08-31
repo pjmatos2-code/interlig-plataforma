@@ -80,7 +80,7 @@ export async function carregarDashboard(
   let consulta = supabase
     .from("contratos")
     .select(
-      "data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, pop_id, plano_id, origem_cadastro"
+      "data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, valor_mensalidade, pop_id, plano_id, origem_cadastro"
     )
     .gte("data_venda", menorData)
     .limit(5000);
@@ -91,7 +91,7 @@ export async function carregarDashboard(
   let consultaPendencias = supabase
     .from("contratos")
     .select(
-      "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade"
+      "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, valor_mensalidade"
     )
     .or("data_assinatura.is.null,data_ativacao.is.null")
     .neq("status", "cancelado")

@@ -65,7 +65,7 @@ type Bruto = ContratoIndicador & {
 };
 
 const CAMPOS =
-  "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, valor_mensalidade, vendedor_id, pop_id, clientes(nome, sgp_cliente_id, cpf), planos(nome), vendedores(nome), pops(nome)";
+  "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, valor_mensalidade, vendedor_id, pop_id, clientes(nome, sgp_cliente_id, cpf), planos(nome), vendedores(nome), pops(nome)";
 
 function dias(deIso: string, ateIso: string) {
   return Math.round(

@@ -232,6 +232,7 @@ export default async function EsteiraPage({
           tom="amarelo"
           mostrarPop={ehGestorSemFiltro}
           linkTemplate={linkTemplate}
+          podeDesistir={usuario.perfil === "gestor"}
         />
         <ColunaKanban
           titulo="Aguardando instalação"
@@ -240,6 +241,7 @@ export default async function EsteiraPage({
           tom="azul"
           mostrarPop={ehGestorSemFiltro}
           linkTemplate={linkTemplate}
+          podeDesistir={usuario.perfil === "gestor"}
         />
         <ColunaKanban
           titulo="Instaladas no período"
