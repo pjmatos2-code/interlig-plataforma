@@ -198,6 +198,37 @@ export default async function DashboardPage({
     return meta && meta > 0 && p.vendas / meta < 0.7;
   });
 
+  // vendas gerais dos últimos 6 meses (mesma régua 5.1: erro/duplicidade fora)
+  const inicio6m = (() => {
+    const dt = new Date(`${mesAtual}T00:00:00Z`);
+    dt.setUTCMonth(dt.getUTCMonth() - 5);
+    return dt.toISOString().slice(0, 10);
+  })();
+  const porMes = new Map<string, { vendas: number; receita: number }>();
+  for (let de = 0; de < 30_000; de += 1000) {
+    const { data: pg } = await admin
+      .from("contratos")
+      .select("data_venda, valor_mensalidade, status, motivo_cancelamento")
+      .gte("data_venda", inicio6m)
+      .range(de, de + 999);
+    for (const c of pg ?? []) {
+      const motivo = String(c.motivo_cancelamento ?? "").toLowerCase();
+      if (c.status === "cancelado" && (motivo.includes("erro de cadastro") || motivo.includes("duplicidade"))) continue;
+      const m = String(c.data_venda).slice(0, 7);
+      const atual = porMes.get(m) ?? { vendas: 0, receita: 0 };
+      atual.vendas += 1;
+      atual.receita += Number(c.valor_mensalidade ?? 0);
+      porMes.set(m, atual);
+    }
+    if (!pg || pg.length < 1000) break;
+  }
+  const vendas6m = [...porMes.entries()]
+    .sort()
+    .slice(-6)
+    .map(([m, v]) => ({ mes: m, ...v }));
+  const max6m = Math.max(1, ...vendas6m.map((v) => v.vendas));
+  const MES_CURTO = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
   const deltaVendas =
     d.vendasPeriodoAnterior === 0
       ? null
@@ -328,6 +359,35 @@ export default async function DashboardPage({
             </CardHeader>
             <CardContent>
               <GraficoVendasDiarias dados={d.vendasDiarias} metaDiaria={d.metaDiaria} />
+            </CardContent>
+          </Card>
+
+          {/* vendas gerais — últimos 6 meses */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle>Vendas gerais — últimos 6 meses</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex h-36 items-end justify-around gap-4 border-b pb-1">
+                {vendas6m.map((v) => (
+                  <div key={v.mes} className="flex h-full w-full max-w-24 flex-col items-center justify-end gap-1">
+                    <span className="text-xs font-semibold tabular-nums">{v.vendas}</span>
+                    <div
+                      className="w-full rounded-t-md bg-[#2563eb]"
+                      style={{ height: `${Math.max(4, (v.vendas / max6m) * 100)}%` }}
+                      title={`${v.vendas} venda(s) · ${formatarMoeda(v.receita)}`}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-around pt-1">
+                {vendas6m.map((v) => (
+                  <span key={v.mes} className="w-full max-w-24 text-center text-xs text-muted-foreground">
+                    {MES_CURTO[Number(v.mes.slice(5, 7)) - 1]}/{v.mes.slice(2, 4)}
+                    <span className="block text-[10px] tabular-nums">{formatarMoedaKpi(v.receita)}</span>
+                  </span>
+                ))}
+              </div>
             </CardContent>
           </Card>
 
