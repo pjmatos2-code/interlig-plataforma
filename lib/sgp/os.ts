@@ -62,7 +62,7 @@ class PainelOs {
     const res = await fetch(`${this.base}${caminho}`, {
       redirect: "manual",
       cache: "no-store",
-      signal: AbortSignal.timeout(60_000),
+      signal: AbortSignal.timeout(180_000),
       ...extra,
       headers: { "User-Agent": UA, Cookie: this.cookieHeader, ...(extra.headers ?? {}) },
     });

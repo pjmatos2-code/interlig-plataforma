@@ -113,13 +113,16 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
 
   const [{ data: tecnicos }, { data: os }, { data: seguintes }] = await Promise.all([
     admin.from("tecnicos").select("*").eq("ativo", true).order("nome"),
+    // pontua pelo mês do ENCERRAMENTO (OS criada em julho e encerrada em
+    // agosto paga em agosto); as criadas no mês entram para acompanhamento
     admin
       .from("os_tecnicas")
       .select("*")
-      .gte("criada_em", mes)
-      .lte("criada_em", fim)
+      .or(
+        `and(encerrada_em.gte.${mes},encerrada_em.lte.${fim}),and(criada_em.gte.${mes},criada_em.lte.${fim})`
+      )
       .order("criada_em", { ascending: false })
-      .limit(5000),
+      .limit(6000),
     // OS do início do mês seguinte: um encerramento no fim do mês pode ter
     // retorno já na virada
     admin
@@ -145,7 +148,11 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
   const linhas: OsLinha[] = [];
   for (const o of os ?? []) {
     const categoria = ehAtivacao(o.motivo as string) ? "ativacao" : ehSuporte(o.motivo as string) ? "suporte" : "outros";
-    const encerrada = norm(o.status as string) === "encerrada" && o.encerrada_em;
+    const encerrada =
+      norm(o.status as string) === "encerrada" &&
+      o.encerrada_em &&
+      (o.encerrada_em as string) >= mes &&
+      (o.encerrada_em as string) <= fim;
 
     // retorno <24h: outra OS do mesmo contrato criada até 24h após o encerramento
     let retornoOsId: string | null = null;

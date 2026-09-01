@@ -8,7 +8,7 @@ const cfg = cfgRow.config; const base = String(cfg.base_url ?? "").replace(/\/+$
 const UA = "Mozilla/5.0 (plataforma-interlig)";
 const cookies = new Map();
 const guardar = (r) => { for (const l of r.headers.getSetCookie?.() ?? []) { const [p] = l.split(";"); const i = p.indexOf("="); if (i > 0) cookies.set(p.slice(0, i).trim(), p.slice(i + 1).trim()); } };
-const pegar = async (c, e = {}) => { const r = await fetch(`${base}${c}`, { redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(60000), ...e, headers: { "User-Agent": UA, Cookie: [...cookies.entries()].map(([k, v]) => `${k}=${v}`).join("; "), ...(e.headers ?? {}) } }); guardar(r); return r; };
+const pegar = async (c, e = {}) => { const r = await fetch(`${base}${c}`, { redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(180000), ...e, headers: { "User-Agent": UA, Cookie: [...cookies.entries()].map(([k, v]) => `${k}=${v}`).join("; "), ...(e.headers ?? {}) } }); guardar(r); return r; };
 const t0 = await pegar("/accounts/login/"); const h0 = await t0.text();
 const csrf = h0.match(/name="csrfmiddlewaretoken"[^>]*value="([^"]+)"/)?.[1] ?? cookies.get("csrftoken");
 await pegar("/accounts/login/", { method: "POST", body: new URLSearchParams({ csrfmiddlewaretoken: csrf, username: cfg.painel_usuario, password: cfg.painel_senha, next: "/admin/" }).toString(), headers: { "Content-Type": "application/x-www-form-urlencoded", Referer: `${base}/accounts/login/` } });
