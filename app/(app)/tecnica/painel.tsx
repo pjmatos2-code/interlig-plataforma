@@ -88,7 +88,6 @@ export function PainelTecnica({
   const [busca, setBusca] = useState("");
   const [soEncerradas, setSoEncerradas] = useState(true);
   const [pagina, setPagina] = useState(1);
-  const [rankingCompleto, setRankingCompleto] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
@@ -130,7 +129,6 @@ export function PainelTecnica({
   const semOs = dados.tecnicos.filter(
     (t) => t.ativacoes + t.suportes + t.outras + t.anuladasRetorno === 0 && !t.ajuste
   );
-  const ranking = rankingCompleto ? dados.tecnicos : dados.tecnicos.slice(0, 6);
   const maxTend = Math.max(1, ...dados.tendencia.map((t) => t.encerradas));
 
   function irPagina(p: number) {
@@ -219,63 +217,93 @@ export function PainelTecnica({
         </CardContent>
       </Card>
 
-      {/* ranking | lista | resumo */}
-      <div className="grid gap-4 xl:grid-cols-[19rem_minmax(0,1fr)_20rem]">
-        {/* ranking dos técnicos */}
-        <Card className="self-start">
-          <CardHeader className="pb-2">
-            <div className="flex items-baseline justify-between">
-              <CardTitle className="text-base">Ranking dos técnicos</CardTitle>
-              <span className="text-[11px] text-muted-foreground">Comissão (R$)</span>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2.5">
-            {ranking.map((t, i) => (
-              <button
-                key={t.tecnicoId}
-                type="button"
-                onClick={() => { setFTecnico(fTecnico === t.tecnicoId ? "" : t.tecnicoId); setPagina(1); }}
-                className={`w-full rounded-xl border bg-card p-2.5 text-left transition ${
-                  fTecnico === t.tecnicoId ? "border-primary ring-1 ring-primary" : "hover:border-primary/50"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary text-[10px] font-bold text-white">{i + 1}</span>
-                  <span onClick={(e) => e.stopPropagation()}>
-                    <FotoTecnico tecnicoId={t.tecnicoId} nome={t.nome} fotoUrl={t.foto} podeEditar={ehGestor} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{t.nome}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {UNIDADE[t.unidade] ?? t.unidade}{t.recebeSuporte ? " · suporte" : ""}
-                    </p>
-                  </div>
-                  <p className="text-sm font-semibold tabular-nums text-emerald-700">{formatarMoeda(t.comissao)}</p>
-                </div>
-                <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground tabular-nums">
-                  <span>Ativ. <strong className="text-foreground">{t.ativacoes}</strong></span>
-                  <span>Sup. <strong className="text-foreground">{t.suportes}</strong></span>
-                  <span>Retorno <strong className={t.anuladasRetorno > 0 ? "text-rose-700" : "text-foreground"}>
-                    {t.anuladasRetorno}{t.valorAnuladoRetorno > 0 ? ` (−R$ ${t.valorAnuladoRetorno})` : ""}
-                  </strong></span>
-                  <span>T. médio <strong className="text-foreground">{t.tempoMedioHoras !== null ? `${t.tempoMedioHoras.toFixed(1).replace(".", ",")}h` : "—"}</strong></span>
-                </div>
-                {t.ajuste && (
-                  <p className="mt-1 rounded bg-sky-50 px-2 py-1 text-[10px] text-sky-800" title={t.ajuste.motivo}>
-                    ⚙ ajuste da gestão ({t.ajuste.modo === "substituir" ? "substitui o cálculo" : "soma"}): {formatarMoeda(t.ajuste.valor)}
-                  </p>
-                )}
-              </button>
-            ))}
-            {dados.tecnicos.length > 6 && (
-              <button type="button" onClick={() => setRankingCompleto(!rankingCompleto)}
-                className="w-full rounded-md border px-3 py-2 text-center text-xs font-medium hover:bg-muted">
-                {rankingCompleto ? "Mostrar só o top 6" : `Ver ranking completo (${dados.tecnicos.length}) →`}
-              </button>
-            )}
-          </CardContent>
-        </Card>
+      {/* comissões por técnico — formato do painel por vendedora */}
+      <Card>
+        <CardContent className="p-0">
+          <p className="border-b px-4 py-2.5 text-sm font-semibold">
+            Comissões por técnico
+            <span className="ml-2 text-xs font-normal text-muted-foreground">clique na linha para filtrar as OS · clique na foto para trocá-la</span>
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[56rem] text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <th className="px-4 py-2 font-medium">Técnico</th>
+                  <th className="px-3 py-2 font-medium">Unidade</th>
+                  <th className="px-3 py-2 text-center font-medium">Ativações</th>
+                  <th className="px-3 py-2 text-center font-medium">Suportes</th>
+                  <th className="px-3 py-2 text-center font-medium">Retornos 72h</th>
+                  <th className="px-3 py-2 text-center font-medium">Tempo médio</th>
+                  <th className="px-3 py-2 font-medium">Ajuste</th>
+                  <th className="px-4 py-2 text-right font-medium">Comissão do mês</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dados.tecnicos.map((t) => (
+                  <tr
+                    key={t.tecnicoId}
+                    onClick={() => { setFTecnico(fTecnico === t.tecnicoId ? "" : t.tecnicoId); setPagina(1); }}
+                    className={`cursor-pointer border-b last:border-0 hover:bg-muted/40 ${fTecnico === t.tecnicoId ? "bg-primary/5" : ""}`}
+                  >
+                    <td className="px-4 py-2">
+                      <span className="flex items-center gap-2.5">
+                        <span onClick={(e) => e.stopPropagation()}>
+                          <FotoTecnico tecnicoId={t.tecnicoId} nome={t.nome} fotoUrl={t.foto} podeEditar={ehGestor} />
+                        </span>
+                        <span className="font-medium">{t.nome}</span>
+                        {t.recebeSuporte && (
+                          <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-800">suporte</span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">{UNIDADE[t.unidade] ?? t.unidade}</td>
+                    <td className="px-3 py-2 text-center tabular-nums">{t.ativacoes}</td>
+                    <td className="px-3 py-2 text-center tabular-nums">{t.suportes > 0 ? t.suportes : "—"}</td>
+                    <td className="px-3 py-2 text-center tabular-nums">
+                      {t.anuladasRetorno > 0 ? (
+                        <span className="text-rose-700">{t.anuladasRetorno} (−{formatarMoeda(t.valorAnuladoRetorno)})</span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-center text-xs tabular-nums text-muted-foreground">
+                      {t.tempoMedioHoras !== null ? `${t.tempoMedioHoras.toFixed(1).replace(".", ",")}h` : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {t.ajuste ? (
+                        <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] text-sky-800" title={t.ajuste.motivo}>
+                          ⚙ {t.ajuste.modo === "substituir" ? "substitui" : "soma"} {formatarMoeda(t.ajuste.valor)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2 text-right font-semibold tabular-nums text-emerald-700">
+                      {formatarMoeda(t.comissao)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 font-semibold">
+                  <td className="px-4 py-2">Total ({dados.tecnicos.length} técnicos)</td>
+                  <td />
+                  <td className="px-3 py-2 text-center tabular-nums">{dados.totais.ativacoes}</td>
+                  <td className="px-3 py-2 text-center tabular-nums">{dados.totais.suportes}</td>
+                  <td className="px-3 py-2 text-center tabular-nums text-rose-700">
+                    {dados.totais.anuladasRetorno} (−{formatarMoeda(dados.totais.impactoRetornos)})
+                  </td>
+                  <td colSpan={2} />
+                  <td className="px-4 py-2 text-right tabular-nums">{formatarMoeda(dados.totais.comissao)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
 
+      {/* lista | resumo */}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
         {/* ordens de serviço */}
         <Card className="self-start">
           <CardHeader className="pb-2">
