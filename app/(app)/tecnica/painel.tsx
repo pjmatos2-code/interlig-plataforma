@@ -80,7 +80,7 @@ export function PainelTecnica({
 
   const linhas = useMemo(() => {
     let ls = dados.linhas;
-    if (soEncerradas) ls = ls.filter((l) => (l.status ?? "").toLowerCase() === "encerrada");
+    if (soEncerradas) ls = ls.filter((l) => l.encerradaNoMes);
     if (fCategoria === "retorno") ls = ls.filter((l) => l.retornoOsId && l.categoria !== "outros");
     else if (fCategoria) ls = ls.filter((l) => l.categoria === fCategoria);
     if (fTecnico) {
@@ -153,7 +153,7 @@ export function PainelTecnica({
           </label>
           <label className="flex h-9 items-center gap-2 text-sm">
             <input type="checkbox" checked={soEncerradas} onChange={(e) => setSoEncerradas(e.target.checked)} />
-            Somente encerradas
+            Somente encerradas no mês
           </label>
           <div className="ml-auto flex items-center gap-2">
             {aviso && <span className="max-w-[16rem] text-xs text-muted-foreground">{aviso}</span>}

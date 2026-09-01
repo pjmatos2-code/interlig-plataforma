@@ -54,6 +54,8 @@ export type OsLinha = {
   responsavel: string | null;
   auxiliares: string | null;
   categoria: "ativacao" | "suporte" | "outros";
+  /** encerrada DENTRO da competência — só essa entra nas contagens/comissão */
+  encerradaNoMes: boolean;
   /** OS que caracterizou o retorno (anula a comissão desta) */
   retornoOsId: string | null;
   valorPorTecnico: Record<string, number>; // técnico.id -> R$
@@ -201,6 +203,7 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
       responsavel: (o.responsavel as string) ?? null,
       auxiliares: (o.auxiliares as string) ?? null,
       categoria,
+      encerradaNoMes: Boolean(encerrada),
       retornoOsId,
       valorPorTecnico,
     });
@@ -209,7 +212,7 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
   const resultado: ResultadoTecnico[] = (tecnicos ?? []).map((t) => {
     const eu = cad.find((c) => c.id === t.id)!;
     const minhas = linhas.filter((l) => tecnicosDaOs(l.responsavel, l.auxiliares, [eu]).length > 0);
-    const encerradas = minhas.filter((l) => norm(l.status) === "encerrada");
+    const encerradas = minhas.filter((l) => l.encerradaNoMes);
     const ativacoes = encerradas.filter((l) => l.categoria === "ativacao" && !l.retornoOsId).length;
     const suportes = t.recebe_suporte
       ? encerradas.filter((l) => l.categoria === "suporte" && !l.retornoOsId).length
@@ -252,7 +255,7 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
     };
   });
 
-  const encerradasTotal = linhas.filter((l) => norm(l.status) === "encerrada");
+  const encerradasTotal = linhas.filter((l) => l.encerradaNoMes);
   return {
     competencia: mes,
     tecnicos: resultado.sort((a, b) => b.comissao - a.comissao || a.nome.localeCompare(b.nome)),
