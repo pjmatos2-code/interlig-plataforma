@@ -135,6 +135,21 @@ export function PainelTecnica({
     setPagina(Math.max(1, Math.min(totalPaginas, p)));
   }
 
+  // painel lateral: serviços executados pelo técnico selecionado
+  const tecnicoSel = dados.tecnicos.find((t) => t.tecnicoId === fTecnico) ?? null;
+  const servicosDele = useMemo(() => {
+    if (!tecnicoSel) return [];
+    const nome = tecnicoSel.nome.toLowerCase().split(" ").slice(0, 2).join(" ");
+    return dados.linhas
+      .filter(
+        (l) =>
+          l.encerradaNoMes &&
+          ((l.responsavel ?? "").toLowerCase().includes(nome) ||
+            (l.auxiliares ?? "").toLowerCase().includes(nome))
+      )
+      .sort((a, b) => (b.encerradaEm ?? "").localeCompare(a.encerradaEm ?? ""));
+  }, [tecnicoSel, dados.linhas]);
+
   return (
     <div className="space-y-4">
       {/* KPIs */}
@@ -217,8 +232,10 @@ export function PainelTecnica({
         </CardContent>
       </Card>
 
-      {/* comissões por técnico — formato do painel por vendedora */}
-      <Card>
+      {/* comissões por técnico — formato do painel por vendedora; clicar no
+          técnico divide a tela com a lista dos serviços executados por ele */}
+      <div className={tecnicoSel ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_26rem]" : ""}>
+      <Card className="self-start">
         <CardContent className="p-0">
           <p className="border-b px-4 py-2.5 text-sm font-semibold">
             Comissões por técnico
@@ -301,6 +318,66 @@ export function PainelTecnica({
           </div>
         </CardContent>
       </Card>
+
+      {tecnicoSel && (
+        <Card className="self-start">
+          <CardHeader className="pb-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <FotoTecnico tecnicoId={tecnicoSel.tecnicoId} nome={tecnicoSel.nome} fotoUrl={tecnicoSel.foto} podeEditar={false} />
+                <div>
+                  <CardTitle className="text-base">{tecnicoSel.nome}</CardTitle>
+                  <p className="text-[11px] text-muted-foreground">
+                    {UNIDADE[tecnicoSel.unidade] ?? tecnicoSel.unidade} · {servicosDele.length} serviço(s) no mês ·{" "}
+                    <span className="font-semibold text-emerald-700">{formatarMoeda(tecnicoSel.comissao)}</span>
+                  </p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setFTecnico("")} className="text-muted-foreground hover:text-foreground">✕</button>
+            </div>
+            <div className="mt-1 flex gap-3 text-[11px] text-muted-foreground tabular-nums">
+              <span>Ativações <strong className="text-foreground">{tecnicoSel.ativacoes}</strong></span>
+              <span>Suportes <strong className="text-foreground">{tecnicoSel.suportes}</strong></span>
+              <span>Retornos <strong className={tecnicoSel.anuladasRetorno > 0 ? "text-rose-700" : "text-foreground"}>{tecnicoSel.anuladasRetorno}</strong></span>
+              <span>T. médio <strong className="text-foreground">{tecnicoSel.tempoMedioHoras !== null ? `${tecnicoSel.tempoMedioHoras.toFixed(1).replace(".", ",")}h` : "—"}</strong></span>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0 pb-2">
+            <div className="max-h-[30rem] overflow-y-auto">
+              {servicosDele.map((l) => {
+                const valor = l.valorPorTecnico[tecnicoSel.tecnicoId] ?? 0;
+                return (
+                  <div key={l.id} className="border-b px-4 py-2.5 last:border-0">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="font-mono text-xs">
+                        {baseSgp ? (
+                          <a href={`${baseSgp}/atendimento/relatorios/ocorrencia/os/?os_id=${l.sgpOsId}`} target="_blank" rel="noopener noreferrer"
+                            className="text-interlig-ceu hover:underline">#{l.sgpOsId} ↗</a>
+                        ) : `#${l.sgpOsId}`}
+                      </span>
+                      <span className={`text-sm font-semibold tabular-nums ${valor > 0 ? "text-emerald-700" : "text-muted-foreground"}`}>
+                        {valor > 0 ? formatarMoeda(valor) : "—"}
+                      </span>
+                    </div>
+                    <p className="truncate text-sm">{l.cliente ?? "—"}</p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span>{l.motivo ?? "—"}</span>
+                      <span>· {l.encerradaEm ? formatarData(l.encerradaEm.slice(0, 10)) : "—"}</span>
+                      {chipCategoria(l)}
+                    </div>
+                  </div>
+                );
+              })}
+              {servicosDele.length === 0 && (
+                <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  Nenhum serviço encerrado no mês para este técnico.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      </div>
 
       {/* lista | resumo */}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
