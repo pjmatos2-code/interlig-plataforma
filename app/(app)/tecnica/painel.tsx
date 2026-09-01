@@ -321,29 +321,41 @@ export function PainelTecnica({
 
       {tecnicoSel && (
         <Card className="self-start">
-          <CardHeader className="pb-2">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2.5">
+          <CardHeader className="flex-row items-start justify-between space-y-0 pb-2">
+            <div>
+              <CardTitle className="text-base">Detalhes do técnico</CardTitle>
+              <div className="mt-1.5 flex items-center gap-2.5">
                 <FotoTecnico tecnicoId={tecnicoSel.tecnicoId} nome={tecnicoSel.nome} fotoUrl={tecnicoSel.foto} podeEditar={false} />
                 <div>
-                  <CardTitle className="text-base">{tecnicoSel.nome}</CardTitle>
-                  <p className="text-[11px] text-muted-foreground">
-                    {UNIDADE[tecnicoSel.unidade] ?? tecnicoSel.unidade} · {servicosDele.length} serviço(s) no mês ·{" "}
-                    <span className="font-semibold text-emerald-700">{formatarMoeda(tecnicoSel.comissao)}</span>
-                  </p>
+                  <p className="text-sm font-semibold">{tecnicoSel.nome}</p>
+                  <span className="mt-0.5 inline-block rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-800">
+                    {UNIDADE[tecnicoSel.unidade] ?? tecnicoSel.unidade}
+                    {tecnicoSel.recebeSuporte ? " · suporte" : ""}
+                  </span>
                 </div>
               </div>
-              <button type="button" onClick={() => setFTecnico("")} className="text-muted-foreground hover:text-foreground">✕</button>
             </div>
-            <div className="mt-1 flex gap-3 text-[11px] text-muted-foreground tabular-nums">
-              <span>Ativações <strong className="text-foreground">{tecnicoSel.ativacoes}</strong></span>
-              <span>Suportes <strong className="text-foreground">{tecnicoSel.suportes}</strong></span>
-              <span>Retornos <strong className={tecnicoSel.anuladasRetorno > 0 ? "text-rose-700" : "text-foreground"}>{tecnicoSel.anuladasRetorno}</strong></span>
-              <span>T. médio <strong className="text-foreground">{tecnicoSel.tempoMedioHoras !== null ? `${tecnicoSel.tempoMedioHoras.toFixed(1).replace(".", ",")}h` : "—"}</strong></span>
-            </div>
+            <button type="button" onClick={() => setFTecnico("")} className="text-muted-foreground hover:text-foreground">✕</button>
           </CardHeader>
-          <CardContent className="p-0 pb-2">
-            <div className="max-h-[30rem] overflow-y-auto">
+          <CardContent className="space-y-3 p-4 pt-0">
+            <div className="grid grid-cols-2 gap-2 text-center text-xs">
+              {[
+                ["Ativações", String(tecnicoSel.ativacoes)],
+                ["Suportes", String(tecnicoSel.suportes)],
+                ["Retornos 72h", tecnicoSel.anuladasRetorno > 0 ? `${tecnicoSel.anuladasRetorno} (−R$ ${tecnicoSel.valorAnuladoRetorno})` : "0"],
+                ["Comissão do mês", formatarMoeda(tecnicoSel.comissao)],
+              ].map(([r, v]) => (
+                <div key={r} className="rounded-lg border p-2">
+                  <p className="text-muted-foreground">{r}</p>
+                  <p className={`text-base font-semibold tabular-nums ${r === "Comissão do mês" ? "text-emerald-700" : ""}`}>{v}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs font-semibold">
+              Serviços executados no mês
+              <span className="ml-1 font-normal text-muted-foreground">· {servicosDele.length} registro(s)</span>
+            </p>
+            <div className="-mx-4 max-h-[26rem] overflow-y-auto border-t">
               {servicosDele.map((l) => {
                 const valor = l.valorPorTecnico[tecnicoSel.tecnicoId] ?? 0;
                 return (
