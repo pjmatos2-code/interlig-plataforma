@@ -53,7 +53,7 @@ function Kpi({
 
 function chipCategoria(l: OsLinha) {
   if (l.retornoOsId && l.categoria !== "outros")
-    return <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-800">retorno 24h — não pontua</span>;
+    return <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-800">retorno 72h — não pontua</span>;
   if (l.categoria === "ativacao")
     return <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">ativação/mudança</span>;
   if (l.categoria === "suporte")
@@ -111,7 +111,7 @@ export function PainelTecnica({
         <Kpi icone={<Wrench className="h-4 w-4" />} cor="#0284c7" rotulo="OS encerradas" valor={String(dados.totais.encerradas)} sub="no mês" />
         <Kpi icone={<PlugZap className="h-4 w-4" />} cor="#059669" rotulo="Ativações + mudanças" valor={String(dados.totais.ativacoes)} sub="pontuam por unidade" />
         <Kpi icone={<LifeBuoy className="h-4 w-4" />} cor="#2563eb" rotulo="Suportes pontuados" valor={String(dados.totais.suportes)} sub="R$ 10 (habilitados)" />
-        <Kpi icone={<Undo2 className="h-4 w-4" />} cor="#e11d48" rotulo="Anuladas por retorno" valor={String(dados.totais.anuladasRetorno)} sub="nova OS em <24h" />
+        <Kpi icone={<Undo2 className="h-4 w-4" />} cor="#e11d48" rotulo="Anuladas por retorno" valor={String(dados.totais.anuladasRetorno)} sub="nova OS em <72h" />
         <Kpi icone={<Clock3 className="h-4 w-4" />} cor="#7c3aed" rotulo="Técnicos ativos" valor={String(dados.tecnicos.length)} />
         <Kpi icone={<Wallet className="h-4 w-4" />} cor="#059669" rotulo="Comissão do setor" valor={formatarMoeda(dados.totais.comissao)} sub="prévia — muda até fechar" />
       </div>

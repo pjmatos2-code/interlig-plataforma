@@ -12,8 +12,8 @@ import { hojeIso, primeiroDiaDoMes, ultimoDiaDoMes } from "@/lib/datas";
  *     Instalação de roteador adicional, Troca de equipamento, Mudança de
  *     Comodo): R$ 10 por OS — só para técnicos com recebe_suporte.
  *   - Auxiliar pontua igual ao responsável (cada técnico da OS recebe).
- *   - Retorno em <24h: nova OS do MESMO contrato criada em até 24h após o
- *     encerramento anula a comissão da OS de origem.
+ *   - Retorno em <72h (ajuste do gestor, 01/09): nova OS do MESMO contrato
+ *     criada em até 72h após o encerramento anula a comissão da OS de origem.
  */
 
 export const VALOR_ATIVACAO: Record<string, number> = { atm: 30, bn: 15, vtx: 15 };
@@ -69,7 +69,7 @@ export type ResultadoTecnico = {
   suportes: number;
   outras: number;
   anuladasRetorno: number;
-  /** R$ que os retornos <24h tiraram deste técnico no mês */
+  /** R$ que os retornos <72h tiraram deste técnico no mês */
   valorAnuladoRetorno: number;
   comissao: number;
   /** ajuste manual da gestão aplicado à competência (substitui ou soma) */
@@ -159,14 +159,14 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
       (o.encerrada_em as string) >= mes &&
       (o.encerrada_em as string) <= fim;
 
-    // retorno <24h: outra OS do mesmo contrato criada até 24h após o encerramento
+    // retorno <72h: outra OS do mesmo contrato criada até 72h após o encerramento
     let retornoOsId: string | null = null;
     if (encerrada && o.sgp_contrato_id) {
       const enc = Date.parse(o.encerrada_em as string);
       for (const outra of porContrato.get(o.sgp_contrato_id as string) ?? []) {
         if (outra.sgp_os_id === o.sgp_os_id) continue;
         const dt = Date.parse(outra.criada_em) - enc;
-        if (dt > 0 && dt <= 24 * 3600 * 1000) {
+        if (dt > 0 && dt <= 72 * 3600 * 1000) {
           retornoOsId = outra.sgp_os_id;
           break;
         }
