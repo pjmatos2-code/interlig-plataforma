@@ -236,12 +236,19 @@ export async function gerarDemonstrativoPdf(
   linhaValor(ehRet ? "Casos elegíveis no mês" : "Meta do mês", String(snap.meta));
   if (snap.debito.aplicado && snap.debito.quantidade > 0) {
     linhaValor(
-      `Débito de clientes não ativos (vendas de ${mesBr(snap.debito.coorte)})`,
+      snap.debito.janela
+        ? `Débito early churn (vencimentos de ${dataBr(snap.debito.janela.de)} a ${dataBr(snap.debito.janela.ate)})`
+        : `Débito de clientes não ativos (vendas de ${mesBr(snap.debito.coorte)})`,
       `+${snap.debito.quantidade}`
     );
     linhaValor("Meta efetiva", String(snap.resultado.metaEfetiva), true);
   } else if (!snap.debito.aplicado) {
-    linhaValor(`Débito de inadimplentes (${mesBr(snap.debito.coorte)})`, "não aplicado nesta competência");
+    linhaValor(
+      snap.debito.janela
+        ? `Débito early churn (${dataBr(snap.debito.janela.de)}–${dataBr(snap.debito.janela.ate)})`
+        : `Débito de inadimplentes (${mesBr(snap.debito.coorte)})`,
+      "não aplicado nesta competência"
+    );
   }
   linhaValor(rotuloQtd, String(snap.resultado.vendasComissionaveis));
   if (ehRet)

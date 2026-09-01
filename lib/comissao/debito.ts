@@ -46,8 +46,10 @@ export type ItemDebito = {
 export type DebitoCoorte = {
   /** competência avaliada (1º dia do mês) */
   competencia: string;
-  /** mês das vendas analisadas (M-3) */
+  /** mês das vendas analisadas (M-3) — regra vigente até agosto/2026 */
   coorte: string;
+  /** janela de vencimentos 21→20 (regra de setembro/2026 em diante); null antes */
+  janela: { de: string; ate: string } | null;
   /** quantidade por vendedora (já com override manual aplicado) */
   porVendedora: Map<string, number>;
   /** contratos que estão debitando, por vendedora */
@@ -65,15 +67,41 @@ export function mesDaCoorte(competenciaIso: string): string {
   return mesAtras(primeiroDiaDoMes(competenciaIso), 3);
 }
 
+/**
+ * Regra de setembro/2026 em diante (Política Early Churn — Apuração por
+ * Período, 31/08): a competência M avalia as vendas cujo 1º VENCIMENTO caiu
+ * na janela de 21 do mês M-4 a 20 do mês M-3. Assim o último vencimento da
+ * janela já cumpriu maturação (3 meses) + bloqueio de confirmação (D+6) e
+ * ainda sobra folga de validação até o fechamento.
+ *   setembro/2026 → vencimentos de 21/05 a 20/06
+ *   outubro/2026  → vencimentos de 21/06 a 20/07
+ */
+export const INICIO_APURACAO_POR_PERIODO = "2026-09-01";
+
+export function janelaDaCompetencia(
+  competenciaIso: string
+): { de: string; ate: string } | null {
+  const competencia = primeiroDiaDoMes(competenciaIso);
+  if (competencia < INICIO_APURACAO_POR_PERIODO) return null;
+  return {
+    de: `${mesAtras(competencia, 4).slice(0, 7)}-21`,
+    ate: `${mesAtras(competencia, 3).slice(0, 7)}-20`,
+  };
+}
+
 export async function debitoPorCoorte(competenciaIso?: string): Promise<DebitoCoorte> {
   const admin = criarClienteAdmin();
   const hoje = hojeIso();
   const competencia = primeiroDiaDoMes(competenciaIso ?? hoje);
   const coorte = mesDaCoorte(competencia);
   const fimCoorte = ultimoDiaDoMes(coorte);
+  const janela = janelaDaCompetencia(competencia);
 
-  // vendas do mês da coorte que HOJE não estão ativas (pendente de assinatura,
-  // aguardando ativação/inativo, suspenso ou cancelado).
+  // Recorte dos candidatos:
+  // - até agosto/2026: vendas do MÊS da coorte (M-3), por data_venda;
+  // - de setembro/2026 em diante: vendas cujo 1º VENCIMENTO cai na janela
+  //   21→20 (o SQL pega uma margem por data_venda e o filtro fino da janela
+  //   é feito abaixo, com o título em mãos).
   // Join à esquerda de propósito: contrato cancelado costuma vir SEM títulos do
   // SGP e um INNER JOIN o eliminaria do cálculo.
   const { data: candidatos } = await admin
@@ -81,8 +109,8 @@ export async function debitoPorCoorte(competenciaIso?: string): Promise<DebitoCo
     .select(
       "vendedor_id, sgp_contrato_id, status, data_venda, planos(nome), clientes(nome, sgp_cliente_id), titulos(numero_parcela, status, vencimento)"
     )
-    .gte("data_venda", coorte)
-    .lte("data_venda", fimCoorte)
+    .gte("data_venda", janela ? mesAtras(primeiroDiaDoMes(janela.de), 2) : coorte)
+    .lte("data_venda", janela ? janela.ate : fimCoorte)
     .neq("status", "ativo")
     .not("vendedor_id", "is", null)
     .limit(5000);
@@ -103,6 +131,18 @@ export async function debitoPorCoorte(competenciaIso?: string): Promise<DebitoCo
     // ele deixa de constar aqui (a consulta já filtra) — recuperar o cliente
     // continua sendo alternativa à reposição.
     const primeira = (c.titulos ?? []).find((t) => t.numero_parcela === 1);
+
+    if (janela) {
+      // âncora da janela = 1º vencimento; sem título (cancelado cedo demais
+      // para faturar), estima-se venda + 30 dias para o cliente não escapar
+      // da régua por nunca ter sido cobrado.
+      const venc =
+        primeira?.vencimento ??
+        new Date(Date.parse(`${c.data_venda}T00:00:00Z`) + 30 * 86_400_000)
+          .toISOString()
+          .slice(0, 10);
+      if (venc < janela.de || venc > janela.ate) continue;
+    }
 
     porVendedora.set(c.vendedor_id, (porVendedora.get(c.vendedor_id) ?? 0) + 1);
     const lista = itensPorVendedora.get(c.vendedor_id) ?? [];
@@ -145,5 +185,5 @@ export async function debitoPorCoorte(competenciaIso?: string): Promise<DebitoCo
     for (const id of porVendedora.keys()) porVendedora.set(id, 0);
   }
 
-  return { competencia, coorte, porVendedora, itensPorVendedora, manuais, aplicado, observacao };
+  return { competencia, coorte, janela, porVendedora, itensPorVendedora, manuais, aplicado, observacao };
 }

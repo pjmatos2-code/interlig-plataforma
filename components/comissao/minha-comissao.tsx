@@ -70,9 +70,23 @@ export function PainelMinhaComissao({
         </div>
         <p className="text-sm text-muted-foreground">
           A venda pontua a meta ao ser cadastrada; a comissão libera com Termo + Fidelidade
-          assinados e serviço ativo. O débito da meta avalia as vendas de{" "}
-          <strong>{rotuloMes(dados.mesCoorte)}</strong> (três meses atrás) que hoje NÃO estão
-          ativas: pendentes de instalação, inativas, suspensas ou canceladas.
+          assinados e serviço ativo.{" "}
+          {dados.debitoJanela ? (
+            <>
+              O débito da meta (early churn) avalia as vendas com 1º vencimento de{" "}
+              <strong>
+                {dados.debitoJanela.de.slice(8, 10)}/{dados.debitoJanela.de.slice(5, 7)} a{" "}
+                {dados.debitoJanela.ate.slice(8, 10)}/{dados.debitoJanela.ate.slice(5, 7)}
+              </strong>{" "}
+              que hoje NÃO estão ativas — maturação de 90 dias cumprida antes do fechamento.
+            </>
+          ) : (
+            <>
+              O débito da meta avalia as vendas de <strong>{rotuloMes(dados.mesCoorte)}</strong>{" "}
+              (três meses atrás) que hoje NÃO estão ativas: pendentes de instalação, inativas,
+              suspensas ou canceladas.
+            </>
+          )}
         </p>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -98,10 +112,14 @@ export function PainelMinhaComissao({
             <p className="text-[11px] text-muted-foreground">{r.vendasPendentes} pendente(s)</p>
           </div>
           <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">Débito na meta (90d)</p>
+            <p className="text-xs text-muted-foreground">{dados.debitoJanela ? "Débito early churn" : "Débito na meta (90d)"}</p>
             <p className="text-xl font-semibold tabular-nums">{r.debitoMeta > 0 ? `+${r.debitoMeta}` : "0"}</p>
             <p className="text-[11px] text-muted-foreground">
-              {dados.debitoManual ? "ajuste da gestão" : `vendas de ${rotuloMes(dados.mesCoorte)}`}
+              {dados.debitoManual
+                ? "ajuste da gestão"
+                : dados.debitoJanela
+                  ? `venc. ${dados.debitoJanela.de.slice(8, 10)}/${dados.debitoJanela.de.slice(5, 7)}–${dados.debitoJanela.ate.slice(8, 10)}/${dados.debitoJanela.ate.slice(5, 7)}`
+                  : `vendas de ${rotuloMes(dados.mesCoorte)}`}
             </p>
           </div>
           <div className="rounded-lg border p-3">

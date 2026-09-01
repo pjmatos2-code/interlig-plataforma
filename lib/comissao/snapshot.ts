@@ -41,7 +41,7 @@ export type SnapshotComissao = {
   regra: { degraus: DegrauComissao[]; gatilhos: GatilhoComissao[]; estornoDias: number };
   meta: number;
   resultado: ResultadoComissao;
-  debito: { aplicado: boolean; quantidade: number; coorte: string; observacao: string | null };
+  debito: { aplicado: boolean; quantidade: number; coorte: string; janela?: { de: string; ate: string } | null; observacao: string | null };
   contratos: ContratoSnapshot[];
   assinaturasDispensadas: { sgpContratoId: string | null; cliente: string; motivo: string }[];
   fechadoEm: string;
@@ -157,6 +157,7 @@ export async function montarSnapshots(
         aplicado: debito.aplicado,
         quantidade: debito.porVendedora.get(c.vendedorId) ?? 0,
         coorte: debito.coorte,
+        janela: debito.janela,
         observacao: debito.observacao,
       },
       contratos: linhas.sort((a, b) => (a.dataVenda < b.dataVenda ? -1 : 1)),
