@@ -89,7 +89,15 @@ export type TecnicaMes = {
     suportes: number;
     anuladasRetorno: number;
     comissao: number;
+    /** encerradas do mês anterior (comparativo do KPI); null sem base */
+    encerradasMesAnterior: number | null;
+    /** quebra da comissão por categoria */
+    quebra: { valorAtivacoes: number; valorSuportes: number; ajustes: number };
+    /** impacto em R$ das OS anuladas por retorno */
+    impactoRetornos: number;
   };
+  /** OS encerradas por mês (tendência — meses com dado na base) */
+  tendencia: { mes: string; encerradas: number }[];
 };
 
 /**
@@ -145,6 +153,31 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
       .limit(1000),
     admin.from("ajustes_tecnica").select("*").eq("competencia", mes),
   ]);
+
+  // tendência: encerramentos por mês em toda a base (colunas leves, paginado)
+  const tendMap = new Map<string, number>();
+  for (let de = 0; de < 30_000; de += 1000) {
+    const { data: pg } = await admin
+      .from("os_tecnicas")
+      .select("encerrada_em")
+      .not("encerrada_em", "is", null)
+      .range(de, de + 999);
+    for (const r of pg ?? []) {
+      const m = String(r.encerrada_em).slice(0, 7);
+      tendMap.set(m, (tendMap.get(m) ?? 0) + 1);
+    }
+    if (!pg || pg.length < 1000) break;
+  }
+  const tendencia = [...tendMap.entries()]
+    .sort()
+    .slice(-6)
+    .map(([m, encerradas]) => ({ mes: `${m}-01`, encerradas }));
+  const mesAnterior = `${mes.slice(0, 7)}` === "" ? null : (() => {
+    const d = new Date(`${mes}T00:00:00Z`);
+    d.setUTCMonth(d.getUTCMonth() - 1);
+    return d.toISOString().slice(0, 7);
+  })();
+  const encerradasMesAnterior = mesAnterior ? tendMap.get(mesAnterior) ?? null : null;
 
   const cad = (tecnicos ?? []).map((t) => ({
     id: t.id as string,
@@ -263,6 +296,13 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
   });
 
   const encerradasTotal = linhas.filter((l) => l.encerradaNoMes);
+  const valorAtivacoes = linhas
+    .filter((l) => l.categoria === "ativacao")
+    .reduce((s2, l) => s2 + Object.values(l.valorPorTecnico).reduce((a, v) => a + v, 0), 0);
+  const valorSuportes = linhas
+    .filter((l) => l.categoria === "suporte")
+    .reduce((s2, l) => s2 + Object.values(l.valorPorTecnico).reduce((a, v) => a + v, 0), 0);
+  const comissaoTotal = resultado.reduce((s2, t) => s2 + t.comissao, 0);
   return {
     competencia: mes,
     tecnicos: resultado.sort((a, b) => b.comissao - a.comissao || a.nome.localeCompare(b.nome)),
@@ -272,7 +312,15 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
       ativacoes: encerradasTotal.filter((l) => l.categoria === "ativacao" && !l.retornoOsId).length,
       suportes: encerradasTotal.filter((l) => l.categoria === "suporte" && !l.retornoOsId).length,
       anuladasRetorno: encerradasTotal.filter((l) => l.retornoOsId && l.categoria !== "outros").length,
-      comissao: resultado.reduce((s, t) => s + t.comissao, 0),
+      comissao: comissaoTotal,
+      encerradasMesAnterior,
+      quebra: {
+        valorAtivacoes,
+        valorSuportes,
+        ajustes: comissaoTotal - valorAtivacoes - valorSuportes,
+      },
+      impactoRetornos: resultado.reduce((s2, t) => s2 + t.valorAnuladoRetorno, 0),
     },
+    tendencia,
   };
 }
