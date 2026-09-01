@@ -34,7 +34,7 @@ export type ContratoSnapshot = {
 export type SnapshotComissao = {
   competencia: string;
   /** de onde veio a comissão — muda os rótulos do demonstrativo */
-  tipo?: "venda" | "refidelizacao" | "retencao";
+  tipo?: "venda" | "refidelizacao" | "retencao" | "gerencia";
   vendedora: string;
   pop: string | null;
   /** regra congelada — as faixas COMO ESTAVAM no fechamento */
@@ -46,6 +46,16 @@ export type SnapshotComissao = {
   assinaturasDispensadas: { sgpContratoId: string | null; cliente: string; motivo: string }[];
   fechadoEm: string;
   fechadoPor: string | null;
+  /** memória do override (só tipo "gerencia") */
+  gerencia?: {
+    pilares: { rotulo: string; volume: number; meta: number | null; atingimentoPct: number | null; nivel: number }[];
+    nivelFinal: number;
+    nomeNivel: string;
+    overridePct: number;
+    base: { vtvVendas: number; vtvRefi: number; vtvRetido: number; vtvLigchip: number; total: number };
+    pilarLimitante: string | null;
+    flags: { earlyChurn: boolean; clawback: boolean };
+  };
 };
 
 type ContratoS = ContratoIndicador & {
@@ -374,5 +384,89 @@ export async function montarSnapshotsRetencao(
       fechadoPor: fechadoPorNome,
     });
   }
+  return saida;
+}
+
+
+/**
+ * Etapa 3 do fechamento: o override da gestão entra na MESMA competência dos
+ * agentes — o financeiro paga tudo junto. 100% derivado dos pilares.
+ */
+export async function montarSnapshotGerencia(
+  competenciaIso: string,
+  fechadoPorNome: string | null
+): Promise<Map<string, SnapshotComissao>> {
+  const admin = criarClienteAdmin();
+  const mes = primeiroDiaDoMes(competenciaIso);
+  const { overrideDoMes, NOME_NIVEL, PCT_POR_NIVEL } = await import("@/lib/gerencia/dados");
+  const d = await overrideDoMes(mes);
+  const saida = new Map<string, SnapshotComissao>();
+
+  const { data: pseudo } = await admin
+    .from("vendedores")
+    .select("id")
+    .eq("nome", "Gestão Comercial")
+    .maybeSingle();
+  if (!pseudo || d.bloqueado) return saida;
+
+  saida.set(pseudo.id as string, {
+    competencia: mes,
+    tipo: "gerencia",
+    vendedora: "Gestão Comercial — Override",
+    pop: null,
+    regra: {
+      degraus: PCT_POR_NIVEL.slice(1).map((pct, i) => ({
+        atingimento_min: [60, 81, 101, 121][i],
+        atingimento_max: null,
+        tipo: "percentual_receita" as const,
+        valor: pct,
+      })),
+      gatilhos: [],
+      estorno_dias: 0,
+    } as never,
+    meta: 4,
+    resultado: {
+      atingimentoPct: d.overridePct / 100,
+      degrau:
+        d.nivelFinal > 0
+          ? { atingimento_min: 0, atingimento_max: null, tipo: "percentual_receita", valor: d.overridePct }
+          : null,
+      vendasComissionaveis: d.nivelFinal,
+      vendasPendentes: 0,
+      estornos: 0,
+      valorBase: d.base.total,
+      bonusFixo: 0,
+      gatilhos: [],
+      total: d.comissao,
+      totalSeLiberar: d.comissao,
+      debitoMeta: 0,
+      metaEfetiva: 4,
+    },
+    debito: {
+      aplicado: false,
+      quantidade: 0,
+      coorte: mes,
+      observacao: d.flags.observacao,
+    },
+    contratos: [],
+    assinaturasDispensadas: [],
+    fechadoEm: new Date().toISOString(),
+    fechadoPor: fechadoPorNome,
+    gerencia: {
+      pilares: d.pilares.map((pl) => ({
+        rotulo: pl.rotulo,
+        volume: pl.volume,
+        meta: pl.meta,
+        atingimentoPct: pl.atingimentoPct,
+        nivel: pl.nivel,
+      })),
+      nivelFinal: d.nivelFinal,
+      nomeNivel: NOME_NIVEL[d.nivelFinal],
+      overridePct: d.overridePct,
+      base: d.base,
+      pilarLimitante: d.pilarLimitante?.rotulo ?? null,
+      flags: { earlyChurn: d.flags.earlyChurn, clawback: d.flags.clawback },
+    },
+  });
   return saida;
 }

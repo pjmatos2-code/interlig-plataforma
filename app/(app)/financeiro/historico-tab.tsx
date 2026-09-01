@@ -29,13 +29,16 @@ export function HistoricoTab({
   ativos: AgenteAtivo[];
 }) {
   const porId = useMemo(() => new Map(dados.agentes.map((a) => [a.vendedorId, a])), [dados.agentes]);
-  const lista = useMemo(
-    () =>
-      [...ativos]
-        .map((v) => ({ ...v, hist: porId.get(v.id) ?? null }))
-        .sort((a, b) => (b.hist?.total ?? 0) - (a.hist?.total ?? 0) || a.nome.localeCompare(b.nome)),
-    [ativos, porId]
-  );
+  const lista = useMemo(() => {
+    // agentes ativos + quem só existe no fechamento (ex.: Gestão Comercial)
+    const base = [...ativos];
+    for (const a of dados.agentes)
+      if (!base.some((v) => v.id === a.vendedorId))
+        base.push({ id: a.vendedorId, nome: a.vendedora, foto: a.foto });
+    return base
+      .map((v) => ({ ...v, hist: porId.get(v.id) ?? null }))
+      .sort((a, b) => (b.hist?.total ?? 0) - (a.hist?.total ?? 0) || a.nome.localeCompare(b.nome));
+  }, [ativos, dados.agentes, porId]);
   const [selecionado, setSelecionado] = useState<string | null>(
     lista.find((l) => l.hist)?.id ?? lista[0]?.id ?? null
   );

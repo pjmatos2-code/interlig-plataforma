@@ -78,8 +78,9 @@ export async function gerarDemonstrativoPdf(
   // mudam para o documento fazer sentido para quem o recebe
   const ehRefid = snap.tipo === "refidelizacao";
   const ehRet = snap.tipo === "retencao";
+  const ehGer = snap.tipo === "gerencia";
   const rotuloItem = ehRet ? "clientes retidos" : ehRefid ? "planos refidelizados" : "contratos considerados";
-  const rotuloQtd = ehRet ? "Clientes retidos (validados no SGP)" : ehRefid ? "Planos refidelizados" : "Vendas liberadas para comissão";
+  const rotuloQtd = ehGer ? "Nível final (menor pilar)" : ehRet ? "Clientes retidos (validados no SGP)" : ehRefid ? "Planos refidelizados" : "Vendas liberadas para comissão";
 
   const codigo = codigoVerificacao(
     meta.vendedorId,
@@ -233,7 +234,11 @@ export async function gerarDemonstrativoPdf(
   };
 
   secao("Memória de cálculo");
-  linhaValor(ehRet ? "Casos elegíveis no mês" : "Meta do mês", String(snap.meta));
+  if (ehGer) {
+    linhaValor("Escada de níveis", "N1 1,5% · N2 2,0% · N3 2,5% · N4 3,0% — trava pelo MENOR pilar");
+  } else {
+    linhaValor(ehRet ? "Casos elegíveis no mês" : "Meta do mês", String(snap.meta));
+  }
   if (snap.debito.aplicado && snap.debito.quantidade > 0) {
     linhaValor(
       snap.debito.janela
@@ -250,7 +255,30 @@ export async function gerarDemonstrativoPdf(
       "não aplicado nesta competência"
     );
   }
-  linhaValor(rotuloQtd, String(snap.resultado.vendasComissionaveis));
+  if (ehGer && snap.gerencia) {
+    const g = snap.gerencia;
+    for (const pl of g.pilares) {
+      linhaValor(
+        `Pilar ${pl.rotulo}`,
+        pl.atingimentoPct !== null
+          ? `${pl.volume} / ${pl.meta} (${pl.atingimentoPct.toFixed(1).replace(".", ",")}%) - N${pl.nivel}`
+          : `${pl.volume} retenções válidas - N${pl.nivel}`
+      );
+    }
+    linhaValor("Nível final (menor pilar)", `N${g.nivelFinal} - ${g.nomeNivel}${g.pilarLimitante ? ` (limitante: ${g.pilarLimitante})` : ""}`, true);
+    linhaValor("VTV Vendas Novas", moeda(g.base.vtvVendas));
+    linhaValor("VTV Refidelização", moeda(g.base.vtvRefi));
+    linhaValor("VTV Retido", moeda(g.base.vtvRetido));
+    linhaValor("LIGCHIP (compõe valor, fora do volume)", moeda(g.base.vtvLigchip));
+    linhaValor("Base global", moeda(g.base.total), true);
+    linhaValor("Override aplicado", `${g.overridePct.toFixed(1).replace(".", ",")}%`, true);
+    linhaValor(
+      "Flags da competência",
+      `early churn ${g.flags.earlyChurn ? "ON" : "OFF"} · clawback ${g.flags.clawback ? "ON" : "OFF"}${snap.debito.observacao ? ` (${snap.debito.observacao})` : ""}`
+    );
+  } else {
+    linhaValor(rotuloQtd, String(snap.resultado.vendasComissionaveis));
+  }
   if (ehRet)
     linhaValor("Taxa de retenção (irreversíveis fora)", `${(snap.resultado.atingimentoPct * 100).toFixed(0).replace(".", ",")}%`);
   if (snap.resultado.estornos > 0)
@@ -283,6 +311,7 @@ export async function gerarDemonstrativoPdf(
   y -= 10;
 
   // ---------------- anexo I: contratos ----------------
+  if (!ehGer) {
   secao(`Anexo I — ${rotuloItem} (${snap.contratos.length})`);
   const cols = [MARGEM, MARGEM + 52, MARGEM + 232, MARGEM + 392, A4[0] - MARGEM];
   const cabTabela = () => {
@@ -335,12 +364,13 @@ export async function gerarDemonstrativoPdf(
     }
   }
   y -= 8;
+  }
 
   // ---------------- anexo II: exceções ----------------
-  const temExcecoes =
+  const temExcecoes = !ehGer && (
     snap.contratos.some((c) => c.liberadaPor === "gestao") ||
     snap.assinaturasDispensadas.length > 0 ||
-    !snap.debito.aplicado;
+    !snap.debito.aplicado);
 
   if (temExcecoes) {
     secao("Anexo II — decisões da gestão aplicadas");

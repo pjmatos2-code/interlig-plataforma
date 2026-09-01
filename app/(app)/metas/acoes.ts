@@ -71,16 +71,18 @@ export async function fecharComissoes(mesAno: string): Promise<EstadoFechamento>
   if (!/^\d{4}-\d{2}-01$/.test(mesAno)) return { erro: "Mês inválido." };
 
   const supabase = criarClienteServidor();
-  const { montarSnapshots, montarSnapshotsRefidelizacao, montarSnapshotsRetencao } =
+  const { montarSnapshots, montarSnapshotsRefidelizacao, montarSnapshotsRetencao, montarSnapshotGerencia } =
     await import("@/lib/comissao/snapshot");
-  const [vendas, refidelizacao, retencao] = await Promise.all([
+  const [vendas, refidelizacao, retencao, gerencia] = await Promise.all([
     montarSnapshots(mesAno, usuario.nome ?? null),
     montarSnapshotsRefidelizacao(mesAno, usuario.nome ?? null),
     montarSnapshotsRetencao(mesAno, usuario.nome ?? null),
+    montarSnapshotGerencia(mesAno, usuario.nome ?? null),
   ]);
-  // Atendimento e Retenção entram no mesmo fechamento: o financeiro recebe
-  // todo mundo na mesma competência, com o demonstrativo no mesmo formato
-  const snapshots = new Map([...vendas, ...refidelizacao, ...retencao]);
+  // Atendimento, Retenção e o override da Gerência entram no mesmo fechamento:
+  // o financeiro recebe todo mundo na mesma competência (gerência = etapa 3,
+  // derivada dos resultados já validados)
+  const snapshots = new Map([...vendas, ...refidelizacao, ...retencao, ...gerencia]);
   if (snapshots.size === 0)
     return { erro: "Nenhuma vendedora com meta e regra vigente neste mês." };
 
