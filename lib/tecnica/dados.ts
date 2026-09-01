@@ -117,25 +117,32 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
   const mes = primeiroDiaDoMes(mesIso ?? hojeIso());
   const fim = `${ultimoDiaDoMes(mes)}T23:59:59-03:00`;
 
-  const [{ data: tecnicos }, { data: os }, { data: seguintes }, { data: ajustes }] = await Promise.all([
-    admin.from("tecnicos").select("*").eq("ativo", true).order("nome"),
-    // pontua pelo mês do ENCERRAMENTO (OS criada em julho e encerrada em
-    // agosto paga em agosto); as criadas no mês entram para acompanhamento
-    admin
+  // pontua pelo mês do ENCERRAMENTO (OS criada em julho e encerrada em agosto
+  // paga em agosto); as criadas no mês entram para acompanhamento. O PostgREST
+  // corta respostas em 1000 linhas — por isso a paginação por range.
+  const os: Record<string, unknown>[] = [];
+  for (let de = 0; de < 20_000; de += 1000) {
+    const { data: pagina } = await admin
       .from("os_tecnicas")
       .select("*")
       .or(
         `and(encerrada_em.gte.${mes},encerrada_em.lte.${fim}),and(criada_em.gte.${mes},criada_em.lte.${fim})`
       )
       .order("criada_em", { ascending: false })
-      .limit(6000),
+      .range(de, de + 999);
+    os.push(...((pagina ?? []) as Record<string, unknown>[]));
+    if (!pagina || pagina.length < 1000) break;
+  }
+
+  const [{ data: tecnicos }, { data: seguintes }, { data: ajustes }] = await Promise.all([
+    admin.from("tecnicos").select("*").eq("ativo", true).order("nome"),
     // OS do início do mês seguinte: um encerramento no fim do mês pode ter
-    // retorno já na virada
+    // retorno já na virada (janela de 72h)
     admin
       .from("os_tecnicas")
       .select("sgp_os_id, sgp_contrato_id, criada_em")
       .gt("criada_em", fim)
-      .limit(2000),
+      .limit(1000),
     admin.from("ajustes_tecnica").select("*").eq("competencia", mes),
   ]);
 
