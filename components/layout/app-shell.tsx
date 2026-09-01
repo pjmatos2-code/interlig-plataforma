@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare,
   Target, ShieldCheck, Settings, Trophy, Map, Menu, X, LogOut,
-  PanelLeftClose, PanelLeftOpen, Footprints, Building2, Receipt, RefreshCw, Wallet, ShieldAlert, History, type LucideIcon,
+  PanelLeftClose, PanelLeftOpen, Footprints, Building2, Receipt, RefreshCw, Wallet, ShieldAlert, History, Crown, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { LogoInterlig } from "@/components/marca/logo-interlig";
 import { SinoNotificacoes } from "@/components/layout/sino-notificacoes";
 
 const ICONES: Record<string, LucideIcon> = {
-  LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare, Target, ShieldCheck, Settings, Trophy, Map, Footprints, Building2, Receipt, RefreshCw, Wallet, ShieldAlert, History,
+  LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare, Target, ShieldCheck, Settings, Trophy, Map, Footprints, Building2, Receipt, RefreshCw, Wallet, ShieldAlert, History, Crown,
 };
 
 const CHAVE_RECOLHIDO = "interlig-menu-recolhido";
