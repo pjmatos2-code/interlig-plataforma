@@ -202,10 +202,18 @@ export function PainelTecnica({
                 </div>
                 <p className="text-sm font-semibold tabular-nums text-emerald-700">{formatarMoeda(t.comissao)}</p>
               </div>
+              {t.ajuste && (
+                <p className="mt-1 rounded bg-sky-50 px-2 py-1 text-[10px] text-sky-800" title={t.ajuste.motivo}>
+                  ⚙ ajuste da gestão ({t.ajuste.modo === "substituir" ? "substitui o cálculo" : "soma"}):{" "}
+                  {formatarMoeda(t.ajuste.valor)}
+                </p>
+              )}
               <div className="mt-1.5 flex justify-between text-[11px] text-muted-foreground tabular-nums">
                 <span>Ativ. <strong className="text-foreground">{t.ativacoes}</strong></span>
                 <span>Sup. <strong className="text-foreground">{t.suportes}</strong></span>
-                <span>Retorno <strong className={t.anuladasRetorno > 0 ? "text-rose-700" : "text-foreground"}>{t.anuladasRetorno}</strong></span>
+                <span>Retorno <strong className={t.anuladasRetorno > 0 ? "text-rose-700" : "text-foreground"}>
+                  {t.anuladasRetorno}{t.valorAnuladoRetorno > 0 ? ` (−R$ ${t.valorAnuladoRetorno})` : ""}
+                </strong></span>
                 <span>Tempo médio <strong className="text-foreground">{t.tempoMedioHoras !== null ? `${t.tempoMedioHoras.toFixed(1).replace(".", ",")}h` : "—"}</strong></span>
               </div>
             </button>

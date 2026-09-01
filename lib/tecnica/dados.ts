@@ -69,7 +69,11 @@ export type ResultadoTecnico = {
   suportes: number;
   outras: number;
   anuladasRetorno: number;
+  /** R$ que os retornos <24h tiraram deste técnico no mês */
+  valorAnuladoRetorno: number;
   comissao: number;
+  /** ajuste manual da gestão aplicado à competência (substitui ou soma) */
+  ajuste: { modo: "somar" | "substituir"; valor: number; motivo: string } | null;
   tempoMedioHoras: number | null; // agendamento -> encerramento
 };
 
@@ -111,7 +115,7 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
   const mes = primeiroDiaDoMes(mesIso ?? hojeIso());
   const fim = `${ultimoDiaDoMes(mes)}T23:59:59-03:00`;
 
-  const [{ data: tecnicos }, { data: os }, { data: seguintes }] = await Promise.all([
+  const [{ data: tecnicos }, { data: os }, { data: seguintes }, { data: ajustes }] = await Promise.all([
     admin.from("tecnicos").select("*").eq("ativo", true).order("nome"),
     // pontua pelo mês do ENCERRAMENTO (OS criada em julho e encerrada em
     // agosto paga em agosto); as criadas no mês entram para acompanhamento
@@ -130,6 +134,7 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
       .select("sgp_os_id, sgp_contrato_id, criada_em")
       .gt("criada_em", fim)
       .limit(2000),
+    admin.from("ajustes_tecnica").select("*").eq("competencia", mes),
   ]);
 
   const cad = (tecnicos ?? []).map((t) => ({
@@ -209,8 +214,21 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
     const suportes = t.recebe_suporte
       ? encerradas.filter((l) => l.categoria === "suporte" && !l.retornoOsId).length
       : 0;
-    const anuladas = encerradas.filter((l) => l.retornoOsId && l.categoria !== "outros").length;
-    const comissao = linhas.reduce((s, l) => s + (l.valorPorTecnico[t.id as string] ?? 0), 0);
+    const anuladasLinhas = encerradas.filter((l) => l.retornoOsId && l.categoria !== "outros");
+    const anuladas = anuladasLinhas.length;
+    // quanto os retornos custaram: o valor que a OS pagaria se não anulada
+    const valorAnuladoRetorno = anuladasLinhas.reduce((s2, l) => {
+      if (l.categoria === "ativacao") return s2 + (VALOR_ATIVACAO[t.unidade as string] ?? 0);
+      if (l.categoria === "suporte" && t.recebe_suporte) return s2 + VALOR_SUPORTE;
+      return s2;
+    }, 0);
+    const calculada = linhas.reduce((s2, l) => s2 + (l.valorPorTecnico[t.id as string] ?? 0), 0);
+    const aj = (ajustes ?? []).find((a) => a.tecnico_id === t.id);
+    const comissao = aj
+      ? aj.modo === "substituir"
+        ? Number(aj.valor)
+        : calculada + Number(aj.valor)
+      : calculada;
     const tempos = encerradas
       .filter((l) => l.agendamento && l.encerradaEm)
       .map((l) => (Date.parse(l.encerradaEm!) - Date.parse(l.agendamento!)) / 3_600_000)
@@ -225,7 +243,11 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
       suportes,
       outras: encerradas.length - ativacoes - suportes - anuladas,
       anuladasRetorno: anuladas,
+      valorAnuladoRetorno,
       comissao,
+      ajuste: aj
+        ? { modo: aj.modo as "somar" | "substituir", valor: Number(aj.valor), motivo: aj.motivo as string }
+        : null,
       tempoMedioHoras: tempos.length ? tempos.reduce((s, h) => s + h, 0) / tempos.length : null,
     };
   });
