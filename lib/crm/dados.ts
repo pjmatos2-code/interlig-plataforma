@@ -312,6 +312,7 @@ export async function carregarCrm(
   // funil com % de passagem entre etapas (acumulado à frente ÷ acumulado atual)
   const convertidosPeriodo = fechados.filter((t) => t.desfecho === "convertido");
   const ORDEM: { etapa: EtapaTicket; rotulo: string }[] = [
+    { etapa: "pre_cadastro", rotulo: "Pré-Cadastro" },
     { etapa: "novo", rotulo: "Sem contato" },
     { etapa: "em_atendimento", rotulo: "Contato inicial" },
     { etapa: "proposta", rotulo: "Interessado" },
