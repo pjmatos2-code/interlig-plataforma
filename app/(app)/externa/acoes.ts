@@ -57,11 +57,21 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
   const precisao = Number(dados.get("precisao")) || null;
   const fotoCasa = dados.get("foto_casa");
   const fotoDoc = dados.get("foto_doc");
+  const fotoDocVerso = dados.get("foto_doc_verso");
+  const ehPreCadastro = dados.get("acao") === "pre_cadastro";
+  const vencimentoDia = [7, 14, 21, 28].includes(Number(dados.get("vencimento_dia")))
+    ? Number(dados.get("vencimento_dia"))
+    : null;
 
   if (!nome) return { erro: "Informe o nome do cliente." };
   if (!telefone) return { erro: "Informe o contato do cliente." };
   if (!(fotoCasa instanceof File) || fotoCasa.size === 0)
     return { erro: "Tire a foto da frente da casa." };
+  // pré-cadastro é venda fechada na hora: documento e vencimento são a base
+  if (ehPreCadastro && (!(fotoDoc instanceof File) || fotoDoc.size === 0))
+    return { erro: "Pré-cadastro precisa da foto do documento do cliente." };
+  if (ehPreCadastro && !vencimentoDia)
+    return { erro: "Pré-cadastro precisa da data de vencimento (7, 14, 21 ou 28)." };
 
   // vendedora registra para si; gestor/supervisor pode escolher
   const vendedorForm = String(dados.get("vendedor_id") ?? "");
@@ -86,7 +96,9 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
       telefone,
       vendedor_id: vendedorId,
       pop_id: popId,
-      etapa: "em_atendimento", // visita feita = contato inicial já aconteceu
+      // visita comum = contato inicial; pré-cadastro segue trilho próprio no funil
+      etapa: ehPreCadastro ? "pre_cadastro" : "em_atendimento",
+      vencimento_dia: vencimentoDia,
     })
     .select("id")
     .single();
@@ -102,6 +114,12 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
     if (doc.erro) return { erro: `Foto do documento: ${doc.erro}` };
     docPath = doc.path ?? null;
   }
+  let docVersoPath: string | null = null;
+  if (fotoDocVerso instanceof File && fotoDocVerso.size > 0) {
+    const verso = await subirFoto(admin, fotoDocVerso, `${base}/documento-verso`);
+    if (verso.erro) return { erro: `Verso do documento: ${verso.erro}` };
+    docVersoPath = verso.path ?? null;
+  }
 
   // 3) anexo de campo
   const { error: eVisita } = await db.from("visitas_externas").insert({
@@ -110,6 +128,7 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
     vendedor_id: vendedorId,
     foto_casa_path: casa.path,
     foto_doc_path: docPath,
+    foto_doc_verso_path: docVersoPath,
     lat,
     lng,
     precisao_m: precisao,
@@ -145,7 +164,7 @@ export async function registrarVisita(_e: EstadoVisita, dados: FormData): Promis
     ticket_id: ticket.id,
     tipo: "nota",
     dados: {
-      texto: `${setor === "corporativo" ? "Visita corporativa" : "Visita externa"} registrada${lat ? ` (GPS ±${Math.round(precisao ?? 0)}m)` : " (sem GPS)"}${docPath ? " · documento anexado p/ pré-cadastro" : ""}.`,
+      texto: `${ehPreCadastro ? "PRÉ-CADASTRO criado na visita" : setor === "corporativo" ? "Visita corporativa registrada" : "Visita externa registrada"}${lat ? ` (GPS ±${Math.round(precisao ?? 0)}m)` : " (sem GPS)"}${vencimentoDia ? ` · vencimento dia ${vencimentoDia}` : ""}${docPath ? ` · documento${docVersoPath ? " frente e verso" : ""} anexado` : ""}.`,
     },
     usuario_id: usuario.id,
   });

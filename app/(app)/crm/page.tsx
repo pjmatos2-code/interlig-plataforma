@@ -15,11 +15,12 @@ import { FollowupFeito } from "@/components/crm/followup-feito";
 
 export const dynamic = "force-dynamic";
 
-const COLUNAS_TRILHA: EtapaTicket[] = ["novo", "em_atendimento", "proposta", "aguardando", "fechado"];
+const COLUNAS_TRILHA: EtapaTicket[] = ["pre_cadastro", "novo", "em_atendimento", "proposta", "aguardando", "fechado"];
 const LIMITE_COLUNA = 15;
 
 /** paleta leve por coluna (liquid glass) */
 const TOM_COLUNA: Record<string, { texto: string; fundo: string; borda: string }> = {
+  pre_cadastro: { texto: "text-indigo-700", fundo: "from-indigo-100/80", borda: "border-indigo-200/70" },
   novo: { texto: "text-slate-600", fundo: "from-slate-100/80", borda: "border-slate-200/70" },
   em_atendimento: { texto: "text-sky-700", fundo: "from-sky-100/80", borda: "border-sky-200/70" },
   proposta: { texto: "text-violet-700", fundo: "from-violet-100/80", borda: "border-violet-200/70" },
@@ -478,7 +479,7 @@ export default async function CrmPage({
       {/* corpo: kanban + trilho lateral */}
       <div className="">
         <div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {COLUNAS_TRILHA.map((etapa) => {
               const itens = d.colunas[etapa];
               const total = itens.reduce((s, t) => s + (t.valor ?? 0), 0);

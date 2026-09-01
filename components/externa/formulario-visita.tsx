@@ -104,6 +104,8 @@ export function FormularioVisita({
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [fotoCasa, setFotoCasa] = useState<File | null>(null);
   const [fotoDoc, setFotoDoc] = useState<File | null>(null);
+  const [fotoDocVerso, setFotoDocVerso] = useState<File | null>(null);
+  const [modoEnvio, setModoEnvio] = useState<"visita" | "pre_cadastro">("visita");
   const [gps, setGps] = useState<{ lat: number; lng: number; prec: number } | null>(null);
   const [gpsStatus, setGpsStatus] = useState<"ocioso" | "buscando" | "ok" | "falhou">("ocioso");
   const [gpsMotivo, setGpsMotivo] = useState<string | null>(null);
@@ -150,6 +152,7 @@ export function FormularioVisita({
     const dados = new FormData(form);
     if (fotoCasa) dados.set("foto_casa", fotoCasa);
     if (fotoDoc) dados.set("foto_doc", fotoDoc);
+    if (fotoDocVerso) dados.set("foto_doc_verso", fotoDocVerso);
     if (gps) {
       dados.set("lat", String(gps.lat));
       dados.set("lng", String(gps.lng));
@@ -158,14 +161,20 @@ export function FormularioVisita({
     comecar(async () => {
       try {
         dados.set("setor", setor);
+        dados.set("acao", modoEnvio);
         const r = await registrarVisita({}, dados);
         if (r.erro) {
           setErro(r.erro);
           return;
         }
-        setSucesso("Visita registrada! Ticket criado no CRM. 🎉");
+        setSucesso(
+          modoEnvio === "pre_cadastro"
+            ? "Pré-cadastro criado! O ticket entrou na coluna Pré-cadastro do CRM. 🎉"
+            : "Visita registrada! Ticket criado no CRM. 🎉"
+        );
         setFotoCasa(null);
         setFotoDoc(null);
+        setFotoDocVerso(null);
         setGps(null);
         setGpsStatus("ocioso");
         formRef.current?.reset();
@@ -267,6 +276,12 @@ export function FormularioVisita({
             arquivo={fotoDoc}
             aoCapturar={setFotoDoc}
           />
+          <CampoFoto
+            rotulo="Verso do documento (opcional)"
+            dica="Frente e verso completam o pré-cadastro"
+            arquivo={fotoDocVerso}
+            aoCapturar={setFotoDocVerso}
+          />
         </div>
       </div>
 
@@ -290,6 +305,19 @@ export function FormularioVisita({
             </option>
           ))}
         </select>
+        <label className="mb-1 mt-3 block text-sm font-semibold text-slate-700">
+          Data de vencimento
+        </label>
+        <select
+          name="vencimento_dia"
+          className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-base"
+        >
+          <option value="">Selecione o dia…</option>
+          <option value="7">Dia 7</option>
+          <option value="14">Dia 14</option>
+          <option value="21">Dia 21</option>
+          <option value="28">Dia 28</option>
+        </select>
       </div>
 
       {erro && (
@@ -304,12 +332,25 @@ export function FormularioVisita({
       <button
         type="submit"
         disabled={enviando}
+        onClick={() => setModoEnvio("visita")}
         className={cn(
           "h-14 w-full rounded-2xl bg-interlig-azul text-base font-bold text-white shadow-lg shadow-interlig-azul/25 active:scale-[0.99]",
           enviando && "animate-pulse opacity-70"
         )}
       >
-        {enviando ? "Enviando…" : "✓ Registrar visita"}
+        {enviando && modoEnvio === "visita" ? "Enviando…" : "✓ Registrar visita"}
+      </button>
+      <button
+        type="submit"
+        disabled={enviando}
+        onClick={() => setModoEnvio("pre_cadastro")}
+        className={cn(
+          "h-14 w-full rounded-2xl border-2 border-indigo-600 bg-indigo-50 text-base font-bold text-indigo-700 active:scale-[0.99]",
+          enviando && "animate-pulse opacity-70"
+        )}
+        title="Cliente fechou na hora: cria o ticket direto na coluna Pré-cadastro do CRM, com documento e vencimento."
+      >
+        {enviando && modoEnvio === "pre_cadastro" ? "Enviando…" : "📋 Criar Pré-Cadastro"}
       </button>
     </form>
   );

@@ -41,8 +41,8 @@ export function FormularioNovoTicket({
           <Input id="telefone" name="telefone" placeholder="(93) 9xxxx-xxxx" inputMode="tel" />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="cpf">CPF (opcional)</Label>
-          <Input id="cpf" name="cpf" placeholder="000.000.000-00" inputMode="numeric" />
+          <Label htmlFor="cpf">CNPJ (opcional)</Label>
+          <Input id="cpf" name="cpf" placeholder="00.000.000/0000-00" inputMode="numeric" />
         </div>
       </div>
 

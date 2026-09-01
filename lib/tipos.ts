@@ -70,9 +70,10 @@ export const ROTULO_ORIGEM: Record<CategoriaOrigem, string> = {
   outro: "Outro",
 };
 
-export type EtapaTicket = "novo" | "em_atendimento" | "proposta" | "aguardando" | "fechado";
+export type EtapaTicket = "pre_cadastro" | "novo" | "em_atendimento" | "proposta" | "aguardando" | "fechado";
 
 export const ROTULO_ETAPA: Record<EtapaTicket, string> = {
+  pre_cadastro: "Pré-cadastro",
   novo: "Sem contato",
   em_atendimento: "Contato inicial",
   proposta: "Interessado",

@@ -256,6 +256,7 @@ export async function carregarCrm(
   // padrão RD Station: a perdida fica na coluna do funil onde parou (com o
   // selo "Perdida"); só a vendida vai para a coluna Fechado.
   const colunas: DadosCrm["colunas"] = {
+    pre_cadastro: [],
     novo: [],
     em_atendimento: [],
     proposta: [],
