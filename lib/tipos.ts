@@ -9,7 +9,9 @@ export type Perfil =
   /** Setor de Atendimento: refidelização, não vende */
   | "agente_atendimento"
   /** Setor de Retenção: segura quem quer cancelar */
-  | "agente_retencao";
+  | "agente_retencao"
+  /** gestão da Equipe Técnica: vê SOMENTE o módulo técnico */
+  | "gestor_tecnico";
 
 /** Interna e externa compartilham o mesmo escopo de dados (só o que é delas). */
 export const ehVendedora = (p: Perfil): boolean =>
@@ -50,6 +52,7 @@ export const ROTULO_PERFIL: Record<Perfil, string> = {
   financeiro: "Financeiro",
   agente_atendimento: "Agente de atendimento",
   agente_retencao: "Agente de retenção",
+  gestor_tecnico: "Gestor técnico",
 };
 
 export type CategoriaOrigem =

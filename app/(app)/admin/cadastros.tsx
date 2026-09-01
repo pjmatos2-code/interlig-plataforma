@@ -105,6 +105,7 @@ export function GestaoUsuarios({
           <option value="agente_retencao">{ROTULO_PERFIL.agente_retencao}</option>
           <option value="supervisor">{ROTULO_PERFIL.supervisor}</option>
           <option value="financeiro">{ROTULO_PERFIL.financeiro}</option>
+          <option value="gestor_tecnico">{ROTULO_PERFIL.gestor_tecnico}</option>
           <option value="gestor">{ROTULO_PERFIL.gestor}</option>
         </select>
         {perfil === "supervisor" && (

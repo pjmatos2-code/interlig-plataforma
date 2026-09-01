@@ -12,7 +12,7 @@ export default async function TecnicaPage({
 }: {
   searchParams: { mes?: string };
 }) {
-  const usuario = await exigirPerfil(["gestor", "financeiro"]);
+  const usuario = await exigirPerfil(["gestor", "financeiro", "gestor_tecnico"]);
   const mes = /^\d{4}-\d{2}$/.test(searchParams.mes ?? "")
     ? `${searchParams.mes}-01`
     : primeiroDiaDoMes(hojeIso());
@@ -27,7 +27,7 @@ export default async function TecnicaPage({
         titulo="Equipe Técnica — produtividade e comissão"
         descricao="Só OS ENCERRADA pontua. Ativação/mudança de endereço: ATM R$ 30 · BN e VTX R$ 15 · suporte R$ 10 (técnicos habilitados). Retorno em 72h anula a OS de origem."
       />
-      <PainelTecnica dados={dados} baseSgp={baseSgp} ehGestor={usuario.perfil === "gestor"} />
+      <PainelTecnica dados={dados} baseSgp={baseSgp} ehGestor={usuario.perfil === "gestor" || usuario.perfil === "gestor_tecnico"} />
     </>
   );
 }

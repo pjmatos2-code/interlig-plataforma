@@ -7,7 +7,7 @@ export type Resultado = { erro?: string; ok?: string };
 
 /** Busca as OS do mês no relatório do painel do SGP e atualiza a base. */
 export async function sincronizarOsDoMes(mes: string): Promise<Resultado> {
-  await exigirPerfil(["gestor"]);
+  await exigirPerfil(["gestor", "gestor_tecnico"]);
   const { sincronizarOs } = await import("@/lib/sgp/os");
   const r = await sincronizarOs(mes);
   if (!r.ok) return { erro: r.erro ?? "Falha na sincronização." };
@@ -27,7 +27,7 @@ export async function salvarFotoTecnico(
   dados: FormData
 ): Promise<{ erro?: string; ok?: boolean }> {
   const { exigirPerfil } = await import("@/lib/auth");
-  await exigirPerfil(["gestor"]);
+  await exigirPerfil(["gestor", "gestor_tecnico"]);
   const tecnicoId = String(dados.get("tecnico_id") ?? "");
   const arquivo = dados.get("foto");
   if (!tecnicoId || !(arquivo instanceof File) || arquivo.size === 0)
