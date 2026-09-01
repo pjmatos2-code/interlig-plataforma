@@ -74,7 +74,7 @@ export async function criarUsuario(_e: EstadoAdmin, dados: FormData): Promise<Es
   if (
     ![
       "gestor", "supervisor", "vendedora", "vendedora_externa",
-      "agente_corporativo", "financeiro", "agente_atendimento", "agente_retencao",
+      "agente_corporativo", "financeiro", "agente_atendimento", "agente_retencao", "gestor_tecnico",
     ].includes(perfil)
   )
     return { erro: "Perfil inválido." };
@@ -287,7 +287,7 @@ export type EstadoEdicao = { erro?: string; ok?: string };
 
 const PERFIS_VALIDOS = [
   "gestor", "supervisor", "vendedora", "vendedora_externa",
-  "agente_corporativo", "financeiro", "agente_atendimento", "agente_retencao",
+  "agente_corporativo", "financeiro", "agente_atendimento", "agente_retencao", "gestor_tecnico",
 ];
 
 /**
