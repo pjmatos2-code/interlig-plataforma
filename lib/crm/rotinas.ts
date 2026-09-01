@@ -232,11 +232,108 @@ export async function converterVendidosPorSgp(): Promise<number> {
   return convertidos;
 }
 
+/**
+ * Venda cadastrada DIRETO no SGP (sem ticket na plataforma) vira ticket
+ * automaticamente, já com os dados do cadastro — nome, telefone, CPF, plano,
+ * valor e vendedora. Com plano → nasce fechado como Vendida (coluna Contrato
+ * assinado); sem plano → nasce em "Criação do contrato". Pedido de 01/09.
+ */
+export async function criarTicketsDeVendasSgp(): Promise<number> {
+  const admin = criarClienteAdmin();
+  const desde = new Date(Date.now() - 5 * 86_400_000).toISOString().slice(0, 10);
+
+  const [{ data: contratos }, { data: existentes }] = await Promise.all([
+    admin
+      .from("contratos")
+      .select(
+        "id, sgp_contrato_id, plano_id, pop_id, vendedor_id, valor_mensalidade, origem_cadastro, data_venda, clientes(telefone, cpf, nome)"
+      )
+      .gte("data_venda", desde)
+      .neq("status", "cancelado")
+      .limit(1000),
+    // qualquer ticket recente (aberto ou fechado) conta como "já tem ticket":
+    // a conversão/reconciliação cuida dos abertos; aqui só entra o que não
+    // existe em lugar nenhum
+    admin
+      .from("tickets")
+      .select("id, contrato_id, telefone, cpf")
+      .gte("criado_em", new Date(Date.now() - 45 * 86_400_000).toISOString())
+      .limit(4000),
+  ]);
+  if (!contratos?.length) return 0;
+
+  const comContrato = new Set((existentes ?? []).map((t) => t.contrato_id).filter(Boolean));
+  const chaves = new Set<string>();
+  for (const t of existentes ?? []) {
+    const tel = normalizarTelefone(t.telefone);
+    const cpf = normalizarCpf(t.cpf);
+    if (tel) chaves.add(`t:${tel}`);
+    if (cpf) chaves.add(`c:${cpf}`);
+  }
+
+  let criados = 0;
+  for (const c of contratos) {
+    if (comContrato.has(c.id)) continue;
+    const cli = c.clientes as unknown as { telefone: string | null; cpf: string | null; nome: string } | null;
+    const tel = normalizarTelefone(cli?.telefone);
+    const cpf = normalizarCpf(cli?.cpf);
+    if (!tel && !cpf) continue; // identificação mínima do ticket
+    if ((tel && chaves.has(`t:${tel}`)) || (cpf && chaves.has(`c:${cpf}`))) continue;
+
+    const agora = new Date().toISOString();
+    const base = {
+      origem_criacao: "sgp_auto" as const,
+      cliente_nome: cli?.nome ?? "Cliente do SGP",
+      telefone: cli?.telefone ?? null,
+      cpf: cli?.cpf ?? null,
+      vendedor_id: c.vendedor_id,
+      pop_id: c.pop_id,
+      contrato_id: c.id,
+      reconciliado_em: agora,
+      valor_estimado: c.valor_mensalidade,
+    };
+    const { data: novo, error } = c.plano_id
+      ? await admin
+          .from("tickets")
+          .insert({
+            ...base,
+            etapa: "fechado",
+            etapa_encerramento: "novo",
+            desfecho: "convertido",
+            fechado_por: "vendedora",
+            fechado_em: agora,
+            plano_id: c.plano_id,
+            origem_cadastro: c.origem_cadastro ?? "outro",
+          })
+          .select("id")
+          .single()
+      : await admin
+          .from("tickets")
+          .insert({ ...base, etapa: "aguardando" })
+          .select("id")
+          .single();
+    if (error || !novo) continue;
+
+    await admin.from("ticket_eventos").insert({
+      ticket_id: novo.id,
+      tipo: "nota",
+      dados: {
+        texto: `🤖 Ticket criado automaticamente: venda cadastrada direto no SGP (contrato #${c.sgp_contrato_id}, venda em ${c.data_venda}) — dados importados do cadastro.`,
+      },
+    });
+    if (tel) chaves.add(`t:${tel}`);
+    if (cpf) chaves.add(`c:${cpf}`);
+    criados += 1;
+  }
+  return criados;
+}
+
 export async function executarRotinasCrm() {
   const fechados = await fecharTicketsInativos();
   const vendidos = await converterVendidosPorSgp().catch(() => 0);
+  const criados = await criarTicketsDeVendasSgp().catch(() => 0);
   const reconciliados = await reconciliarTickets();
   const { despacharLembretes } = await import("@/lib/notificacoes/lembretes");
   const lembretes = await despacharLembretes().catch(() => 0);
-  return { fechados, vendidos, reconciliados, lembretes };
+  return { fechados, vendidos, criados, reconciliados, lembretes };
 }
