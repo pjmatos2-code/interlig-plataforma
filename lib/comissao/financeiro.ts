@@ -14,6 +14,7 @@ export type LinhaPagamento = {
   vendedora: string;
   foto: string | null;
   pop: string | null;
+  setorFechado: "comercial" | "refidelizacao" | "retencao" | "gerencia";
   meta: number;
   metaEfetiva: number;
   atingimentoPct: number;
@@ -82,9 +83,14 @@ export async function competenciaFinanceiro(mesIso: string): Promise<Competencia
       vendedora: snap?.vendedora ?? (d.vendedores as unknown as { nome: string } | null)?.nome ?? "—",
       foto: (d.vendedores as unknown as { foto_url: string | null } | null)?.foto_url ?? null,
       pop: snap?.pop ?? null,
+      setorFechado: (snap?.tipo === "refidelizacao" || snap?.tipo === "retencao" || snap?.tipo === "gerencia"
+        ? snap.tipo
+        : "comercial") as LinhaPagamento["setorFechado"],
       meta: snap?.meta ?? 0,
       metaEfetiva: r?.metaEfetiva ?? snap?.meta ?? 0,
-      atingimentoPct: r?.atingimentoPct ?? 0,
+      // fechamentos antigos do comercial gravaram % (148.5) em vez de fração
+      // (1.485) — normaliza na leitura; fração real não passa de 4 (400%)
+      atingimentoPct: (r?.atingimentoPct ?? 0) > 4 ? (r?.atingimentoPct ?? 0) / 100 : (r?.atingimentoPct ?? 0),
       faixa: r?.degrau
         ? `${r.degrau.valor}${r.degrau.tipo === "valor_por_venda" ? " R$/venda" : "% do VTV"}`
         : "sem faixa",

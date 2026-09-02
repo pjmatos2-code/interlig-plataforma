@@ -190,13 +190,23 @@ export function PainelFinanceiro({
             {dados.fechadoPor && ` por ${dados.fechadoPor}`} · valores congelados no fechamento
           </p>
         </div>
-        <button
-          type="button"
-          onClick={exportarPlanilha}
-          className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
-        >
-          ↓ Planilha da competência
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={`/api/apuracao/pdf?mes=${dados.competencia}&origem=fechado`}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
+          >
+            ⬇ Exportar PDF geral
+          </a>
+          <button
+            type="button"
+            onClick={exportarPlanilha}
+            className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
+          >
+            ↓ Planilha da competência
+          </button>
+        </div>
       </CardHeader>
       <CardContent className="p-0 pb-3">
         <div className="overflow-x-auto">

@@ -79,6 +79,9 @@ export async function gerarDemonstrativoPdf(
   const ehRefid = snap.tipo === "refidelizacao";
   const ehRet = snap.tipo === "retencao";
   const ehGer = snap.tipo === "gerencia";
+  // snapshots comerciais antigos guardaram % em vez de fração — normaliza
+  const atingFrac =
+    snap.resultado.atingimentoPct > 4 ? snap.resultado.atingimentoPct / 100 : snap.resultado.atingimentoPct;
   const rotuloItem = ehRet ? "clientes retidos" : ehRefid ? "planos refidelizados" : "contratos considerados";
   const rotuloQtd = ehGer ? "Nível final (menor pilar)" : ehRet ? "Clientes retidos (validados no SGP)" : ehRefid ? "Planos refidelizados" : "Vendas liberadas para comissão";
 
@@ -189,8 +192,8 @@ export async function gerarDemonstrativoPdf(
   const cadastradas = snap.resultado.vendasComissionaveis + snap.resultado.vendasPendentes;
   const infoDir = [
     ehRet || ehRefid
-      ? `Atingimento: ${(snap.resultado.atingimentoPct * 100).toFixed(1).replace(".", ",")}%`
-      : `Atingimento: ${cadastradas} cadastradas / ${snap.resultado.metaEfetiva} = ${(snap.resultado.atingimentoPct * 100).toFixed(1).replace(".", ",")}%`,
+      ? `Atingimento: ${(atingFrac * 100).toFixed(1).replace(".", ",")}%`
+      : `Atingimento: ${cadastradas} cadastradas / ${snap.resultado.metaEfetiva} = ${(atingFrac * 100).toFixed(1).replace(".", ",")}%`,
     ...(ehRet || ehRefid
       ? []
       : [`(${snap.resultado.vendasComissionaveis} liberadas + ${snap.resultado.vendasPendentes} pendentes — só a liberada recebe)`]),
@@ -280,7 +283,7 @@ export async function gerarDemonstrativoPdf(
     linhaValor(rotuloQtd, String(snap.resultado.vendasComissionaveis));
   }
   if (ehRet)
-    linhaValor("Taxa de retenção (irreversíveis fora)", `${(snap.resultado.atingimentoPct * 100).toFixed(0).replace(".", ",")}%`);
+    linhaValor("Taxa de retenção (irreversíveis fora)", `${(atingFrac * 100).toFixed(0).replace(".", ",")}%`);
   if (snap.resultado.estornos > 0)
     linhaValor(
       ehRet ? "Clawback (cancelou em até 30 dias)" : ehRefid ? "Aditivos reprovados pela gestão" : "Estornos (cancelamento precoce)",

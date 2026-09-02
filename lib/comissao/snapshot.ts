@@ -162,7 +162,10 @@ export async function montarSnapshots(
         estornoDias: c.regra.estorno_dias,
       },
       meta: c.metaMensal,
-      resultado: c.resultado,
+      // o motor devolve atingimento em ESCALA PERCENTUAL (148.5); o snapshot
+      // guarda FRAÇÃO (1.485) como refidelização/retenção — o demonstrativo e
+      // o financeiro multiplicam por 100 na exibição
+      resultado: { ...c.resultado, atingimentoPct: c.resultado.atingimentoPct / 100 },
       debito: {
         aplicado: debito.aplicado,
         quantidade: debito.porVendedora.get(c.vendedorId) ?? 0,
