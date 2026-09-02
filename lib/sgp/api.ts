@@ -46,6 +46,21 @@ type BrutoTitulo = {
 
 const semAcento = (s: string | undefined) =>
   (s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().trim();
+
+/**
+ * Cidade do cadastro → nome canônico do escopo, tolerando as variações que o
+ * atendimento digita ("ALTAMIRA-PA", "ALTAMIRA PARA", "VITORIA DO  XINGU PA",
+ * "ALTAMIA", "XINFU", "VTX"…). Um levantamento de 02/09/2026 achou 111
+ * clientes do escopo excluídos do sync só pela grafia da cidade — sem
+ * contrato, sem ticket e sem contar na comissão.
+ */
+const cidadeEscopo = (s: string | undefined): string | null => {
+  let c = semAcento(s).replace(/[^A-Z]+/g, " ").replace(/\s+/g, " ").trim();
+  c = c.replace(/ (PA|PARA)$/, "");
+  if (c === "ALTAMIA") c = "ALTAMIRA";
+  if (c === "VTX" || c === "VITORIA DO XINFU") c = "VITORIA DO XINGU";
+  return CIDADES_ESCOPO.get(c) ?? null;
+};
 const num = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -167,7 +182,7 @@ export class SgpApiClient implements SgpClient {
       // extras do caçador entram junto (sem duplicar quem a janela já trouxe)
       const ids = new Set(todos.map((c) => c.id));
       const comExtras = [...todos, ...this.extras.filter((c) => !ids.has(c.id))];
-      return comExtras.filter((c) => CIDADES_ESCOPO.has(semAcento(c.endereco?.cidade)));
+      return comExtras.filter((c) => cidadeEscopo(c.endereco?.cidade) !== null);
     })();
     return this.varredura;
   }
@@ -200,7 +215,7 @@ export class SgpApiClient implements SgpClient {
       cpf: c.cpfcnpj ?? null,
       telefone: c.contatos?.celulares?.[0] ?? c.contatos?.telefones?.[0] ?? null,
       bairro: c.endereco?.bairro ?? null,
-      cidade: CIDADES_ESCOPO.get(semAcento(c.endereco?.cidade)) ?? null,
+      cidade: cidadeEscopo(c.endereco?.cidade),
       origem_cadastro_sgp: null, // não exposto pela URA (D3)
     }));
   }
