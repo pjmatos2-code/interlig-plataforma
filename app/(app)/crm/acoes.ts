@@ -534,3 +534,103 @@ export async function analisarFollowupsEmLote(): Promise<{ erro?: string; ok?: s
     ok: `${r.analisados} ticket(s) analisado(s)${r.erros ? ` · ${r.erros} com erro (${r.detalhes.join("; ")})` : ""}`,
   };
 }
+
+const TIPOS_ANEXO = new Map([
+  ["image/jpeg", "jpg"],
+  ["image/png", "png"],
+  ["image/webp", "webp"],
+]);
+
+/**
+ * Complemento MANUAL da visita pelo ticket (prospecção lançada da base):
+ * fotos da casa e do documento (frente/verso) e endereço informado pelo
+ * cliente — para o pré-cadastro sair mesmo sem a agente estar no local.
+ */
+export async function anexarVisitaManual(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
+  const usuario = await exigirUsuario();
+  if (!["gestor", "supervisor"].includes(usuario.perfil) && !ehAgenteCrm(usuario.perfil))
+    return { erro: "Sem permissão." };
+
+  const ticketId = String(dados.get("ticket_id") ?? "");
+  if (!ticketId) return { erro: "Ticket ausente." };
+  const endereco = String(dados.get("endereco_manual") ?? "").trim();
+
+  const { criarClienteAdmin } = await import("@/lib/supabase/admin");
+  const admin = criarClienteAdmin();
+
+  const { data: t } = await admin
+    .from("tickets")
+    .select("id, vendedor_id, pop_id, etapa")
+    .eq("id", ticketId)
+    .maybeSingle();
+  if (!t) return { erro: "Ticket não encontrado." };
+  // agente só mexe no próprio ticket; gestor/coordenador em qualquer um
+  if (ehAgenteCrm(usuario.perfil) && t.vendedor_id && t.vendedor_id !== usuario.vendedor_id)
+    return { erro: "Este ticket é de outra agente." };
+
+  const subir = async (campo: string, sufixo: string): Promise<string | null | { erro: string }> => {
+    const arquivo = dados.get(campo);
+    if (!(arquivo instanceof File) || arquivo.size === 0) return null;
+    const ext = TIPOS_ANEXO.get(arquivo.type);
+    if (!ext) return { erro: "Foto precisa ser JPG, PNG ou WebP." };
+    if (arquivo.size > 8 * 1024 * 1024) return { erro: "Foto acima de 8 MB." };
+    const path = `visitas/${ticketId}/${sufixo}.${ext}`;
+    const { error } = await admin.storage
+      .from("venda-externa")
+      .upload(path, arquivo, { upsert: true, contentType: arquivo.type });
+    return error ? { erro: error.message } : path;
+  };
+
+  const casa = await subir("foto_casa", "casa");
+  if (casa && typeof casa === "object") return { erro: `Foto da casa: ${casa.erro}` };
+  const doc = await subir("foto_doc", "documento");
+  if (doc && typeof doc === "object") return { erro: `Documento: ${doc.erro}` };
+  const verso = await subir("foto_doc_verso", "documento-verso");
+  if (verso && typeof verso === "object") return { erro: `Verso: ${verso.erro}` };
+
+  if (!casa && !doc && !verso && !endereco)
+    return { erro: "Anexe ao menos uma foto ou informe o endereço." };
+
+  // completa a visita existente ou cria o registro do zero (sem GPS)
+  const { data: visita } = await admin
+    .from("visitas_externas")
+    .select("id")
+    .eq("ticket_id", ticketId)
+    .order("criado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const campos: Record<string, unknown> = {};
+  if (casa) campos.foto_casa_path = casa;
+  if (doc) campos.foto_doc_path = doc;
+  if (verso) campos.foto_doc_verso_path = verso;
+  if (endereco) campos.endereco_manual = endereco;
+
+  const { error } = visita
+    ? await admin.from("visitas_externas").update(campos).eq("id", visita.id)
+    : await admin.from("visitas_externas").insert({
+        setor: "pap",
+        ticket_id: ticketId,
+        vendedor_id: t.vendedor_id,
+        criado_por: usuario.id,
+        ...campos,
+      });
+  if (error) return { erro: error.message };
+
+  const partes = [
+    casa ? "foto da casa" : null,
+    doc ? "documento" : null,
+    verso ? "verso do documento" : null,
+    endereco ? `endereço informado: ${endereco}` : null,
+  ].filter(Boolean);
+  await admin.from("ticket_eventos").insert({
+    ticket_id: ticketId,
+    tipo: "nota",
+    dados: { texto: `📎 Anexos do pré-cadastro incluídos manualmente (${partes.join(" · ")}).` },
+    usuario_id: usuario.id,
+  });
+
+  revalidatePath(`/crm/${ticketId}`);
+  revalidatePath("/crm");
+  return { ok: true };
+}

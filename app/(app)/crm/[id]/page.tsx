@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatarData, formatarDataHora } from "@/lib/format";
 import { ROTULO_ETAPA, ROTULO_ORIGEM, ehAgenteCrm } from "@/lib/tipos";
 import { FollowupIa } from "@/components/crm/followup-ia";
+import { AnexosVisita } from "@/components/crm/anexos-visita";
 import {
   BarraEtapas,
   BotaoReabrir,
@@ -94,13 +95,14 @@ export default async function TicketPage({ params }: { params: { id: string } })
   // visita externa (fotos em bucket privado -> URLs assinadas por 1h)
   const { data: visita } = await supabase
     .from("visitas_externas")
-    .select("foto_casa_path, foto_doc_path, lat, lng, precisao_m, criado_em")
+    .select("foto_casa_path, foto_doc_path, foto_doc_verso_path, endereco_manual, lat, lng, precisao_m, criado_em")
     .eq("ticket_id", t.id)
     .order("criado_em", { ascending: false })
     .limit(1)
     .maybeSingle();
   let fotoCasaUrl: string | null = null;
   let fotoDocUrl: string | null = null;
+  let fotoVersoUrl: string | null = null;
   if (visita) {
     const admin = criarClienteAdmin();
     const assinar = async (path: string | null) =>
@@ -109,6 +111,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
         : null;
     fotoCasaUrl = await assinar(visita.foto_casa_path);
     fotoDocUrl = await assinar(visita.foto_doc_path);
+    fotoVersoUrl = await assinar(visita.foto_doc_verso_path ?? null);
   }
 
   const fechado = t.etapa === "fechado";
@@ -374,11 +377,15 @@ export default async function TicketPage({ params }: { params: { id: string } })
           </Card>
         )}
 
-        {/* Visita externa (PAP) */}
-        {visita && (
+        {/* Visita externa (PAP) / pré-cadastro manual */}
+        {(visita || !fechado) && (
           <Card className="xl:col-span-3">
             <CardHeader className="pb-2">
-              <CardTitle>Visita externa 🚶</CardTitle>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle>{visita ? "Visita externa 🚶" : "Pré-cadastro 📎"}</CardTitle>
+                <AnexosVisita ticketId={t.id} />
+              </div>
+              {visita ? (
               <p className="text-sm text-muted-foreground">
                 Registrada em {formatarDataHora(visita.criado_em)}
                 {visita.lat && visita.lng && (
@@ -394,10 +401,28 @@ export default async function TicketPage({ params }: { params: { id: string } })
                     </a>
                   </>
                 )}
+                {visita.endereco_manual && (
+                  <>
+                    {" · "}
+                    <a
+                      href={`https://www.google.com/maps?q=${encodeURIComponent(visita.endereco_manual)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-interlig-ceu hover:underline"
+                    >
+                      🏠 {visita.endereco_manual}
+                    </a>
+                  </>
+                )}
               </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Prospecção sem visita registrada — inclua as fotos e o endereço fornecidos pelo cliente.
+                </p>
+              )}
             </CardHeader>
             <CardContent className="flex flex-wrap gap-4">
-              {fotoCasaUrl && (
+              {visita && fotoCasaUrl && (
                 <a href={fotoCasaUrl} target="_blank" rel="noopener noreferrer" className="block">
                   <p className="mb-1 text-xs font-medium text-muted-foreground">Frente da casa</p>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -408,7 +433,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
                   />
                 </a>
               )}
-              {fotoDocUrl ? (
+              {visita && fotoDocUrl ? (
                 <a href={fotoDocUrl} target="_blank" rel="noopener noreferrer" className="block">
                   <p className="mb-1 text-xs font-medium text-muted-foreground">
                     Documento (pré-cadastro)
@@ -420,11 +445,18 @@ export default async function TicketPage({ params }: { params: { id: string } })
                     className="h-44 w-64 rounded-lg border object-cover"
                   />
                 </a>
-              ) : (
+              ) : visita ? (
                 <div className="flex h-44 w-64 flex-col items-center justify-center gap-1 self-end rounded-lg border border-dashed text-muted-foreground">
                   <span className="text-xl">🪪</span>
                   <p className="text-xs">Documento não anexado</p>
                 </div>
+              ) : null}
+              {visita && fotoVersoUrl && (
+                <a href={fotoVersoUrl} target="_blank" rel="noopener noreferrer" className="block">
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">Documento (verso)</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={fotoVersoUrl} alt="Verso do documento" className="h-44 w-64 rounded-lg border object-cover" />
+                </a>
               )}
             </CardContent>
           </Card>
