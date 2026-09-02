@@ -109,8 +109,8 @@ export function GestaoUsuarios({
           <option value="gestor">{ROTULO_PERFIL.gestor}</option>
         </select>
         {perfil === "supervisor" && (
-          <select name="pop_id" className={selectCls} required>
-            <option value="">POP…</option>
+          <select name="pop_id" className={selectCls}>
+            <option value="">POP (opcional)…</option>
             {pops.map((p) => (
               <option key={p.id} value={p.id}>{p.nome}</option>
             ))}

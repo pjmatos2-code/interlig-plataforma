@@ -80,7 +80,6 @@ export async function criarUsuario(_e: EstadoAdmin, dados: FormData): Promise<Es
     return { erro: "Perfil inválido." };
   const ehVend = ehVendedora(perfil as Perfil);
   const precisaVinculo = ehVend || perfil === "agente_atendimento" || perfil === "agente_retencao";
-  if (perfil === "supervisor" && !popId) return { erro: "Coordenador precisa de POP." };
   if (precisaVinculo && !vendedorId)
     return { erro: "Este perfil precisa do vínculo com o cadastro do agente no SGP." };
 
@@ -317,7 +316,6 @@ export async function editarUsuario(
   const precisaVinculo = ehVendedora(perfil as Perfil) || perfil === "agente_atendimento" || perfil === "agente_retencao";
   if (precisaVinculo && !vendedorId)
     return { erro: "Este perfil precisa do vínculo com o cadastro do agente no SGP." };
-  if (perfil === "supervisor" && !popId) return { erro: "Coordenador precisa de POP." };
 
   const admin = criarClienteAdmin();
 
