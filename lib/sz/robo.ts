@@ -48,7 +48,13 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
     const marcadorFechamento =
       ((cfgRow?.config as Record<string, unknown>)?.frase_fechamento as string) || "venda concluída";
 
-    const conversas = await listarConversasComerciais(sz, alvo, alvo);
+    // janela de 5 dias: o filtro do SZ pega a conversa pela DATA DE INÍCIO,
+    // então a conversa que segue ativa dias depois sumia da leitura diária
+    // (cliente respondia e o CRM nunca ficava sabendo)
+    const inicioJanela = new Date(Date.parse(`${alvo}T00:00:00Z`) - 4 * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const conversas = await listarConversasComerciais(sz, inicioJanela, alvo);
     const { data: equipes } = await admin
       .from("sz_equipes_habilitadas")
       .select("nome, pop_id, ativo");
@@ -83,39 +89,52 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
 
     const amanha09 = new Date(Date.parse(`${alvo}T00:00:00-03:00`) + 33 * 3600_000).toISOString();
 
+    // dedup: abertos E fechados nos últimos 15 dias, carregados UMA vez — sem
+    // isso o robô recriava o ticket depois que a venda fechava (duplicata que
+    // depois travava a liberação da comissão). Match por telefone e, para
+    // conversa sem telefone, pelo protocolo do SZ.
+    const corteDedup = new Date(Date.now() - 15 * 86_400_000).toISOString();
+    const { data: candidatos } = await admin
+      .from("tickets")
+      .select("id, telefone, vendedor_id, etapa, fechado_em, sz_conversa_id")
+      .or(`etapa.neq.fechado,fechado_em.gte.${corteDedup}`)
+      .limit(3000);
+    const porTelefone = new Map<string, (typeof candidatos & object)[number]>();
+    const porProtocolo = new Map<string, (typeof candidatos & object)[number]>();
+    for (const t of candidatos ?? []) {
+      const dt = soDigitos(t.telefone);
+      if (dt && !porTelefone.has(dt)) porTelefone.set(dt, t);
+      if (t.sz_conversa_id && !porProtocolo.has(String(t.sz_conversa_id)))
+        porProtocolo.set(String(t.sz_conversa_id), t);
+    }
+
     let criados = 0;
     let atualizados = 0;
     for (const c of conversas) {
-      await carregarDialogo(sz, c, { inicio: alvo, fim: alvo });
-      if (c.dialogo.length === 0) continue;
-      const r = resumirPorRegras(c, planos, { marcadorFechamento });
       const tel = soDigitos(c.telefone);
       const popId = popPorEquipe.get(c.equipe) ?? null;
       const vendedorId = acharVendedora(c.agente, popId);
 
-      let existente: string | null = null;
-      if (tel) {
-        // dedup: considera abertos E fechados nos últimos 15 dias — sem isso o
-        // robô recriava o ticket depois que a venda fechava (duplicata que
-        // depois travava a liberação da comissão)
-        const corteDedup = new Date(Date.now() - 15 * 86_400_000).toISOString();
-        const { data: abertos } = await admin
+      const achado =
+        (tel ? porTelefone.get(tel) : undefined) ??
+        (c.protocolo ? porProtocolo.get(String(c.protocolo)) : undefined) ??
+        null;
+      // ticket já fechado (venda concluída): não recria nem reabre — e nem
+      // gasta chamada baixando o diálogo
+      if (achado && achado.etapa === "fechado") continue;
+      const existente: string | null = achado?.id ?? null;
+
+      await carregarDialogo(sz, c, { inicio: inicioJanela, fim: alvo });
+      if (c.dialogo.length === 0) continue;
+      const r = resumirPorRegras(c, planos, { marcadorFechamento });
+
+      // quem atende no SZ é a responsável pelo cliente: preenche quando vazio
+      if (achado && !achado.vendedor_id && vendedorId) {
+        await admin
           .from("tickets")
-          .select("id, telefone, vendedor_id, etapa, fechado_em")
-          .or(`etapa.neq.fechado,fechado_em.gte.${corteDedup}`)
-          .limit(3000);
-        const achado = (abertos ?? []).find((t) => soDigitos(t.telefone) === tel);
-        // ticket já fechado (venda concluída): não recria nem reabre
-        if (achado && achado.etapa === "fechado") continue;
-        existente = achado?.id ?? null;
-        // quem atende no SZ é a responsável pelo cliente: preenche quando vazio
-        if (achado && !achado.vendedor_id && vendedorId) {
-          await admin
-            .from("tickets")
-            .update({ vendedor_id: vendedorId, pop_id: popId })
-            .eq("id", achado.id)
-            .is("vendedor_id", null);
-        }
+          .update({ vendedor_id: vendedorId, pop_id: popId })
+          .eq("id", achado.id)
+          .is("vendedor_id", null);
       }
 
       const base = {
@@ -158,7 +177,21 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
           : { etapa: "aguardando" as const, urgencia: null, followup_em: null, ...reconc }
         : { etapa: "em_atendimento" as const, urgencia: r.urgencia, followup_em: amanha09 };
 
-      const campos = { ...base, ...desfechoVenda };
+      const campos: Record<string, unknown> = { ...base, ...desfechoVenda };
+      // com a janela de 5 dias o robô revisita a conversa por vários ciclos:
+      // não regride ticket que a vendedora já avançou no funil (proposta,
+      // criação do contrato…) de volta para "em atendimento"
+      if (
+        existente &&
+        !r.vendaFechada &&
+        achado &&
+        achado.etapa !== "novo" &&
+        achado.etapa !== "em_atendimento"
+      ) {
+        delete campos.etapa;
+        delete campos.urgencia;
+        delete campos.followup_em;
+      }
 
       if (existente) {
         await admin.from("tickets").update(campos).eq("id", existente);
@@ -177,7 +210,15 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
           })
           .select("id")
           .single();
-        if (novo) criados++;
+        if (novo) {
+          criados++;
+          const registro = {
+            id: novo.id as string, telefone: tel, vendedor_id: vendedorId,
+            etapa: "em_atendimento", fechado_em: null, sz_conversa_id: c.protocolo,
+          } as NonNullable<typeof candidatos>[number];
+          if (tel && !porTelefone.has(tel)) porTelefone.set(tel, registro);
+          if (c.protocolo && !porProtocolo.has(String(c.protocolo))) porProtocolo.set(String(c.protocolo), registro);
+        }
       }
     }
 
