@@ -96,7 +96,7 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
     const corteDedup = new Date(Date.now() - 15 * 86_400_000).toISOString();
     const { data: candidatos } = await admin
       .from("tickets")
-      .select("id, telefone, vendedor_id, etapa, fechado_em, sz_conversa_id")
+      .select("id, telefone, vendedor_id, etapa, fechado_em, sz_conversa_id, resumo_em")
       .or(`etapa.neq.fechado,fechado_em.gte.${corteDedup}`)
       .limit(3000);
     const porTelefone = new Map<string, (typeof candidatos & object)[number]>();
@@ -122,6 +122,14 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
       // ticket já fechado (venda concluída): não recria nem reabre — e nem
       // gasta chamada baixando o diálogo
       if (achado && achado.etapa === "fechado") continue;
+      // ticket aberto com resumo fresco: nada novo a fazer nesta rodada —
+      // evita baixar o diálogo de toda a janela a cada 9 minutos
+      if (
+        achado &&
+        typeof achado.resumo_em === "string" &&
+        Date.now() - Date.parse(achado.resumo_em) < 25 * 60_000
+      )
+        continue;
       const existente: string | null = achado?.id ?? null;
 
       await carregarDialogo(sz, c, { inicio: inicioJanela, fim: alvo });

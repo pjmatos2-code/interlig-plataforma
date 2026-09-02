@@ -31,7 +31,10 @@ async function roboSzSeDevido() {
     .maybeSingle();
   const cfg = (cfgRow?.config ?? {}) as Record<string, unknown>;
   const ultima = typeof cfg.robo_diurno_em === "string" ? Date.parse(cfg.robo_diurno_em) : 0;
-  if (Date.now() - ultima < 28 * 60_000) return;
+  // 9 min: dispara praticamente a cada dois ciclos do sync — o ticket da
+  // conversa nova nasce em minutos; o custo por rodada fica baixo porque o
+  // robô pula o diálogo de quem já tem ticket com resumo fresco
+  if (Date.now() - ultima < 9 * 60_000) return;
 
   // marca ANTES de rodar para não empilhar execuções concorrentes
   await admin.from("integracoes_config").upsert({
