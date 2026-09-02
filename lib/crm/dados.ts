@@ -120,7 +120,7 @@ type Bruto = TicketIndicador & {
   motivos_nao_conversao: { nome: string } | null;
 };
 
-const CAMPOS = `id, cliente_nome, telefone, cpf, vendedor_id, pop_id, etapa, criado_em,
+const CAMPOS = `id, cliente_nome, telefone, cpf, email, vendedor_id, pop_id, etapa, criado_em,
   primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por, origem_criacao,
   motivo_id, contrato_id, reconciliado_em, atualizado_em, valor_estimado, etapa_encerramento,
   contratos(sgp_contrato_id, clientes(sgp_cliente_id, nome)),
@@ -515,6 +515,7 @@ export type DetalheTicket = {
   cliente_nome: string;
   telefone: string | null;
   cpf: string | null;
+  email: string | null;
   etapa: EtapaTicket;
   origem_criacao: "sz_auto" | "manual" | "site";
   sz_conversa_id: string | null;
@@ -559,7 +560,7 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
     supabase
       .from("tickets")
       .select(
-        `id, cliente_nome, telefone, cpf, etapa, origem_criacao, sz_conversa_id, vendedor_id,
+        `id, cliente_nome, telefone, cpf, email, etapa, origem_criacao, sz_conversa_id, vendedor_id,
          criado_em, primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por,
          origem_cadastro, contrato_id, reconciliado_em, valor_estimado,
          resumo_tratativa, proxima_abordagem, urgencia,

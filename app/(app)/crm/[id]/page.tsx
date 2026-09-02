@@ -14,6 +14,7 @@ import { formatarData, formatarDataHora } from "@/lib/format";
 import { ROTULO_ETAPA, ROTULO_ORIGEM, ehAgenteCrm } from "@/lib/tipos";
 import { FollowupIa } from "@/components/crm/followup-ia";
 import { AnexosVisita } from "@/components/crm/anexos-visita";
+import { EmailTicket } from "@/components/crm/email-ticket";
 import {
   BarraEtapas,
   BotaoReabrir,
@@ -215,6 +216,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
               </p>
             )}
             <p><span className="text-muted-foreground">CPF:</span> {t.cpf ?? "—"}</p>
+            <p><span className="text-muted-foreground">E-mail:</span> <EmailTicket ticketId={t.id} email={t.email ?? null} /></p>
             <p><span className="text-muted-foreground">Vendedora:</span> {t.vendedora ?? "Não atribuído"}</p>
             <p><span className="text-muted-foreground">POP:</span> {t.pop ?? "—"}</p>
             <p><span className="text-muted-foreground">Criado em:</span> {formatarDataHora(t.criado_em)}</p>

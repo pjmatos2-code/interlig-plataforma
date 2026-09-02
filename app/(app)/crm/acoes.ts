@@ -34,6 +34,7 @@ export async function criarTicket(_e: EstadoAcao, dados: FormData): Promise<Esta
   const nome = String(dados.get("cliente_nome") ?? "").trim();
   const telefone = String(dados.get("telefone") ?? "").trim();
   const cpf = String(dados.get("cpf") ?? "").trim();
+  const email = String(dados.get("email") ?? "").trim().toLowerCase();
   const forcar = dados.get("forcar") === "sim";
 
   if (!nome) return { erro: "Informe o nome do cliente." };
@@ -79,6 +80,7 @@ export async function criarTicket(_e: EstadoAcao, dados: FormData): Promise<Esta
       cliente_nome: nome,
       telefone: telefone || null,
       cpf: cpf || null,
+      email: email || null,
       vendedor_id: vendedorId,
       pop_id: popId,
       etapa: "novo",
@@ -192,6 +194,7 @@ export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<Est
     const planoId = String(dados.get("plano_id") ?? "");
     const origem = String(dados.get("origem_cadastro") ?? "");
     const cpf = String(dados.get("cpf") ?? "").trim();
+  const email = String(dados.get("email") ?? "").trim().toLowerCase();
     const telefone = String(dados.get("telefone") ?? "").trim();
 
     if (!planoId) return { erro: "Convertido exige o plano vendido." };
@@ -209,6 +212,7 @@ export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<Est
         plano_id: planoId,
         origem_cadastro: origem,
         cpf: cpf || null,
+      email: email || null,
         telefone: telefone || null,
       })
       .eq("id", ticketId);
@@ -632,5 +636,26 @@ export async function anexarVisitaManual(_e: EstadoAcao, dados: FormData): Promi
 
   revalidatePath(`/crm/${ticketId}`);
   revalidatePath("/crm");
+  return { ok: true };
+}
+
+
+/** Inclui ou corrige o e-mail do cliente no ticket (opcional em todos). */
+export async function salvarEmailTicket(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
+  const usuario = await exigirUsuario();
+  if (!["gestor", "supervisor"].includes(usuario.perfil) && !ehAgenteCrm(usuario.perfil))
+    return { erro: "Sem permissão." };
+  const ticketId = String(dados.get("ticket_id") ?? "");
+  const email = String(dados.get("email") ?? "").trim().toLowerCase();
+  if (!ticketId) return { erro: "Ticket ausente." };
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { erro: "E-mail inválido." };
+
+  const supabase = criarClienteServidor();
+  const { error } = await supabase
+    .from("tickets")
+    .update({ email: email || null, atualizado_em: new Date().toISOString() })
+    .eq("id", ticketId);
+  if (error) return { erro: error.message };
+  revalidatePath(`/crm/${ticketId}`);
   return { ok: true };
 }

@@ -44,6 +44,10 @@ export function FormularioNovoTicket({
           <Label htmlFor="cpf">CNPJ (opcional)</Label>
           <Input id="cpf" name="cpf" placeholder="00.000.000/0000-00" inputMode="numeric" />
         </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="email">E-mail (opcional)</Label>
+          <Input id="email" name="email" type="email" placeholder="cliente@email.com" inputMode="email" />
+        </div>
       </div>
 
       {!perfilVendedora && (
