@@ -96,15 +96,7 @@ export function PainelTecnica({
     if (soEncerradas) ls = ls.filter((l) => l.encerradaNoMes);
     if (fCategoria === "retorno") ls = ls.filter((l) => l.retornoOsId && l.categoria !== "outros");
     else if (fCategoria) ls = ls.filter((l) => l.categoria === fCategoria);
-    if (fTecnico) {
-      const t = dados.tecnicos.find((x) => x.tecnicoId === fTecnico);
-      const nome = (t?.nome ?? "").toLowerCase().split(" ").slice(0, 2).join(" ");
-      ls = ls.filter(
-        (l) =>
-          (l.responsavel ?? "").toLowerCase().includes(nome) ||
-          (l.auxiliares ?? "").toLowerCase().includes(nome)
-      );
-    }
+    if (fTecnico) ls = ls.filter((l) => l.tecnicoIds.includes(fTecnico));
     if (busca.trim()) {
       const q = busca.trim().toLowerCase();
       ls = ls.filter(
@@ -139,14 +131,8 @@ export function PainelTecnica({
   const tecnicoSel = dados.tecnicos.find((t) => t.tecnicoId === fTecnico) ?? null;
   const servicosDele = useMemo(() => {
     if (!tecnicoSel) return [];
-    const nome = tecnicoSel.nome.toLowerCase().split(" ").slice(0, 2).join(" ");
     return dados.linhas
-      .filter(
-        (l) =>
-          l.encerradaNoMes &&
-          ((l.responsavel ?? "").toLowerCase().includes(nome) ||
-            (l.auxiliares ?? "").toLowerCase().includes(nome))
-      )
+      .filter((l) => l.encerradaNoMes && l.tecnicoIds.includes(tecnicoSel.tecnicoId))
       .sort((a, b) => (b.encerradaEm ?? "").localeCompare(a.encerradaEm ?? ""));
   }, [tecnicoSel, dados.linhas]);
 
@@ -205,12 +191,12 @@ export function PainelTecnica({
           <div className="ml-auto flex items-center gap-2">
             {aviso && <span className="max-w-[16rem] text-xs text-muted-foreground">{aviso}</span>}
             <a
-              href={`/api/tecnica/pdf?mes=${dados.competencia}`}
+              href={`/api/tecnica/pdf?mes=${dados.competencia}${fTecnico ? `&tecnico=${fTecnico}` : ""}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted"
             >
-              ⬇ Exportar PDF
+              ⬇ Exportar PDF{fTecnico ? " (técnico)" : ""}
             </a>
             {(busca || fTecnico || fCategoria) && (
               <button type="button" onClick={() => { setBusca(""); setFTecnico(""); setFCategoria(""); setPagina(1); }}

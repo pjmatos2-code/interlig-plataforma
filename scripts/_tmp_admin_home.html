@@ -1,0 +1,2165 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    
+    
+    
+    
+    <title>SGP</title>
+    
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <link rel="icon" href="/static/all/img/logo/new/favicon.png?v=5"/>
+
+    <script type="text/javascript">
+      window.isSgpNeo = "false" === "true";
+    </script>
+
+    
+    <link rel="stylesheet" type="text/css" media="screen" href="/static/all/css/admin_default.css?v=73"/>
+    <link rel="stylesheet" type="text/css" media="screen" href="/static/all/css/superfish001.css?v=5"/>
+    <link rel="stylesheet" type="text/css" media="screen" href="/static/all/css/box.css?v=20"/>
+    
+    
+    <link rel="stylesheet" type="text/css" media="screen" href="/static/all/css/icons007.css?v=32"/>
+    <link rel="stylesheet" type="text/css" media="screen" href="/static/all/js/jquery.dataTables/new/css/jquery.dataTables_themeroller.css?v=2"/>
+    <link rel="stylesheet" type="text/css" media="screen" href="/static/all/js/jquery.dataTables/TableTools/css/dataTables.tableTools.min.css"/>
+    <link rel="stylesheet" type="text/css" media="screen" href="/static/all/css/tooltipster-shadow.css"/>
+    <link rel="stylesheet" type="text/css" media="screen" href="/static/all/toastr/toastr.min.css"/>
+    <link rel="stylesheet" type="text/css" href="/static/all/js/jquery-dropdown/jquery.dropdown.min.css"/>
+    <link href="/static//mimity-admin/plugins/fontawesome-free/css/all.min.css" rel="stylesheet">
+    <!--<link rel="stylesheet" type="text/css" media="screen" href="/static/all/css/sgp-material.css"/>-->
+  
+    <!-- JQuery -->
+    <script type="text/javascript" src="/static/all/js/jquery-1.11.3.min.js"></script>  
+    <script type="text/javascript" src="/static/all/js/jquery.jqprint.js"></script>  
+    <script type="text/javascript" src="/static/all/js/jquery.tooltipster.min.js"></script>
+    <script type="text/javascript" src="/static/all/js/jquery-dropdown/jquery.dropdown.min.js"></script>
+
+    <!-- JQuery UI -->
+  	<script type="text/javascript" src="/static/all/css/jquery-ui/theme0/jquery-ui.min.js"></script>	
+  	<link type="text/css" href="/static/all/css/jquery-ui/theme0/jquery-ui-001.css?v=24" rel="stylesheet" media="screen"/>    
+  	
+  	<!-- DataTables -->
+    <script type="text/javascript" src="/static/all/js/jquery.dataTables/new/js/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" src="/static/all/js/jquery.dataTables/new/js/dataTables.buttons.min.js"></script>
+    <script type="text/javascript" src="/static/all/js/jquery.dataTables/new/js/buttons.print.min.js"></script>
+
+  	<script type="text/javascript" src="/static/all/js/jquery.dataTables/js/jquery.dataTables.Sort.js"></script>  
+  	<script type="text/javascript" src="/static/all/js/jquery.dataTables/js/jquery.dataTables.TypeDetect.js?v=2"></script>
+    <script type="text/javascript" src="/static/all/js/jquery.dataTables/TableTools/js/dataTables.tableTools.min.js"></script>
+
+    <!-- select -->
+    <script type="text/javascript" src="/static/all/select2/js/select2.full.min.js?v=1"></script>
+    <script type="text/javascript" src="/static/all/select2/js/i18n/pt-BR.js?v=1"></script>  
+    <link type="text/css" href="/static/all/select2/css/select2.min.css?v=27" rel="stylesheet"/>  
+
+    <!-- SUPERFISH -->
+    <script type="text/javascript" src="/static/all/js/superfish.hoverIntent.js"></script>
+    <script type="text/javascript" src="/static/all/js/superfish.min.js"></script>
+
+    <!-- TOASTR -->
+    <script type="text/javascript" src="/static/all/toastr/toastr.min.js"></script>
+
+    <!-- MOMENT -->
+    <script type="text/javascript" src="/static/all/js/moment.js"></script>
+
+    <!-- Base JS -->
+    <script type="text/javascript" src="/static/all/js/base001.js?v=28"></script>
+    <!-- CSRF --> 	
+    <script type="text/javascript" src="/static/all/js/csrf.js"></script>	 
+	  <!--<meta name="viewport" content="width=device-width, user-scalable=no">-->
+    <!--[if lt IE 7]>
+     	<script defer type="text/javascript" src="/static/all/js/pngfix.js"></script>
+     	<link rel="stylesheet" type="text/css" href="/static/all/css/ie.css" />
+    <![endif]-->
+    
+      <script src="/static/all/js/highcharts712/code/highcharts.js"></script>
+      <script src="/static/all/js/highcharts712/code/modules/drilldown.js"></script>
+    
+
+     
+      <script src="/static/all/js/highcharts-dark.js"></script>
+     
+
+    <script>window.HighchartsV7 = window.Highcharts; window.Highcharts = undefined;</script>
+    <script src="/static/all/js/Highcharts124/code/highcharts.js"></script>
+    
+<script src="/static/all/js/Highcharts124/code/highcharts-3d.js"></script>
+<script src="/static/all/js/Highcharts124/code/modules/funnel3d.js"></script>
+<script src="/static/all/js/Highcharts124/code/modules/cylinder.js"></script>
+<script src="/static/all/js/Highcharts124/code/modules/drilldown.js"></script>
+<script src="/static/all/js/Highcharts124/code/modules/bullet.js"></script>
+<script src="/static/all/js/Highcharts124/code/modules/accessibility.js"></script>
+<script src="/static/all/js/Highcharts124/code/modules/series-label.js"></script>
+<script>window.isDarkMode = true;</script>
+<script src="/static/js/highchartsWidgetConfig.js?v=3"></script>
+
+    <script>
+        window.Highcharts_v12 = Highcharts;
+        window.Highcharts = window.HighchartsV7; /* restaura v7 como padrão */
+    </script>
+
+    <style type="text/css" media="print">
+      .sf-menu { 
+        display: none;
+      }
+      
+      #header, #top, #headertop { 
+        display: none;
+      }
+    </style>
+
+    <script>
+      $(document).ready(function() {
+          $('#booksmarkdo, #tsmxcontatodo, #changelogdo, #sgpsimplestats, #sgpdebugdo, #sgpstatsdo').tooltipster({
+            contentAsHTML: true,
+            position: "left",
+            maxWidth: 450,
+          });
+      });
+    </script>
+
+    <script type="text/javascript" charset="utf-8">
+      $(document).ready(function() {
+          $('#tsmxcontatodo').click(function() {
+            
+            booksmarkDismiss();
+            
+
+            $('#tsmxcontato').load("/admin/tsmx/contato/list/"); 
+            $('#tsmxcontato').dialog({ width: 700, height: 400, modal: true });
+          });
+
+          $('#changelogdo').click(function() {
+              var wWidth = $(window).width();
+              var dWidth = wWidth * 0.6;
+              var wHeight = $(window).height();
+              var dHeight = wHeight * 0.9;
+
+              
+              booksmarkDismiss();
+              
+
+              $('#changelog').load("/admin/changelog/"); 
+              $('#changelog').dialog({ 
+                width: dWidth, 
+                maxHeight: dHeight,
+                height: dHeight,
+                modal: true,
+                dialogClass: 'dialog_yellow',
+                open: function(){
+                  $(this).css('padding', '0');
+                },
+              });
+          });
+          
+          $('#sgpstatsdo, #sgpoutofdate').click(function() {
+              
+              booksmarkDismiss();
+              
+
+              var wWidth = $(window).width();
+              var dWidth = wWidth * 0.7;
+              var wHeight = $(window).height();
+              var dHeight = wHeight * 0.6;
+              
+              $('#sgpstats').load("/admin/sgpstats/?reqtime=1" + $.now());
+              $('#sgpstats').dialog({
+                // altura acompanha o conteúdo; o template (fit_dialog) reajusta
+                // e recentra assim que o conteúdo carrega via ajax
+                width: dWidth, height: 'auto', maxHeight: Math.floor(wHeight * 0.9),
+                modal: true,
+                open: function(event, ui) {
+                  $(this).css('padding', '10px');
+                }
+              });
+          });
+
+          $('#sgpsimplestats').click(function() {
+              
+              booksmarkDismiss();
+              
+
+              var wWidth = $(window).width();
+              var dWidth = wWidth * 0.7;
+              var wHeight = $(window).height();
+              var dHeight = wHeight * 0.6;
+              
+              $('#sgpstats').load("/admin/sgpsimplestats/?reqtime=1" + $.now()); 
+              $('#sgpstats').dialog({ 
+                width: dWidth, height: 625, modal: true,
+                open: function(event, ui) {
+                  $(this).css('padding', '10px');
+                }
+              });
+          });
+
+          
+          
+          
+            
+
+              function setIntervalAndExecuteUserOnlineReportCheck(fn, t) {
+                fn();
+                return(setInterval(fn, t));
+              }
+
+              setTimeout(function() {
+                setIntervalAndExecuteUserOnlineReportCheck(function() {
+                  if(!document.hidden){
+                    $.ajax({
+                      url: "/admin/cauth/useronline/report_check/",
+                      global: false
+                    }).done(function(data) {
+                      
+                    });
+                  }
+                }, 25000);
+              }, 2500);
+          
+          
+          
+      });
+      
+    </script>   
+    
+<style type="text/css">
+.jq-dropdown .jq-dropdown-menu li,
+.jq-dropdown .jq-dropdown-menu label {
+text-align: right;
+}
+
+.ui-dialog .ui-dialog-content {
+    padding: 0;
+    margin: 0;
+}
+
+
+
+
+
+
+</style>
+    
+    <link href="/static/all/css/dashboard.css" rel="stylesheet" type="text/css" media="screen"/>
+    
+    <link href="/static/all/css/dashboard_components.css?v=10" rel="stylesheet" type="text/css" media="screen"/>
+    <script type="text/javascript" charset="utf-8">
+        jQuery(document).ready(function() {
+            
+
+
+            
+
+        Highcharts.setOptions({
+                colors: ['#2b908f', '#90ee7e', '#f45b5b', '#7798BF', '#aaeeee', '#ff0066',
+                    '#eeaaee', '#55BF3B', '#DF5353', '#7798BF', '#aaeeee'],
+                chart: {
+                    backgroundColor: {
+                        linearGradient: { x1: 0, y1: 0, x2: 1, y2: 1 },
+                        stops: [
+                            [0, '#212121'],
+                            [1, '#212121']
+                        ]
+                    },
+                    style: {
+                        fontFamily: '\'Unica One\', sans-serif'
+                    },
+                    plotBorderColor: '#606063'
+                },
+                title: {
+                    style: {
+                        color: '#E0E0E3',
+             
+                        fontSize: '16px'
+                    }
+                },
+                subtitle: {
+                    style: {
+                        color: '#E0E0E3',
+                      
+                    }
+                },
+                xAxis: {
+                    gridLineColor: '#707073',
+                    labels: {
+                        style: {
+                            color: '#E0E0E3'
+                        }
+                    },
+                    lineColor: '#707073',
+                    minorGridLineColor: '#505053',
+                    tickColor: '#707073',
+                    title: {
+                        style: {
+                            color: '#A0A0A3'
+
+                        }
+                    }
+                },
+                yAxis: {
+                    gridLineColor: '#707073',
+                    labels: {
+                        style: {
+                            color: '#E0E0E3'
+                        }
+                    },
+                    lineColor: '#707073',
+                    minorGridLineColor: '#505053',
+                    tickColor: '#707073',
+                    tickWidth: 1,
+                    title: {
+                        style: {
+                            color: '#A0A0A3'
+                        }
+                    }
+                },
+                plotOptions: {
+                    series: {
+                        dataLabels: {
+                            color: '#B0B0B3'
+                        },
+                        marker: {
+                            lineColor: '#333'
+                        }
+                    },
+                    boxplot: {
+                        fillColor: '#505053'
+                    },
+                    candlestick: {
+                        lineColor: 'white'
+                    },
+                    errorbar: {
+                        color: 'white'
+                    }
+                },
+                legend: {
+                    itemStyle: {
+                        color: '#E0E0E3'
+                    },
+                    itemHoverStyle: {
+                        color: '#FFF'
+                    },
+                    itemHiddenStyle: {
+                        color: '#606063'
+                    }
+                },
+                credits: {
+                    style: {
+                        color: '#666'
+                    }
+                },
+                labels: {
+                    style: {
+                        color: '#707073'
+                    }
+                },
+
+                drilldown: {
+                    activeAxisLabelStyle: {
+                        color: '#F0F0F3'
+                    },
+                    activeDataLabelStyle: {
+                        color: '#F0F0F3'
+                    }
+                },
+
+                navigation: {
+                    buttonOptions: {
+                        symbolStroke: '#DDDDDD',
+                        theme: {
+                            fill: '#505053'
+                        }
+                    }
+                },
+
+                // scroll charts
+                rangeSelector: {
+                    buttonTheme: {
+                        fill: '#505053',
+                        stroke: '#000000',
+                        style: {
+                            color: '#CCC'
+                        },
+                        states: {
+                            hover: {
+                                fill: '#707073',
+                                stroke: '#000000',
+                                style: {
+                                    color: 'white'
+                                }
+                            },
+                            select: {
+                                fill: '#000003',
+                                stroke: '#000000',
+                                style: {
+                                    color: 'white'
+                                }
+                            }
+                        }
+                    },
+                    inputBoxBorderColor: '#505053',
+                    inputStyle: {
+                        backgroundColor: '#333',
+                        color: 'silver'
+                    },
+                    labelStyle: {
+                        color: 'silver'
+                    }
+                },
+
+                navigator: {
+                    handles: {
+                        backgroundColor: '#666',
+                        borderColor: '#AAA'
+                    },
+                    outlineColor: '#CCC',
+                    maskFill: 'rgba(255,255,255,0.1)',
+                    series: {
+                        color: '#7798BF',
+                        lineColor: '#A6C7ED'
+                    },
+                    xAxis: {
+                        gridLineColor: '#505053'
+                    }
+                },
+
+                scrollbar: {
+                    barBackgroundColor: '#808083',
+                    barBorderColor: '#808083',
+                    buttonArrowColor: '#CCC',
+                    buttonBackgroundColor: '#606063',
+                    buttonBorderColor: '#606063',
+                    rifleColor: '#FFF',
+                    trackBackgroundColor: '#404043',
+                    trackBorderColor: '#404043'
+                },
+
+                // special colors for some of the
+                legendBackgroundColor: 'rgba(0, 0, 0, 0.5)',
+                background2: '#505053',
+                dataLabelsColor: '#B0B0B3',
+                textColor: '#C0C0C0',
+                contrastTextColor: '#F0F0F3',
+                maskColor: 'rgba(255,255,255,0.3)'
+            })
+
+        
+
+        });
+    </script>
+
+
+
+    <link rel="stylesheet" type="text/css" media="screen" href="/static/all/css/admin_dark.css?v=39"/>   
+</head>
+<body>
+ 
+<!--Content -->
+
+
+<div id="wrap">
+
+
+
+
+<!-- Header -->
+<div id="header-wrap">
+<div id="header">
+   <div id="header-left"> 
+      <a href="/admin/">
+        <img style="width: 75px; margin-top: 10px;" src="/static/all/img/logo/new/menu-logo.png?v=4"/></img>
+      <!--<h1 style="font-size: 30px; padding-top: 10px; float: left;"> SGP </h1>-->
+      </a>
+
+      
+        <div id="clientebusca_top">
+          <input type="text" placeholder="Consultar Cliente" name="clientebusca" id="id_clientebusca" value="" 
+            style="width: 165px;"/>
+          <select name="select" name="clientebuscatipo" id="id_clientebuscatipo" style="width: 95px;">
+            <option value="">Tipo</option>
+            <option value="contrato">ID Contrato</option>
+            <option value="cliente">ID Cliente</option>
+            <option value="nome">Nome/Razão Social</option>
+            <option value="cpfcnpj">CPF/CNPJ</option>
+            <option value="telefone">Telefone</option>
+            <option value="email">Email</option>
+            <option value="rua">Rua</option>
+            <option value="observacao">Observação</option>
+            <option value="login">Login</option>
+            <option value="loginini">Login Início</option>
+            <option value="mac">MAC</option>
+            <option value="serial">Serial Controle</option>
+            <option value="smartcard">SmartCard (TV)</option>
+            <option value="simcard">SIMCard (Telefonia)</option>
+            <option value="ip">IP</option>
+            <option value="onuid">ONU ID</option>
+            <option value="onuident">ONU Ident. CTO</option>
+            <option value="numerodoc">Número Doc. Título</option>
+            <option value="ocorrencia">Ocorrência</option>
+            <option value="os">N. OS</option>
+            <option value="tag">Tag</option>
+            <option value="variavel">Variável customizada</option>
+
+            
+
+          </select>
+        </div>
+        <script type="text/javascript">
+          $(function() {
+              $('#id_clientebuscatipo').change(function(){
+                $('#id_clientebusca').val('').focus();
+              });
+
+              function normalizarTexto(texto) {
+                return texto
+                  ? texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
+                  : "";
+              }
+
+              const tipo_padrao = normalizarTexto('False');
+
+              let found = false;
+
+              $("#id_clientebuscatipo option").each(function () {
+                const value = normalizarTexto($(this).val());
+                const text = normalizarTexto($(this).text());
+
+                if (tipo_padrao === value || tipo_padrao === text) {
+                  $(this).prop("selected", true);
+                  found = true;
+                  return false; // parar o loop
+                }
+              });
+
+              $( "#id_clientebusca" ).autocomplete({
+                  source: "/public/autocomplete/ClienteAutocomplete",
+                  minLength: 2,
+                  source: function(request,response){
+                    $.getJSON("/public/autocomplete/ClienteAutocomplete?tconsulta="+$("#id_clientebuscatipo").val(),request,function(data,status,xhr) {
+                      response(data);
+                    });
+                  },
+                  open: function() { 
+                    $('#id_clientebusca').autocomplete("widget").addClass("clientebusca_content");
+                    },
+                  select: function( event, ui ) {
+                      window.location=ui.item.url;
+                  }
+              }).autocomplete( "instance" )._renderItem = function( ul, item ) {
+                
+                return $( "<li>" )
+                  .append( "<div><strong>" + item.label + "</strong><br><span style=\"font-size: 10px;\">" + item.address + "</span></div>" )
+                  .appendTo( ul );
+                
+              };
+          });
+      </script>
+          
+   </div>
+   <div id="header-right"> 
+    
+    <ul>
+        
+        
+        
+        
+        
+        
+        <li>
+          <a title="Favoritos" 
+             href="#" style="font-weight: bold;" onclick="return false;" id="booksmarkdo">
+            <i class="fas fa-star booksmarkdoicon" style="margin-bottom: -1px;"></i>
+          </a>
+        </li>
+        
+        
+        <li>
+          <a title="Suporte SGP" 
+             href="#" style="font-weight: bold;" onclick="return false;" id="tsmxcontatodo">
+            <i class="fas fa-address-book" style="margin-bottom: -1px;"></i>
+          </a>
+        </li>
+        
+        <li>
+          <a title="Changelog" 
+             href="#" style="font-weight: bold;" onclick="return false;" id="changelogdo">
+            <i class="fas fa-question-circle" style="margin-bottom: -1px;"></i>
+          </a>
+        </li>
+        
+        <li class="separador"></li>
+        <li>Provedor: <span> INTERLIG </span></li>
+        <li class="separador"></li>
+        <li>Usuário: <span> Paulo Matos </span></li>
+        <li class="separador"></li>
+        <li><a href="/admin/cauth/user/logout/">Sair</a></li>
+      </ul>
+    
+   </div>
+</div>
+<!-- End Header -->
+  <div id="headertop">      
+    <div id="headertop-left">
+        
+
+
+
+
+
+<ul class="sf-menu">
+    <li > <a href="#" class="dir"><span>Clientes</span></a>
+        <ul class="sf-menu-main">
+            <li><a href="/admin/cliente/list/">Consultar</a></li>
+            <li><a href="/admin/cliente/search/">Consultar V2</a></li>
+            <li><a href="#" class="dir">Cadastrar</a>
+                <ul>
+                    <li><a href="/admin/cliente/add/F/"> Pessoa Física </a> </li>
+                    <li><a href="/admin/cliente/add/J/"> Pessoa Jurídica </a> </li>
+                    <li><a href="/admin/cliente/add/E/"> Pessoa Física Estrangeira </a> </li>
+                    <li><a href="/admin/cliente/add/EJ/"> Pessoa Jurídica Estrangeira </a></li>
+                </ul>
+            </li>
+
+            <li><a href="#ab" class="dir">Viabilidade</a>
+                <ul>
+                    <li><a href="/admin/precadastro/viabilidade/consultar/"> Consultar </a> </li>
+                    <li><a href="/admin/precadastro/viabilidade/list/"> Listar </a> </li>
+                    <li><a href="/admin/precadastro/viabilidade/"> Cadastrar </a> </li>
+                </ul>
+            </li>
+
+            <li><a href="#ab" class="dir">Pré-Cadastro</a>
+                <ul>
+                    <li><a href="#ab" class="dir">Listar</a>
+                         <ul>
+                            <li><a href="/admin/precadastro/listar/"> Pré-Cadastro - Cliente </a> </li>
+                        </ul>
+                    </li>
+
+                    <li><a href="#ab" class="dir">Cadastrar</a>
+                         <ul>
+                            <li><a href="/admin/precadastro/add/F/"> Pessoa Física </a> </li>
+                            <li><a href="/admin/precadastro/add/J/"> Pessoa Jurídica </a> </li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+            <li> <a href="#" class="dir"><span>CRM</span></a>
+                <ul class="sf-menu-main">
+                    <li><a href="#" class="dir">Cadastrar Cliente</a>
+                        <ul>
+                            <li><a href="/crm/cliente/add/F/"> Pessoa Física </a> </li>
+                            <li><a href="/crm/cliente/add/J/"> Pessoa Jurídica </a> </li>
+                            <li><a href="/crm/cliente/add/E/"> Pessoa Física Estrangeira </a> </li>
+                            <li><a href="/crm/cliente/add/EJ/"> Pessoa Jurídica Estrangeira </a></li>
+                        </ul>
+                    </li>
+                    <li><a href="/crm/cliente/search/"> Consultar Cliente </a></li>
+                    <li><a href="#" class="dir">Relatórios</a>
+                        <ul>
+                            <li><a href="/crm/relatorio/dashboard/"> Dashboard </a> </li>
+                            <li><a href="/crm/relatorio/dashboard/contrato/"> Dashboard por Contrato </a> </li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+
+            <li> <a href="/admin/contrato/suspender/lote/"> Suspender em Lote </a> </li>
+            <li> <a href="/admin/cliente/list/ultimos/"> Últimos Cadastros </a> </li>
+            <!-- <li> <a href="#url_not_found"> Importar </a> </li> -->
+        </ul>
+    </li>
+    
+    <li><a href="#" class="dir"><span>Financeiro</span></a>
+        <ul class="sf-menu-main">
+            <li><a href="#" class="dir">Cadastros</a>
+                <ul>
+                    <li><a href="/admin/financeiro/fornecedor/"> Fornecedores </a></li>
+                    <li><a href="/admin/financeiro/centrodecusto/"> Plano de Contas </a></li>
+                    <li><a href="/admin/financeiro/ofxfiltro/">OFX Filtros</a></li>
+                    <li><a href="/admin/financeiro/pontorecebimento/"> Pontos de Recebimento </a></li>
+                    <li><a href="/admin/djadmin/?extra=admcore/empresa"> Empresas </a></li>
+                    <li><a href="/admin/djadmin/?extra=admcore/funcionario"> Funcionários </a></li>
+                    <li><a href="/admin/financeiro/portador/"> Portadores</a></li>
+                    <li><a href="/admin/financeiro/gatewaypagamento/"> Gateway de Pagamento</a></li>
+                    <li><a href="/admin/financeiro/contador/"> Contador </a></li>
+                    <li><a href="/admin/financeiro/vencimento/">Vencimentos</a></li>
+                    <li><a href="/admin/financeiro/feriado/">Feriados</a></li>
+                    <li><a href="/admin/financeiro/contrato/">Contratos</a></li>
+                    <li><a href="/admin/financeiro/gatewaycontadigital/"> Conta Digital</a></li>
+                </ul>
+            </li>
+
+            <li><a href="#" class="dir">Títulos</a>
+                <ul>
+                    <li><a href="/admin/financeiro/titulo/search/">Consultar</a></li>
+                    <li><a href="#" class="dir">Gerar</a>
+                        <ul>
+                            <li><a href="/admin/financeiro/titulo/lote/add/"> Lote por Vencimento </a></li>
+                            <li><a href="/admin/financeiro/titulo/lote/mes/add/"> Lote por Mês </a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#" class="dir">Imprimir</a>
+                        <ul>
+                            <li><a href="/admin/financeiro/titulo/lote/print/"> Lote Por Vencimento </a></li>
+                            <li><a href="/admin/financeiro/titulo/lote/mes/print/"> Lote Por Mês </a></li>
+                        </ul>
+                    </li>
+                    <li><a href="/admin/financeiro/titulo/retorno/"> Retorno Bancário </a></li>
+                    <li><a href="/admin/financeiro/titulo/retorno/debito/"> Retorno Rem. Débito </a></li>
+                    <li><a href="/admin/financeiro/titulo/retornogateway/"> Retorno Gateway </a></li>
+                    <li><a href="#" class="dir">Remessas</a>
+                        <ul>
+                            <li><a href="/admin/financeiro/remessa/cobranca/"> Arquivo de Cobrança </a></li>
+                            <li><a href="/admin/financeiro/remessa/debitoautomatico/"> Débito Automático </a></li>
+                            <li><a href="/admin/financeiro/remessa/gateway/cobranca/"> Remessa Títulos via API </a></li>
+                        </ul>
+                    </li>
+                    <li><a href="/admin/financeiro/titulo/email/lote/">Email Título Lote</a></li>
+                    <li><a href="/admin/financeiro/titulo/titular/alterar/">Migrar Título</a></li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Carnês</a>
+                <ul>
+                    <li><a href="#" class="dir">Gerar</a>
+                        <ul>
+                            <li><a href="/admin/financeiro/carne/lote/add/"> Lote </a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#" class="dir">Imprimir</a>
+                        <ul>
+                            <li><a href="/admin/financeiro/carne/lote/print/"> Lotes </a></li>
+                            <li><a href="/admin/financeiro/carne/lote/print/?carnegatewayprint=1"> Lotes Gateway Pag. </a></li>
+                        </ul>
+                    </li>
+                     <li><a href="/admin/financeiro/carne/lote/entrega/"> Confirmação de Entrega </a></li>
+            </ul>
+            </li>
+
+            <li><a href="#" class="dir">Protocolos</a>
+                <ul>
+                    <li><a href="/admin/financeiro/protocolo/list/"> Consultar </a></li>
+                    <li><a href="/admin/financeiro/protocolo/add/"> Gerar </a></li>
+                </ul>
+            </li>
+
+            <li><a href="#" class="dir">Caixas</a>
+                <ul>
+                    <li><a href="#" class="dir">Lançamentos</a>
+                        <ul>
+                            <li><a href="/admin/financeiro/caixa/lancamento/add/">Cadastrar</a></li>
+                            <li><a href="/admin/financeiro/caixa/lancamento/list/">Histórico</a></li>
+                            <li><a href="/admin/financeiro/caixa/ofx/arquivo/">OFX Arquivo</a></li>
+
+                        </ul>
+                    </li>
+                    <li><a href="#" class="dir">Repasses</a>
+                        <ul>
+                            <li><a href="/admin/financeiro/caixa/repasse/add/">Cadastrar</a></li>
+                            <li><a href="/admin/financeiro/caixa/repasse/list/">Histórico</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Contas a Pagar</a>
+                <ul>
+                    <li><a href="/admin/financeiro/pagar/add/">Cadastrar</a></li>
+                    <li><a href="/admin/financeiro/pagar/nfe/add/">Cadastrar (NFe)</a></li>
+                    <li><a href="/admin/financeiro/pagar/list/">Histórico</a></li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Contas a Receber</a>
+                <ul>
+                    <li><a href="/admin/financeiro/receber/add/">Cadastrar</a></li>
+                    <li><a href="/admin/financeiro/receber/list/">Histórico</a></li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Declarações</a>
+                <ul>
+                    <li><a href="/admin/financeiro/declaracoes/quitacao/">Quitação</a></li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Acréscimos / Descontos em Lote</a>
+                <ul>
+                    <li><a href="/admin/financeiro/adcobranca/cliente/add/lote/titulos/agerar/"> Títulos a Gerar </a></li>
+                </ul>
+            </li>
+
+            <li><a href="#" class="dir">Cobrança</a>
+                <ul>
+                    <li><a href="/admin/cobranca/atraso/">Atraso</a></li>  
+                    <li><a href="/admin/cobranca/lembrador/">Lembrador Cobrança</a></li> 
+                    <li><a href="/admin/cobranca/spc/">SPC/Serasa</a></li> 
+
+                    <li><a href="/admin/cobranca/smscobranca/enviar/">SMS Cobrança</a></li>      
+                    <li><a href="/admin/cobranca/emailcobranca/enviar/">Email Cobrança</a></li> 
+                    <li><a href="#aa" class="dir">Cartas de Cobrança</a>
+                        <ul>
+                            <li><a href="/admin/cobranca/cartacobranca/add">Gerar</a></li>
+                            <li><a href="/admin/cobranca/cartacobranca">Histórico</a></li>
+                            <li><a href="/admin/cobranca/cartacobranca/lote">Enviar em lote</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="/admin/cobranca/recorrente/">Rotina de Cobrança Recorrente</a></li>
+                                 
+                </ul>
+            </li>
+
+            <li><a href="#" class="dir">Pix</a>
+              <ul>
+                  <li><a href="/admin/financeiro/pix/consulta/e2id">Consulta ID Transação</a></li> 
+                  <li><a href="/admin/financeiro/pix/consulta/emv">Consulta EMV (QRCode)</a></li>  
+              </ul>
+          </li>
+
+        </ul>
+    </li>
+    <li > <a href="#" class="dir"><span>Fiscal</span></a>
+        <ul class="sf-menu-main">
+            <li><a href="#" class="dir">Cadastros</a>
+                <ul>
+                    <li><a href="/admin/djadmin/?extra=fiscal/grupofiscal"> Grupos Fiscais </a> </li>
+                    <li><a href="/admin/djadmin/?extra=fiscal/ibsuf"> IBS Estadual </a> </li>
+                    <li><a href="/admin/djadmin/?extra=fiscal/ibsmun"> IBS Municipal </a> </li>
+                    <li><a href="/admin/djadmin/?extra=admcore/planodetalhe">Impostos - Planos</a></li>
+                    <li><a href="/admin/djadmin/?extra=admcore/servico">Serviços</a></li>
+                    <li><a href="/admin/djadmin/?extra=fiscal/cfop"> CFOP </a> </li>
+                    
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Arquivos Fiscais</a>
+                <ul>
+                    <li><a href="/admin/fiscal/sped/arquivo/">Sped</a></li>
+                    <li><a href="/admin/fiscal/sintegra/arquivo/">Sintegra</a></li>
+                    <li><a href="/admin/fiscal/nfs/arquivos/11503/">NF21/22 (ICMS 115/03)</a></li>
+                    <li><a href="/admin/fiscal/nfs/arquivos/20117/">NF21/22 (ICMS 201/17)</a></li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Nota Fiscal 21/22</a>
+                <ul>
+                    <li><a href="/admin/fiscal/nfs/list/">Consultar</a></li>
+                    <li><a href="/admin/fiscal/nfs/titulo/lote/create/">Gerar em Lote</a></li>
+                    <li><a href="#" class="dir">Imprimir</a>
+                        <ul>
+                            <li><a href="/admin/fiscal/nfs/print/">Lote POP/Vencimento</a></li>
+                            <li><a href="/admin/fiscal/nfs/print/mes/">Lote Mês</a></li>
+                            <li><a href="/admin/fiscal/nfs/print/cliente/">Por Cliente</a></li>
+                            
+                        </ul>
+                    </li>
+                    <li><a href="/admin/fiscal/nfs/mail/lote/">Email NF Lote</a></li>
+                    <li><a href="/admin/fiscal/nfs/arquivos/11503/">Arquivos Fiscais</a></li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Nota Fiscal 55/65</a>
+                <ul>
+
+                    
+                    <li><a href="/admin/djadmin/?extra=fiscal/nfe/add"> Emitir </a> </li>
+                    <li><a href="/admin/fiscal/nfe/list/"> Consultar </a> </li>
+                    <li><a href="/admin/fiscal/nfe/consultar/"> Consultar Nota Sefaz </a> </li>
+                    <li><a href="/admin/fiscal/nfe/consultar/servico/"> Consultar Serviço NFe Sefaz </a> </li>
+                    <li><a href="/admin/fiscal/nfe/inutilizar/"> Inutilizar Numeração </a> </li>
+                    <li><a href="/admin/fiscal/nfe/importar/"> Importar XML </a> </li>
+                    <li><a href="/admin/fiscal/nfe/add/lote/"> Emitir NFe Serviço em Lote </a> </li>
+                    <li><a href="/admin/fiscal/nfe/mail/lote/"> Enviar NFe em Lote </a> </li>
+                    
+                </ul>
+            </li>
+            <li><a href="#" class="dir">CT-e</a>
+              <ul>
+                  <li><a href="/admin/djadmin/?extra=fiscal/cte"> Listar</a></li>
+                  <li><a href="/admin/fiscal/cte/importar/">Importar</a></li>
+              </ul>
+            </li>
+            <li><a href="#" class="dir">Nota Fiscal 62 (NFCom)</a>
+              <ul>
+                  <li><a href="/admin/djadmin/?extra=fiscal/nfcom/add"> Emitir </a> </li>
+                  <li><a href="/admin/fiscal/nfcom/list/"> Consultar </a> </li>
+                  <li><a href="/admin/fiscal/nfcom/titulo/lote/create/"> Gerar em Lote </a> </li>
+                  <li><a href="/admin/fiscal/nfcom/mail/lote/"> Enviar NFCom em Lote </a> </li>
+                  <li><a href="/admin/fiscal/nfcom/importar/"> Importar XML </a> </li>
+                  <li><a href="#" class="dir">Imprimir</a>
+                    <ul>
+                        <li><a href="/admin/fiscal/nfcom/print/cliente/">Por Cliente</a></li>
+                        <li><a href="/admin/fiscal/nfcom/print/mes/">Lote Mês</a></li>
+                        <li><a href="/admin/fiscal/nfcom/print/">Lote POP/Vencimento</a></li>
+                    </ul>
+                  </li>
+              </ul>
+          </li>
+            <li><a href="#" class="dir">Nota de Débito</a>
+                <ul>                    
+                    <li><a href="/admin/djadmin/?extra=fiscal/notadebito/add"> Emitir </a> </li>
+                    <li><a href="/admin/fiscal/notadebito/titulo/lote/create/"> Emitir Lote </a> </li>
+                    <li><a href="/admin/fiscal/notadebito/list/"> Consultar </a> </li>
+                    <li><a href="/admin/fiscal/notadebito/email/lote/">Email NF Lote</a></li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Nota de Serviço</a>
+                <ul> 
+                    <li><a href="/admin/fiscal/nfse/list/">Consultar</a></li>
+                    <li><a href="/admin/fiscal/nfse/titulo/lote/create/">Gerar em Lote</a></li>
+                    <li><a href="/admin/fiscal/nfse/rps/lote/email/">Email NFS-e em Lote</a></li>
+                    <!--<li><a href="/admin/djadmin/?extra=fiscal/nfse/add"> Emitir </a> </li>-->
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Código IBGE</a>
+                <ul>
+                    <li><a href="/admin/fiscal/ibge/cidades/buscar"> Buscar Códigos? </a> </li>
+                </ul>
+            </li>
+        </ul>
+    </li>
+
+    <li><a href="#" class="dir"><span>Estoque</span></a>
+        <ul class="sf-menu-main">
+            <li><a href="#" class="dir">Cadastros</a>
+                <ul>
+                    <li><a href="/admin/djadmin/?extra=estoque/categoria"> Categorias </a></li>
+                    <li><a href="/admin/djadmin/?extra=estoque/fabricante"> Fabricantes </a></li>
+                    <li><a href="/admin/djadmin/?extra=estoque/produto"> Produtos </a></li>
+                    <li><a href="/admin/djadmin/?extra=estoque/produtofornecedor"> Produtos - Fornecedores </a></li>
+                    <li><a href="/admin/djadmin/?extra=estoque/kitinstalacao"> Kit de Instalação </a>
+                    <li><a href="/admin/estoque/local/list/"> Locais Estoques </a></li>
+                    <li><a href="/admin/djadmin/?extra=estoque/ncm"> NCM </a></li>
+                    <li><a href="/admin/djadmin/?extra=estoque/veiculo"> Veículos </a></li>
+                </ul>
+            </li>
+
+
+
+
+
+
+
+
+            <li><a href="#" class="dir">Consultas</a>
+              <ul>
+                <li><a href="/admin/estoque/estoque_agregado/"> Saldo Estoque </a></li>
+                <li><a href="/admin/estoque/lancamento_registro/"> Lançamentos </a></li>
+                <li><a href="/admin/estoque/relatorios/produto/quantitativo/"> Quantitativo por Produto </a></li>
+                
+              </ul>
+            </li>
+            <li><a href="#" class="dir">Movimentações</a>
+              <ul>
+                
+
+                <li><a href="#" class="dir">Compra</a>
+                  <ul>
+                    <li><a href="/admin/djadmin/?extra=estoque/compra/add"> Cadastrar </a></li>
+                    <li><a href="/admin/estoque/compra/add_nfe/"> Cadastrar (NFe) </a></li>
+                    <li><a href="/admin/estoque/relatorios/estoque/compra/"> Listar </a></li>
+                  </ul>
+                </li>
+                <li><a href="#" class="dir">Venda</a>
+                  <ul>
+                    <li><a href="/admin/djadmin/?extra=estoque/venda/add"> Cadastrar </a></li>
+                    <li><a href="/admin/estoque/relatorios/estoque/venda/"> Listar </a></li>
+                  </ul>
+                </li>
+                <li><a href="#" class="dir">Comodato</a>
+                  <ul>
+                    <li><a href="/admin/djadmin/?extra=estoque/comodato/add"> Cadastrar </a></li>
+                    <li><a href="/admin/estoque/relatorios/estoque/comodato/"> Listar </a></li>
+                  </ul>
+                </li>
+                <li><a href="#" class="dir">Correção</a>
+                  <ul>
+                    <li><a href="/admin/estoque/lancamento_correcao/add/"> Cadastrar </a></li>
+                    <li><a href="/admin/estoque/lancamento_correcao/"> Listar </a></li>
+                  </ul>
+                </li>
+                <li><a href="#" class="dir">Transferência</a>
+                  <ul>
+                    <li><a href="/admin/djadmin/?extra=estoque/transferencia/add"> Cadastrar (Padrão) </a></li>
+                    <li><a href="/admin/estoque/transferencia/add/lote/"> Cadastrar (Lote R.) </a></li>
+                    <li><a href="/admin/estoque/relatorios/estoque/transferencia/"> Listar </a></li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+            <li><a href="#" class="dir">Veículo Lançamento</a>
+              <ul>
+                <li><a href="/admin/djadmin/?extra=estoque/veiculolancamento"> Registro de Viagem </a></li>
+              </ul>
+            </li>
+
+
+
+
+
+
+
+
+
+          
+
+        </ul>
+    </li>
+   
+
+    <li><a href="#" class="dir"><span>Relatórios</span></a>
+        <ul class="sf-menu-main">
+            <li><a href="#" class="dir">Financeiro</a>
+                <ul>
+                    <li><a href="#" class="dir">Títulos</a>
+                        <ul>
+                            <li><a href="/admin/financeiro/relatorios/titulo/cliente/">Por Cliente</a></li> 
+                            <li><a href="/admin/financeiro/relatorios/titulo/areceber/">A Receber</a></li>
+                            <li><a href="/admin/financeiro/relatorios/titulo/recebidos/">Recebidos</a></li>
+                            <li><a href="#" class="dir">Recebidos (Resumo)</a>
+                                <ul>
+                                    <li><a href="/admin/financeiro/relatorios/titulo/recebidos/resumo/">Resumo</a></li>
+                                    <li><a href="/admin/financeiro/relatorios/titulo/recebidos/resumo/vencimentos/">Por Vencimentos</a></li>
+                                </ul>
+                            </li>
+                            <li><a href="/admin/financeiro/relatorios/titulo/recebidos_parcialmente/">Recebidos Parcialmente</a></li>
+                            <li><a href="/admin/financeiro/relatorios/titulo/emitidos/">Emitidos</a></li>
+                            <li><a href="/admin/financeiro/relatorios/titulo/cancelados/">Cancelados</a></li>
+                            <li><a href="/admin/financeiro/relatorios/titulo/atrasados/">Em atraso</a></li>
+                            <li><a href="/admin/financeiro/relatorios/titulo/incoerencias/">Incoerências de Rec.</a></li>
+                            <li><a href="/admin/financeiro/relatorios/titulo/liquidez/">Liquidez</a></li>
+                            <li><a href="/admin/financeiro/relatorios/titulo/liquidez/planos">Liquidez (Planos)</a></li>
+                            <li><a href="/admin/financeiro/relatorios/titulo/recebimento/resumo/mes/">Recebimento Mensal</a></li>                            
+                            <li><a href="/admin/financeiro/relatorios/contrato/titutos/quantidade/">Por Quantidade e Status</a></li>
+                            <li><a href="/admin/financeiro/relatorios/titulo/gatewaylog/">Log de Erro com Gateway</a></li>
+                            <li><a href="/admin/financeiro/relatorios/titulo/incoerenciasretorno/">Incoerências no Processamento do Retorno</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#" class="dir">Carnês</a>
+                        <ul>
+                            <li><a href="/admin/financeiro/relatorios/carne/emitidos/">Emitidos</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#" class="dir">Caixa</a>
+                        <ul>
+                            
+                            <li><a href="/admin/financeiro/caixa/lancamento/list/">Lançamentos</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="#" class="dir">Plano de Contas</a>
+                        <ul>
+                            <li><a href="/admin/financeiro/relatorios/centrodecusto/caixa/">Caixa</a></li>
+                            <li><a href="/admin/financeiro/relatorios/centrodecusto/pagar/">Contas a Pagar</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="/admin/financeiro/relatorios/sped">SPED</a></li>
+
+                    <li><a href="/admin/financeiro/acordopagamento/list/">Acordos de Pagamento</a></li>
+                    <li><a href="/admin/financeiro/promessapagamento/list/">Promessas de Pagamento</a></li>
+
+                    <li><a href="/admin/financeiro/relatorios/centrodecusto/despesa/dre">Despesas</a></li>
+                    <li><a href="/admin/financeiro/relatorios/centrodecusto/dre/">DRE</a></li>
+                    <li><a href="/admin/financeiro/relatorios/dre/">DRE V2</a></li>
+                    <li><a href="/admin/financeiro/relatorios/financas/resumo/">Resumo Finanças</a></li>
+                    <li><a href="#" class="dir">Notas Fiscais</a>
+                        <ul>
+                            <li><a href="/admin/fiscal/relatorios/nfs/resumo/">Nota Fiscal 21/22</a></li>
+                            <li><a href="/admin/fiscal/relatorios/nfcom/resumo/">NFCom</a></li>
+                            <li><a href="/admin/fiscal/relatorios/nfcom/cclass/">NFCom Valores por cClass</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="/admin/financeiro/relatorios/cartao/transacoes/">Transações Cartão</a></li>
+                    <li><a href="/admin/financeiro/relatorios/historico/cobrancarecorrente/">Histórico Cobrança Recorrente</a></li>
+                    <li><a href="/admin/financeiro/relatorios/fidelidade/">Fidelidades</a></li>
+                    <li><a href="/admin/relatorios/ibpt/"> Consulta IBPT </a></li>
+                </ul>
+            </li>
+
+            <li> <a href="#" class="dir"> Gráficos </a>
+              <ul>
+                      <li><a href="/admin/financeiro/graficos/titulo/areceber/">Títulos - A Receber</a></li>
+                      <li><a href="/admin/financeiro/graficos/titulo/recebidos/">Títulos - Recebidos</a></li>
+                      <li><a href="/admin/financeiro/graficos/titulo/emitidos/">Títulos - Emitidos</a></li>
+                      <li><a href="/admin/financeiro/graficos/titulo/cancelados/">Títulos - Cancelados</a></li>
+                      <li><a href="/admin/financeiro/graficos/titulo/atrasados/">Títulos - Em atraso</a></li>
+  
+              </ul>
+  
+              <li> <a href="#" class="dir"> Mapas </a>
+              <ul>
+                      <li><a href="/admin/relatorios/mapas/online/">Usuários Conectados</a></li>
+                      <li><a href="/admin/relatorios/mapas/contrato/status/">Contrato Status</a></li>
+                      <li><a href="/admin/atendimento/mapas/ocorrencia/os/">Ordens de Serviço</a></li>
+                      <li><a href="/admin/atendimento/mapas/ocorrencia/os/calor/">Ordens de Serviço (Calor)</a></li>
+                      <li><a href="/admin/network/maps/ftth/">FTTH</a></li>
+                      <li><a href="/admin/atendimento/mapas/tecnicos/localizacao/">Localização</a></li>
+                      
+              </ul>
+              </li>
+
+            <li><a href="#" class="dir">Contrato</a>
+                <ul>
+                    <li><a href="/admin/relatorios/contrato/status/">Status</a></li>
+                    <li><a href="/admin/relatorios/contrato/tags/">Tags</a></li>
+                    <li><a href="/admin/relatorios/contrato/crescimento/">Crescimento</a></li>
+                    <li><a href="/admin/relatorios/contrato/devedores/">Devedores</a></li>
+                    <li><a href="/admin/relatorios/contrato/acancelar/">A cancelar</a></li>
+                    <li><a href="/admin/relatorios/contrato/cancelados/">Cancelados</a></li>
+                    <li><a href="/admin/financeiro/relatorios/contrato/titutos/quantidade/">Por Qtd./Status Título</a></li>
+                    
+
+                    <li><a href="/admin/relatorios/contrato/ativacoes/">Ativacoes</a></li>
+                    <li><a href="/admin/financeiro/relatorios/contrato/cobranca/tolerancia/">Tolerâncias</a></li>
+                    <li><a href="/admin/financeiro/relatorios/contrato/cobranca/desconto/">Descontos Contrato</a></li>
+                    <li><a href="/admin/financeiro/relatorios/contrato/adcobranca/">Acrescimos / Descontos</a></li>
+                    <li><a href="/admin/aditivo/list/">Aditivos</a></li>
+                    
+
+                    <li><a href="/admin/relatorios/contrato/assinatura_eletronica/">Assinatura Eletrônica</a></li>
+                    <li><a href="/admin/relatorios/contrato/cadastronegativo/">Cadastro Negativo</a></li>
+                    <li><a href="/admin/relatorios/gateway/protecaocredito/consultas/">Consultas de Proteção de Crédito</a></li>
+                    <li><a href="/admin/relatorios/gateway/documento/consultas/">Consultas de Documentos</a></li>
+                    <li><a href="#" class="dir">Agendamentos</a>
+                        <ul>
+                            <li><a href="/admin/relatorios/contrato/agendamento/plano/">Agendamento de Planos</a></li>
+                            <li><a href="/admin/relatorios/contrato/agendamento/status/">Agendamento de Status</a></li>
+                            <li><a href="/admin/relatorios/contrato/agendamento/isencao/">Agendamento de Isenções</a></li>
+                        </ul>
+                    </li>
+                    <li><a href="/admin/cliente/anotacoes/relatorio/">Anotação</a></li>
+                    <li><a href="/admin/cliente/beneficios/relatorio/">Benefícios</a></li>
+                    <li><a href="/admin/relatorios/contrato/indicacao/">Indicação</a></li>
+                    <li><a href="/admin/relatorios/contrato/historicoplano/">Histórico de Planos</a></li>
+                    <li><a href="/admin/relatorios/contrato/servico/">Serviços</a></li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Atendimento</a>
+                <ul>
+                    <li><a href="/admin/atendimento/agenda/view/"> Agenda OS. </a></li>
+                    <li><a href="/admin/atendimento/agenda/ocorrencia/view/"> Agenda Ocorrência</a></li>
+                    <li><a href="/admin/atendimento/relatorios/ocorrencia/"> Ocorrência </a></li>
+                    <li><a href="/admin/atendimento/relatorios/ocorrencia/os/"> Ordem de Serviço </a></li>
+                    <li><a href="/admin/atendimento/relatorios/ocorrencia/resumo/quantidade/"> Ocorrência Resumo por Cliente </a> </li>
+                    <li><a href="/admin/atendimento/relatorios/ocorrencia/os/resumo/quantidade/"> Ordem de Serviço Resumo por Cliente </a> </li>
+                    <li><a href="/admin/atendimento/relatorios/ocorrencia/usuario/qtd/"> Ocorrência Qtd. por Usuário </a> </li>
+                    <li><a href="/admin/atendimento/relatorios/ocorrencia/tipo/qtd/"> Ocorrência Qtd. por Tipo </a> </li>
+                    <li><a href="/admin/atendimento/relatorios/ocorrencia/os/resumo/tecnicos/"> Ordem de Serviço (Resumo Técnicos) </a> </li>
+                    <li><a href="/admin/atendimento/relatorios/ocorrencia/os/painel/agendamentos/"> Painel de Agendamentos - OS </a></li>
+                    <li><a href="/admin/atendimento/relatorios/ocorrencia/os/pontuacao/"> Pontuação de Técnicos (OS) </a> </li>
+                    <li><a href="/admin/atendimento/relatorios/ocorrencia/os/pontuacao/detalhada/"> Pontuação de Técnicos (OS) - Detalhada </a> </li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Técnico</a>
+                <ul>
+                    <li><a href="/admin/relatorios/online/list/">Usuários Conectados</a></li>
+                    <li><a href="/admin/relatorios/radius/quantidade/autenticacao/">Autenticações por Cliente</a></li>
+                    
+                    <li> <a href="/admin/servicos/internet/list/ipfixo/"> Logins com IP Fixo </a>
+                    <li><a href="/admin/relatorios/trafego/all/">Extrato de Tráfego</a></li>
+                    <li><a href="/admin/relatorios/radius/ip/">Consulta IP Radius</a></li>
+                    <li><a href="/admin/relatorios/radius/mac/">Consulta Mac Radius</a></li>
+                    <li><a href="/admin/relatorios/telefonia/pool/list/">Telefonia Pools</a></li>
+                    <li><a href="/admin/relatorios/anatel/dici/">ANATEL - DICI</a></li>
+                    <li><a href="/admin/relatorios/anatel/sici/">ANATEL - SICI</a></li>
+                    <li><a href="/admin/relatorios/anatel/pppscm/">ANATEL - PPP SCM</a></li>
+                    <li><a href="/admin/relatorios/anatel/stfc/">ANATEL - STFC</a></li>
+                    <li><a href="/admin/relatorios/anatel/infraestrutura/">ANATEL - INFRA</a></li>
+                    <li><a href="/admin/relatorios/anatel/endereco/">ANATEL - Compartilhamento de Endereço</a></li>
+                    <li><a href="/admin/relatorios/neotv/">NEOTV</a></li>
+                </ul>
+            </li>
+
+            <li><a href="#" class="dir">FTTH</a>
+                <ul>
+                    <li><a href="/admin/network/onu/list/">ONU</a></li>
+                    <li><a href="/admin/network/onu/optical/list/">ONU Sinal</a></li>                    
+                    <li><a href="/admin/network/cto/list/">CTO</a></li>
+                </ul>
+            </li>
+
+            <li><a href="#" class="dir">Estoque</a>
+                <ul>
+                    <li><a href="/admin/estoque/relatorios/veiculo/lancamento/">Veículo - Lançamentos</a></li>
+
+
+                    <li><a href="/admin/estoque/relatorios/estoque/comodato/">Estoque Comodato</a></li>
+                    <li><a href="/admin/estoque/relatorios/estoque/compra/"> Estoque Compra </a></li>
+                    <li><a href="/admin/estoque/relatorios/estoque/transferencia/"> Transferência </a></li>
+                    <li><a href="/admin/estoque/relatorios/estoque/venda/">Estoque Venda</a></li>
+                    <li><a href="/admin/estoque/lancamento_registro/"> Estoque Lançamentos </a></li>
+                    <li><a href="/admin/estoque/estoque_agregado/"> Estoque Relatório </a></li>
+                    <li><a href="/admin/estoque/relatorios/produto/quantitativo/"> Quantitativo por Produto </a></li>
+
+                </ul>
+            </li>
+            <li><a href="/admin/relatorios/sistema/usuario/"> Sistema </a></li>
+            <li><a href="#" class="dir">Comissão</a>
+                <ul>
+                    <li><a href="/admin/financeiro/relatorios/comissao/vendedor/titulo">Por Título</a></li>
+                    <li><a href="/admin/financeiro/relatorios/comissao/vendedor/plano">Por Plano</a></li>
+                </ul>
+            </li>
+
+            
+        </ul>
+    </li>
+
+    <li><a href="#" class="dir"><span>Administração</span></a>
+		<ul class="sf-menu-main">
+            <li><a href="/admin/pop/">Pops </a> </li>
+            <li><a href="/admin/condominio/">Condomínios </a> </li>
+            <li><a href="#" class="dir">Cadastros</a>
+                <ul>
+                    <li><a href="/admin/network/burst/"> Burst Profile </a></li>
+		            <li><a href="/admin/network/ippool/">IP Pool</a></li>
+                    <li><a href="/admin/network/ippoolv6/">IPv6 Pool</a></li>
+                    <li><a href="#" class="dir">CGNAT</a>
+                      <ul>
+                        <li><a href="/admin/djadmin/?extra=netcore/cgnat"> Consultar/Cadastrar </a></li>
+                        <li><a href="/admin/network/cgnat/importar/"> Importar </a></li>
+                      </ul>
+                    </li>
+                    <li><a href="/admin/djadmin/?extra=netcore/vlan"> VLAN </a></li>
+		            <li><a href="/admin/network/radius/nas/">Radius(NAS)</a></li>
+                    <li><a href="/admin/network/ap/"> AP </a></li>
+		            <li><a href="/admin/network/tower/">Torre</a></li>
+		           
+                    <li><a href="/admin/network/streetpole/"> Poste </a></li>
+                    <li><a href="/admin/network/source/"> Fonte </a></li>
+                    <li><a href="/admin/network/switch/"> Switch </a></li>
+                    <li><a href="/admin/djadmin/?extra=netcore/switchtemplate"> Switch Template </a></li>
+                    <li><a href="/admin/djadmin/?extra=netcore/radiusconfig"> Config Radius </a></li>
+                    
+                    <li><a href="/admin/network/olt/"> FTTx - OLT </a></li>
+                    <li><a href="/admin/network/oltpon/"> FTTx - PON </a></li>
+                    <li><a href="/admin/network/splitter/"> FTTx - CTO </a></li>
+                    <li><a href="/admin/djadmin/?extra=netcore/onutype"> FTTx - ONU Tipo </a></li>
+                    <li><a href="/admin/djadmin/?extra=netcore/onutemplate"> FTTx - ONU Template </a></li>
+                    <li><a href="/admin/djadmin/?extra=netcore/acstemplate">ACS - Template</a></li>
+                    <li><a href="#" class="dir">Automações</a>
+                        <ul>
+                            <li><a href="/admin/network/splitter/migrate/">FTTX - Migrar CTO</a></li>
+                        </ul>
+                </ul>
+            </li>
+
+            <li><a href="#" class="dir">Planos</a>
+                <ul>
+                    <li><a href="#" class="dir">Consultar</a>
+                        <ul>
+                            <li><a href="/admin/plano/internet/"> Planos de Internet </a> </li>
+                            <li><a href="/admin/plano/multimidia/"> Planos de Multimídia </a> </li>
+                            <li><a href="/admin/plano/tv/"> Planos de TV </a> </li>
+                            <li><a href="/admin/plano/telefonia/"> Planos de Telefonia </a> </li>
+                            <li><a href="/admin/plano/generico/"> Planos Outros </a> </li>
+                            <li><a href="/admin/plano/politicas"> Políticas de Plano de Internet </a> </li>
+                            
+                        </ul>
+                    </li>
+                    <li><a href="/admin/plano/addtipo/">Cadastrar</a></li>
+                    <li><a href="/admin/plano/importtipo/">Importar</a></li>
+                    <li><a href="/admin/djadmin/?extra=admcore/fidelidade"> Fidelidades </a></li>
+                    <li><a href="/admin/djadmin/?extra=admcore/planocombodesconto"> Planos Combo Desconto</a></li>
+                </ul>
+            </li>
+
+            <li><a href="#" class="dir">Integrações</a>
+                <ul>
+                    <!-- <li><a href="/admin/mobile/home/"> Aplicativos </a></li> -->
+                    <!-- <li><a href="/admin/djadmin/?extra=cauth/imei"> Celulares </a></li> -->
+                    <li><a href="/admin/djadmin/?extra=cauth/token"> Tokens </a></li></li>
+                    
+                </ul>
+            </li>
+            
+            <li><a href="#" class="dir">Aplicativos</a>
+              <ul>
+                <li><a href="/admin/djadmin/?extra=central/centralapp"> Central do Assinante </a></li></li>
+              </ul>
+            </li>
+            
+            <li><a href="/admin/certificado/"> Certificados</a></li>
+            <li><a href="/admin/vendedor/"> Vendedores</a></li>
+            <li>
+              <a href="#" class="dir">Assinaturas Eletrônicas</a>
+              <ul>
+                  <li><a href="/admin/doc_sign/">Consultar/Cadastrar</a></li>
+                  <li><a href="/admin/djadmin/?extra=admcore/docsignconfig">Configurações</a></li>
+              </ul>
+            </li>
+            <li><a href="/admin/network/tools/kml/importar/">Importar Arquivo KML/KMZ </a> </li>
+            <li><a href="/admin/autorizacaocontato/list/">Autorização de Contato</a></li>
+            <li><a href="#" class="dir">Rede Neutra</a>
+              <ul>
+                  <li><a href="/admin/redeneutra/clientes/list/">Clientes</a></li>
+                  <li><a href="/admin/redeneutra/olt/import/">FTTX - OLT Importar</a></li>
+                  <li><a href="/admin/redeneutra/ocorrencia/">Ocorrências</a></li>
+              </ul>
+            </li>
+        </ul>
+    </li>
+
+    <li><a href="#" class="dir"><span>Sistema</span></a>
+        <ul class="sf-menu-main">
+            <li><a href="/admin/cauth/password_change/">Alterar senha</a></li>
+            <li><a href="/admin/cauth/setup-2fa/">Autenticação 2FA</a></li>           
+
+            <li><a href="/admin/cauth/password_change/radius/">Alterar senha (Radius)</a></li>
+            <li><a href="/admin/cauth/theme_change/">Alterar aparência</a></li>
+            
+            <li><a href="/admin/config/list/">Configurações (Beta)</a></li>
+            <li><a href="/admin/djadmin/?extra=admcore/config"> Configurações </a></li>
+            <li><a href="#" class="dir">Ferramentas</a>
+                <ul>
+                    <li><a href="/admin/djadmin/"> Painel Admin </a></li>
+                    <li><a href="/admin/network/tools/mikrotik/command/">Mikrotik - Comandos</a></li>
+                    <li><a href="/admin/network/tools/ssh/">SSH Console</a></li>                    
+                    <li><a href="/admin/servicos/internet/update/lote/"> Serviço Internet - Alterar em Lote </a></li>
+                    <li><a href="/admin/djadmin/?extra=admcore/copypaste"> Copy & Paste </a></li>
+                    <li><a href="/admin/ferramentas/migracao/playhub/">Migrar Planos Play Hub</a></li>
+                    
+                    <li><a href="#" class="dir">Ocorrências e Ordens de servico </a>
+                        <ul>
+                            <li><a href="/admin/atendimento/ocorrencia/add/lote"> Gerar em lote </a></li>
+                            <li><a href="#" class="dir"> Alterar em lote </a>
+                                <ul>
+                                    <li><a href="/admin/atendimento/relatorios/ocorrencia/"> Ocorrência </a></li>
+                                    <li><a href="/admin/atendimento/relatorios/ocorrencia/os/"> Ordem de Serviço </a></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Gateways</a>
+                <ul>
+                    <li><a href="/admin/djadmin/?extra=admcore/configsms"> Gateway SMS </a></li>
+                    
+                    <li><a href="/admin/djadmin/?extra=admcore/gatewaytv"> Gateway TV </a></li>
+                    <li><a href="/admin/djadmin/?extra=admcore/gatewayassinaturaeletronica"> Gateway de Assi. Eletrônica </a></li>
+                    <li><a href="/admin/djadmin/?extra=admcore/gatewaysserasa"> Gateway de Proteção de Crédito </a></li>
+                    <li><a href="/admin/djadmin/?extra=admcore/gatewayclubebeneficio"> Gateway de Clube de Benefícios </a></li>
+                    <li><a href="/admin/djadmin/?extra=atendimento/sistemaatendimento"> Gateway de Sistema de Atendimento </a></li>
+                    <li><a href="#" class="dir">Gateway Telefonia</a>
+                      <ul>
+                        <li><a href="/admin/djadmin/?extra=admcore/gatewaytelefonia"> Consultar/Cadastrar </a></li>
+                        <li><a href="/admin/linhas/pool/"> Pool de Números </a></li>
+                        <li><a href="/admin/djadmin/?extra=admcore/telefonialinhablacklist"> BlackList de Números </a></li>
+                        <li><a href="/admin/djadmin/?extra=admcore/telefonialinhagrupo"> Grupos </a></li>
+                      </ul>
+                    </li>
+                    <li><a href="#" class="dir">Gateway Multimídia</a>
+                      <ul>
+                        <li><a href="/admin/djadmin/?extra=admcore/gatewaymultimidia"> Consultar/Cadastrar </a></li>
+                      </ul>
+                    </li>
+                    <li><a href="#" class="dir">Gateway Outros</a>
+                      <ul>
+                        <li><a href="/admin/djadmin/?extra=admcore/gatewaygenerico"> Consultar/Cadastrar </a></li>
+                      </ul>
+                    </li>
+                    <li><a href="#" class="dir">Gateway Mapa</a>
+                      <ul>
+                        <li><a href="/admin/djadmin/?extra=netcore/gatewaymapa"> Consultar/Cadastrar </a></li>
+                        <li><a href="/admin/djadmin/?extra=netcore/logsgatewaymapa"> Logs Gateway Mapa </a></li>
+                        <li><a href="/admin/network/integrations/sync/" target="_blank"> Sincronizar CTOs </a></li>
+                        <li><a href="/admin/network/onu/sync/"> Sincronizar Clientes </a></li>
+                      </ul>
+                  </li>
+                  <li><a href="#" class="dir">Gateway Mailing</a>
+                    <ul>
+                      <li><a href="/admin/djadmin/?extra=admcore/gatewaymailing"> Consultar/Cadastrar </a></li>
+                      <li><a href="/admin/ferramentas/mailing/lote/"> Enviar </a></li>
+                    </ul>
+                  </li>
+                  <li><a href="/admin/djadmin/?extra=admcore/gatewayai"> Gateway IA </a></li>
+                  <li><a href="#" class="dir">Gateway Push</a>
+                    <ul>
+                      <li><a href="/admin/djadmin/?extra=netcore/gatewaypush"> Consultar/Cadastrar </a></li>
+                      <li><a href="/admin/network/gateway/push/historico/"> Histório Push </a></li>
+                    </ul>
+                  </li>
+                  <li><a href="/admin/djadmin/?extra=admcore/gatewaydocumento"> Gateway Documento </a></li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Backup</a>
+              <ul>
+                  <li><a href="/admin/backup/"> Download </a> </li>
+                  <li><a href="/admin/configbackup/"> Configuração </a> </li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">SMS</a>
+              <ul>
+                  <li><a href="/admin/network/tools/sms/">SMS</a></li>
+                  <li><a href="/admin/djadmin/?extra=cobranca/smsaviso"> SMS Aviso </a> </li>
+                  <li><a href="/admin/network/tools/sms/lote/">SMS em Lote</a></li>
+                  <li><a href="/admin/network/tools/sms/history/">Histórico SMS</a></li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Email</a>
+              <ul>
+                <li><a href="/admin/ferramentas/email/lote/">Email em Lote</a></li>
+                <li><a href="/admin/djadmin/?extra=cobranca/emailaviso"> Email Aviso </a> </li>
+                <li><a href="/admin/email/historico/">Histórico Emails</a></li>
+                </ul>
+            </li>
+            <li><a href="#" class="dir">Monitoramento</a>
+                <ul>
+                  <li><a href="/admin/djadmin/?extra=netcore/monitorgateway">Configuração </a> </li>
+                  <li><a href="/admin/network/monitor/template"> Templates </a> </li>
+                </ul>
+            </li>
+            <li><a href="/admin/djadmin/?extra=netcore/cpemanager"> Gerenciador de CPE </a></li>
+            <li><a href="/admin/djadmin/?extra=cauth/user"> Usuários </a></li>
+            <li><a href="/admin/djadmin/?extra=auth/group"> Grupos </a></li>
+            <li><a href="#" class="dir">Dashboards</a>
+                <ul>
+                  <li><a href="/admin/djadmin/?extra=admcore/dashboardwidget"> Widgets </a></li>
+                  <li><a href="/admin/djadmin/?extra=admcore/dashboard"> Dashboards </a> </li>
+                  <li><a href="/admin/dashboard/template/"> Templates </a> </li>
+                </ul>
+            </li>
+            <li><a href="/admin/djadmin/?extra=admcore/configimage"> Imagens </a></li>
+            <li><a href="/admin/djadmin/?extra=admcore/configsmtp"> SMTP </a></li>
+            <li><a href="/admin/djadmin/?extra=admcore/publicfile"> Arquivos Públicos </a></li>
+            <li><a href="/admin/sistema/manutencao/">Manutenções</a></li>            
+            <li><a href="/admin/network/logs/">Log (Radius)</a></li>
+        </ul>
+    </li>
+
+    
+
+</ul>
+
+
+
+
+
+    </div>
+    <div id="headertop-right">
+        <ul>
+          
+          
+        </ul>
+    </div>
+  </div>
+</div>
+
+
+
+
+  <script>
+    function _booksmark_window_open(href) {
+      if (!href.includes('?_popup=1')) {
+        href = href + '?_popup=1'
+      }
+      var win = window.open(href, "_blank", 'height=800,width=1000')
+      win.addEventListener("load", (e)=> {
+      });
+
+      return false;
+    }
+
+    dismissAddRelatedObjectPopup = (w, value, obj) => {
+      w.close();
+      // toastr.options['timeOut'] = '1500';
+      // toastr.options['positionClass'] = 'booksmark_toastr';
+      // toastr["success"]('Favorito cadastrado');
+      // toastr.options['positionClass'] = 'toast-top-right';
+      // toastr.options['timeOut'] = '30000';
+
+      if($("#booksmark-backdrop").css("display") != "none") {
+        booksmarkShow();
+      }
+    }
+
+    function dismissChangeRelatedObjectPopup(w, value, obj, new_value) {
+      w.close();
+      // toastr.options['timeOut'] = '1500';
+      // toastr.options['positionClass'] = 'booksmark_toastr';
+      // toastr["warning"]('Favorito alterado');
+      // toastr.options['positionClass'] = 'toast-top-right';
+      // toastr.options['timeOut'] = '30000';
+
+      if($("#booksmark-backdrop").css("display") != "none") {
+        booksmarkShow();
+      }
+    }
+
+    dismissDeleteRelatedObjectPopup = (w, value) => {
+      w.close();
+      // toastr.options['timeOut'] = '1500';
+      // toastr.options['positionClass'] = 'booksmark_toastr';
+      // toastr["error"]('Favorito removido');
+      // toastr.options['positionClass'] = 'toast-top-right';
+      // toastr.options['timeOut'] = '30000';
+
+      if($("#booksmark-backdrop").css("display") != "none") {
+        booksmarkShow();
+      }
+    }
+
+    function _booksmark_item_toggle(el) {
+      $el = $(el);
+      $subitem = $el.closest('li').next('ul');
+      $groupitem = $el.children('i');
+      
+      if ($subitem.css("display") == "none") {
+        $subitem.slideDown('fast');
+        $groupitem.removeClass('fas fa-folder').addClass('fas fa-folder-open');
+      } else {
+        $subitem.slideUp('fast');
+        $groupitem.removeClass('fas fa-folder-open').addClass('fas fa-folder');
+      }
+    }
+
+    function _booksmark_parse_item(item_v) {
+      html = '<li class="item">';
+      html += '<a target="_blank" href="/admin/booksmark/'+item_v[0]+'/redirect/">'+item_v[1]+'</a>';
+      if (item_v[2]) {
+        html += '<a class="action" href="/admin/django/admcore/bookmark/'+item_v[0]+'/delete/" \
+        onclick="_booksmark_window_open(this.href); return false;"><i class="fas fa-trash-alt"></i>\</a>';
+      }
+      if (item_v[3]) {
+        html += '<a class="action" href="/admin/django/admcore/bookmark/'+item_v[0]+'/change/" \
+        onclick="_booksmark_window_open(this.href); return false;"><i class="fas fa-pen"></i></i></a>';
+      }
+      html += '</li>'
+      return html
+    }
+
+    function _booksmark_parse_group(grupo_i, grupo_v) {
+      html = '<li class="group" style="color:'+grupo_i[2]+' !important"> \
+        <a href="#" onclick="_booksmark_item_toggle(this);">\
+          <i class="fas fa-folder" style="color:'+grupo_i[2]+' !important"></i>'+grupo_i[1]+' ('+grupo_v.length+')</a>';
+      
+      if(grupo_i[3] == '1') {
+        html += '<a class="action" href="/admin/django/admcore/bookmarkgroup/'+grupo_i[0]+'/delete/" \
+        onclick="_booksmark_window_open(this.href); return false;"><i class="fas fa-trash-alt"></i>\</a>';
+      }
+      if (grupo_i[4] == '1') {
+        html += '<a class="action" href="/admin/django/admcore/bookmarkgroup/'+grupo_i[0]+'/change/" \
+        onclick="_booksmark_window_open(this.href); return false;"><i class="fas fa-pen"></i></i></a>';
+      }
+      html += '</li>';
+      html += '<ul class="items">'
+      $.each(grupo_v, function(item_i, item_v) {
+        html += _booksmark_parse_item(item_v);
+      });
+      html += '</ul>';
+      return html
+    }
+
+    function _booksmark_setup($el, data) {
+      $el.html('');
+      $.each(data, function(grupo_i, grupo_v) {
+        grupo_i = grupo_i.split('/')
+        if (grupo_i[0] == "0") {
+          $.each(grupo_v, function(item_i, item_v) {
+            $el.append(_booksmark_parse_item(item_v));
+          });
+        } else {
+          $el.append(_booksmark_parse_group(grupo_i, grupo_v));
+        }
+      });
+    }
+
+    function booksmarkShow() {
+      $.ajax({
+        url: "/admin/booksmark/list/",
+        beforeSend: function(xhr) {
+          $("#booksmark-loading").show();
+        },
+        complete: function(xhr) {
+          $("#booksmark-loading").hide();
+        }
+      }).done(function(data) {
+        _booksmark_setup($("#booksmark_pessoal"), data.pessoal);
+        _booksmark_setup($("#booksmark_geral"), data.geral)
+        _booksmark_setup($("#booksmark_outros"), data.outros)
+
+        $("#booksmark-backdrop").fadeIn();
+        var $wrap = $("#booksmark-wrap");
+
+        if (window.isSgpNeo) {
+          $("body").addClass("booksmark-open");
+          $wrap.show();
+          requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+              $wrap.addClass("is-open");
+            });
+          });
+        } else {
+          $wrap.show("slide", { direction: "right" }, 300);
+          $("#booksmark-content").show("slide", { direction: "right" }, 300);
+        }
+      });
+    }
+
+    function booksmarkDismiss() {
+      $("#booksmark-backdrop").fadeOut();
+      var $wrap = $("#booksmark-wrap");
+
+      if (window.isSgpNeo) {
+        $wrap.removeClass("is-open");
+        setTimeout(function() {
+          $wrap.hide();
+          $("body").removeClass("booksmark-open");
+        }, 300);
+      } else {
+        $wrap.hide("slide", { direction: "right" }, 300);
+        $("#booksmark-content").hide("slide", { direction: "right" }, 300);
+      }
+    }
+    
+    $(document).ready(function() {
+      $('#booksmarkdo, #booksmark-backdrop').click(function() {
+        if($("#booksmark-backdrop").css("display") == "none") {
+          booksmarkShow();
+        } else {
+          booksmarkDismiss();
+        }
+      });
+
+      $("#booksmarkadd").click(function() {
+        let url = $(this).attr('href') + "?_popup=1";
+        let base_url = window.location.pathname;
+        
+        const ignoredParams = ['csrfmiddlewaretoken', 'dpb_token', 'reqtime'];
+        const selector = 'form.formx';
+        const data = $(selector).serializeArray();
+        let method = $(selector).attr('method');
+        let paramsAll = [];
+        let params = [];
+
+        if (!method || method.toLowerCase() == 'get') {
+          method = 1;
+        } else {
+          method = 2;
+        }
+        
+        $.each(data, function(index, v) {
+          try {
+            if (v.value != '' && !ignoredParams.includes(v.name)) {
+              idx = paramsAll.findIndex(x => x.name === v.name);
+              
+              if (idx !== -1) {
+                paramsAll[idx] = {name: v.name, value: paramsAll[idx].value + '^' + v.value};
+              } else {
+                paramsAll.push(v);
+              }
+            };
+          } catch (e) {
+            console.log(e);
+          };
+        });
+
+        $.each(paramsAll, function(index, v) {
+          let value = v.name+'='+v.value;
+          params.push(value);
+          console.log(value);
+        });
+
+        url += '&m='+method+'&b='+base_url+'@!'+params.join('!');
+      
+        _booksmark_window_open(url);
+        return false;
+      });
+    });
+</script>
+
+<div id="booksmark-backdrop"></div>
+
+<div id="booksmark-wrap"></div>
+<div id="booksmark-content">
+  <div style="float: left;">
+    <a id="booksmarkadd" class="button green" href="/admin/django/admcore/bookmark/add/" target="_blank">
+      <i class="fas fa-plus"></i>
+    </a>
+    <a href="#" class="button gray" data-vertical-offset="0" data-horizontal-offset="0"
+      data-jq-dropdown="#jq-dropdown-booksmark">
+      <i class="fas fa-cog"></i>
+    </a>
+  </div>
+  <div id="booksmark-loading" style="display: none; text-align: center;">
+    <!-- Carregando ... -->
+  </div>
+  <hr class="clear invisible" />
+  <h3>Favoritos pessoais</h3>
+  <ul>
+    <ul id="booksmark_pessoal"></ul>
+  </ul>
+  <h3>Favoritos compartilhados</h3>
+  <ul id="booksmark_geral"></ul>
+  <h3>Favoritos outros</h3>
+  <ul id="booksmark_outros"></ul>
+</div>
+
+
+<div id="jq-dropdown-booksmark" class="jq-dropdown jq-dropdown-tip jq-dropdown-anchor-left">
+  <ul class="jq-dropdown-menu">
+    <li>
+      <a style="text-align: left" href="/admin/djadmin/?extra=admcore/bookmark" target="_blank">
+         Favoritos
+      </a>
+    </li>
+    <li>
+      <a style="text-align: left" href="/admin/djadmin/?extra=admcore/bookmarkgroup" target="_blank">
+        Grupos
+      </a>
+    </li>
+  </ul>
+</div>
+
+
+
+<!-- End Header top -->
+	<div id="content-wrap">            
+          <div id="content-main">              
+             <div id="main">       
+             <div id="titlepage" style="float: left;"><h1> 
+<a href="#" class="button blue dashboard-selector-trigger" data-horizontal-offset="33.5" data-jq-dropdown="#jq-dropdown-dashmenu">Dashboards</a>
+
+ </h1> </div>    
+               <div id="titlepageicon" style="float: right;"> &nbsp;  </div>
+               <div style="clear:both;"> </div>  
+                    
+                    
+                    
+                  
+                  <div id="tsmxcontato" title="Suporte SGP"></div>
+                  <div id="changelog" title="SGP - ChangeLog"></div>
+                  <div id="sgpstats" title="SGP - Stats"></div>
+                  <div id="useronline" title="Conectados"></div>
+                  <div id="sgpnotification" title="Notificações"></div>
+                  
+                  
+
+
+                  
+                  
+
+
+
+    <script type="text/javascript">
+        jQuery(document).ready(function() {
+            var igualAlturas = false;
+            var leftcustomTotal = 0;
+            var leftcustomDone = 0;
+            var lcColunas = [
+                document.getElementById('leftcustom-col-0'),
+                document.getElementById('leftcustom-col-1'),
+                document.getElementById('leftcustom-col-2')
+            ];
+
+            function redistribuirWidgets() {
+                var wrappers = [];
+                lcColunas.forEach(function(col) {
+                    Array.from(col.children).forEach(function(child) {
+                        wrappers.push(child);
+                    });
+                });
+                if (!wrappers.length) return;
+
+                // mede ANTES de remover do DOM (elemento desanexado tem offsetHeight=0)
+                var medidas = wrappers.map(function(w) {
+                    var dw = w.querySelector('.dashboard-widget');
+                    return {
+                        wrapper: w,
+                        altura: dw ? dw.offsetHeight : 0,
+                        seq: parseInt(w.getAttribute('data-seq') || '0', 10)
+                    };
+                });
+                wrappers.forEach(function(w) { w.remove(); });
+
+                // ordena pela sequência definida no model
+                medidas.sort(function(a, b) { return a.seq - b.seq; });
+
+                var n = medidas.length;
+
+                if (igualAlturas) {
+                    // round-robin (Z-order): seq0→col0, seq1→col1, seq2→col2, seq3→col0, ...
+                    // garante leitura da esquerda pra direita, linha a linha; widget solitário
+                    // na última linha sempre fica na coluna mais à esquerda
+                    medidas.forEach(function(m, i) {
+                        lcColunas[i % 3].appendChild(m.wrapper);
+                    });
+                } else {
+                    // split contíguo: col0 recebe o primeiro terço, col1 o segundo, col2 o restante
+                    var cut1 = Math.ceil(n / 3);
+                    var cut2 = cut1 + Math.ceil((n - cut1) / 2);
+                    medidas.forEach(function(m, i) {
+                        var colIdx = i < cut1 ? 0 : (i < cut2 ? 1 : 2);
+                        lcColunas[colIdx].appendChild(m.wrapper);
+                    });
+                }
+            }
+
+            function aplicarAlturaWidget(dw, targetH) {
+                var title = dw.querySelector('.dashboard-widget-title');
+                var content = dw.querySelector('.dashboard-widget-content');
+                var titleH = title ? title.offsetHeight : 0;
+                var contentH = targetH - titleH;
+                if (content) {
+                    content.style.setProperty('height', contentH + 'px', 'important');
+                    content.style.setProperty('overflow', 'hidden', 'important');
+                    content.style.setProperty('box-sizing', 'border-box', 'important');
+                    content.style.setProperty('margin-bottom', '0', 'important');
+                    content.style.setProperty('display', 'flex', 'important');
+                    content.style.setProperty('flex-direction', 'column', 'important');
+                    // centraliza apenas se for gráfico Highcharts ou KPI card
+                    // centraliza apenas se for gráfico Highcharts ou KPI card
+                    var devesCentralizar = !!(content.querySelector('.highcharts-root') || content.querySelector('.kpi-card'));
+                    var periodButtons = content.querySelector('[id^="periodo-buttons-"]');
+                    Array.from(content.children).forEach(function(child) {
+                        if (periodButtons && child === periodButtons) {
+                            child.style.setProperty('flex-shrink', '0', 'important');
+                        } else if (devesCentralizar) {
+                            child.style.setProperty('margin-top', 'auto', 'important');
+                            child.style.setProperty('margin-bottom', 'auto', 'important');
+                        } else {
+                            child.style.removeProperty('margin-top');
+                            child.style.removeProperty('margin-bottom');
+                        }
+                    });
+                }
+            }
+
+            function medirAlturaWidget(dw) {
+                // usa title+content em vez de dw.offsetHeight para excluir o margin-bottom
+                // do .dashboard-widget-content (que não colapsa em flex item)
+                var title = dw.querySelector('.dashboard-widget-title');
+                var content = dw.querySelector('.dashboard-widget-content');
+                return (title ? title.offsetHeight : 0) + (content ? content.offsetHeight : 0);
+            }
+
+            function igualAlturasPorLinha() {
+                // equalizar por linha: cada linha tem sua própria altura máxima
+                var maxRows = 0;
+                lcColunas.forEach(function(col) { maxRows = Math.max(maxRows, col.children.length); });
+
+                for (var row = 0; row < maxRows; row++) {
+                    var rowDws = [];
+                    lcColunas.forEach(function(col) {
+                        var wrapper = col.children[row];
+                        if (!wrapper) return;
+                        var dw = wrapper.querySelector('.dashboard-widget');
+                        if (dw) rowDws.push(dw);
+                    });
+
+                    // widget sozinho na linha não precisa de equalização
+                    if (rowDws.length < 2) continue;
+
+                    // equalizar altura dos títulos primeiro: todos os charts da linha começam no mesmo ponto
+                    var rowMaxTitleH = 0;
+                    rowDws.forEach(function(dw) {
+                        var title = dw.querySelector('.dashboard-widget-title');
+                        if (title) rowMaxTitleH = Math.max(rowMaxTitleH, title.offsetHeight);
+                    });
+                    if (rowMaxTitleH > 0) {
+                        rowDws.forEach(function(dw) {
+                            var title = dw.querySelector('.dashboard-widget-title');
+                            if (title) title.style.setProperty('min-height', rowMaxTitleH + 'px', 'important');
+                        });
+                    }
+
+                    // equalizar altura total do widget (com títulos já normalizados)
+                    var rowMaxH = 0;
+                    rowDws.forEach(function(dw) { rowMaxH = Math.max(rowMaxH, medirAlturaWidget(dw)); });
+                    rowDws.forEach(function(dw) { aplicarAlturaWidget(dw, rowMaxH); });
+                }
+
+                // equalizar floatzone por linha: left[i] pareado com right[i]
+                // widget sem par (sozinho na linha) não é equalizado
+                var fzLeft = Array.from(document.querySelectorAll('#left .dashboard-widget'));
+                var fzRight = Array.from(document.querySelectorAll('#right .dashboard-widget'));
+                var fzRows = Math.max(fzLeft.length, fzRight.length);
+                for (var fi = 0; fi < fzRows; fi++) {
+                    var fzRowDws = [];
+                    if (fzLeft[fi]) fzRowDws.push(fzLeft[fi]);
+                    if (fzRight[fi]) fzRowDws.push(fzRight[fi]);
+                    if (fzRowDws.length < 2) continue;
+                    var fzRowMaxH = 0;
+                    fzRowDws.forEach(function(dw) { fzRowMaxH = Math.max(fzRowMaxH, medirAlturaWidget(dw)); });
+                    fzRowDws.forEach(function(dw) { aplicarAlturaWidget(dw, fzRowMaxH); });
+                }
+                // espaçamento entre linhas e entre seções é gerenciado pelo CSS (gap + margin-bottom)
+            }
+
+            var lcObserver = new MutationObserver(function(mutations) {
+                mutations.forEach(function(m) {
+                    m.addedNodes.forEach(function(node) {
+                        if (node.nodeType === 1 && node.classList && node.classList.contains('dashboard-widget')) {
+                            leftcustomDone++;
+                            if (leftcustomDone >= leftcustomTotal) {
+                                lcObserver.disconnect();
+                                redistribuirWidgets();
+                                if (igualAlturas) {
+                                    igualAlturasPorLinha();
+                                    iniciarObserverIgualarAlturas();
+                                }
+                            }
+                        }
+                    });
+                });
+            });
+
+            var leftcustomIdx = 0;
+            var lcMinSeq = Infinity;
+            var fzMinSeq = Infinity;
+            
+                
+                  
+                  var wposition = "#left";
+                  if (-1 < fzMinSeq) fzMinSeq = -1;
+                  
+                  var wurl = "/admin/dashboard/status/suspensos/?widgetid=92&posicao=left";
+                  var wurlname = "dashboard_status_suspensos";
+                  var wid = "92";
+
+                  $('<div>', { id: wurlname+wid, 'data-seq': -1 }).appendTo(wposition);
+                  loadDashboardWidget(wid, wurlname, wurl, false, false, 60);
+                
+            
+                
+                  
+                  var wposition = "#left";
+                  if (0 < fzMinSeq) fzMinSeq = 0;
+                  
+                  var wurl = "/admin/atendimento/dashboard/ocorrencia/resumo/?widgetid=49&posicao=left";
+                  var wurlname = "dashboard_ocorrenciaresumo";
+                  var wid = "49";
+
+                  $('<div>', { id: wurlname+wid, 'data-seq': 0 }).appendTo(wposition);
+                  loadDashboardWidget(wid, wurlname, wurl, false, false, 60);
+                
+            
+                
+                  
+                  var wposition = "#right";
+                  if (0 < fzMinSeq) fzMinSeq = 0;
+                  
+                  var wurl = "/admin/atendimento/dashboard/ocorrencia/resumo/setor/?widgetid=91&posicao=right";
+                  var wurlname = "dashboard_ocorrenciaresumosetor";
+                  var wid = "91";
+
+                  $('<div>', { id: wurlname+wid, 'data-seq': 0 }).appendTo(wposition);
+                  loadDashboardWidget(wid, wurlname, wurl, false, false, 60);
+                
+            
+                
+                  
+                  var wposition = "#right";
+                  if (1 < fzMinSeq) fzMinSeq = 1;
+                  
+                  var wurl = "/admin/atendimento/dashboard/ocorrencia/responsavel/?widgetid=23&posicao=right";
+                  var wurlname = "dashboard_ocorrenciaresponsavel";
+                  var wid = "23";
+
+                  $('<div>', { id: wurlname+wid, 'data-seq': 1 }).appendTo(wposition);
+                  loadDashboardWidget(wid, wurlname, wurl, false, false, 60);
+                
+            
+                
+                  
+                  var wposition = "#left";
+                  if (1 < fzMinSeq) fzMinSeq = 1;
+                  
+                  var wurl = "/admin/dashboard/fidelidade/encerrando/?widgetid=48&posicao=left";
+                  var wurlname = "dashboard_fidelidades_encerrando";
+                  var wid = "48";
+
+                  $('<div>', { id: wurlname+wid, 'data-seq': 1 }).appendTo(wposition);
+                  loadDashboardWidget(wid, wurlname, wurl, false, false, 60);
+                
+            
+                
+                  
+                  var wposition = "#left";
+                  if (2 < fzMinSeq) fzMinSeq = 2;
+                  
+                  var wurl = "/admin/dashboard/contratos/assinatura_eletronica/aberto?widgetid=20&posicao=left";
+                  var wurlname = "dashboard_contrato_assinatura_eletronica_aberto";
+                  var wid = "20";
+
+                  $('<div>', { id: wurlname+wid, 'data-seq': 2 }).appendTo(wposition);
+                  loadDashboardWidget(wid, wurlname, wurl, false, false, 60);
+                
+            
+                
+                  
+                  var wposition = "#right";
+                  if (2 < fzMinSeq) fzMinSeq = 2;
+                  
+                  var wurl = "/admin/dashboard/clientes/crescimento/?widgetid=81&posicao=right";
+                  var wurlname = "dashboard_crescimento";
+                  var wid = "81";
+
+                  $('<div>', { id: wurlname+wid, 'data-seq': 2 }).appendTo(wposition);
+                  loadDashboardWidget(wid, wurlname, wurl, false, false, 60);
+                
+            
+                
+                  
+                  var wposition = "#right";
+                  if (2 < fzMinSeq) fzMinSeq = 2;
+                  
+                  var wurl = "/admin/dashboard/clientes/crescimento_diario/?widgetid=82&posicao=right";
+                  var wurlname = "dashboard_crescimento_diario";
+                  var wid = "82";
+
+                  $('<div>', { id: wurlname+wid, 'data-seq': 2 }).appendTo(wposition);
+                  loadDashboardWidget(wid, wurlname, wurl, false, false, 60);
+                
+            
+                
+                  
+                  var wposition = "#right";
+                  if (3 < fzMinSeq) fzMinSeq = 3;
+                  
+                  var wurl = "/admin/atendimento/dashboard/ocorrencia/resumo/tipo/?widgetid=50&posicao=right";
+                  var wurlname = "dashboard_ocorrenciaresumotipo";
+                  var wid = "50";
+
+                  $('<div>', { id: wurlname+wid, 'data-seq': 3 }).appendTo(wposition);
+                  loadDashboardWidget(wid, wurlname, wurl, false, false, 60);
+                
+            
+                
+                  
+                  var wposition = "#right";
+                  if (4 < fzMinSeq) fzMinSeq = 4;
+                  
+                  var wurl = "/admin/estoque/dashboard/vendas/responsavel/?widgetid=51&posicao=right";
+                  var wurlname = "dashboard_vendas_resposavel";
+                  var wid = "51";
+
+                  $('<div>', { id: wurlname+wid, 'data-seq': 4 }).appendTo(wposition);
+                  loadDashboardWidget(wid, wurlname, wurl, false, false, 60);
+                
+            
+                
+                  
+                  var wposition = "#left";
+                  if (4 < fzMinSeq) fzMinSeq = 4;
+                  
+                  var wurl = "/admin/atendimento/dashboard/ocorrencia/resumo/setor/?widgetid=90&posicao=left";
+                  var wurlname = "dashboard_ocorrenciaresumosetor";
+                  var wid = "90";
+
+                  $('<div>', { id: wurlname+wid, 'data-seq': 4 }).appendTo(wposition);
+                  loadDashboardWidget(wid, wurlname, wurl, false, false, 60);
+                
+            
+
+            // posições 1 e 2 (floatzone) têm precedência sobre posição 3 (leftcustom) quando empatadas
+            var floatzoneEl = document.getElementById('floatzone');
+            if (isFinite(fzMinSeq) && fzMinSeq <= lcMinSeq) {
+                var dashboard = document.getElementById('dashboard');
+                dashboard.insertBefore(floatzoneEl, document.getElementById('leftcustom'));
+            } else if (floatzoneEl && isFinite(fzMinSeq)) {
+                // floatzone fica depois do leftcustom por ter seq maior: garantir gap acima
+                floatzoneEl.style.marginTop = '10px';
+            }
+
+            function iniciarObserverIgualarAlturas() {
+                if (!igualAlturas) return;
+                var reigualTimer = null;
+                var reigualObs = new MutationObserver(function() {
+                    clearTimeout(reigualTimer);
+                    reigualTimer = setTimeout(igualAlturasPorLinha, 400);
+                });
+                reigualObs.observe(document.getElementById('leftcustom'), { childList: true, subtree: true });
+                var floatzone = document.getElementById('floatzone');
+                if (floatzone) {
+                    reigualObs.observe(floatzone, { childList: true, subtree: true });
+                }
+            }
+
+            if (leftcustomTotal > 0) {
+                lcObserver.observe(document.getElementById('leftcustom'), { childList: true, subtree: true });
+                setTimeout(function() {
+                    lcObserver.disconnect();
+                    redistribuirWidgets();
+                    if (igualAlturas) {
+                        igualAlturasPorLinha();
+                        iniciarObserverIgualarAlturas();
+                    }
+                }, 10000);
+            }
+
+            
+        });
+    </script>
+
+<div class="dashboard" id="dashboard">
+<div class="dashboard-widget-left-x" id="leftcustom">
+    <div class="leftcustom-col" id="leftcustom-col-0"></div>
+    <div class="leftcustom-col" id="leftcustom-col-1"></div>
+    <div class="leftcustom-col" id="leftcustom-col-2"></div>
+</div>
+<div id="floatzone">
+<div class="dashboard-widget-left" id="left"></div>
+<div class="dashboard-widget-right" id="right"></div>
+<div style="clear: both;"></div>
+</div>
+</div>
+
+<div id="messages"> 
+
+</div>
+
+
+                  
+<div id="jq-dropdown-dashmenu" class="jq-dropdown jq-dropdown-tip jq-dropdown-anchor-left">
+    <ul class="jq-dropdown-menu">
+        
+            <li> <a href="/admin/?dashboard=0"> Padrão </a> </li>
+        
+            <li> <a href="/admin/?dashboard=3"> Financeiro (Juliana </a> </li>
+        
+    </ul>
+</div>
+
+
+                  
+             </div>
+          </div>        
+        </div>
+         <div class="clear"> &nbsp; </div>
+    </div>
+    
+    <div id="ajax-indicator" style="display:none;">
+        <i class="fa fa-spinner ajax-indicator-icon"></i>
+        <span>Carregando...</span>
+    </div>
+
+    <!-- Footer -->
+		<div id="footer">
+      
+      <img  width="125px" src="/static/all/img/logo/new/tsmx-logo.svg?v=4">
+      
+      <p style="font-size: 12px; padding: 5px 0 25px 0; margin: 0;">&copy; 2026 - Ver. 1.0.248</p>
+   	</div>    
+
+<!-- END Wrap -->
+</div>
+
+<!-- Bootstrap tooltips -->
+<!--<script type="text/javascript" src="/static/all/js/popper.min.js"></script> -->
+<!-- Bootstrap core JavaScript -->
+<!--<script type="text/javascript" src="/static/all/js/bootstrap.min.js"></script> -->
+<!-- MDB core JavaScript -->
+<!--<script type="text/javascript" src="/static/all/js/mdb.min.js"></script>
+<style type="text/css">
+  .ui-dialog-titlebar-close {
+    background-image: url(/static/all/css/jquery-ui/theme0/images/ui-icons_666666_256x240.png)!important;
+    background-position: -96px -128px;
+  }
+
+</style>
+-->
+</body>
+</html>
+
+
+
+
+<script type="text/javascript" src="/static/all/js/bookmark.js?v=2"></script>
+
+
+

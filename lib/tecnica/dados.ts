@@ -59,6 +59,8 @@ export type OsLinha = {
   /** OS que caracterizou o retorno (anula a comissão desta) */
   retornoOsId: string | null;
   valorPorTecnico: Record<string, number>; // técnico.id -> R$
+  /** técnicos cadastrados que participam desta OS (responsável ou auxiliar) */
+  tecnicoIds: string[];
 };
 
 export type ResultadoTecnico = {
@@ -246,6 +248,7 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
       encerradaNoMes: Boolean(encerrada),
       retornoOsId,
       valorPorTecnico,
+      tecnicoIds: idsOs,
     });
   }
 
