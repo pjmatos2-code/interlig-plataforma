@@ -604,6 +604,7 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
     cliente_nome: registro.cliente_nome,
     telefone: registro.telefone,
     cpf: registro.cpf,
+    email: (registro as unknown as { email?: string | null }).email ?? null,
     etapa: registro.etapa as EtapaTicket,
     origem_criacao: registro.origem_criacao,
     sz_conversa_id: registro.sz_conversa_id,
