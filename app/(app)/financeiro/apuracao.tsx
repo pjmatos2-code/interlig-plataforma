@@ -241,6 +241,17 @@ export function PainelApuracao({ dados }: { dados: ApuracaoAndamento }) {
         <Kpi icone={<Target className="h-4 w-4" />} cor="#059669" rotulo="Agentes com meta batida" valor={`${metaBatida} de ${dados.linhas.length}`} sub={dados.linhas.length ? `${Math.round((metaBatida / dados.linhas.length) * 100)}% da equipe` : undefined} />
       </div>
 
+      <div className="flex justify-end">
+        <a
+          href={`/api/apuracao/pdf?mes=${dados.competencia}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+        >
+          ⬇ Exportar PDF geral (agentes, resultado e valores)
+        </a>
+      </div>
+
       {/* corpo: resumo | tabela | memória */}
       <div className="grid gap-4 xl:grid-cols-[16rem_minmax(0,1fr)_21rem]">
         {/* resumo por agente */}

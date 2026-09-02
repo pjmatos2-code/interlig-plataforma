@@ -122,6 +122,14 @@ export default async function GerenciaPage({
           Clawback: {d.flags.clawback ? "ON" : "OFF (migração)"}
         </span>
         <span className="text-xs text-muted-foreground">Competência: {mesBr} · dados validados da plataforma</span>
+        <a
+          href={`/api/gerencia/pdf?mes=${d.competencia}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+        >
+          ⬇ Exportar PDF
+        </a>
       </div>
 
       {d.bloqueado && (

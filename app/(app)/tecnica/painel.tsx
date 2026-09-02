@@ -204,6 +204,14 @@ export function PainelTecnica({
           </label>
           <div className="ml-auto flex items-center gap-2">
             {aviso && <span className="max-w-[16rem] text-xs text-muted-foreground">{aviso}</span>}
+            <a
+              href={`/api/tecnica/pdf?mes=${dados.competencia}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium hover:bg-muted"
+            >
+              ⬇ Exportar PDF
+            </a>
             {(busca || fTecnico || fCategoria) && (
               <button type="button" onClick={() => { setBusca(""); setFTecnico(""); setFCategoria(""); setPagina(1); }}
                 className="h-9 rounded-md border px-3 text-sm font-medium hover:bg-muted">
