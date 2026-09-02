@@ -113,7 +113,7 @@ type Bruto = TicketIndicador & {
   valor_estimado: number | null;
   etapa_encerramento: string | null;
   cpf: string | null;
-  contratos: { sgp_contrato_id: string | null; clientes: { sgp_cliente_id: string | null; nome: string } | null } | null;
+  contratos: { sgp_contrato_id: string | null; data_venda: string | null; clientes: { sgp_cliente_id: string | null; nome: string } | null } | null;
   planos: { nome: string } | null;
   vendedores: { nome: string } | null;
   pops: { nome: string } | null;
@@ -123,7 +123,7 @@ type Bruto = TicketIndicador & {
 const CAMPOS = `id, cliente_nome, telefone, cpf, email, vendedor_id, pop_id, etapa, criado_em,
   primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por, origem_criacao,
   motivo_id, contrato_id, reconciliado_em, atualizado_em, valor_estimado, etapa_encerramento,
-  contratos(sgp_contrato_id, clientes(sgp_cliente_id, nome)),
+  contratos(sgp_contrato_id, data_venda, clientes(sgp_cliente_id, nome)),
   vendedores(nome), pops(nome), planos(nome), motivos_nao_conversao(nome)`;
 
 /**
@@ -141,6 +141,16 @@ export async function carregarCrm(
   const hoje = agora.slice(0, 10);
   const inicioMes = `${hoje.slice(0, 7)}-01`;
 
+  // Venda convertida conta no período da VENDA (data_venda do contrato), não
+  // no dia em que o ticket foi fechado — a reconciliação/backfill pode fechar
+  // o ticket dias depois (ex.: venda 31/08 com ticket criado 01/09) e o card
+  // apareceria no mês errado. Consulta com folga de 10 dias e filtro em JS.
+  const FOLGA_MS = 10 * 86_400_000;
+  const comFolga = (iso: string, dias: number) =>
+    new Date(Date.parse(`${iso}T00:00:00Z`) + dias * 86_400_000).toISOString().slice(0, 10);
+  const dataRef = (t: { desfecho: string | null; fechado_em: string | null; contratos: { data_venda: string | null } | null }) =>
+    (t.desfecho === "convertido" && t.contratos?.data_venda) || (t.fechado_em ?? "").slice(0, 10);
+
   const [
     { data: abertosBrutos },
     { data: fechadosBrutos },
@@ -152,29 +162,32 @@ export async function carregarCrm(
       .from("tickets")
       .select(CAMPOS)
       .eq("etapa", "fechado")
-      .gte("fechado_em", `${periodo.de}T00:00:00`)
-      .lte("fechado_em", `${periodo.ate}T23:59:59.999`)
+      .gte("fechado_em", `${comFolga(periodo.de, -10)}T00:00:00`)
+      .lte("fechado_em", `${comFolga(periodo.ate, 10)}T23:59:59.999`)
       .order("fechado_em", { ascending: false })
       .limit(1000),
     supabase
       .from("tickets")
-      .select("desfecho")
+      .select("desfecho, fechado_em, contratos(data_venda)")
       .eq("etapa", "fechado")
-      .gte("fechado_em", `${periodo.deAnterior}T00:00:00`)
-      .lte("fechado_em", `${periodo.ateAnterior}T23:59:59.999`)
+      .gte("fechado_em", `${comFolga(periodo.deAnterior, -10)}T00:00:00`)
+      .lte("fechado_em", `${comFolga(periodo.ateAnterior, 10)}T23:59:59.999`)
       .limit(1000),
     supabase
       .from("tickets")
-      .select("id, cliente_nome, valor_estimado, fechado_em")
+      .select("id, cliente_nome, valor_estimado, fechado_em, desfecho, contratos(data_venda)")
       .eq("etapa", "fechado")
       .eq("desfecho", "convertido")
-      .gte("fechado_em", `${inicioMes}T00:00:00`)
+      .gte("fechado_em", `${comFolga(inicioMes, -10)}T00:00:00`)
       .order("fechado_em", { ascending: false })
       .limit(1000),
   ]);
 
   const todosAbertos = (abertosBrutos ?? []) as unknown as Bruto[];
-  const todosFechados = (fechadosBrutos ?? []) as unknown as Bruto[];
+  const todosFechados = ((fechadosBrutos ?? []) as unknown as Bruto[]).filter((t) => {
+    const d = dataRef(t);
+    return d >= periodo.de && d <= periodo.ate;
+  });
 
   // ---------- filtros do painel (aplicados aos abertos e às perdidas) ----------
   const agora48h = Date.parse(agora) - 48 * 3_600_000;
@@ -298,7 +311,12 @@ export async function carregarCrm(
   };
 
   // conversão do período anterior (delta em pontos percentuais)
-  const fechadosAnt = (fechadosAntBrutos ?? []) as { desfecho: string | null }[];
+  const fechadosAnt = (
+    (fechadosAntBrutos ?? []) as unknown as { desfecho: string | null; fechado_em: string | null; contratos: { data_venda: string | null } | null }[]
+  ).filter((t) => {
+    const d = dataRef(t);
+    return d >= periodo.deAnterior && d <= periodo.ateAnterior;
+  });
   const convAnt =
     fechadosAnt.length === 0
       ? null
@@ -362,7 +380,12 @@ export async function carregarCrm(
   };
 
   // fechados no mês corrente (independe do filtro de período)
-  const fm = (fechadosMesBrutos ?? []) as { id: string; cliente_nome: string; valor_estimado: number | null }[];
+  const fm = (
+    (fechadosMesBrutos ?? []) as unknown as {
+      id: string; cliente_nome: string; valor_estimado: number | null;
+      fechado_em: string | null; desfecho: string | null; contratos: { data_venda: string | null } | null;
+    }[]
+  ).filter((t) => dataRef(t) >= inicioMes);
   const fechadosMes = {
     quantidade: fm.length,
     valor: fm.reduce((s2, t) => s2 + (t.valor_estimado ?? 0), 0),

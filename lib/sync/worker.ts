@@ -79,6 +79,50 @@ export async function executarSync(): Promise<ResultadoSync> {
   );
   const execucoes: ResultadoSync["execucoes"] = [];
 
+  // ---------- caçador de cadastros novos (rede de segurança da varredura) ----------
+  // A URA lista os clientes em ordem ALFABÉTICA: cadastro novo entra no meio
+  // da lista e desloca as posições, então a janela do cursor pode pular quem
+  // acabou de ser cadastrado. O painel (Clientes > Últimos Cadastros) entrega
+  // id + CPF dos recentes; quem não existe na plataforma é buscado na URA por
+  // CPF e injetado NESTA varredura — a venda vira contrato (e ticket) no
+  // mesmo ciclo, sem esperar a janela alcançar.
+  if (sgp.modo === "real" && "carregarExtrasPorCpf" in sgp) {
+    const run = await iniciarRun(admin, "cadastros_novos");
+    try {
+      const cfgPainel = (cfgBruta?.config ?? {}) as Record<string, string>;
+      let injetados = 0;
+      if (cfgPainel.painel_usuario && cfgPainel.painel_senha) {
+        const { PainelSgp } = await import("@/lib/sgp/painel");
+        const basePainel = String(cfgPainel.base_url ?? "").replace(/\/+$/, "").replace(/\/admin$/, "");
+        const painel = new PainelSgp(basePainel, cfgPainel.painel_usuario, cfgPainel.painel_senha);
+        const recentes = await painel.clientesRecentes(100);
+        if (recentes.length > 0) {
+          const ids = recentes.map((r) => r.sgpClienteId);
+          const conhecidos = new Set<string>();
+          for (let i = 0; i < ids.length; i += 400) {
+            const { data: parte } = await admin
+              .from("clientes")
+              .select("sgp_cliente_id")
+              .in("sgp_cliente_id", ids.slice(i, i + 400));
+            for (const c of parte ?? []) conhecidos.add(String(c.sgp_cliente_id));
+          }
+          const faltam = recentes.filter((r) => !conhecidos.has(r.sgpClienteId) && r.cpf);
+          if (faltam.length > 0) {
+            injetados = await (
+              sgp as unknown as { carregarExtrasPorCpf: (cpfs: string[]) => Promise<number> }
+            ).carregarExtrasPorCpf(faltam.map((f) => f.cpf!));
+          }
+        }
+      }
+      await finalizarRun(admin, run, "sucesso", injetados);
+      execucoes.push({ entidade: "cadastros_novos" as Entidade, registros: injetados, status: "sucesso" });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await finalizarRun(admin, run, "erro", 0, msg);
+      execucoes.push({ entidade: "cadastros_novos" as Entidade, registros: 0, status: "erro", erro: msg });
+    }
+  }
+
   // de/para de origem (PRD 3.10)
   const { data: mapa } = await admin.from("origem_map").select("valor_sgp, categoria");
   const origem = (valor: string | null) =>
@@ -516,14 +560,18 @@ export async function executarSync(): Promise<ResultadoSync> {
     }
   }
 
-  // avança o cursor da varredura para a próxima execução
+  // avança o cursor da varredura para a próxima execução — com RECUO de 200:
+  // a URA lista os clientes em ordem ALFABÉTICA, então cadastros novos entram
+  // no meio da lista e deslocam as posições entre uma janela e outra; sem a
+  // sobreposição, quem cruza a fronteira da janela nunca é varrido
   if (sgp.modo === "real") {
     const progresso = (sgp as unknown as { progresso: { proximoOffset: number } | null }).progresso;
     if (progresso) {
       const atual = (cfgBruta?.config as Record<string, unknown>) ?? {};
+      const proximo = progresso.proximoOffset === 0 ? 0 : Math.max(0, progresso.proximoOffset - 200);
       await admin.from("integracoes_config").upsert({
         sistema: "sgp",
-        config: { ...atual, scan_offset: progresso.proximoOffset },
+        config: { ...atual, scan_offset: proximo },
         atualizado_em: new Date().toISOString(),
       });
     }

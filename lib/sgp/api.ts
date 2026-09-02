@@ -111,6 +111,37 @@ export class SgpApiClient implements SgpClient {
    * Com `janela`, varre só um trecho — o worker roda janelas sucessivas a
    * cada sync (cursor persistido) para caber no tempo do serverless.
    */
+  /** clientes carregados fora da varredura (caçador de cadastros novos) */
+  private extras: BrutoCliente[] = [];
+
+  /**
+   * Busca clientes direto na URA por CPF/CNPJ e injeta na varredura desta
+   * execução — chame ANTES de listarClientes/listarContratos. É a rede de
+   * segurança para cadastros novos: a lista da URA é alfabética e desloca a
+   * cada inserção, então a janela do cursor pode pular quem acabou de entrar.
+   */
+  async carregarExtrasPorCpf(cpfs: string[]): Promise<number> {
+    let carregados = 0;
+    for (const cpf of cpfs) {
+      const limpo = (cpf ?? "").replace(/\D/g, "");
+      if (!limpo) continue;
+      try {
+        const r = await this.chamar<{ clientes?: BrutoCliente[] }>("/api/ura/clientes/", {
+          cpfcnpj: limpo,
+        });
+        for (const c of r.clientes ?? []) {
+          if (!this.extras.some((x) => x.id === c.id)) {
+            this.extras.push(c);
+            carregados += 1;
+          }
+        }
+      } catch {
+        // um CPF que falhar não derruba o ciclo — entra na próxima
+      }
+    }
+    return carregados;
+  }
+
   private escanear(): Promise<BrutoCliente[]> {
     this.varredura ??= (async () => {
       const todos: BrutoCliente[] = [];
@@ -133,7 +164,10 @@ export class SgpApiClient implements SgpClient {
         total: Number.isFinite(total) ? total : 0,
         completou: offset >= total,
       };
-      return todos.filter((c) => CIDADES_ESCOPO.has(semAcento(c.endereco?.cidade)));
+      // extras do caçador entram junto (sem duplicar quem a janela já trouxe)
+      const ids = new Set(todos.map((c) => c.id));
+      const comExtras = [...todos, ...this.extras.filter((c) => !ids.has(c.id))];
+      return comExtras.filter((c) => CIDADES_ESCOPO.has(semAcento(c.endereco?.cidade)));
     })();
     return this.varredura;
   }

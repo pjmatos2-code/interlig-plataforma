@@ -135,6 +135,43 @@ export class PainelSgp {
     const [nome, login] = texto.split(/\s+-\s+/); // "Nome - login" (login pode faltar)
     return { sgpVendedorId: sel[1], nome: (nome ?? texto).trim(), login: login?.trim() ?? null };
   }
+
+  /**
+   * "Clientes > Últimos Cadastros" do painel — a rede de segurança da
+   * varredura: a URA lista os clientes em ordem ALFABÉTICA, então cadastros
+   * novos entram no meio da lista e podem escapar da janela do sync. Esta
+   * listagem entrega o id e o CPF dos últimos cadastros na hora.
+   */
+  async clientesRecentes(quantidade = 100): Promise<{ sgpClienteId: string; cpf: string | null }[]> {
+    await this.login();
+    // dpb_token vem da própria página do formulário
+    const tela = await this.pegar("/admin/cliente/list/ultimos/");
+    if (tela.status !== 200) return [];
+    const dpb = (await tela.text()).match(/name='dpb_token' value='([^']+)'/)?.[1] ?? "";
+    const vistos = new Map<string, string | null>();
+    // status é obrigatório e único por consulta: Novo (6) pega o cadastro
+    // recém-feito; Ativo (1) pega quem já instalou
+    for (const status of ["6", "1"]) {
+      const res = await this.pegar(
+        `/admin/cliente/list/ultimos/?dpb_token=${dpb}&pop=&plano=&quantidade=${quantidade}&status=${status}&crm=`
+      );
+      if (res.status !== 200) continue;
+      const html = await res.text();
+      for (const linha of html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
+        const id = linha[1].match(/\/admin\/cliente\/(\d+)\/edit\//)?.[1];
+        if (!id || vistos.has(id)) continue;
+        const texto = linha[1].replace(/<[^>]+>/g, " ");
+        // CPF (000.000.000-00 ou 11 dígitos) ou CNPJ na primeira célula
+        const cpf =
+          texto.match(/\d{3}\.\d{3}\.\d{3}-\d{2}/)?.[0] ??
+          texto.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/)?.[0] ??
+          texto.match(/(?<!\d)\d{11}(?!\d)/)?.[0] ??
+          null;
+        vistos.set(id, cpf);
+      }
+    }
+    return [...vistos.entries()].map(([sgpClienteId, cpf]) => ({ sgpClienteId, cpf }));
+  }
 }
 
 const semAcento = (t: string) =>
