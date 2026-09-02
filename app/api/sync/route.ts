@@ -45,6 +45,32 @@ async function roboSzSeDevido() {
   const { rodarRoboSz } = await import("@/lib/sz/robo");
   const r = await rodarRoboSz();
   console.log("robô SZ diurno:", JSON.stringify(r));
+
+  // backfill do estoque: o filtro do SZ pega a conversa pela data de INÍCIO,
+  // então atendimento aberto semanas atrás nunca entra na janela corrente.
+  // A cada ciclo processa UMA fatia antiga de 5 dias (comercial + retenção)
+  // até cobrir 35 dias — termina sozinho em ~1h e não roda de novo.
+  const feito = Number(cfg.backfill_sz_dias ?? 0) || 0;
+  if (feito < 35) {
+    const alvoAntigo = new Date(Date.now() - 3 * 3600_000 - (feito + 5) * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const rAntigo = await rodarRoboSz(alvoAntigo).catch((e) => ({ ok: false, erro: String(e) }));
+    console.log(`backfill SZ (janela até ${alvoAntigo}):`, JSON.stringify(rAntigo));
+    const { rodarRoboRetencao } = await import("@/lib/retencao/robo");
+    const rRet = await rodarRoboRetencao(alvoAntigo).catch((e) => ({ ok: false, erro: String(e) }));
+    console.log(`backfill retenção (janela até ${alvoAntigo}):`, JSON.stringify(rRet));
+    const { data: cfgAtual } = await admin
+      .from("integracoes_config")
+      .select("config")
+      .eq("sistema", "szchat")
+      .maybeSingle();
+    await admin.from("integracoes_config").upsert({
+      sistema: "szchat",
+      config: { ...((cfgAtual?.config as Record<string, unknown>) ?? {}), backfill_sz_dias: feito + 5 },
+      atualizado_em: new Date().toISOString(),
+    });
+  }
 }
 
 async function cicloCompleto() {
