@@ -94,6 +94,43 @@ export async function reconciliarTickets(): Promise<number> {
     if (tel) (porTelefone.get(tel) ?? porTelefone.set(tel, []).get(tel)!).push(c);
   }
 
+  // cura ativa: pendente com CPF e SEM candidato na base pode ser um cadastro
+  // que a varredura ainda não alcançou — busca direto na URA pelo CPF (até 5
+  // por ciclo, só tickets fechados nos últimos 10 dias, para não martelar o
+  // SGP com pendências antigas que nunca vão casar)
+  {
+    const corteRecente = new Date(Date.now() - 10 * 86_400_000).toISOString();
+    const semCandidato = pendentes.filter((t) => {
+      const cpf = normalizarCpf(t.cpf);
+      return (
+        cpf &&
+        (t.fechado_em ?? "") >= corteRecente &&
+        !porCpf.has(cpf) &&
+        !porTelefone.has(normalizarTelefone(t.telefone))
+      );
+    });
+    if (semCandidato.length > 0) {
+      const { importarClientePorCpf } = await import("@/lib/sgp/importar");
+      for (const t of semCandidato.slice(0, 5)) {
+        const imp = await importarClientePorCpf(t.cpf!).catch(() => null);
+        if (!imp?.ok || imp.clienteIds.length === 0) continue;
+        // recarrega só os contratos dos clientes importados para o casamento
+        const { data: extras } = await admin
+          .from("contratos")
+          .select("id, data_venda, cliente_id, clientes(cpf, telefone)")
+          .in("cliente_id", imp.clienteIds)
+          .gte("data_venda", corte)
+          .limit(50);
+        for (const c of (extras ?? []) as unknown as C[]) {
+          const cpf = normalizarCpf(c.clientes?.cpf);
+          const tel = normalizarTelefone(c.clientes?.telefone);
+          if (cpf) (porCpf.get(cpf) ?? porCpf.set(cpf, []).get(cpf)!).push(c);
+          if (tel) (porTelefone.get(tel) ?? porTelefone.set(tel, []).get(tel)!).push(c);
+        }
+      }
+    }
+  }
+
   let reconciliados = 0;
   for (const t of pendentes) {
     const candidatos =

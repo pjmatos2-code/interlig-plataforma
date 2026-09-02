@@ -406,14 +406,39 @@ export async function atualizarTicketDoSgp(ticketId: string): Promise<ResumoSgp>
   const supabase = criarClienteServidor();
   const { data: t } = await supabase
     .from("tickets")
-    .select("contrato_id")
+    .select("contrato_id, cpf, telefone")
     .eq("id", ticketId)
     .maybeSingle();
-  if (!t?.contrato_id)
-    return { erro: "Este ticket ainda não tem contrato vinculado ao SGP (aguarde a reconciliação)." };
+  let contratoId = t?.contrato_id as string | null;
+  if (!contratoId) {
+    // sem vínculo ainda: busca ATIVA no SGP pelo CPF do ticket, importa o
+    // cliente/contrato na hora e reconcilia — sem esperar a varredura passar
+    if (!t?.cpf)
+      return {
+        erro: "Ticket sem CPF — inclua o CPF do cliente para buscar o contrato no SGP.",
+      };
+    const { importarClientePorCpf } = await import("@/lib/sgp/importar");
+    const imp = await importarClientePorCpf(t.cpf);
+    if (!imp.ok) return { erro: `Busca no SGP: ${imp.erro}` };
+    const { reconciliarTickets } = await import("@/lib/crm/rotinas");
+    await reconciliarTickets();
+    const { data: depois } = await supabase
+      .from("tickets")
+      .select("contrato_id")
+      .eq("id", ticketId)
+      .maybeSingle();
+    contratoId = (depois?.contrato_id as string | null) ?? null;
+    if (!contratoId)
+      return {
+        erro:
+          imp.contratos > 0 || imp.clientes > 0
+            ? "Cadastro encontrado no SGP, mas nenhum contrato casou com a janela deste ticket — confira o CPF e a data da venda."
+            : "CPF encontrado, mas sem contrato novo no SGP ainda.",
+      };
+  }
 
   const { atualizarContratoDoSgp } = await import("@/lib/sgp/atualizar");
-  const r = await atualizarContratoDoSgp(t.contrato_id);
+  const r = await atualizarContratoDoSgp(contratoId);
   if (!r.ok) return { erro: r.erro ?? "Falha ao consultar o SGP." };
   revalidatePath(`/crm/${ticketId}`);
   revalidar();
