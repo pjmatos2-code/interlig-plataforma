@@ -34,14 +34,17 @@ async function listarConversasCancelamento(
   campanha: string,
   inicio: string,
   fim: string,
-  prazoMs?: number
-): Promise<Conversa[] & { truncada?: boolean }> {
-  const achadas: Conversa[] & { truncada?: boolean } = [];
+  prazoMs?: number,
+  paginaInicial = 1
+): Promise<Conversa[] & { truncada?: boolean; proximaPagina?: number | null }> {
+  const achadas: Conversa[] & { truncada?: boolean; proximaPagina?: number | null } = [];
+  achadas.proximaPagina = null; // null = varredura da janela concluída
   const limite = prazoMs ? Date.now() + prazoMs : null;
   const dateParam = encodeURIComponent(JSON.stringify({ start: inicio, end: fim }));
-  for (let p = 1; p <= 30; p++) {
+  for (let p = paginaInicial; p <= paginaInicial + 60; p++) {
     if (limite && Date.now() > limite) {
-      achadas.truncada = true; // o resto fica para o próximo ciclo
+      achadas.truncada = true;
+      achadas.proximaPagina = p; // o próximo ciclo CONTINUA daqui
       break;
     }
     const r = await sz.api(
@@ -101,7 +104,28 @@ export async function rodarRoboRetencao(dia?: string, orcamentoMs = 60_000): Pro
       .slice(0, 10);
     const inicioJanela = inicioCalc > inicioMes ? inicioCalc : inicioMes;
 
-    const conversas = await listarConversasCancelamento(sz, campanha, inicioJanela, alvo, orcamentoMs / 2);
+    // cursor de página rotativo: a listagem vem da mais recente para a mais
+    // antiga e a janela do mês tem dezenas de páginas — um ciclo só não cobre
+    // tudo, então cada ciclo continua a paginação de onde o anterior parou
+    const paginaInicial = Number((cfgRow?.config as Record<string, unknown>)?.retencao_pagina ?? 1) || 1;
+    const conversas = await listarConversasCancelamento(
+      sz, campanha, inicioJanela, alvo, orcamentoMs / 2, paginaInicial
+    );
+    {
+      const { data: cfgAtual } = await admin
+        .from("integracoes_config")
+        .select("config")
+        .eq("sistema", "szchat")
+        .maybeSingle();
+      await admin.from("integracoes_config").upsert({
+        sistema: "szchat",
+        config: {
+          ...((cfgAtual?.config as Record<string, unknown>) ?? {}),
+          retencao_pagina: conversas.proximaPagina ?? 1,
+        },
+        atualizado_em: new Date().toISOString(),
+      });
+    }
 
     // agente responsável: quem atendeu no SZ, se for do setor retenção
     const { data: agentes } = await admin
