@@ -22,7 +22,6 @@ async function roboSzSeDevido() {
   const admin = criarClienteAdmin();
   const agoraStm = new Date(Date.now() - 3 * 3600_000);
   const hora = agoraStm.getUTCHours();
-  if (hora < 7 || hora >= 20) return;
 
   const { data: cfgRow } = await admin
     .from("integracoes_config")
@@ -30,6 +29,10 @@ async function roboSzSeDevido() {
     .eq("sistema", "szchat")
     .maybeSingle();
   const cfg = (cfgRow?.config ?? {}) as Record<string, unknown>;
+  // fora do horário comercial só roda enquanto o backfill do estoque não
+  // terminar — trabalho finito e urgente; depois volta ao expediente 07–20h
+  const backfillPendente = (Number(cfg.backfill_sz_dias ?? 0) || 0) < 35;
+  if ((hora < 7 || hora >= 20) && !backfillPendente) return;
   const ultima = typeof cfg.robo_diurno_em === "string" ? Date.parse(cfg.robo_diurno_em) : 0;
   // 9 min: dispara praticamente a cada dois ciclos do sync — o ticket da
   // conversa nova nasce em minutos; o custo por rodada fica baixo porque o
