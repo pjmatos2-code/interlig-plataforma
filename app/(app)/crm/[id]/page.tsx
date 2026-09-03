@@ -15,6 +15,7 @@ import { ROTULO_ETAPA, ROTULO_ORIGEM, ehAgenteCrm } from "@/lib/tipos";
 import { FollowupIa } from "@/components/crm/followup-ia";
 import { AnexosVisita } from "@/components/crm/anexos-visita";
 import { EmailTicket } from "@/components/crm/email-ticket";
+import { CpfTicket } from "@/components/crm/cpf-ticket";
 import {
   BarraEtapas,
   BotaoReabrir,
@@ -215,7 +216,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
                 <span className="font-medium">{t.cliente_sgp_nome}</span>
               </p>
             )}
-            <p><span className="text-muted-foreground">CPF:</span> {t.cpf ?? "—"}</p>
+            <p><span className="text-muted-foreground">CPF:</span> <CpfTicket ticketId={t.id} cpf={t.cpf} /></p>
             <p><span className="text-muted-foreground">E-mail:</span> <EmailTicket ticketId={t.id} email={t.email ?? null} /></p>
             <p><span className="text-muted-foreground">Vendedora:</span> {t.vendedora ?? "Não atribuído"}</p>
             <p><span className="text-muted-foreground">POP:</span> {t.pop ?? "—"}</p>

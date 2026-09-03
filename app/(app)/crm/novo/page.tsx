@@ -34,6 +34,7 @@ export default async function NovoTicketPage() {
             vendedoras={vendedoras ?? []}
             perfilVendedora={ehAgenteCrm(usuario.perfil)}
             permitePreCadastro={usuario.perfil === "vendedora_externa"}
+            rotuloDocumento={usuario.perfil === "agente_corporativo" ? "CNPJ" : "CPF"}
           />
         </CardContent>
       </Card>

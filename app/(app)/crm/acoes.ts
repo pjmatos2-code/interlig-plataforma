@@ -668,6 +668,28 @@ export async function anexarVisitaManual(_e: EstadoAcao, dados: FormData): Promi
 
 
 /** Inclui ou corrige o e-mail do cliente no ticket (opcional em todos). */
+export async function salvarCpfTicket(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
+  const usuario = await exigirUsuario();
+  if (!["gestor", "supervisor"].includes(usuario.perfil) && !ehAgenteCrm(usuario.perfil))
+    return { erro: "Sem permissão." };
+  const ticketId = String(dados.get("ticket_id") ?? "");
+  const cpf = String(dados.get("cpf") ?? "").trim();
+  if (!ticketId) return { erro: "Ticket ausente." };
+  const digitos = cpf.replace(/\D/g, "");
+  if (cpf && digitos.length !== 11 && digitos.length !== 14)
+    return { erro: "Documento inválido — CPF tem 11 dígitos, CNPJ tem 14." };
+
+  const supabase = criarClienteServidor();
+  const { error } = await supabase
+    .from("tickets")
+    .update({ cpf: cpf || null, atualizado_em: new Date().toISOString() })
+    .eq("id", ticketId);
+  if (error) return { erro: error.message };
+  revalidatePath(`/crm/${ticketId}`);
+  revalidar();
+  return { ok: true };
+}
+
 export async function salvarEmailTicket(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
   const usuario = await exigirUsuario();
   if (!["gestor", "supervisor"].includes(usuario.perfil) && !ehAgenteCrm(usuario.perfil))
