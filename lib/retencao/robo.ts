@@ -204,21 +204,52 @@ export async function rodarRoboRetencao(dia?: string, orcamentoMs = 60_000): Pro
         if (cli) await casar("id", cli.id as string);
       }
 
-      const { error } = await admin.from("casos_retencao").insert({
-        origem: "sz_auto",
-        protocolo_sz: c.protocolo,
-        telefone: c.telefone,
-        cliente_nome: clienteNome,
-        contrato_id: contratoId,
-        sgp_contrato_id: sgpContratoId,
-        valor_mensal: vtv,
-        agente_login: loginDe(c.agente),
-        etapa: "novo",
-        reincidente_de: casoAnterior?.id ?? null,
-      });
-      if (!error) {
+      const { data: novoCaso, error } = await admin
+        .from("casos_retencao")
+        .insert({
+          origem: "sz_auto",
+          protocolo_sz: c.protocolo,
+          telefone: c.telefone,
+          cliente_nome: clienteNome,
+          contrato_id: contratoId,
+          sgp_contrato_id: sgpContratoId,
+          valor_mensal: vtv,
+          agente_login: loginDe(c.agente),
+          etapa: "novo",
+          reincidente_de: casoAnterior?.id ?? null,
+        })
+        .select("id")
+        .single();
+      if (!error && novoCaso) {
         criados++;
         if (casoAnterior) reincidentes++;
+
+        // análise automática da conversa (a IA já era do módulo, mas exigia
+        // colar o transcript à mão — o robô tem o diálogo em mãos e analisa
+        // na criação: motivo real, trilha e resumo prontos para a agente)
+        if (c.dialogo.length > 0 && Date.now() < limite) {
+          try {
+            const transcript = c.dialogo
+              .map((m) => `${m.quem === "CLIENTE" ? "CLI" : m.quem === "AGENTE" ? "AGE" : m.quem}: ${m.texto}`)
+              .join("\n");
+            if (transcript.length >= 40) {
+              const { analisarConversaRetencao } = await import("@/lib/ia/analista");
+              const analise = await analisarConversaRetencao(transcript, {});
+              if (analise) {
+                await admin
+                  .from("casos_retencao")
+                  .update({
+                    analise,
+                    analisado_em: new Date().toISOString(),
+                    resumo: (analise as { resumo?: string }).resumo ?? null,
+                  })
+                  .eq("id", novoCaso.id);
+              }
+            }
+          } catch (e) {
+            console.error("análise automática de retenção falhou:", e);
+          }
+        }
       }
     }
 
