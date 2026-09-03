@@ -59,7 +59,19 @@ async function cicloCompleto() {
   // entra no canal vira caso de retenção, sem depender de registro manual
   {
     const { rodarRoboRetencao } = await import("@/lib/retencao/robo");
-    await rodarRoboRetencao().catch((e) => console.error("robô retenção falhou:", e));
+    const admin = criarClienteAdmin();
+    const r = await rodarRoboRetencao().catch((e) => ({
+      ok: false as const, lidas: 0, criados: 0, reincidentes: 0, erro: String(e),
+    }));
+    // registra em sync_runs — sem isso a falha só aparecia no console da Vercel
+    await admin.from("sync_runs").insert({
+      entidade: "robo_retencao",
+      finalizado_em: new Date().toISOString(),
+      registros: r.criados,
+      status: r.ok ? "sucesso" : "erro",
+      erro: r.ok ? (r.completo === false ? "parcial: orçamento esgotado" : null) : r.erro,
+    }).then(({ error }) => { if (error) console.error("log robô retenção:", error.message); });
+    if (!r.ok) console.error("robô retenção falhou:", r.erro);
   }
   return { ...resultado, rotinas };
 }
