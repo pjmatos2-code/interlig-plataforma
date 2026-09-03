@@ -58,18 +58,14 @@ async function roboSzSeDevido() {
     const alvoAntigo = new Date(Date.now() - 3 * 3600_000 - (feito + 5) * 86_400_000)
       .toISOString()
       .slice(0, 10);
-    const rAntigo = await rodarRoboSz(alvoAntigo, 60_000).catch((e) => ({ ok: false, completo: false, erro: String(e) }));
+    // só o robô COMERCIAL faz backfill — retenção trabalha apenas o mês
+    // corrente (chamado de cancelamento antigo já foi resolvido no SGP)
+    const rAntigo = await rodarRoboSz(alvoAntigo, 90_000).catch((e) => ({ ok: false, completo: false, erro: String(e) }));
     console.log(`backfill SZ (janela até ${alvoAntigo}):`, JSON.stringify(rAntigo));
-    const { rodarRoboRetencao } = await import("@/lib/retencao/robo");
-    const rRet = await rodarRoboRetencao(alvoAntigo, 45_000).catch((e) => ({ ok: false, completo: false, erro: String(e) }));
-    console.log(`backfill retenção (janela até ${alvoAntigo}):`, JSON.stringify(rRet));
-    // só avança a fatia quando os DOIS robôs a completaram dentro do orçamento
+    // avança a fatia só quando ela completou dentro do orçamento
     // (dedup garante que repetir a fatia não duplica nada)
     const fatiaCompleta =
-      ("completo" in rAntigo ? rAntigo.completo !== false : false) &&
-      ("completo" in rRet ? rRet.completo !== false : false) &&
-      rAntigo.ok !== false &&
-      rRet.ok !== false;
+      ("completo" in rAntigo ? rAntigo.completo !== false : false) && rAntigo.ok !== false;
     if (fatiaCompleta) {
       const { data: cfgAtual } = await admin
         .from("integracoes_config")

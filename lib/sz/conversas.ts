@@ -19,6 +19,8 @@ export type Conversa = {
   agente: string | null;
   protocolo: string | null;
   quando: string | null;
+  /** conversa já encerrada no SZ (finished_at presente) */
+  finalizada: boolean;
   dialogo: { quem: "CLIENTE" | "AGENTE" | "IA" | "SISTEMA"; texto: string; hora: string }[];
 };
 
@@ -76,6 +78,7 @@ export async function listarConversasComerciais(
         agente: (c.agent as { name?: string } | undefined)?.name ?? null,
         protocolo: (c.protocol as string) || null,
         quando: (c.dateFormatted as string) || null,
+        finalizada: Boolean(c.finished_at),
         dialogo: [],
       });
     }

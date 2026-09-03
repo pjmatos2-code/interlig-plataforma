@@ -44,6 +44,7 @@ export async function analisarFollowupTicket(
     agente: null,
     protocolo: null,
     quando: null,
+    finalizada: false,
     dialogo: [],
   };
   // janela: do dia do ticket até hoje (conversas de WhatsApp atravessam dias)

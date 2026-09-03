@@ -78,17 +78,28 @@ export class SessaoSz {
    *  cache: no-store é obrigatório — o fetch do Next cacheia GETs em route
    *  handlers e serviria uma resposta velha (HTML de login) para a sessão nova. */
   async api(rota: string, opt: { method?: string; body?: unknown } = {}): Promise<Response> {
-    return fetch(`${this.cred.baseUrl}${rota}`, {
-      method: opt.method ?? "GET",
-      headers: {
-        Cookie: this.cookie,
-        "X-Requested-With": "XMLHttpRequest",
-        "X-CSRF-TOKEN": this.csrf,
-        ...(opt.body ? { "Content-Type": "application/json" } : {}),
-        Accept: "application/json",
-      },
-      body: opt.body ? JSON.stringify(opt.body) : undefined,
-      cache: "no-store",
-    });
+    const chamar = () =>
+      fetch(`${this.cred.baseUrl}${rota}`, {
+        method: opt.method ?? "GET",
+        headers: {
+          Cookie: this.cookie,
+          "X-Requested-With": "XMLHttpRequest",
+          "X-CSRF-TOKEN": this.csrf,
+          ...(opt.body ? { "Content-Type": "application/json" } : {}),
+          Accept: "application/json",
+        },
+        body: opt.body ? JSON.stringify(opt.body) : undefined,
+        cache: "no-store",
+      });
+    let res = await chamar();
+    // sessão caiu no meio: o SZ devolve o HTML do SPA de login em vez de JSON
+    // ("Unexpected token '<'…" nas telas). Reloga UMA vez e repete a chamada.
+    if ((res.headers.get("content-type") ?? "").includes("text/html")) {
+      this.cookie = "";
+      this.csrf = "";
+      await this.login();
+      res = await chamar();
+    }
+    return res;
   }
 }
