@@ -90,6 +90,9 @@ export class SessaoSz {
         },
         body: opt.body ? JSON.stringify(opt.body) : undefined,
         cache: "no-store",
+        // o relatório do SZ às vezes leva MINUTOS: sem teto por requisição,
+        // uma página pendurada engole o orçamento do robô e o ciclo inteiro
+        signal: AbortSignal.timeout(45_000),
       });
     let res = await chamar();
     // sessão caiu no meio: o SZ devolve o HTML do SPA de login em vez de JSON
