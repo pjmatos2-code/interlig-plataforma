@@ -90,26 +90,16 @@ export async function rodarRoboRetencao(dia?: string, orcamentoMs = 60_000): Pro
 
     const sz = new SessaoSz(cred);
     await sz.login();
-    // janela de 5 dias PRESA AO MÊS CORRENTE: retenção trabalha só os chamados
-    // do mês (decisão do gestor, 02/09/2026) — pedido de cancelamento antigo já
-    // foi resolvido no SGP e só sujava a fila. O dedup por protocolo + telefone
-    // (15 dias) segura a janela.
+    // janela de 5 dias PRESA AO MÊS CORRENTE: o filtro do SZ seleciona pela
+    // data de ENCERRAMENTO da conversa, então "chamados do mês" = conversas
+    // encerradas dentro do mês (inclui as iniciadas no fim do mês anterior —
+    // conferido com a tela do gestor em 02/09/2026). Cancelamento encerrado em
+    // mês anterior fica fora: já foi resolvido no SGP.
     const inicioMes = `${alvo.slice(0, 7)}-01`;
     const inicioCalc = new Date(Date.parse(`${alvo}T00:00:00Z`) - 4 * 86_400_000)
       .toISOString()
       .slice(0, 10);
     const inicioJanela = inicioCalc > inicioMes ? inicioCalc : inicioMes;
-
-    // autolimpeza: caso criado pelo robô para conversa de MÊS ANTERIOR, ainda
-    // intocado (novo, sem contrato), sai da fila — o protocolo do SZ carrega a
-    // data da conversa (AAAAMMDD...)
-    await admin
-      .from("casos_retencao")
-      .delete()
-      .eq("origem", "sz_auto")
-      .eq("etapa", "novo")
-      .is("contrato_id", null)
-      .lt("protocolo_sz", `${inicioMes.replace(/-/g, "").slice(0, 6)}0100000`);
 
     const conversas = await listarConversasCancelamento(sz, campanha, inicioJanela, alvo, orcamentoMs / 2);
 

@@ -29,10 +29,7 @@ async function roboSzSeDevido() {
     .eq("sistema", "szchat")
     .maybeSingle();
   const cfg = (cfgRow?.config ?? {}) as Record<string, unknown>;
-  // fora do horário comercial só roda enquanto o backfill do estoque não
-  // terminar — trabalho finito e urgente; depois volta ao expediente 07–20h
-  const backfillPendente = (Number(cfg.backfill_sz_dias ?? 0) || 0) < 35;
-  if ((hora < 7 || hora >= 20) && !backfillPendente) return;
+  if (hora < 7 || hora >= 20) return;
   const ultima = typeof cfg.robo_diurno_em === "string" ? Date.parse(cfg.robo_diurno_em) : 0;
   // 9 min: dispara praticamente a cada dois ciclos do sync — o ticket da
   // conversa nova nasce em minutos; o custo por rodada fica baixo porque o
@@ -46,39 +43,12 @@ async function roboSzSeDevido() {
     atualizado_em: new Date().toISOString(),
   });
   const { rodarRoboSz } = await import("@/lib/sz/robo");
+  // sem backfill de janelas antigas: o filtro do SZ seleciona pela data de
+  // ENCERRAMENTO, então conversa aberta não aparece em listagem nenhuma — o
+  // atendimento vira ticket assim que a conversa é encerrada no SZ e cai na
+  // janela corrente de 5 dias
   const r = await rodarRoboSz(undefined, 90_000);
   console.log("robô SZ diurno:", JSON.stringify(r));
-
-  // backfill do estoque: o filtro do SZ pega a conversa pela data de INÍCIO,
-  // então atendimento aberto semanas atrás nunca entra na janela corrente.
-  // A cada ciclo processa UMA fatia antiga de 5 dias (comercial + retenção)
-  // até cobrir 35 dias — termina sozinho em ~1h e não roda de novo.
-  const feito = Number(cfg.backfill_sz_dias ?? 0) || 0;
-  if (feito < 35) {
-    const alvoAntigo = new Date(Date.now() - 3 * 3600_000 - (feito + 5) * 86_400_000)
-      .toISOString()
-      .slice(0, 10);
-    // só o robô COMERCIAL faz backfill — retenção trabalha apenas o mês
-    // corrente (chamado de cancelamento antigo já foi resolvido no SGP)
-    const rAntigo = await rodarRoboSz(alvoAntigo, 90_000).catch((e) => ({ ok: false, completo: false, erro: String(e) }));
-    console.log(`backfill SZ (janela até ${alvoAntigo}):`, JSON.stringify(rAntigo));
-    // avança a fatia só quando ela completou dentro do orçamento
-    // (dedup garante que repetir a fatia não duplica nada)
-    const fatiaCompleta =
-      ("completo" in rAntigo ? rAntigo.completo !== false : false) && rAntigo.ok !== false;
-    if (fatiaCompleta) {
-      const { data: cfgAtual } = await admin
-        .from("integracoes_config")
-        .select("config")
-        .eq("sistema", "szchat")
-        .maybeSingle();
-      await admin.from("integracoes_config").upsert({
-        sistema: "szchat",
-        config: { ...((cfgAtual?.config as Record<string, unknown>) ?? {}), backfill_sz_dias: feito + 5 },
-        atualizado_em: new Date().toISOString(),
-      });
-    }
-  }
 }
 
 async function cicloCompleto() {

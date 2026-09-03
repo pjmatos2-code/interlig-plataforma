@@ -119,15 +119,11 @@ export async function rodarRoboSz(dia?: string, orcamentoMs = 90_000): Promise<R
     let criados = 0;
     let atualizados = 0;
     let completo = !conversas.truncada;
-    // passe de backfill (dia informado): só interessa o atendimento ainda
-    // ABERTO no SZ — conversa antiga já encerrada não vira lead requentado
-    const soAbertas = Boolean(dia);
     for (const c of conversas) {
       if (Date.now() > limite) {
         completo = false;
         break;
       }
-      if (soAbertas && c.finalizada) continue;
       const tel = soDigitos(c.telefone);
       const popId = popPorEquipe.get(c.equipe) ?? null;
       const vendedorId = acharVendedora(c.agente, popId);
