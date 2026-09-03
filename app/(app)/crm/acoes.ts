@@ -36,6 +36,8 @@ export async function criarTicket(_e: EstadoAcao, dados: FormData): Promise<Esta
   const cpf = String(dados.get("cpf") ?? "").trim();
   const email = String(dados.get("email") ?? "").trim().toLowerCase();
   const forcar = dados.get("forcar") === "sim";
+  // venda externa: lead sondado na rua entra direto no funil Pré-Cadastro
+  const preCadastro = dados.get("modo") === "pre_cadastro";
 
   if (!nome) return { erro: "Informe o nome do cliente." };
   if (!telefone && !cpf) return { erro: "Informe telefone ou CPF (obrigatório para reconciliar com o SGP)." };
@@ -83,7 +85,7 @@ export async function criarTicket(_e: EstadoAcao, dados: FormData): Promise<Esta
       email: email || null,
       vendedor_id: vendedorId,
       pop_id: popId,
-      etapa: "novo",
+      etapa: preCadastro ? "pre_cadastro" : "novo",
     })
     .select("id")
     .single();

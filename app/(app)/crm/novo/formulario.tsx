@@ -18,13 +18,25 @@ function BotaoCriar({ rotulo }: { rotulo: string }) {
   );
 }
 
+/** Venda externa: o lead sondado na rua entra direto no funil Pré-Cadastro. */
+function BotaoPreCadastro() {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" name="modo" value="pre_cadastro" variant="outline" disabled={pending}>
+      {pending ? "Criando…" : "Criar Pré-Cadastro"}
+    </Button>
+  );
+}
+
 /** Formulário de 20 segundos (PRD 3.9): nome, telefone, origem/vendedora. */
 export function FormularioNovoTicket({
   vendedoras,
   perfilVendedora,
+  permitePreCadastro = false,
 }: {
   vendedoras: { id: string; nome: string }[];
   perfilVendedora: boolean;
+  permitePreCadastro?: boolean;
 }) {
   const [estado, acao] = useFormState(criarTicket, inicial);
 
@@ -118,7 +130,16 @@ export function FormularioNovoTicket({
         </div>
       )}
 
-      <BotaoCriar rotulo="Criar ticket" />
+      <div className="flex flex-wrap items-center gap-2">
+        <BotaoCriar rotulo="Criar ticket" />
+        {permitePreCadastro && <BotaoPreCadastro />}
+      </div>
+      {permitePreCadastro && (
+        <p className="text-xs text-muted-foreground">
+          Criar Pré-Cadastro: o lead entra na coluna Pré-Cadastro do funil — complete depois com as
+          fotos e o endereço pelo próprio ticket.
+        </p>
+      )}
     </form>
   );
 }

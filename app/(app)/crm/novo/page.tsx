@@ -33,6 +33,7 @@ export default async function NovoTicketPage() {
           <FormularioNovoTicket
             vendedoras={vendedoras ?? []}
             perfilVendedora={ehAgenteCrm(usuario.perfil)}
+            permitePreCadastro={usuario.perfil === "vendedora_externa"}
           />
         </CardContent>
       </Card>
