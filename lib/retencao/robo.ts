@@ -24,6 +24,8 @@ export type ResultadoRoboRetencao = {
   lidas: number;
   criados: number;
   reincidentes: number;
+  /** false = orçamento de tempo esgotado antes do fim (o próximo ciclo continua) */
+  completo?: boolean;
   erro?: string;
 };
 
@@ -31,11 +33,17 @@ async function listarConversasCancelamento(
   sz: SessaoSz,
   campanha: string,
   inicio: string,
-  fim: string
-): Promise<Conversa[]> {
-  const achadas: Conversa[] = [];
+  fim: string,
+  prazoMs?: number
+): Promise<Conversa[] & { truncada?: boolean }> {
+  const achadas: Conversa[] & { truncada?: boolean } = [];
+  const limite = prazoMs ? Date.now() + prazoMs : null;
   const dateParam = encodeURIComponent(JSON.stringify({ start: inicio, end: fim }));
   for (let p = 1; p <= 30; p++) {
+    if (limite && Date.now() > limite) {
+      achadas.truncada = true; // o resto fica para o próximo ciclo
+      break;
+    }
     const r = await sz.api(
       `/reports/messages/filter?page=${p}&channel=&contact=&protocol=&agent=&contactName=&attendance=&platform_id=&options_conversations=all&view_conversation=default&data_privacy=hidden&typeStatus=all&copilot_score=&attendance_classification=&closing_reason=&finalCampaign=&finalAgent=&date=${dateParam}`
     );
@@ -59,7 +67,8 @@ async function listarConversasCancelamento(
   return achadas;
 }
 
-export async function rodarRoboRetencao(dia?: string): Promise<ResultadoRoboRetencao> {
+export async function rodarRoboRetencao(dia?: string, orcamentoMs = 60_000): Promise<ResultadoRoboRetencao> {
+  const limite = Date.now() + orcamentoMs;
   const cred = await lerCredenciaisSz();
   if (!cred) return { ok: false, lidas: 0, criados: 0, reincidentes: 0, erro: "credencial SZ não configurada" };
 
@@ -87,7 +96,7 @@ export async function rodarRoboRetencao(dia?: string): Promise<ResultadoRoboRete
     const inicioJanela = new Date(Date.parse(`${alvo}T00:00:00Z`) - 4 * 86_400_000)
       .toISOString()
       .slice(0, 10);
-    const conversas = await listarConversasCancelamento(sz, campanha, inicioJanela, alvo);
+    const conversas = await listarConversasCancelamento(sz, campanha, inicioJanela, alvo, orcamentoMs / 2);
 
     // agente responsável: quem atendeu no SZ, se for do setor retenção
     const { data: agentes } = await admin
@@ -105,8 +114,13 @@ export async function rodarRoboRetencao(dia?: string): Promise<ResultadoRoboRete
 
     let criados = 0;
     let reincidentes = 0;
+    let completo = !conversas.truncada;
 
     for (const c of conversas) {
+      if (Date.now() > limite) {
+        completo = false;
+        break;
+      }
       // dedup por protocolo (índice único) e por telefone recente
       if (c.protocolo) {
         const { data: jaExiste } = await admin
@@ -203,7 +217,7 @@ export async function rodarRoboRetencao(dia?: string): Promise<ResultadoRoboRete
       }
     }
 
-    return { ok: true, lidas: conversas.length, criados, reincidentes };
+    return { ok: true, lidas: conversas.length, criados, reincidentes, completo };
   } catch (e) {
     return { ok: false, lidas: 0, criados: 0, reincidentes: 0, erro: e instanceof Error ? e.message : String(e) };
   }

@@ -20,6 +20,8 @@ export type ResultadoRobo = {
   lidas: number;
   criados: number;
   atualizados: number;
+  /** false = o orçamento de tempo acabou antes de processar tudo (o próximo ciclo continua) */
+  completo?: boolean;
   erro?: string;
   janela?: string;
 };
@@ -29,7 +31,12 @@ export type ResultadoRobo = {
  * grava no CRM (cria ticket em "Contato inicial" ou atualiza o existente),
  * com resumo, próxima abordagem, urgência e follow-up para a manhã seguinte.
  */
-export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
+export async function rodarRoboSz(dia?: string, orcamentoMs = 90_000): Promise<ResultadoRobo> {
+  // orçamento de tempo: o ciclo roda em serverless (maxDuration 300s) junto
+  // com o sync — sem teto, a janela de 5 dias estourava o limite e a função
+  // morria sem criar nada. O dedup (telefone/protocolo) e o pulo de resumo
+  // fresco fazem o próximo ciclo continuar exatamente de onde este parou.
+  const limite = Date.now() + orcamentoMs;
   const cred = await lerCredenciaisSz();
   if (!cred) return { ok: false, lidas: 0, criados: 0, atualizados: 0, erro: "credencial do robô SZ não configurada" };
 
@@ -54,7 +61,8 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
     const inicioJanela = new Date(Date.parse(`${alvo}T00:00:00Z`) - 4 * 86_400_000)
       .toISOString()
       .slice(0, 10);
-    const conversas = await listarConversasComerciais(sz, inicioJanela, alvo);
+    // metade do orçamento para listar, o resto para processar
+    const conversas = await listarConversasComerciais(sz, inicioJanela, alvo, 60, orcamentoMs / 2);
     const { data: equipes } = await admin
       .from("sz_equipes_habilitadas")
       .select("nome, pop_id, ativo");
@@ -110,7 +118,12 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
 
     let criados = 0;
     let atualizados = 0;
+    let completo = !conversas.truncada;
     for (const c of conversas) {
+      if (Date.now() > limite) {
+        completo = false;
+        break;
+      }
       const tel = soDigitos(c.telefone);
       const popId = popPorEquipe.get(c.equipe) ?? null;
       const vendedorId = acharVendedora(c.agente, popId);
@@ -230,7 +243,7 @@ export async function rodarRoboSz(dia?: string): Promise<ResultadoRobo> {
       }
     }
 
-    return { ok: true, lidas: conversas.length, criados, atualizados, janela: alvo };
+    return { ok: true, lidas: conversas.length, criados, atualizados, completo, janela: alvo };
   } catch (e) {
     return { ok: false, lidas: 0, criados: 0, atualizados: 0, erro: e instanceof Error ? e.message : String(e), janela: alvo };
   }

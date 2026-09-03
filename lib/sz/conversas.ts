@@ -8,6 +8,9 @@ export const EQUIPES_CRM: Record<string, string> = {
   "68c862da49bc10dc1707f35f": "Comercial Brasil Novo",
 };
 
+/** lista de conversas com aviso de corte por orçamento de tempo */
+export type ListaConversas = Conversa[] & { truncada?: boolean };
+
 export type Conversa = {
   id: string;
   equipe: string;
@@ -47,11 +50,17 @@ export async function listarConversasComerciais(
   sz: SessaoSz,
   inicio: string,
   fim: string,
-  maxPaginas = 60
-): Promise<Conversa[]> {
-  const achadas: Conversa[] = [];
+  maxPaginas = 60,
+  prazoMs?: number
+): Promise<ListaConversas> {
+  const achadas: ListaConversas = [];
+  const limite = prazoMs ? Date.now() + prazoMs : null;
   const dateParam = encodeURIComponent(JSON.stringify({ start: inicio, end: fim }));
   for (let p = 1; p <= maxPaginas; p++) {
+    if (limite && Date.now() > limite) {
+      achadas.truncada = true; // o resto fica para o próximo ciclo
+      break;
+    }
     const rota = `/reports/messages/filter?page=${p}&channel=&contact=&protocol=&agent=&contactName=&attendance=&platform_id=&options_conversations=all&view_conversation=default&data_privacy=hidden&typeStatus=all&copilot_score=&attendance_classification=&closing_reason=&finalCampaign=&finalAgent=&date=${dateParam}`;
     const r = await sz.api(rota);
     if (!r.ok) break;
