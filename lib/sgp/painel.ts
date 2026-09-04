@@ -172,6 +172,42 @@ export class PainelSgp {
     }
     return [...vistos.entries()].map(([sgpClienteId, cpf]) => ({ sgpClienteId, cpf }));
   }
+
+  /**
+   * Relatórios > Contratos > Crescimento — estoque de ativos/suspensos por
+   * mês e cancelados ACUMULADOS (o "no mês" sai da diferença mês a mês).
+   */
+  async crescimentoContratos(
+    popId: number,
+    meses = 8
+  ): Promise<{ mes: string; ativos: number; novos: number; canceladosAcum: number; suspensos: number }[]> {
+    await this.login();
+    const tela = await this.pegar("/admin/relatorios/contrato/crescimento/");
+    if (tela.status !== 200) return [];
+    const dpb = (await tela.text()).match(/name='dpb_token' value='([^']+)'/)?.[1] ?? "";
+    const res = await this.pegar(
+      `/admin/relatorios/contrato/crescimento/?dpb_token=${dpb}&pop=${popId}&periodo=${meses}`
+    );
+    if (res.status !== 200) return [];
+    const html = await res.text();
+    const linhas: { mes: string; ativos: number; novos: number; canceladosAcum: number; suspensos: number }[] = [];
+    for (const tr of html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
+      const tds = [...tr[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) =>
+        m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+      );
+      // Ano/Mes; Ativos; Novos; Vel.Reduzida; Cancelados; Suspensos; Inviab.; Crescimento
+      const anoMes = tds[0]?.match(/^(\d{4})\/(\d{2})$/);
+      if (!anoMes || tds.length < 6) continue;
+      linhas.push({
+        mes: `${anoMes[1]}-${anoMes[2]}-01`,
+        ativos: Number(tds[1]) || 0,
+        novos: Number(tds[2]) || 0,
+        canceladosAcum: Number(tds[4]) || 0,
+        suspensos: Number(tds[5]) || 0,
+      });
+    }
+    return linhas;
+  }
 }
 
 const semAcento = (t: string) =>

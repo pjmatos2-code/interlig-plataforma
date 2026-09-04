@@ -227,6 +227,18 @@ export default async function DashboardPage({
     .slice(-6)
     .map(([m, v]) => ({ mes: m, ...v }));
   const max6m = Math.max(1, ...vendas6m.map((v) => v.vendas));
+
+  // base das unidades (Relatórios > Crescimento do SGP, sincronizado 1x/dia)
+  const { data: baseUnidades } = await admin
+    .from("crescimento_base")
+    .select("mes, unidade, ativos, novos, cancelados_mes, suspensos")
+    .order("mes");
+  const unidadesBase = ["Altamira", "Vitória do Xingu", "Brasil Novo"]
+    .map((unidade) => {
+      const serie = (baseUnidades ?? []).filter((b) => b.unidade === unidade).slice(-6);
+      return { unidade, serie };
+    })
+    .filter((u) => u.serie.length > 0);
   const MES_CURTO = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
   const deltaVendas =
@@ -390,6 +402,59 @@ export default async function DashboardPage({
               </div>
             </CardContent>
           </Card>
+
+          {/* base das 3 unidades — Relatórios > Crescimento do SGP (1x/dia) */}
+          {unidadesBase.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle>Base de assinantes por unidade — últimos 6 meses</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Fonte: SGP (Relatórios &gt; Contratos &gt; Crescimento) · residencial + corporativo · atualizado diariamente
+                </p>
+              </CardHeader>
+              <CardContent className="grid gap-4 lg:grid-cols-3">
+                {unidadesBase.map(({ unidade, serie }) => {
+                  const atual = serie[serie.length - 1];
+                  const maxAtivos = Math.max(...serie.map((b) => b.ativos), 1);
+                  return (
+                    <div key={unidade} className="rounded-lg border p-3">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="text-sm font-semibold">{unidade}</p>
+                        <p className="text-lg font-bold tabular-nums text-emerald-700">
+                          {atual.ativos.toLocaleString("pt-BR")}
+                          <span className="ml-1 text-[10px] font-medium text-muted-foreground">ativos</span>
+                        </p>
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        no mês: <span className="font-medium text-emerald-700">+{atual.novos} novos</span> ·{" "}
+                        <span className="font-medium text-rose-700">−{atual.cancelados_mes} cancelados</span> ·{" "}
+                        <span className="font-medium text-amber-700">{atual.suspensos.toLocaleString("pt-BR")} suspensos</span>
+                      </p>
+                      <div className="mt-2 flex h-20 items-end justify-around gap-1.5 border-b pb-0.5">
+                        {serie.map((b) => (
+                          <div key={b.mes} className="flex h-full w-full flex-col items-center justify-end gap-0.5">
+                            <span className="text-[9px] font-semibold tabular-nums">{b.ativos.toLocaleString("pt-BR")}</span>
+                            <div
+                              className="w-full rounded-t bg-interlig-ceu"
+                              style={{ height: `${Math.max(6, (b.ativos / maxAtivos) * 100)}%` }}
+                              title={`${unidade} · ${b.mes.slice(0, 7)}: ${b.ativos} ativos · +${b.novos} novos · −${b.cancelados_mes} cancelados · ${b.suspensos} suspensos`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-around pt-0.5">
+                        {serie.map((b) => (
+                          <span key={b.mes} className="w-full text-center text-[9px] text-muted-foreground">
+                            {MES_CURTO[Number(b.mes.slice(5, 7)) - 1]}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
 
           {/* linha inferior */}
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

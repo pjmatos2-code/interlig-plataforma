@@ -560,6 +560,71 @@ export async function executarSync(): Promise<ResultadoSync> {
     }
   }
 
+  // ---------- base das unidades (Relatórios > Crescimento) — 1x/dia ----------
+  {
+    const cfgAtualR = (cfgBruta?.config ?? {}) as Record<string, unknown>;
+    const hojeStm = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
+    const jaLido = typeof cfgAtualR.crescimento_em === "string" && cfgAtualR.crescimento_em >= hojeStm;
+    if (!jaLido && sgp.modo === "real" && cfgAtualR.painel_usuario && cfgAtualR.painel_senha) {
+      const run = await iniciarRun(admin, "crescimento_base");
+      try {
+        const { PainelSgp } = await import("@/lib/sgp/painel");
+        const basePainel = String(cfgAtualR.base_url ?? "").replace(/\/+$/, "").replace(/\/admin$/, "");
+        const painel = new PainelSgp(
+          basePainel,
+          String(cfgAtualR.painel_usuario),
+          String(cfgAtualR.painel_senha)
+        );
+        // unidade = POP residencial + POP corporativo da mesma cidade
+        const UNIDADES: [string, number[]][] = [
+          ["Altamira", [1, 16]],
+          ["Vitória do Xingu", [2, 17]],
+          ["Brasil Novo", [12, 18]],
+        ];
+        let gravados = 0;
+        for (const [unidade, pops] of UNIDADES) {
+          const porMes = new Map<string, { ativos: number; novos: number; canceladosAcum: number; suspensos: number }>();
+          for (const pop of pops) {
+            for (const l of await painel.crescimentoContratos(pop, 8)) {
+              const acc = porMes.get(l.mes) ?? { ativos: 0, novos: 0, canceladosAcum: 0, suspensos: 0 };
+              acc.ativos += l.ativos;
+              acc.novos += l.novos;
+              acc.canceladosAcum += l.canceladosAcum;
+              acc.suspensos += l.suspensos;
+              porMes.set(l.mes, acc);
+            }
+          }
+          const mesesOrd = [...porMes.keys()].sort();
+          for (let i = 1; i < mesesOrd.length; i++) {
+            const m = porMes.get(mesesOrd[i])!;
+            const ant = porMes.get(mesesOrd[i - 1])!;
+            const { error } = await admin.from("crescimento_base").upsert({
+              mes: mesesOrd[i],
+              unidade,
+              ativos: m.ativos,
+              novos: m.novos,
+              cancelados_mes: Math.max(0, m.canceladosAcum - ant.canceladosAcum),
+              suspensos: m.suspensos,
+              atualizado_em: new Date().toISOString(),
+            });
+            if (!error) gravados += 1;
+          }
+        }
+        await admin.from("integracoes_config").upsert({
+          sistema: "sgp",
+          config: { ...cfgAtualR, crescimento_em: hojeStm },
+          atualizado_em: new Date().toISOString(),
+        });
+        await finalizarRun(admin, run, "sucesso", gravados);
+        execucoes.push({ entidade: "crescimento_base" as Entidade, registros: gravados, status: "sucesso" });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        await finalizarRun(admin, run, "erro", 0, msg);
+        execucoes.push({ entidade: "crescimento_base" as Entidade, registros: 0, status: "erro", erro: msg });
+      }
+    }
+  }
+
   // avança o cursor da varredura para a próxima execução — com RECUO de 200:
   // a URA lista os clientes em ordem ALFABÉTICA, então cadastros novos entram
   // no meio da lista e deslocam as posições entre uma janela e outra; sem a
@@ -567,7 +632,14 @@ export async function executarSync(): Promise<ResultadoSync> {
   if (sgp.modo === "real") {
     const progresso = (sgp as unknown as { progresso: { proximoOffset: number } | null }).progresso;
     if (progresso) {
-      const atual = (cfgBruta?.config as Record<string, unknown>) ?? {};
+      // relê a config: outros passos deste MESMO ciclo (ex.: marcador diário
+      // do crescimento) podem ter gravado depois da leitura inicial
+      const { data: cfgFresca } = await admin
+        .from("integracoes_config")
+        .select("config")
+        .eq("sistema", "sgp")
+        .maybeSingle();
+      const atual = (cfgFresca?.config as Record<string, unknown>) ?? {};
       const proximo = progresso.proximoOffset === 0 ? 0 : Math.max(0, progresso.proximoOffset - 200);
       await admin.from("integracoes_config").upsert({
         sistema: "sgp",
