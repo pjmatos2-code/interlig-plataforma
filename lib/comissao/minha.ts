@@ -43,6 +43,7 @@ export type InadimplenteDebito = {
   cliente: string;
   status: string;
   vencimento1a: string | null;
+  faturas: { parcela: number; situacao: "paga" | "atrasada" | "a_vencer"; vencimento: string | null }[];
 };
 
 export type MinhaComissao = {
@@ -147,6 +148,7 @@ export async function minhaComissao(vendedorId: string): Promise<MinhaComissao> 
     cliente: i.cliente,
     status: i.status,
     vencimento1a: i.vencimento1a,
+    faturas: i.faturas,
   }));
   const debitoMeta = coorteDebito.porVendedora.get(vendedorId) ?? 0;
   const debitoManual = coorteDebito.manuais.has(vendedorId);

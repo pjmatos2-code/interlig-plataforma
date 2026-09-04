@@ -297,11 +297,18 @@ export function PainelMinhaComissao({
             }`}
           >
             {dados.debitoAplicado ? (
-              <p className="text-sm font-semibold text-rose-900">
-                Clientes de {rotuloMes(dados.mesCoorte)} que não estão ativos (
-                {dados.inadimplentes.length}) — cada um soma +1 na sua meta deste mês. Cliente
-                que voltar a ficar ATIVO até o fechamento sai do débito.
-              </p>
+              <>
+                <p className="text-sm font-semibold text-rose-900">
+                  Clientes de {rotuloMes(dados.mesCoorte)} que não estão ativos (
+                  {dados.inadimplentes.length}) — cada um soma +1 na sua meta deste mês. Cliente
+                  que voltar a ficar ATIVO até o fechamento sai do débito.
+                </p>
+                <p className="mt-0.5 text-[11px] text-rose-800">
+                  Faturas: <span className="mr-2">🟢 paga</span>
+                  <span className="mr-2">🔴 em atraso</span>
+                  <span>🔵 a vencer / não gerada</span> — só as 3 primeiras julgam a venda.
+                </p>
+              </>
             ) : (
               <>
                 <p className="text-sm font-semibold text-sky-900">
@@ -321,6 +328,7 @@ export function PainelMinhaComissao({
                   <th className="px-4 py-2 font-medium">Contrato</th>
                   <th className="px-3 py-2 font-medium">Cliente</th>
                   <th className="px-3 py-2 font-medium">Situação</th>
+                  <th className="px-3 py-2 font-medium" title="Farol das 3 primeiras faturas — as únicas que julgam a venda">Faturas 1ª–3ª</th>
                   <th className="px-3 py-2 font-medium">1ª fatura</th>
                 </tr>
               </thead>
@@ -346,6 +354,25 @@ export function PainelMinhaComissao({
                               : i.status}
                         </Badge>
                       </td>
+                      <td className="px-3 py-2">
+                        <span className="inline-flex items-center gap-1.5">
+                          {i.faturas.map((f) => (
+                            <span
+                              key={f.parcela}
+                              title={`${f.parcela}ª fatura: ${
+                                f.situacao === "paga" ? "paga" : f.situacao === "atrasada" ? "em atraso" : "a vencer"
+                              }${f.vencimento ? ` (venc. ${formatarData(f.vencimento)})` : " (não gerada)"}`}
+                              className={`inline-block h-3 w-3 rounded-full ${
+                                f.situacao === "paga"
+                                  ? "bg-emerald-500"
+                                  : f.situacao === "atrasada"
+                                    ? "bg-rose-500"
+                                    : "bg-sky-500"
+                              }`}
+                            />
+                          ))}
+                        </span>
+                      </td>
                       <td className="px-3 py-2 tabular-nums text-muted-foreground">
                         {i.vencimento1a ? `venc. ${formatarData(i.vencimento1a)}` : "sem fatura gerada"}
                       </td>
@@ -354,7 +381,7 @@ export function PainelMinhaComissao({
                 })}
                 {dados.inadimplentes.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-farol-verde">
+                    <td colSpan={5} className="px-4 py-6 text-center text-farol-verde">
                       ✓ Nenhum cliente pendente nesta coorte — sua meta segue sem débito.
                     </td>
                   </tr>

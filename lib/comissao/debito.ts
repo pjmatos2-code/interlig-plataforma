@@ -32,6 +32,13 @@ import { hojeIso, mesAtras, primeiroDiaDoMes, ultimoDiaDoMes } from "@/lib/datas
  * agosto/2026, mês de transição entre as duas regras.
  */
 
+export type FarolFatura = {
+  parcela: number;
+  /** paga = liquidada · atrasada = aberta e vencida · a_vencer = aberta no prazo ou ainda não gerada */
+  situacao: "paga" | "atrasada" | "a_vencer";
+  vencimento: string | null;
+};
+
 export type ItemDebito = {
   vendedorId: string;
   sgpContratoId: string | null;
@@ -41,6 +48,8 @@ export type ItemDebito = {
   dataVenda: string;
   status: string;
   vencimento1a: string | null;
+  /** farol das 3 primeiras faturas — as únicas que julgam a venda */
+  faturas: FarolFatura[];
 };
 
 export type DebitoCoorte = {
@@ -144,6 +153,11 @@ export async function debitoPorCoorte(competenciaIso?: string): Promise<DebitoCo
       if (venc < janela.de || venc > janela.ate) continue;
     }
 
+    // Regra de 04/09/2026 (decisão do gestor): instalação que NÃO foi
+    // efetivada não penaliza a agente — a venda nem virou cliente; a cobrança
+    // do que travou a ativação é da esteira, não da régua de inadimplência.
+    if (c.status === "aguardando_ativacao" || c.status === "pendente_assinatura") continue;
+
     // Regra de 03/09/2026 (decisão do gestor): a análise continua nos 90 dias,
     // mas só as 3 PRIMEIRAS faturas julgam a venda. Cliente que pagou as três
     // e caiu na 4ª em diante é problema de COBRANÇA, não de qualidade da
@@ -165,6 +179,16 @@ export async function debitoPorCoorte(competenciaIso?: string): Promise<DebitoCo
       dataVenda: c.data_venda,
       status: c.status,
       vencimento1a: primeira?.vencimento ?? null,
+      faturas: [1, 2, 3].map((n) => {
+        const t = (c.titulos ?? []).find((x) => x.numero_parcela === n);
+        const situacao =
+          t?.status === "liquidado"
+            ? ("paga" as const)
+            : t?.status === "aberto" && t.vencimento < hoje
+              ? ("atrasada" as const)
+              : ("a_vencer" as const);
+        return { parcela: n, situacao, vencimento: t?.vencimento ?? null };
+      }),
     });
     itensPorVendedora.set(c.vendedor_id, lista);
   }
