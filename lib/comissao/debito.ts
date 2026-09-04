@@ -144,6 +144,16 @@ export async function debitoPorCoorte(competenciaIso?: string): Promise<DebitoCo
       if (venc < janela.de || venc > janela.ate) continue;
     }
 
+    // Regra de 03/09/2026 (decisão do gestor): a análise continua nos 90 dias,
+    // mas só as 3 PRIMEIRAS faturas julgam a venda. Cliente que pagou as três
+    // e caiu na 4ª em diante é problema de COBRANÇA, não de qualidade da
+    // venda — sai da régua do comercial mesmo suspenso/cancelado agora.
+    const tresPrimeirasPagas = [1, 2, 3].every((n) => {
+      const t = (c.titulos ?? []).find((x) => x.numero_parcela === n);
+      return t?.status === "liquidado";
+    });
+    if (tresPrimeirasPagas) continue;
+
     porVendedora.set(c.vendedor_id, (porVendedora.get(c.vendedor_id) ?? 0) + 1);
     const lista = itensPorVendedora.get(c.vendedor_id) ?? [];
     lista.push({
