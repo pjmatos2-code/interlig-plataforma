@@ -30,6 +30,7 @@ import {
   buscarConversasCanal,
   decidirIrreversivel,
   reabrirCaso,
+  editarIdentificacaoCaso,
   type Resultado,
 } from "./acoes";
 
@@ -156,6 +157,9 @@ function Detalhe({
   const [irrevMotivo, setIrrevMotivo] = useState("");
   const [transcript, setTranscript] = useState("");
   const [mostraIa, setMostraIa] = useState(false);
+  const [editandoId, setEditandoId] = useState(false);
+  const [nomeEdit, setNomeEdit] = useState(c.clienteNome ?? "");
+  const [contratoEdit, setContratoEdit] = useState(c.sgpContratoId ?? "");
 
   async function executar(fn: () => Promise<Resultado>, msg: string) {
     setOcupado(true); setErro(null); setOkMsg(null);
@@ -190,7 +194,30 @@ function Detalhe({
                 </a>
               )}
               {st && <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${st.cls}`}>{st.t}</span>}
+              {!somenteLeitura && (
+                <button type="button" onClick={() => setEditandoId(!editandoId)}
+                  className="text-[11px] font-medium text-primary hover:underline">
+                  {editandoId ? "cancelar" : "editar"}
+                </button>
+              )}
             </div>
+            {editandoId && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Input value={nomeEdit} onChange={(e) => setNomeEdit(e.target.value)}
+                  placeholder="nome do cliente" className="h-8 w-52 text-xs" />
+                <Input value={contratoEdit} onChange={(e) => setContratoEdit(e.target.value)}
+                  placeholder="nº do contrato no SGP" inputMode="numeric" className="h-8 w-40 text-xs" />
+                <button type="button" disabled={ocupado}
+                  onClick={() => executar(async () => {
+                    const r = await editarIdentificacaoCaso(c.id, { nome: nomeEdit, sgpContratoId: contratoEdit });
+                    if (!r.erro) setEditandoId(false);
+                    return r;
+                  }, "Identificação atualizada.")}
+                  className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50">
+                  Salvar
+                </button>
+              </div>
+            )}
             <p className="mt-0.5 text-xs text-muted-foreground">
               📞 {c.telefone ?? "sem telefone"} · {c.origem === "sz_auto" ? "canal SZ" : c.origem === "importado_rd" ? "histórico RD" : "manual"}
               {c.reincidente && " · 🔁 reincidente"}
@@ -289,11 +316,15 @@ function Detalhe({
             className="h-8 rounded-md border border-input bg-background px-2 text-xs">
             <option value="">{c.desfecho ? "reclassificar…" : "encerrar caso como…"}</option>
             <option value="irreversivel">Irreversível (não penaliza)</option>
+            <option value="perdido">Perdido (negociação encerrada)</option>
             <option value="transferido">Transferido</option>
             <option value="sem_resposta">Sem resposta</option>
           </select>
           {desfecho === "irreversivel" && (
             <Input placeholder="motivo obrigatório" value={irrevMotivo} onChange={(e) => setIrrevMotivo(e.target.value)} className="h-8 w-56 text-xs" />
+          )}
+          {desfecho === "perdido" && !motivo.trim() && (
+            <span className="text-[11px] text-rose-700">preencha o motivo declarado pelo cliente acima</span>
           )}
           {desfecho && (
             <button type="button" disabled={ocupado}
@@ -638,6 +669,7 @@ export function PainelRetencao({
         <div className="space-y-4">
           {caso ? (
             <Detalhe
+              key={caso.id}
               c={caso}
               nomeAgente={nomeDe.get(caso.agente) ?? caso.agente}
               linkTemplate={linkTemplate}

@@ -78,6 +78,46 @@ export async function criarCasoRetencao(
 }
 
 /** A agente registra a tratativa; retido/perdido só a auditoria carimba. */
+/**
+ * Nome e contrato editáveis pela agente: o nome do SZ às vezes vem só um
+ * emoji/apelido, e o vínculo com o contrato preenche o VTV e o link do SGP.
+ */
+export async function editarIdentificacaoCaso(
+  id: string,
+  campos: { nome?: string; sgpContratoId?: string }
+): Promise<Resultado> {
+  const usuario = await exigirUsuario();
+  if (!["gestor", "agente_retencao"].includes(usuario.perfil))
+    return { erro: "Sem permissão." };
+
+  const admin = criarClienteAdmin();
+  const upd: Record<string, unknown> = {};
+  const nome = campos.nome?.trim();
+  if (nome) upd.cliente_nome = nome;
+
+  const contratoSgp = campos.sgpContratoId?.trim().replace(/\D/g, "");
+  if (contratoSgp) {
+    const { data: ct } = await admin
+      .from("contratos")
+      .select("id, sgp_contrato_id, valor_mensalidade, planos(valor_referencia), clientes(nome)")
+      .eq("sgp_contrato_id", contratoSgp)
+      .maybeSingle();
+    if (!ct) return { erro: `Contrato #${contratoSgp} não encontrado na plataforma — confira o número no SGP.` };
+    upd.contrato_id = ct.id;
+    upd.sgp_contrato_id = ct.sgp_contrato_id;
+    const ref = Number((ct.planos as unknown as { valor_referencia: number } | null)?.valor_referencia ?? 0);
+    upd.valor_mensal = ref > 0 ? ref : Number(ct.valor_mensalidade ?? 0);
+    // sem nome informado, aproveita o nome oficial do cadastro
+    if (!nome) upd.cliente_nome = (ct.clientes as unknown as { nome: string } | null)?.nome ?? undefined;
+  }
+  if (Object.keys(upd).length === 0) return { erro: "Nada para salvar." };
+
+  const { error } = await admin.from("casos_retencao").update(upd).eq("id", id);
+  if (error) return { erro: error.message };
+  revalidar();
+  return { ok: "Identificação atualizada." };
+}
+
 export async function atualizarCaso(
   id: string,
   campos: {
@@ -86,7 +126,7 @@ export async function atualizarCaso(
     motivoDeclarado?: string;
     alcadaUsada?: string;
     resumo?: string;
-    desfecho?: "irreversivel" | "transferido" | "sem_resposta" | "";
+    desfecho?: "irreversivel" | "perdido" | "transferido" | "sem_resposta" | "";
     irreversivelMotivo?: string;
   }
 ): Promise<Resultado> {
@@ -96,6 +136,10 @@ export async function atualizarCaso(
 
   if (campos.desfecho === "irreversivel" && !campos.irreversivelMotivo?.trim())
     return { erro: "Irreversível exige o motivo (mudança sem cobertura, inviabilidade...)." };
+  // perdido manual (negociação encerrada): exige a tratativa registrada, para
+  // o caso não morrer sem contexto — pedido da gestão em 04/09/2026
+  if (campos.desfecho === "perdido" && !campos.motivoDeclarado?.trim())
+    return { erro: "Perdido exige o motivo declarado pelo cliente." };
 
   const admin = criarClienteAdmin();
   const upd: Record<string, unknown> = {};
