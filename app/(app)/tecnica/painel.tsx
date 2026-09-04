@@ -538,7 +538,7 @@ export function PainelTecnica({
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-base">Performance do mês</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-3 gap-3 text-sm">
+          <CardContent className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
             <div>
               <p className="text-xs text-muted-foreground">OS encerradas</p>
               <p className="text-2xl font-bold tabular-nums">{dados.totais.encerradas}</p>

@@ -211,7 +211,8 @@ export default async function GerenciaPage({
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Escada de níveis</CardTitle></CardHeader>
             <CardContent className="p-0 pb-2">
-              <table className="w-full text-xs">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[30rem] text-xs">
                 <thead>
                   <tr className="border-b text-left text-[10px] uppercase text-muted-foreground">
                     <th className="px-4 py-1.5">Nível</th>
@@ -236,6 +237,7 @@ export default async function GerenciaPage({
                   ))}
                 </tbody>
               </table>
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -568,6 +568,7 @@ export function PainelRetencao({
           <CardContent className="p-0">
             <p className="border-b px-4 py-2.5 text-sm font-semibold">Casos de retenção ({linhas.length})</p>
             <div className="max-h-[38rem] overflow-auto">
+              <div className="overflow-x-auto">
               <table className="w-full min-w-[42rem] text-sm">
                 <thead className="sticky top-0 z-10 bg-background">
                   <tr className="border-b text-left text-[11px] uppercase text-muted-foreground">
@@ -617,6 +618,7 @@ export function PainelRetencao({
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
           </CardContent>
         </Card>

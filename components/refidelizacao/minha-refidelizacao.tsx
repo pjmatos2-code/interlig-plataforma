@@ -289,7 +289,7 @@ export function MinhaRefidelizacao({
                 </p>
               </div>
             </div>
-            <div className="ml-auto grid grid-cols-3 gap-6 text-sm">
+            <div className="ml-auto grid grid-cols-3 gap-3 text-sm sm:gap-6">
               <div>
                 <p className="text-xs text-muted-foreground">VTV</p>
                 <p className="font-semibold tabular-nums">{formatarMoeda(dados.vtv)}</p>
@@ -440,6 +440,7 @@ export function MinhaRefidelizacao({
           </CardHeader>
           <CardContent className="p-0 pb-2">
             <div className="max-h-[34rem] overflow-auto">
+              <div className="overflow-x-auto">
               <table className="w-full min-w-[42rem] text-sm">
                 <thead className="sticky top-0 z-10 bg-background">
                   <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -484,6 +485,7 @@ export function MinhaRefidelizacao({
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
           </CardContent>
         </Card>

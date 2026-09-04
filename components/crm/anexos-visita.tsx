@@ -71,7 +71,7 @@ export function AnexosVisita({ ticketId }: { ticketId: string }) {
       <p className="mb-2 text-xs font-semibold text-indigo-900">
         Anexos do pré-cadastro — dados fornecidos pelo cliente
       </p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <CampoArquivo rotulo="Foto da casa" nome="foto_casa" arquivo={casa} aoEscolher={setCasa} />
         <CampoArquivo rotulo="Documento (frente)" nome="foto_doc" arquivo={doc} aoEscolher={setDoc} />
         <CampoArquivo rotulo="Documento (verso)" nome="foto_doc_verso" arquivo={verso} aoEscolher={setVerso} />

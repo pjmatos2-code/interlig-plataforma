@@ -29,7 +29,8 @@ function TabelaTempos({
         <CardTitle>{titulo}</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[40rem] text-sm">
           <thead>
             <tr className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
               <th className="px-4 py-2 font-medium">Nome</th>
@@ -56,6 +57,7 @@ function TabelaTempos({
             )}
           </tbody>
         </table>
+        </div>
       </CardContent>
     </Card>
   );
@@ -262,7 +264,8 @@ export default async function EsteiraPage({
             <CardTitle>Assinaturas pendentes por vendedora</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[40rem] text-sm">
               <thead>
                 <tr className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
                   <th className="px-4 py-2 font-medium">Vendedora</th>
@@ -293,6 +296,7 @@ export default async function EsteiraPage({
                 )}
               </tbody>
             </table>
+            </div>
           </CardContent>
         </Card>
         )}

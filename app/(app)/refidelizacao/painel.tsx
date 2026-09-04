@@ -587,6 +587,7 @@ export function PainelRefidelizacao({
           </CardHeader>
           <CardContent className="p-0 pb-2">
             <div className="max-h-[34rem] overflow-auto">
+              <div className="overflow-x-auto">
               <table className="w-full min-w-[46rem] text-sm">
                 <thead className="sticky top-0 z-10 bg-background">
                   <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -651,6 +652,7 @@ export function PainelRefidelizacao({
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
           </CardContent>
         </Card>
