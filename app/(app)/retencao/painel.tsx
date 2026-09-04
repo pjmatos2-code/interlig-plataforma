@@ -492,6 +492,15 @@ export function PainelRetencao({
     return [...set].sort();
   }, [meses]);
 
+  const motivosPerda = useMemo(() => {
+    const conta = new Map<string, number>();
+    for (const m of meses)
+      for (const l of m.linhas)
+        if (l.desfecho === "perdido")
+          conta.set(l.motivoDeclarado || "Sem motivo registrado", (conta.get(l.motivoDeclarado || "Sem motivo registrado") ?? 0) + 1);
+    return [...conta.entries()].sort((x, y) => y[1] - x[1]);
+  }, [meses]);
+
   const linhas = useMemo(() => {
     let todas = meses.flatMap((m) => m.linhas.map((l) => ({ ...l, agente: m.agente })));
     if (fStatus) todas = todas.filter((l) => (l.desfecho ?? "aberto") === fStatus);
@@ -716,7 +725,40 @@ export function PainelRetencao({
             </CardContent></Card>
           )}
 
-
+          {/* motivos de perda do mês — barras horizontais (padronização 04/09/2026) */}
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-sm font-semibold">Motivos de perda no mês</p>
+              {motivosPerda.length === 0 ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Nenhum caso perdido na competência — quando houver, o ranking dos motivos aparece aqui.
+                </p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {(() => {
+                    const max = Math.max(...motivosPerda.map(([, n]) => n));
+                    const total = motivosPerda.reduce((t, [, n]) => t + n, 0);
+                    return motivosPerda.map(([motivo, n]) => (
+                      <div key={motivo}>
+                        <div className="flex items-center justify-between gap-2 text-xs">
+                          <span className="truncate">{motivo}</span>
+                          <span className="shrink-0 tabular-nums text-muted-foreground">
+                            {n} · {Math.round((n / total) * 100)}%
+                          </span>
+                        </div>
+                        <div className="mt-0.5 h-2 rounded-full bg-rose-100">
+                          <div
+                            className="h-2 rounded-full bg-rose-500"
+                            style={{ width: `${Math.max(6, (n / max) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
