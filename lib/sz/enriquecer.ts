@@ -85,7 +85,13 @@ export async function enriquecerTicketsAbertos(orcamentoMs = 40_000): Promise<Re
     for (const t of pendentes) {
       if (Date.now() > limite) break;
       const proto = String(t.sz_conversa_id);
-      const inicio = String(t.criado_em).slice(0, 10);
+      // a janela vem da DATA DO PROTOCOLO (AAAAMMDD...): o ticket pode ter
+      // sido criado dias depois da conversa começar (webhook reprocessado) e
+      // a janela pela criação do ticket ficava invertida → busca vazia
+      const doProto = proto.match(/^(\d{4})(\d{2})(\d{2})/);
+      const inicio = doProto
+        ? `${doProto[1]}-${doProto[2]}-${doProto[3]}`
+        : String(t.criado_em).slice(0, 10);
       const dateParam = encodeURIComponent(JSON.stringify({ start: inicio, end: hoje }));
       const r = await sz.api(
         `/reports/messages/filter?page=1&channel=&contact=&protocol=${proto}&agent=&contactName=&attendance=&platform_id=&options_conversations=all&view_conversation=default&data_privacy=hidden&typeStatus=all&copilot_score=&attendance_classification=&closing_reason=&finalCampaign=&finalAgent=&date=${dateParam}`
