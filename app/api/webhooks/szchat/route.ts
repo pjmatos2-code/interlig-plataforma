@@ -31,7 +31,10 @@ function pegar(obj: Record<string, unknown>, ...chaves: string[]): string | null
       }
     }
     if (atual !== undefined && atual !== null && String(atual).trim() !== "") {
-      return String(atual).trim();
+      const valor = String(atual).trim();
+      // variável do fluxo que não resolveu chega literal ("{{PHONE}}") — ignora
+      if (/^\{\{.*\}\}$/.test(valor)) continue;
+      return valor;
     }
   }
   return null;
@@ -61,6 +64,17 @@ export async function POST(request: Request) {
           } catch {
             /* mantém string */
           }
+        }
+      }
+      // nó "Requisição de URL" do SZ: envia o JSON SEM content-type e ele
+      // acaba virando a CHAVE de um form vazio ({"{\"nome\":...}": ""}) —
+      // visto nos eventos reais de 01–03/09/2026. Desdobra a chave.
+      const entradas = Object.entries(corpo);
+      if (entradas.length === 1 && entradas[0][0].trim().startsWith("{") && !entradas[0][1]) {
+        try {
+          corpo = JSON.parse(entradas[0][0]);
+        } catch {
+          /* mantém como veio */
         }
       }
     }

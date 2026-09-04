@@ -157,6 +157,11 @@ export async function rodarRoboSz(dia?: string, orcamentoMs = 90_000): Promise<R
           .eq("id", achado.id)
           .is("vendedor_id", null);
       }
+      // ticket nascido na TRANSFERÊNCIA (webhook do fluxo) vem sem telefone —
+      // a variável do SZ não resolve ali; completa quando a conversa aparece
+      if (achado && !achado.telefone && tel) {
+        await admin.from("tickets").update({ telefone: tel }).eq("id", achado.id).is("telefone", null);
+      }
 
       const base = {
         resumo_tratativa: r.resumo,
