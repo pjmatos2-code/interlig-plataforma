@@ -71,13 +71,9 @@ export async function criarUsuario(_e: EstadoAdmin, dados: FormData): Promise<Es
 
   if (!nome || !email) return { erro: "Informe nome e e-mail." };
   if (senha.length < 8) return { erro: "Senha provisória precisa de 8+ caracteres." };
-  if (
-    ![
-      "gestor", "supervisor", "vendedora", "vendedora_externa",
-      "agente_corporativo", "financeiro", "agente_atendimento", "agente_retencao", "gestor_tecnico",
-    ].includes(perfil)
-  )
-    return { erro: "Perfil inválido." };
+  // fonte única de perfis válidos — a lista embutida aqui já esqueceu o
+  // gestor_tecnico e depois a direcao ("Perfil inválido" no cadastro)
+  if (!PERFIS_VALIDOS.includes(perfil)) return { erro: "Perfil inválido." };
   const ehVend = ehVendedora(perfil as Perfil);
   const precisaVinculo = ehVend || perfil === "agente_atendimento" || perfil === "agente_retencao";
   if (precisaVinculo && !vendedorId)
