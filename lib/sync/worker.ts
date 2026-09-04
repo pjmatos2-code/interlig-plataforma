@@ -564,7 +564,8 @@ export async function executarSync(): Promise<ResultadoSync> {
   {
     const cfgAtualR = (cfgBruta?.config ?? {}) as Record<string, unknown>;
     const hojeStm = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
-    const jaLido = typeof cfgAtualR.crescimento_em === "string" && cfgAtualR.crescimento_em >= hojeStm;
+    // v2: passou a gravar também o acumulado — chave nova força a releitura
+    const jaLido = typeof cfgAtualR.crescimento_v2_em === "string" && cfgAtualR.crescimento_v2_em >= hojeStm;
     if (!jaLido && sgp.modo === "real" && cfgAtualR.painel_usuario && cfgAtualR.painel_senha) {
       const run = await iniciarRun(admin, "crescimento_base");
       try {
@@ -604,6 +605,7 @@ export async function executarSync(): Promise<ResultadoSync> {
               ativos: m.ativos,
               novos: m.novos,
               cancelados_mes: Math.max(0, m.canceladosAcum - ant.canceladosAcum),
+              cancelados_acum: m.canceladosAcum,
               suspensos: m.suspensos,
               atualizado_em: new Date().toISOString(),
             });
@@ -612,7 +614,7 @@ export async function executarSync(): Promise<ResultadoSync> {
         }
         await admin.from("integracoes_config").upsert({
           sistema: "sgp",
-          config: { ...cfgAtualR, crescimento_em: hojeStm },
+          config: { ...cfgAtualR, crescimento_v2_em: hojeStm },
           atualizado_em: new Date().toISOString(),
         });
         await finalizarRun(admin, run, "sucesso", gravados);

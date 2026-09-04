@@ -13,6 +13,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { exigirPerfil } from "@/lib/auth";
+import { EvolucaoVendas } from "@/components/dashboard/evolucao-vendas";
 import { resolverPeriodo } from "@/lib/datas";
 import { carregarDashboard } from "@/lib/dashboard/dados";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
@@ -205,6 +206,7 @@ export default async function DashboardPage({
     return dt.toISOString().slice(0, 10);
   })();
   const porMes = new Map<string, { vendas: number; receita: number }>();
+  const porDia6m = new Map<string, number>();
   for (let de = 0; de < 30_000; de += 1000) {
     const { data: pg } = await admin
       .from("contratos")
@@ -219,6 +221,8 @@ export default async function DashboardPage({
       atual.vendas += 1;
       atual.receita += Number(c.valor_mensalidade ?? 0);
       porMes.set(m, atual);
+      const dia = String(c.data_venda).slice(0, 10);
+      porDia6m.set(dia, (porDia6m.get(dia) ?? 0) + 1);
     }
     if (!pg || pg.length < 1000) break;
   }
@@ -228,10 +232,36 @@ export default async function DashboardPage({
     .map(([m, v]) => ({ mes: m, ...v }));
   const max6m = Math.max(1, ...vendas6m.map((v) => v.vendas));
 
+  // série diária contínua (dias sem venda = 0) do início 6m até hoje
+  const serieDiaria: { dia: string; vendas: number }[] = [];
+  {
+    const fim = new Date().toISOString().slice(0, 10);
+    for (let d = new Date(`${inicio6m}T00:00:00Z`); d.toISOString().slice(0, 10) <= fim; d.setUTCDate(d.getUTCDate() + 1)) {
+      const dia = d.toISOString().slice(0, 10);
+      serieDiaria.push({ dia, vendas: porDia6m.get(dia) ?? 0 });
+    }
+  }
+  // meta total do mês (metas por vendedora) e dias úteis (seg–sáb)
+  const { data: metasMesRows } = await admin
+    .from("metas")
+    .select("quantidade_vendas")
+    .eq("mes_ano", mesAtual)
+    .eq("escopo", "vendedora");
+  const metaMensalTotal = (metasMesRows ?? []).reduce((t, m) => t + Number(m.quantidade_vendas ?? 0), 0);
+  const diasUteisMes = (() => {
+    const d = new Date(`${mesAtual}T00:00:00Z`);
+    let n = 0;
+    while (d.toISOString().slice(0, 7) === mesAtual.slice(0, 7)) {
+      if (d.getUTCDay() !== 0) n += 1; // seg–sáb
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+    return n;
+  })();
+
   // base das unidades (Relatórios > Crescimento do SGP, sincronizado 1x/dia)
   const { data: baseUnidades } = await admin
     .from("crescimento_base")
-    .select("mes, unidade, ativos, novos, cancelados_mes, suspensos")
+    .select("mes, unidade, ativos, novos, cancelados_mes, cancelados_acum, suspensos")
     .order("mes");
   const unidadesBase = ["Altamira", "Vitória do Xingu", "Brasil Novo"]
     .map((unidade) => {
@@ -377,37 +407,18 @@ export default async function DashboardPage({
           {/* vendas gerais — últimos 6 meses */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle>Vendas gerais — últimos 6 meses</CardTitle>
+              <CardTitle>Evolução diária de vendas</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex h-36 items-end justify-around gap-4 border-b pb-1">
-                {vendas6m.map((v) => (
-                  <div key={v.mes} className="flex h-full w-full max-w-24 flex-col items-center justify-end gap-1">
-                    <span className="text-xs font-semibold tabular-nums">{v.vendas}</span>
-                    <div
-                      className="w-full rounded-t-md bg-[#2563eb]"
-                      style={{ height: `${Math.max(4, (v.vendas / max6m) * 100)}%` }}
-                      title={`${v.vendas} venda(s) · ${formatarMoeda(v.receita)}`}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-around pt-1">
-                {vendas6m.map((v) => (
-                  <span key={v.mes} className="w-full max-w-24 text-center text-xs text-muted-foreground">
-                    {MES_CURTO[Number(v.mes.slice(5, 7)) - 1]}/{v.mes.slice(2, 4)}
-                    <span className="block text-[10px] tabular-nums">{formatarMoedaKpi(v.receita)}</span>
-                  </span>
-                ))}
-              </div>
+              <EvolucaoVendas serie={serieDiaria} metaMensal={metaMensalTotal} diasUteisMes={diasUteisMes} />
             </CardContent>
           </Card>
 
-          {/* base das 3 unidades — Relatórios > Crescimento do SGP (1x/dia) */}
+                    {/* base das 3 unidades — Relatórios > Crescimento do SGP (1x/dia), modelo do mock 04/09 */}
           {unidadesBase.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle>Base de assinantes por unidade — últimos 6 meses</CardTitle>
+                <CardTitle>Base das unidades, últimos 6 meses</CardTitle>
                 <p className="text-xs text-muted-foreground">
                   Fonte: SGP (Relatórios &gt; Contratos &gt; Crescimento) · residencial + corporativo · atualizado diariamente
                 </p>
@@ -415,39 +426,49 @@ export default async function DashboardPage({
               <CardContent className="grid gap-4 lg:grid-cols-3">
                 {unidadesBase.map(({ unidade, serie }) => {
                   const atual = serie[serie.length - 1];
-                  const maxAtivos = Math.max(...serie.map((b) => b.ativos), 1);
+                  const maxU = Math.max(...serie.map((b) => Math.max(b.ativos, b.cancelados_acum, b.suspensos)), 1);
+                  const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
                   return (
                     <div key={unidade} className="rounded-lg border p-3">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <p className="text-sm font-semibold">{unidade}</p>
-                        <p className="text-lg font-bold tabular-nums text-emerald-700">
-                          {atual.ativos.toLocaleString("pt-BR")}
-                          <span className="ml-1 text-[10px] font-medium text-muted-foreground">ativos</span>
-                        </p>
+                      <p className="text-sm font-semibold">{unidade}</p>
+                      <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+                        <div className="rounded-md border px-1 py-1.5">
+                          <p className="text-[10px] font-medium text-[#2563eb]">Ativos</p>
+                          <p className="text-sm font-bold tabular-nums text-[#2563eb]">{atual.ativos.toLocaleString("pt-BR")}</p>
+                        </div>
+                        <div className="rounded-md border px-1 py-1.5">
+                          <p className="text-[10px] font-medium text-slate-700">Cancelados</p>
+                          <p className="text-sm font-bold tabular-nums text-slate-800">{atual.cancelados_acum.toLocaleString("pt-BR")}</p>
+                        </div>
+                        <div className="rounded-md border px-1 py-1.5">
+                          <p className="text-[10px] font-medium text-orange-600">Suspensos</p>
+                          <p className="text-sm font-bold tabular-nums text-orange-600">{atual.suspensos.toLocaleString("pt-BR")}</p>
+                        </div>
                       </div>
-                      <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        no mês: <span className="font-medium text-emerald-700">+{atual.novos} novos</span> ·{" "}
-                        <span className="font-medium text-rose-700">−{atual.cancelados_mes} cancelados</span> ·{" "}
-                        <span className="font-medium text-amber-700">{atual.suspensos.toLocaleString("pt-BR")} suspensos</span>
-                      </p>
-                      <div className="mt-2 flex h-20 items-end justify-around gap-1.5 border-b pb-0.5">
+                      <div className="mt-3 flex h-28 items-end justify-around gap-1 border-b pb-0.5">
                         {serie.map((b) => (
-                          <div key={b.mes} className="flex h-full w-full flex-col items-center justify-end gap-0.5">
-                            <span className="text-[9px] font-semibold tabular-nums">{b.ativos.toLocaleString("pt-BR")}</span>
-                            <div
-                              className="w-full rounded-t bg-interlig-ceu"
-                              style={{ height: `${Math.max(6, (b.ativos / maxAtivos) * 100)}%` }}
-                              title={`${unidade} · ${b.mes.slice(0, 7)}: ${b.ativos} ativos · +${b.novos} novos · −${b.cancelados_mes} cancelados · ${b.suspensos} suspensos`}
-                            />
+                          <div
+                            key={b.mes}
+                            className="flex h-full w-full items-end justify-center gap-0.5"
+                            title={`${MESES[Number(b.mes.slice(5, 7)) - 1]}/${b.mes.slice(0, 4)} — Ativos: ${b.ativos.toLocaleString("pt-BR")} · Cancelados: ${b.cancelados_acum.toLocaleString("pt-BR")} (${b.cancelados_mes} no mês) · Suspensos: ${b.suspensos.toLocaleString("pt-BR")}`}
+                          >
+                            <div className="w-1/3 max-w-3 rounded-t-sm bg-[#2563eb]" style={{ height: `${Math.max(3, (b.ativos / maxU) * 100)}%` }} />
+                            <div className="w-1/3 max-w-3 rounded-t-sm bg-slate-800" style={{ height: `${Math.max(2, (b.cancelados_acum / maxU) * 100)}%` }} />
+                            <div className="w-1/3 max-w-3 rounded-t-sm bg-orange-500" style={{ height: `${Math.max(2, (b.suspensos / maxU) * 100)}%` }} />
                           </div>
                         ))}
                       </div>
                       <div className="flex justify-around pt-0.5">
                         {serie.map((b) => (
                           <span key={b.mes} className="w-full text-center text-[9px] text-muted-foreground">
-                            {MES_CURTO[Number(b.mes.slice(5, 7)) - 1]}
+                            {MESES[Number(b.mes.slice(5, 7)) - 1]}
                           </span>
                         ))}
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-center gap-3 text-[10px] text-muted-foreground">
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-[#2563eb]" /> Ativos</span>
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-slate-800" /> Cancelados</span>
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-orange-500" /> Suspensos</span>
                       </div>
                     </div>
                   );
