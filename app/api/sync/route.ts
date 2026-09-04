@@ -49,19 +49,21 @@ async function roboSzSeDevido() {
   // fecha o ciclo quando a conversa encerra
   const r = await rodarRoboSz(undefined, 90_000);
   console.log("robô SZ diurno:", JSON.stringify(r));
-
-  // enriquecimento DURANTE a conversa: negociação longa não espera o
-  // encerramento — telefone, vendedora e resumo ficam frescos a cada rodada
-  const { enriquecerTicketsAbertos } = await import("@/lib/sz/enriquecer");
-  const e = await enriquecerTicketsAbertos(40_000).catch((err) => ({
-    ok: false, verificados: 0, atualizados: 0, erro: String(err),
-  }));
-  console.log("enriquecimento SZ:", JSON.stringify(e));
 }
 
 async function cicloCompleto() {
   const resultado = await executarSync();
   const rotinas = await executarRotinasCrm();
+  // enriquecimento DURANTE a conversa (leve: até 10 tickets/ciclo): telefone,
+  // vendedora e resumo frescos sem esperar o encerramento nem o horário do
+  // robô — negociação longa não pode depender da memória da vendedora
+  {
+    const { enriquecerTicketsAbertos } = await import("@/lib/sz/enriquecer");
+    const e = await enriquecerTicketsAbertos(30_000).catch((err) => ({
+      ok: false, verificados: 0, atualizados: 0, erro: String(err),
+    }));
+    console.log("enriquecimento SZ:", JSON.stringify(e));
+  }
   // retenção ANTES do robô comercial: rodando por último ela ficava com as
   // sobras dos 300s do serverless e vivia de orçamento esgotado
   {
