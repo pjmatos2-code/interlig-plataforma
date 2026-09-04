@@ -394,17 +394,7 @@ export default async function DashboardPage({
             />
           </div>
 
-          {/* evolução diária */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle>Evolução diária de vendas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <GraficoVendasDiarias dados={d.vendasDiarias} metaDiaria={d.metaDiaria} />
-            </CardContent>
-          </Card>
-
-          {/* vendas gerais — últimos 6 meses */}
+          {/* evolução de vendas — modelo do mock 04/09 (diário/semanal/mensal) */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle>Evolução diária de vendas</CardTitle>
