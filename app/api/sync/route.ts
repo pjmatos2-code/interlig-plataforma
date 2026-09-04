@@ -45,10 +45,18 @@ async function roboSzSeDevido() {
   const { rodarRoboSz } = await import("@/lib/sz/robo");
   // sem backfill de janelas antigas: o filtro do SZ seleciona pela data de
   // ENCERRAMENTO, então conversa aberta não aparece em listagem nenhuma — o
-  // atendimento vira ticket assim que a conversa é encerrada no SZ e cai na
-  // janela corrente de 5 dias
+  // atendimento vira ticket na TRANSFERÊNCIA (webhook do fluxo) e o robô
+  // fecha o ciclo quando a conversa encerra
   const r = await rodarRoboSz(undefined, 90_000);
   console.log("robô SZ diurno:", JSON.stringify(r));
+
+  // enriquecimento DURANTE a conversa: negociação longa não espera o
+  // encerramento — telefone, vendedora e resumo ficam frescos a cada rodada
+  const { enriquecerTicketsAbertos } = await import("@/lib/sz/enriquecer");
+  const e = await enriquecerTicketsAbertos(40_000).catch((err) => ({
+    ok: false, verificados: 0, atualizados: 0, erro: String(err),
+  }));
+  console.log("enriquecimento SZ:", JSON.stringify(e));
 }
 
 async function cicloCompleto() {
