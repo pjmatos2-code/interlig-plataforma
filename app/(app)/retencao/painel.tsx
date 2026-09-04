@@ -36,6 +36,17 @@ import {
 
 /** Layout aprovado pelo gestor (mock 31/08): KPIs com ícone → filtros → lista | detalhe | desempenho. */
 
+/** Motivos de perda padronizados (decisão do gestor, 04/09/2026). */
+const MOTIVOS_PERDA = [
+  "Mudança de endereço para mesma cidade",
+  "Contratou Starlink",
+  "Inviabilidade técnica",
+  "Cliente desistiu da instalação",
+  "Insatisfação com a conexão",
+  "Oferta da concorrência",
+  "Problemas financeiros",
+];
+
 const STATUS: Record<string, { t: string; cls: string; cor: string }> = {
   retido: { t: "Retido ✓", cls: "bg-emerald-100 text-emerald-800", cor: "#10b981" },
   perdido: { t: "Perdido ✕", cls: "bg-rose-100 text-rose-800", cor: "#f43f5e" },
@@ -157,6 +168,7 @@ function Detalhe({
   const [irrevMotivo, setIrrevMotivo] = useState("");
   const [transcript, setTranscript] = useState("");
   const [mostraIa, setMostraIa] = useState(false);
+  const [motivoPerda, setMotivoPerda] = useState("");
   const [editandoId, setEditandoId] = useState(false);
   const [nomeEdit, setNomeEdit] = useState(c.clienteNome ?? "");
   const [contratoEdit, setContratoEdit] = useState(c.sgpContratoId ?? "");
@@ -323,12 +335,33 @@ function Detalhe({
           {desfecho === "irreversivel" && (
             <Input placeholder="motivo obrigatório" value={irrevMotivo} onChange={(e) => setIrrevMotivo(e.target.value)} className="h-8 w-56 text-xs" />
           )}
-          {desfecho === "perdido" && !motivo.trim() && (
-            <span className="text-[11px] text-rose-700">preencha o motivo declarado pelo cliente acima</span>
+          {desfecho === "perdido" && (
+            <>
+              <select value={motivoPerda} onChange={(e) => setMotivoPerda(e.target.value)}
+                className="h-8 rounded-md border border-input bg-background px-2 text-xs">
+                <option value="">motivo da perda…</option>
+                {MOTIVOS_PERDA.map((m) => <option key={m} value={m}>{m}</option>)}
+                <option value="outro">Outro (uso o campo acima)</option>
+              </select>
+              {motivoPerda === "" && (
+                <span className="text-[11px] text-rose-700">escolha o motivo da perda</span>
+              )}
+              {motivoPerda === "outro" && !motivo.trim() && (
+                <span className="text-[11px] text-rose-700">descreva o motivo no campo &quot;motivo declarado&quot; acima</span>
+              )}
+            </>
           )}
           {desfecho && (
             <button type="button" disabled={ocupado}
-              onClick={() => executar(() => atualizarCaso(c.id, { desfecho: desfecho as never, irreversivelMotivo: irrevMotivo, trilha, motivoDeclarado: motivo, alcadaUsada: alcada, resumo }), "Caso encerrado.")}
+              onClick={() => executar(() => atualizarCaso(c.id, {
+                desfecho: desfecho as never,
+                irreversivelMotivo: irrevMotivo,
+                trilha,
+                motivoDeclarado:
+                  desfecho === "perdido" && motivoPerda && motivoPerda !== "outro" ? motivoPerda : motivo,
+                alcadaUsada: alcada,
+                resumo,
+              }), "Caso encerrado.")}
               className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50">
               🚩 Confirmar encerramento
             </button>
