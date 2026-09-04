@@ -14,7 +14,8 @@ export default async function RetencaoPage({
   searchParams: { mes?: string };
 }) {
   const usuario = await exigirUsuario();
-  if (!["gestor", "agente_retencao"].includes(usuario.perfil)) redirect("/sem-acesso");
+  // direção visualiza tudo, sem os botões de ação (ehGestor=false)
+  if (!["gestor", "agente_retencao", "direcao"].includes(usuario.perfil)) redirect("/sem-acesso");
 
   const mes = /^\d{4}-\d{2}$/.test(searchParams.mes ?? "") ? `${searchParams.mes}-01` : undefined;
 
@@ -45,7 +46,12 @@ export default async function RetencaoPage({
           Aplicar
         </button>
       </form>
-      <PainelRetencao meses={meses} ehGestor={usuario.perfil === "gestor"} linkTemplate={linkTemplate} />
+      <PainelRetencao
+        meses={meses}
+        ehGestor={usuario.perfil === "gestor"}
+        somenteLeitura={usuario.perfil === "direcao"}
+        linkTemplate={linkTemplate}
+      />
     </>
   );
 }

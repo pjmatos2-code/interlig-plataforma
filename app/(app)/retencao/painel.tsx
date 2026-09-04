@@ -131,12 +131,15 @@ function Detalhe({
   nomeAgente,
   linkTemplate,
   ehGestor,
+  somenteLeitura = false,
   onFechar,
 }: {
   c: CasoLinha & { agente: string };
   nomeAgente: string;
   linkTemplate: string | null;
   ehGestor: boolean;
+  /** direção: vê tudo, não registra nem encerra */
+  somenteLeitura?: boolean;
   onFechar: () => void;
 }) {
   const [obsGestor, setObsGestor] = useState("");
@@ -257,6 +260,7 @@ function Detalhe({
         )}
 
         {/* tratativa: SEMPRE editável pela agente; a plataforma só valida o desfecho no SGP */}
+        {!somenteLeitura && (
         <div>
           <p className="mb-1 text-xs font-semibold">Tratativa / observações</p>
           <div className="grid gap-2 md:grid-cols-2">
@@ -272,7 +276,9 @@ function Detalhe({
             placeholder="observações da tratativa: como chegou, o que foi combinado, retorno…"
             className="mt-2 w-full rounded-md border border-input bg-background p-2 text-sm" />
         </div>
+        )}
 
+        {!somenteLeitura && (
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" disabled={ocupado}
             onClick={() => executar(() => atualizarCaso(c.id, { ...(c.etapa === "novo" ? { etapa: "negociacao" } : {}), trilha, motivoDeclarado: motivo, alcadaUsada: alcada, resumo }), "Tratativa salva.")}
@@ -297,6 +303,7 @@ function Detalhe({
             </button>
           )}
         </div>
+        )}
         {ehGestor && c.desfecho && c.desfecho !== "irreversivel" && (
           <div className="rounded-md border border-slate-200 bg-slate-50/70 p-3 text-xs">
             <p className="font-semibold">Reabrir caso (gestão) — encerrou por engano?</p>
@@ -378,10 +385,13 @@ const inicial: Resultado = {};
 export function PainelRetencao({
   meses,
   ehGestor,
+  somenteLeitura = false,
   linkTemplate,
 }: {
   meses: RetencaoMes[];
   ehGestor: boolean;
+  /** direção: sem criar caso, sem registrar tratativa */
+  somenteLeitura?: boolean;
   linkTemplate: string | null;
 }) {
   const router = useRouter();
@@ -543,10 +553,12 @@ export function PainelRetencao({
                 </button>
               </>
             )}
-            <button type="button" onClick={() => setMostraNovo(!mostraNovo)}
-              className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground">
-              + Novo caso
-            </button>
+            {!somenteLeitura && (
+              <button type="button" onClick={() => setMostraNovo(!mostraNovo)}
+                className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground">
+                + Novo caso
+              </button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -630,6 +642,7 @@ export function PainelRetencao({
               nomeAgente={nomeDe.get(caso.agente) ?? caso.agente}
               linkTemplate={linkTemplate}
               ehGestor={ehGestor}
+              somenteLeitura={somenteLeitura}
               onFechar={() => setSelecionado(null)}
             />
           ) : (
