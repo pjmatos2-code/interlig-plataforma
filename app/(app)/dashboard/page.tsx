@@ -164,7 +164,7 @@ export default async function DashboardPage({
 }: {
   searchParams: { periodo?: string; de?: string; ate?: string; pop?: string };
 }) {
-  const usuario = await exigirPerfil(["gestor", "supervisor"]);
+  const usuario = await exigirPerfil(["gestor", "supervisor", "direcao"]);
   const periodo = resolverPeriodo(searchParams);
   const popFiltro = searchParams.pop || null;
   const ehGestor = usuario.perfil === "gestor";

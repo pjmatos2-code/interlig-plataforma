@@ -14,8 +14,11 @@ const PERFIS: Perfil[] = [
   "vendedora_externa",
   "agente_corporativo",
   "agente_atendimento",
+  "agente_retencao",
   "supervisor",
   "financeiro",
+  "gestor_tecnico",
+  "direcao",
   "gestor",
 ];
 

@@ -25,7 +25,7 @@ export default async function FinanceiroPage({
 }: {
   searchParams: { mes?: string; agente?: string; aba?: string };
 }) {
-  const usuario = await exigirPerfil(["gestor", "financeiro"]);
+  const usuario = await exigirPerfil(["gestor", "financeiro", "direcao"]);
   const fechadas = await competenciasFechadas();
   const mesCorrente = primeiroDiaDoMes(hojeIso());
   const emApuracao = searchParams.aba === "apuracao";

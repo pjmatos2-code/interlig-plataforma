@@ -287,6 +287,7 @@ export type EstadoEdicao = { erro?: string; ok?: string };
 const PERFIS_VALIDOS = [
   "gestor", "supervisor", "vendedora", "vendedora_externa",
   "agente_corporativo", "financeiro", "agente_atendimento", "agente_retencao", "gestor_tecnico",
+  "direcao",
 ];
 
 /**

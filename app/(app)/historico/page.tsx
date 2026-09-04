@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 /** Histórico de comissões pagas por agente — módulo próprio (pedido de 31/08). */
 export default async function HistoricoPage() {
-  await exigirPerfil(["gestor", "financeiro"]);
+  await exigirPerfil(["gestor", "financeiro", "direcao"]);
   const fechadas = await competenciasFechadas();
   const [dados, { data: vends }] = await Promise.all([
     fechadas.length > 0

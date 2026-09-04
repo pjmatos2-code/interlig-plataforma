@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  * converter: o ticket concentra as tratativas até o fechamento.
  */
 export default async function CorporativoPage() {
-  const usuario = await exigirPerfil(["gestor", "agente_corporativo"]);
+  const usuario = await exigirPerfil(["gestor", "agente_corporativo", "direcao"]);
   const supabase = criarClienteServidor();
   const hoje = new Date().toISOString().slice(0, 10);
 

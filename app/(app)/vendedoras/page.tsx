@@ -19,7 +19,7 @@ export default async function VendedorasPage({
 }: {
   searchParams: { periodo?: string; de?: string; ate?: string; pop?: string; setor?: string };
 }) {
-  const usuario = await exigirPerfil(["gestor", "supervisor"]);
+  const usuario = await exigirPerfil(["gestor", "supervisor", "direcao"]);
   const periodo = resolverPeriodo(searchParams);
 
   const supabase = criarClienteServidor();

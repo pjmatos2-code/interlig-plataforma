@@ -84,7 +84,7 @@ export default async function GerenciaPage({
 }: {
   searchParams: { mes?: string };
 }) {
-  await exigirPerfil(["gestor", "financeiro"]);
+  await exigirPerfil(["gestor", "financeiro", "direcao"]);
   const mes = /^\d{4}-\d{2}$/.test(searchParams.mes ?? "")
     ? `${searchParams.mes}-01`
     : primeiroDiaDoMes(hojeIso());

@@ -12,7 +12,7 @@ export default async function TecnicaPage({
 }: {
   searchParams: { mes?: string };
 }) {
-  const usuario = await exigirPerfil(["gestor", "financeiro", "gestor_tecnico"]);
+  const usuario = await exigirPerfil(["gestor", "financeiro", "gestor_tecnico", "direcao"]);
   const mes = /^\d{4}-\d{2}$/.test(searchParams.mes ?? "")
     ? `${searchParams.mes}-01`
     : primeiroDiaDoMes(hojeIso());

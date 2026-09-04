@@ -15,7 +15,7 @@ export default async function MapaPage({
 }: {
   searchParams: { periodo?: string; de?: string; ate?: string; pop?: string };
 }) {
-  const usuario = await exigirPerfil(["gestor", "supervisor"]);
+  const usuario = await exigirPerfil(["gestor", "supervisor", "direcao"]);
   const periodo = resolverPeriodo(searchParams);
   const popFiltro = usuario.perfil === "supervisor" ? usuario.pop_id : searchParams.pop || null;
 

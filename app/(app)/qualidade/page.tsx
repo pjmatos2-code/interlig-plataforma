@@ -126,7 +126,7 @@ export default async function QualidadePage({
 }: {
   searchParams: { pop?: string };
 }) {
-  const usuario = await exigirPerfil(["gestor", "supervisor"]);
+  const usuario = await exigirPerfil(["gestor", "supervisor", "direcao"]);
   const popFiltro = usuario.perfil === "supervisor" ? usuario.pop_id : searchParams.pop || null;
 
   const supabase = criarClienteServidor();

@@ -14,7 +14,7 @@ const UNIDADE: Record<string, string> = { atm: "Altamira", bn: "Brasil Novo", vt
 /** PDF geral da Equipe Técnica: técnicos, resultado e valores — sem OS a OS. */
 export async function GET(req: Request) {
   const usuario = await exigirUsuario();
-  if (!["gestor", "financeiro", "gestor_tecnico"].includes(usuario.perfil))
+  if (!["gestor", "financeiro", "gestor_tecnico", "direcao"].includes(usuario.perfil))
     return NextResponse.json({ erro: "Sem permissão." }, { status: 403 });
 
   const { searchParams } = new URL(req.url);

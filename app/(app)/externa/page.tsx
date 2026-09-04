@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 /** Venda Externa (PAP) — registro de visita em campo, mobile-first. */
 export default async function ExternaPage() {
-  const usuario = await exigirPerfil(["gestor", "supervisor", "vendedora_externa"]);
+  const usuario = await exigirPerfil(["gestor", "supervisor", "vendedora_externa", "direcao"]);
   const supabase = criarClienteServidor();
   const hoje = new Date().toISOString().slice(0, 10);
 

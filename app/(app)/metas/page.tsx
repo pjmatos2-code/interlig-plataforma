@@ -33,7 +33,7 @@ export default async function MetasPage({
   searchParams: { mes?: string };
 }) {
   // Módulo exclusivo do Administrador (decisão 24/08/2026)
-  const usuario = await exigirPerfil(["gestor"]);
+  const usuario = await exigirPerfil(["gestor", "direcao"]);
   const supabase = criarClienteServidor();
 
   const hoje = hojeIso();

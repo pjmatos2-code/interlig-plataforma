@@ -13,7 +13,7 @@ const mesBr = (iso: string) => {
 /** PDF do fechamento da Gerência: pilares, trava, base global e override. */
 export async function GET(req: Request) {
   const usuario = await exigirUsuario();
-  if (!["gestor", "financeiro"].includes(usuario.perfil))
+  if (!["gestor", "financeiro", "direcao"].includes(usuario.perfil))
     return NextResponse.json({ erro: "Sem permissão." }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
