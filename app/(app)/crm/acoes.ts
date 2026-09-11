@@ -668,6 +668,29 @@ export async function anexarVisitaManual(_e: EstadoAcao, dados: FormData): Promi
 
 
 /** Inclui ou corrige o e-mail do cliente no ticket (opcional em todos). */
+export async function salvarTelefoneTicket(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
+  const usuario = await exigirUsuario();
+  if (!["gestor", "supervisor"].includes(usuario.perfil) && !ehAgenteCrm(usuario.perfil))
+    return { erro: "Sem permissão." };
+  const ticketId = String(dados.get("ticket_id") ?? "");
+  const bruto = String(dados.get("telefone") ?? "").trim();
+  if (!ticketId) return { erro: "Ticket ausente." };
+  let digitos = bruto.replace(/\D/g, "");
+  if (digitos.startsWith("55") && digitos.length >= 12) digitos = digitos.slice(2);
+  if (bruto && digitos.length !== 10 && digitos.length !== 11)
+    return { erro: "Telefone inválido — use DDD + número (10 ou 11 dígitos)." };
+
+  const supabase = criarClienteServidor();
+  const { error } = await supabase
+    .from("tickets")
+    .update({ telefone: bruto ? digitos : null, atualizado_em: new Date().toISOString() })
+    .eq("id", ticketId);
+  if (error) return { erro: error.message };
+  revalidatePath(`/crm/${ticketId}`);
+  revalidar();
+  return { ok: true };
+}
+
 export async function salvarCpfTicket(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
   const usuario = await exigirUsuario();
   if (!["gestor", "supervisor"].includes(usuario.perfil) && !ehAgenteCrm(usuario.perfil))

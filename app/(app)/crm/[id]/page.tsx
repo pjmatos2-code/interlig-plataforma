@@ -16,6 +16,7 @@ import { FollowupIa } from "@/components/crm/followup-ia";
 import { AnexosVisita } from "@/components/crm/anexos-visita";
 import { EmailTicket } from "@/components/crm/email-ticket";
 import { CpfTicket } from "@/components/crm/cpf-ticket";
+import { TelefoneTicket } from "@/components/crm/telefone-ticket";
 import {
   BarraEtapas,
   BotaoReabrir,
@@ -201,9 +202,12 @@ export default async function TicketPage({ params }: { params: { id: string } })
                   >
                     WhatsApp ↗
                   </a>
+                  <TelefoneTicket ticketId={t.id} telefone={t.telefone} />
                 </>
               ) : (
-                "—"
+                <>
+                  — <TelefoneTicket ticketId={t.id} telefone={t.telefone} />
+                </>
               )}
             </p>
             <p>
