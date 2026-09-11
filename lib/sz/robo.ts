@@ -4,12 +4,9 @@ import { SessaoSz, lerCredenciaisSz } from "@/lib/sz/sessao";
 import { listarConversasComerciais, carregarDialogo, EQUIPES_CRM } from "@/lib/sz/conversas";
 import { resumirPorRegras, type PlanoRef } from "@/lib/sz/resumo";
 
-function soDigitos(t: string | null): string | null {
-  if (!t) return null;
-  let d = t.replace(/\D/g, "");
-  if (d.startsWith("55") && d.length > 11) d = d.slice(2);
-  return d || null;
-}
+// telefone BR validado (o SZ às vezes manda o LID do WhatsApp no lugar)
+import { telefoneBr } from "@/lib/sz/conversas";
+const soDigitos = (t: string | null): string | null => telefoneBr(t);
 
 function hojeSantarem(): string {
   return new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);

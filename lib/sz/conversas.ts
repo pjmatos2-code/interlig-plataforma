@@ -2,6 +2,17 @@ import "server-only";
 import { SessaoSz } from "@/lib/sz/sessao";
 
 /** campaign_id → equipe (as 3 monitoradas para o CRM). */
+/**
+ * Telefone BR válido a partir do que o SZ mandar — o platform_id às vezes é o
+ * ID interno do WhatsApp (LID, 14-17 dígitos), não um número. Normaliza
+ * (tira 55) e só aceita 10-11 dígitos; senão, null.
+ */
+export function telefoneBr(bruto: string | null | undefined): string | null {
+  let d = (bruto ?? "").replace(/\D/g, "");
+  if (d.startsWith("55") && d.length >= 12) d = d.slice(2);
+  return d.length === 10 || d.length === 11 ? d : null;
+}
+
 export const EQUIPES_CRM: Record<string, string> = {
   "60ac2ff88e7a9b0051a4cc1e": "Comercial Altamira",
   "68f91090cfadb8a0490e278d": "Comercial Vitória do Xingu",
@@ -74,7 +85,10 @@ export async function listarConversasComerciais(
         id: String(c._id),
         equipe: EQUIPES_CRM[camp],
         nome: String(c.name ?? "Sem nome"),
-        telefone: (c.platform_id as string) || null,
+        telefone:
+          telefoneBr(c.platform_id as string) ??
+          telefoneBr((c.contact as { number?: string } | undefined)?.number) ??
+          null,
         agente: (c.agent as { name?: string } | undefined)?.name ?? null,
         protocolo: (c.protocol as string) || null,
         quando: (c.dateFormatted as string) || null,

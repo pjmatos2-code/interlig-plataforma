@@ -16,12 +16,8 @@ import { resumirPorRegras, type PlanoRef } from "@/lib/sz/resumo";
  * com o diálogo até aqui.
  */
 
-const soDigitos = (t: string | null): string | null => {
-  if (!t) return null;
-  let d = t.replace(/\D/g, "");
-  if (d.startsWith("55") && d.length > 11) d = d.slice(2);
-  return d || null;
-};
+import { telefoneBr } from "@/lib/sz/conversas";
+const soDigitos = (t: string | null): string | null => telefoneBr(t);
 
 export type ResultadoEnriquecimento = {
   ok: boolean;
@@ -103,7 +99,9 @@ export async function enriquecerTicketsAbertos(orcamentoMs = 40_000): Promise<Re
       if (!cv) continue; // conversa fora da janela ou ainda não indexada
 
       const atualizacao: Record<string, unknown> = {};
-      const tel = soDigitos((cv.platform_id as string) ?? null);
+      const tel =
+        soDigitos((cv.platform_id as string) ?? null) ??
+        soDigitos(((cv.contact as { number?: string } | undefined)?.number ?? null));
       if (!t.telefone && tel) atualizacao.telefone = tel;
       const agente = (cv.agent as { name?: string } | undefined)?.name ?? null;
       const vendedorId = acharVendedora(agente);

@@ -1,7 +1,7 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { SessaoSz, lerCredenciaisSz } from "@/lib/sz/sessao";
-import { carregarDialogo, type Conversa } from "@/lib/sz/conversas";
+import { carregarDialogo, telefoneBr, type Conversa } from "@/lib/sz/conversas";
 
 /**
  * Robô do canal de cancelamento (SZ → casos de retenção).
@@ -58,7 +58,10 @@ async function listarConversasCancelamento(
         id: String(c._id),
         equipe: "Cancelamento Altamira",
         nome: String(c.name ?? "Sem nome"),
-        telefone: (c.platform_id as string) || null,
+        telefone:
+          telefoneBr(c.platform_id as string) ??
+          telefoneBr((c.contact as { number?: string } | undefined)?.number) ??
+          ((c.platform_id as string) || null),
         agente: (c.agent as { name?: string } | undefined)?.name ?? null,
         protocolo: (c.protocol as string) || null,
         quando: (c.dateFormatted as string) || null,

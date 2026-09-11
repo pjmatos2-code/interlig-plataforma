@@ -119,10 +119,17 @@ export async function POST(request: Request) {
     pegar(corpo, "evento_id", "event_id", "id", "protocolo", "protocol", "conversa_id", "conversation_id") ??
     `sz-${Date.now()}`;
   const nome = pegar(corpo, "contato.nome", "contact.name", "cliente_nome", "cliente", "nome", "name", "contato_nome");
-  const telefone = pegar(
+  const telefoneBruto = pegar(
     corpo,
     "contato.telefone", "contact.phone", "telefone", "phone", "numero", "number", "whatsapp", "contato_telefone", "contato_numero"
   );
+  // LID do WhatsApp (14-17 dígitos) não é telefone — melhor sem número (o
+  // enriquecimento completa depois) do que um número falso
+  const telefone = (() => {
+    let d = (telefoneBruto ?? "").replace(/\D/g, "");
+    if (d.startsWith("55") && d.length >= 12) d = d.slice(2);
+    return d.length === 10 || d.length === 11 ? d : null;
+  })();
   const equipe = pegar(
     corpo,
     "equipe", "team", "fila", "queue", "departamento", "department", "setor", "sector", "grupo", "group"
