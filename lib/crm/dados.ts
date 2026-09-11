@@ -47,6 +47,8 @@ export type FiltrosCrm = {
   semContato24h?: boolean;
   emRisco?: boolean;
   altoValor?: boolean;
+  /** mostra SOMENTE os tickets perdidos (fechados não convertidos) do período */
+  perdidos?: boolean;
 };
 
 export type EtapaFunil = {
@@ -276,7 +278,9 @@ export async function carregarCrm(
     aguardando: [],
     fechado: [],
   };
-  for (const t of abertos) {
+  // chip "Perdidos": o quadro mostra SÓ as perdidas do período, cada uma na
+  // coluna do funil onde parou — abertas e vendidas ficam de fora
+  for (const t of filtros.perdidos ? [] : abertos) {
     colunas[t.etapa as EtapaTicket]?.push(paraCartao(t));
   }
   // ordem de CHEGADA: leads mais novos no topo (decisão do gestor 27/08)
@@ -284,6 +288,7 @@ export async function carregarCrm(
     colunas[etapa].sort((a, b) => (a.criado_em > b.criado_em ? -1 : 1));
   }
   for (const t of fechados) {
+    if (filtros.perdidos && t.desfecho !== "nao_convertido") continue;
     const destino =
       t.desfecho === "nao_convertido" && t.etapa_encerramento && t.etapa_encerramento !== "fechado"
         ? (t.etapa_encerramento as EtapaTicket)

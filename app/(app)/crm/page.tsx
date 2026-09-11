@@ -181,6 +181,7 @@ export default async function CrmPage({
     semContato24h: searchParams.sem_contato === "1",
     emRisco: searchParams.risco === "1",
     altoValor: searchParams.alto_valor === "1",
+    perdidos: searchParams.perdidos === "1",
   };
   const d = await carregarCrm(periodo, usuario, filtros);
   const hoje = new Date().toISOString().slice(0, 10);
@@ -251,6 +252,7 @@ export default async function CrmPage({
     { chave: "sem_contato", rotulo: "🕐 Sem contato há 24h" },
     { chave: "risco", rotulo: "⚠️ Em risco" },
     { chave: "alto_valor", rotulo: "💲 Alto valor" },
+    { chave: "perdidos", rotulo: "🚩 Perdidos" },
   ];
 
   const t1a = d.kpis.primeiraTratativaMin;
