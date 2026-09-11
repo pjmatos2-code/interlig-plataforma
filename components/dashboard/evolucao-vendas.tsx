@@ -23,7 +23,9 @@ function Grafico({
   rotuloMeta: string;
   media: (number | null)[];
 }) {
-  const max = Math.max(...pontos.map((p) => p.valor), meta ?? 0, 1);
+  // 8% de folga no topo: a barra mais alta (e a linha da meta) nunca encosta
+  // na borda do quadro nem invade a legenda
+  const max = Math.max(...pontos.map((p) => p.valor), meta ?? 0, 1) * 1.08;
   const alturaPct = (v: number) => Math.max(v > 0 ? 3 : 0, (v / max) * 100);
   // polilinha da média móvel sobre o gráfico (viewBox 0-100 nos dois eixos)
   const linha = media
@@ -46,18 +48,18 @@ function Grafico({
             <polyline points={linha} fill="none" stroke="#38bdf8" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           </svg>
         )}
-        <div className="flex h-40 items-end gap-px border-b pb-0">
+        <div className="flex h-40 items-end gap-0.5 overflow-hidden border-b pb-0">
           {pontos.map((p, i) => (
             <div key={i} className="group relative flex h-full w-full flex-col items-center justify-end" title={p.dica}>
               <div
-                className="w-full max-w-6 rounded-t-sm bg-[#2563eb] transition-colors group-hover:bg-interlig-ceu"
+                className="mx-auto w-[70%] max-w-6 rounded-t-sm bg-[#2563eb] transition-colors group-hover:bg-interlig-ceu"
                 style={{ height: `${alturaPct(p.valor)}%` }}
               />
             </div>
           ))}
         </div>
       </div>
-      <div className="flex gap-px pt-1">
+      <div className="flex gap-0.5 pt-1">
         {pontos.map((p, i) => (
           <span key={i} className="w-full truncate text-center text-[9px] text-muted-foreground">
             {p.rotulo}

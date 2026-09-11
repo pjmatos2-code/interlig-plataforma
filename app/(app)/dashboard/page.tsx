@@ -63,6 +63,7 @@ function Kpi({
   barraPct,
   serie,
   tom,
+  className = "",
 }: {
   icone: React.ReactNode;
   cor: string;
@@ -73,6 +74,7 @@ function Kpi({
   barraPct?: number | null;
   serie?: number[];
   tom?: "verde" | "amarelo" | "vermelho" | null;
+  className?: string;
 }) {
   const corBorda =
     tom === "vermelho"
@@ -83,7 +85,7 @@ function Kpi({
           ? "border-l-4 border-l-emerald-500"
           : "";
   return (
-    <div className={`rounded-xl border bg-card p-3.5 ${corBorda}`}>
+    <div className={`rounded-xl border bg-card p-3.5 ${corBorda} ${className}`}>
       <div className="flex items-start justify-between gap-2">
         <span
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
@@ -335,8 +337,10 @@ export default async function DashboardPage({
         {/* coluna principal */}
         <div className="space-y-4">
           {/* KPIs */}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+          {/* 5 cartões sem buraco: md = 6 colunas (3 de span-2 + 2 de span-3); xl = 5 iguais */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-6 xl:grid-cols-5">
             <Kpi
+              className="md:col-span-2 xl:col-span-1"
               icone={<ShoppingCart className="h-4 w-4" />}
               cor="#2563eb"
               rotulo={`Vendas ${ROTULO_PERIODO[periodo.tipo]}`}
@@ -352,18 +356,21 @@ export default async function DashboardPage({
               serie={d.vendasDiarias.map((v) => v.vendas)}
             />
             <Kpi
+              className="md:col-span-2 xl:col-span-1"
               icone={<CircleDollarSign className="h-4 w-4" />}
               cor="#059669"
               rotulo="Receita contratada"
               valor={formatarMoedaKpi(d.receitaPeriodo)}
             />
             <Kpi
+              className="md:col-span-2 xl:col-span-1"
               icone={<Tag className="h-4 w-4" />}
               cor="#7c3aed"
               rotulo="Ticket médio"
               valor={formatarMoeda(d.ticketMedioPeriodo)}
             />
             <Kpi
+              className="md:col-span-3 xl:col-span-1"
               icone={<Target className="h-4 w-4" />}
               cor="#0284c7"
               rotulo="Meta do mês"
@@ -379,6 +386,7 @@ export default async function DashboardPage({
               tom={d.metaMensal ? d.farol : null}
             />
             <Kpi
+              className="md:col-span-3 xl:col-span-1"
               icone={<Clock3 className="h-4 w-4" />}
               cor="#d97706"
               rotulo="Ativações pendentes"
