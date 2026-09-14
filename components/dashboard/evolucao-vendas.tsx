@@ -16,22 +16,15 @@ function Grafico({
   pontos,
   meta,
   rotuloMeta,
-  media,
 }: {
   pontos: { rotulo: string; valor: number; dica: string }[];
   meta: number | null;
   rotuloMeta: string;
-  media: (number | null)[];
 }) {
   // 8% de folga no topo: a barra mais alta (e a linha da meta) nunca encosta
   // na borda do quadro nem invade a legenda
   const max = Math.max(...pontos.map((p) => p.valor), meta ?? 0, 1) * 1.08;
   const alturaPct = (v: number) => Math.max(v > 0 ? 3 : 0, (v / max) * 100);
-  // polilinha da média móvel sobre o gráfico (viewBox 0-100 nos dois eixos)
-  const linha = media
-    .map((v, i) => (v === null ? null : `${((i + 0.5) / pontos.length) * 100},${100 - (v / max) * 100}`))
-    .filter(Boolean)
-    .join(" ");
 
   return (
     <div>
@@ -43,11 +36,6 @@ function Grafico({
             title={`${rotuloMeta}: ${meta.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}`}
           />
         )}
-        {linha && (
-          <svg className="pointer-events-none absolute inset-0 z-10 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <polyline points={linha} fill="none" stroke="#38bdf8" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-          </svg>
-        )}
         <div className="flex h-40 items-end gap-0.5 overflow-hidden border-b pb-0">
           {pontos.map((p, i) => (
             <div key={i} className="group relative flex h-full w-full flex-col items-center justify-end" title={p.dica}>
@@ -55,6 +43,9 @@ function Grafico({
                 className="mx-auto w-[70%] max-w-6 rounded-t-sm bg-[#2563eb] transition-colors group-hover:bg-interlig-ceu"
                 style={{ height: `${alturaPct(p.valor)}%` }}
               />
+              <span className="pointer-events-none absolute -top-0.5 hidden text-[9px] font-semibold tabular-nums group-hover:block">
+                {p.valor}
+              </span>
             </div>
           ))}
         </div>
@@ -156,7 +147,6 @@ export function EvolucaoVendas({
         <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
           <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-3 rounded-sm bg-[#2563eb]" /> Vendas realizadas</span>
           <span className="inline-flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dashed border-slate-400" /> {dados.rotuloMeta}</span>
-          <span className="inline-flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-[#38bdf8]" /> média móvel</span>
         </div>
         <div className="flex rounded-md border p-0.5 text-xs">
           {([["diario", "Diário"], ["semanal", "Semanal"], ["mensal", "Mensal"]] as const).map(([v, r]) => (
@@ -173,7 +163,7 @@ export function EvolucaoVendas({
           ))}
         </div>
       </div>
-      <Grafico pontos={dados.pontos} meta={dados.meta} rotuloMeta={dados.rotuloMeta} media={dados.media} />
+      <Grafico pontos={dados.pontos} meta={dados.meta} rotuloMeta={dados.rotuloMeta} />
     </div>
   );
 }
