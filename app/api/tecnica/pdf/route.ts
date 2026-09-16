@@ -94,7 +94,7 @@ export async function GET(req: Request) {
       r.nota(
         `O total acima é a soma dos serviços; a comissão do mês considera o ajuste da gestão (${t.ajuste.modo === "substituir" ? "substitui o valor" : "soma ao valor"}).`
       );
-    r.nota("Regras: ativação/mudança Altamira R$ 30 · Brasil Novo e VTX R$ 15 · suporte R$ 10 (habilitados) · retorno em até 72h no mesmo contrato anula a OS de origem · auxiliar pontua igual ao responsável.");
+    r.nota("Regras: ativação/mudança Altamira R$ 30 · Brasil Novo e VTX R$ 15 · suporte R$ 10 (habilitados) · retorno por queda de conexão em até 72h no mesmo contrato anula a OS de origem · auxiliar pontua igual ao responsável.");
 
     const bytes = await r.bytes();
     return new NextResponse(Buffer.from(bytes), {
@@ -112,7 +112,7 @@ export async function GET(req: Request) {
 
   r.secao("Regras aplicadas");
   r.nota(
-    "Só OS encerrada no mês pontua. Ativação/mudança de endereço: Altamira R$ 30 · Brasil Novo e VTX R$ 15. Suporte (técnicos habilitados): R$ 10. Retorno em até 72h no mesmo contrato anula a OS de origem. Auxiliar pontua igual ao responsável."
+    "Só OS encerrada no mês pontua. Ativação/mudança de endereço: Altamira R$ 30 · Brasil Novo e VTX R$ 15. Suporte (técnicos habilitados): R$ 10. Retorno por queda de conexão (LOS/sem acesso) em até 72h no mesmo contrato anula a OS de origem. Auxiliar pontua igual ao responsável."
   );
 
   r.secao("Resultado por técnico");

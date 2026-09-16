@@ -144,7 +144,7 @@ export function PainelTecnica({
           sub={deltaEncerradas !== null ? `${deltaEncerradas >= 0 ? "+" : ""}${deltaEncerradas.toFixed(1).replace(".", ",")}% vs mês anterior` : "sem base anterior"} />
         <Kpi icone={<PlugZap className="h-4 w-4" />} cor="#059669" rotulo="Ativações + mudanças" valor={String(dados.totais.ativacoes)} sub="pontuam por unidade" />
         <Kpi icone={<LifeBuoy className="h-4 w-4" />} cor="#2563eb" rotulo="Suportes pontuados" valor={String(dados.totais.suportes)} sub="R$ 10 (habilitados)" />
-        <Kpi icone={<Undo2 className="h-4 w-4" />} cor="#e11d48" rotulo="Anuladas por retorno" valor={String(dados.totais.anuladasRetorno)} sub="nova OS em <72h" />
+        <Kpi icone={<Undo2 className="h-4 w-4" />} cor="#e11d48" rotulo="Anuladas por retorno" valor={String(dados.totais.anuladasRetorno)} sub="queda de conexão em <72h" />
         <Kpi icone={<Users className="h-4 w-4" />} cor="#7c3aed" rotulo="Técnicos ativos" valor={String(dados.tecnicos.length)} sub="equipe operacional" />
         <Kpi icone={<Wallet className="h-4 w-4" />} cor="#059669" rotulo="Comissão do setor" valor={formatarMoeda(dados.totais.comissao)} sub="prévia — muda até fechar" />
       </div>

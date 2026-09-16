@@ -150,7 +150,7 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
     // retorno já na virada (janela de 72h)
     admin
       .from("os_tecnicas")
-      .select("sgp_os_id, sgp_contrato_id, criada_em")
+      .select("sgp_os_id, sgp_contrato_id, criada_em, motivo")
       .gt("criada_em", fim)
       .limit(1000),
     admin.from("ajustes_tecnica").select("*").eq("competencia", mes),
@@ -185,12 +185,16 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
     id: t.id as string,
     nomeSgp: norm((t.nome_sgp as string | null) ?? (t.nome as string)),
   }));
-  const porContrato = new Map<string, { sgp_os_id: string; criada_em: string }[]>();
+  const porContrato = new Map<string, { sgp_os_id: string; criada_em: string; motivo: string | null }[]>();
   for (const o of [...(os ?? []), ...(seguintes ?? [])]) {
     const ct = (o.sgp_contrato_id as string | null) ?? "";
     if (!ct) continue;
     const lista = porContrato.get(ct) ?? [];
-    lista.push({ sgp_os_id: o.sgp_os_id as string, criada_em: o.criada_em as string });
+    lista.push({
+      sgp_os_id: o.sgp_os_id as string,
+      criada_em: o.criada_em as string,
+      motivo: (o.motivo as string | null) ?? null,
+    });
     porContrato.set(ct, lista);
   }
 
@@ -203,12 +207,23 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
       (o.encerrada_em as string) >= mes &&
       (o.encerrada_em as string) <= fim;
 
-    // retorno <72h: outra OS do mesmo contrato criada até 72h após o encerramento
+    // retorno <72h: outra OS do mesmo contrato criada até 72h após o
+    // encerramento. A partir de set/2026 (decisão do gestor, 16/09), só
+    // penaliza se a nova OS for QUEDA DE CONEXÃO (LOS / link loss / sem
+    // acesso) — segundo roteador, troca de senha etc. são serviços comuns e
+    // não julgam a qualidade da instalação. Agosto foi pago pela régua
+    // antiga (qualquer motivo) e permanece como fechado.
+    const soQuedaConexao = mes >= "2026-09-01";
+    const ehQuedaConexao = (m: string | null) => {
+      const n = norm(m);
+      return n === "los" || n.includes("link loss") || n.includes("sem acesso");
+    };
     let retornoOsId: string | null = null;
     if (encerrada && o.sgp_contrato_id) {
       const enc = Date.parse(o.encerrada_em as string);
       for (const outra of porContrato.get(o.sgp_contrato_id as string) ?? []) {
         if (outra.sgp_os_id === o.sgp_os_id) continue;
+        if (soQuedaConexao && !ehQuedaConexao(outra.motivo)) continue;
         const dt = Date.parse(outra.criada_em) - enc;
         if (dt > 0 && dt <= 72 * 3600 * 1000) {
           retornoOsId = outra.sgp_os_id;
