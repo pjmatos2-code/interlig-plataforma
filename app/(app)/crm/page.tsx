@@ -404,14 +404,22 @@ export default async function CrmPage({
             {d.kpis.conversao.taxa === null ? "—" : formatarPercentual(d.kpis.conversao.taxa, 0)}
           </p>
           <p className="mt-0.5 text-xs text-slate-500">
-            {d.kpis.conversaoDeltaPp === null ? (
-              `${d.kpis.conversao.convertidos} de ${d.kpis.conversao.fechados} fechados`
-            ) : (
-              <span
-                className={d.kpis.conversaoDeltaPp >= 0 ? "text-emerald-600" : "text-rose-600"}
-              >
-                {d.kpis.conversaoDeltaPp >= 0 ? "▲ +" : "▼ "}
-                {d.kpis.conversaoDeltaPp.toFixed(1).replace(".", ",")} p.p. vs período anterior
+            {d.kpis.conversao.convertidos} vendidos de {d.kpis.conversao.fechados} encerrados
+            {d.kpis.recebidosPeriodo > d.kpis.conversao.fechados &&
+              ` · ${d.kpis.recebidosPeriodo - d.kpis.conversao.fechados} ainda em aberto`}
+          </p>
+          <p className="text-[11px] text-slate-500">
+            {d.kpis.recebidosPeriodo > 0 && (
+              <>sobre os {d.kpis.recebidosPeriodo} recebidos:{" "}
+                <span className="font-semibold">
+                  {Math.round((d.kpis.conversao.convertidos / d.kpis.recebidosPeriodo) * 100)}%
+                </span>
+              </>
+            )}
+            {d.kpis.conversaoDeltaPp !== null && (
+              <span className={d.kpis.conversaoDeltaPp >= 0 ? " text-emerald-600" : " text-rose-600"}>
+                {" · "}{d.kpis.conversaoDeltaPp >= 0 ? "▲ +" : "▼ "}
+                {d.kpis.conversaoDeltaPp.toFixed(1).replace(".", ",")} p.p.
               </span>
             )}
           </p>

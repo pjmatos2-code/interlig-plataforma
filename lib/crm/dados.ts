@@ -66,6 +66,8 @@ export type DadosCrm = {
     naoAtribuidos: number;
     conversao: ReturnType<typeof conversaoReal>;
     conversaoDeltaPp: number | null;
+    /** tickets criados no período (base da leitura "sobre os recebidos") */
+    recebidosPeriodo: number;
     pipeline: { valor: number; quantidade: number };
     emRisco: { total: number; semVendedor: number; semContato24h: number };
     primeiraTratativaMin: number | null;
@@ -496,6 +498,7 @@ export async function carregarCrm(
       naoAtribuidos: abertos.filter((t) => t.vendedor_id === null).length,
       conversao: conversaoAtual,
       conversaoDeltaPp,
+      recebidosPeriodo: criadosNoPeriodo.length,
       pipeline,
       emRisco,
       primeiraTratativaMin: tempoPrimeiraTratativa([...abertos, ...fechados]),
