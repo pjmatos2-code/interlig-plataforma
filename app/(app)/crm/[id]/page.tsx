@@ -16,6 +16,7 @@ import { FollowupIa } from "@/components/crm/followup-ia";
 import { AnexosVisita } from "@/components/crm/anexos-visita";
 import { EmailTicket } from "@/components/crm/email-ticket";
 import { CpfTicket } from "@/components/crm/cpf-ticket";
+import { ScoreTicket } from "@/components/crm/score-ticket";
 import { TelefoneTicket } from "@/components/crm/telefone-ticket";
 import {
   BarraEtapas,
@@ -221,6 +222,17 @@ export default async function TicketPage({ params }: { params: { id: string } })
               </p>
             )}
             <p><span className="text-muted-foreground">CPF:</span> <CpfTicket ticketId={t.id} cpf={t.cpf} /></p>
+            <div className="flex items-start gap-2">
+              <span className="text-muted-foreground">Score:</span>
+              <ScoreTicket
+                ticketId={t.id}
+                score={t.score}
+                faixa={t.score_faixa}
+                adiantamentoValor={t.adiantamento_valor}
+                recebidoEm={t.adiantamento_recebido_em}
+                podeEditar={t.etapa !== "fechado" || t.desfecho === "convertido"}
+              />
+            </div>
             <p><span className="text-muted-foreground">E-mail:</span> <EmailTicket ticketId={t.id} email={t.email ?? null} /></p>
             <p><span className="text-muted-foreground">Vendedora:</span> {t.vendedora ?? "Não atribuído"}</p>
             <p><span className="text-muted-foreground">POP:</span> {t.pop ?? "—"}</p>

@@ -26,6 +26,9 @@ export type ItemEsteira = {
   alerta: boolean;
   /** OS de instalação do SGP (só na coluna aguardando instalação) */
   temOs: boolean;
+  /** filtro de entrada (17/09/2026): pendência de score/adiantamento do ticket */
+  scoreSituacao?: "sem_score" | "adiantamento_pendente" | null;
+  adiantamentoValor?: number | null;
   agendamento: string | null;
   responsavel: string | null;
   prontaOperacional: boolean;
@@ -186,6 +189,41 @@ export async function carregarEsteira(
       .map((p) => paraItem(p.contrato as Bruto, p.idadeDias, p.alerta)),
   ].sort((a, b) => a.idadeDias - b.idadeDias); // recentes no topo, atrasados no fim
   const semAtivacao = semAtivacaoTudo.filter(noPeriodo);
+
+  // filtro de entrada: pendências de score/adiantamento dos tickets vinculados
+  {
+    const admin = (await import("@/lib/supabase/admin")).criarClienteAdmin();
+    const alvos = [...semAssinatura, ...semAtivacao];
+    const ids = [...new Set(alvos.map((i) => i.id))];
+    if (ids.length > 0) {
+      const porContrato = new Map<string, { score: number | null; valor: number | null; recebido: string | null; setor: string | null }>();
+      for (let i = 0; i < ids.length; i += 400) {
+        const { data: tk } = await admin
+          .from("tickets")
+          .select("contrato_id, score, adiantamento_valor, adiantamento_recebido_em, vendedores(setor)")
+          .in("contrato_id", ids.slice(i, i + 400));
+        for (const t of tk ?? []) {
+          if (!t.contrato_id) continue;
+          porContrato.set(t.contrato_id as string, {
+            score: (t.score as number | null) ?? null,
+            valor: (t.adiantamento_valor as number | null) ?? null,
+            recebido: (t.adiantamento_recebido_em as string | null) ?? null,
+            setor: (t.vendedores as unknown as { setor?: string } | null)?.setor ?? null,
+          });
+        }
+      }
+      for (const item of alvos) {
+        const info = porContrato.get(item.id);
+        if (!info || info.setor === "corporativo") continue;
+        if (info.score === null) {
+          item.scoreSituacao = "sem_score";
+        } else if ((info.valor ?? 0) > 0 && !info.recebido) {
+          item.scoreSituacao = "adiantamento_pendente";
+          item.adiantamentoValor = info.valor;
+        }
+      }
+    }
+  }
 
   // instaladas no período (idade = venda → ativação; nunca alerta)
   // ordem: instalação mais recente no topo

@@ -352,6 +352,17 @@ export default async function EsteiraPage({
                           ) : (
                             i.cliente
                           )}
+                          {i.scoreSituacao === "sem_score" && (
+                            <span className="ml-2 whitespace-nowrap rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-medium text-rose-800">
+                              score não lançado
+                            </span>
+                          )}
+                          {i.scoreSituacao === "adiantamento_pendente" && (
+                            <span className="ml-2 whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-900"
+                              title="Adiantamento de mensalidade da faixa — receber antes de ativar; vira crédito nas faturas">
+                              ⏳ receber R$ {Number(i.adiantamentoValor ?? 0).toFixed(0)}
+                            </span>
+                          )}
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">{i.vendedora}</td>
                         {ehGestorSemFiltro && <td className="px-3 py-2 text-muted-foreground">{i.pop}</td>}

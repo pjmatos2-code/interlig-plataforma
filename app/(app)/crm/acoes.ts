@@ -186,11 +186,23 @@ export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<Est
   // guardamos a etapa atual antes de fechar
   const { data: atual } = await supabase
     .from("tickets")
-    .select("etapa")
+    .select("etapa, score, vendedor_id, vendedores(setor)")
     .eq("id", ticketId)
     .maybeSingle();
   const etapaEncerramento =
     atual && atual.etapa !== "fechado" ? (atual.etapa as string) : null;
+
+  // filtro de entrada (17/09/2026): venda residencial só fecha como Vendida
+  // com o score lançado — corporativo fica fora da régua. Vale apenas no
+  // fechamento MANUAL; as automações (robô/reconciliação) não são travadas.
+  if (desfecho === "convertido") {
+    const setor = (atual?.vendedores as unknown as { setor?: string } | null)?.setor ?? null;
+    const corporativo = setor === "corporativo";
+    if (!corporativo && (atual?.score === null || atual?.score === undefined))
+      return {
+        erro: "Lance o score do cliente antes de fechar como Vendida (filtro de entrada por faixa).",
+      };
+  }
 
   if (desfecho === "convertido") {
     const planoId = String(dados.get("plano_id") ?? "");
@@ -668,6 +680,94 @@ export async function anexarVisitaManual(_e: EstadoAcao, dados: FormData): Promi
 
 
 /** Inclui ou corrige o e-mail do cliente no ticket (opcional em todos). */
+/** Filtro de entrada por score (17/09/2026): lança e enquadra na régua. */
+export async function salvarScoreTicket(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
+  const usuario = await exigirUsuario();
+  if (!["gestor", "supervisor"].includes(usuario.perfil) && !ehAgenteCrm(usuario.perfil))
+    return { erro: "Sem permissão." };
+  const ticketId = String(dados.get("ticket_id") ?? "");
+  const score = Number(String(dados.get("score") ?? "").replace(/\D/g, ""));
+  if (!ticketId) return { erro: "Ticket ausente." };
+  if (!Number.isFinite(score) || score < 0 || score > 1000)
+    return { erro: "Score inválido — informe um número de 0 a 1000." };
+
+  const { criarClienteAdmin } = await import("@/lib/supabase/admin");
+  const admin = criarClienteAdmin();
+  const { data: regua } = await admin
+    .from("score_regua")
+    .select("faixa, score_min, score_max, valor")
+    .order("ordem");
+  const faixa = (regua ?? []).find((f) => score >= f.score_min && score <= f.score_max);
+  if (!faixa) return { erro: "Régua de score não configurada para esse valor." };
+
+  const supabase = criarClienteServidor();
+  const { error } = await supabase
+    .from("tickets")
+    .update({
+      score,
+      score_faixa: faixa.faixa,
+      adiantamento_valor: Number(faixa.valor),
+      atualizado_em: new Date().toISOString(),
+    })
+    .eq("id", ticketId);
+  if (error) return { erro: error.message };
+
+  await admin.from("ticket_eventos").insert({
+    ticket_id: ticketId,
+    tipo: "nota",
+    dados: {
+      texto: `🎯 Score lançado: ${score} → faixa ${faixa.faixa.toUpperCase()}${
+        Number(faixa.valor) > 0
+          ? ` — adiantamento de mensalidade de R$ ${Number(faixa.valor).toFixed(2).replace(".", ",")} antes da ativação (vira crédito nas faturas)`
+          : " — sem antecipação"
+      }.`,
+    },
+    usuario_id: usuario.id,
+  });
+  revalidatePath(`/crm/${ticketId}`);
+  revalidar();
+  return { ok: true };
+}
+
+/** Vendedora confirma o recebimento do adiantamento (decisão do gestor, 17/09). */
+export async function confirmarAdiantamentoTicket(ticketId: string): Promise<EstadoAcao> {
+  const usuario = await exigirUsuario();
+  if (!["gestor", "supervisor"].includes(usuario.perfil) && !ehAgenteCrm(usuario.perfil))
+    return { erro: "Sem permissão." };
+
+  const { criarClienteAdmin } = await import("@/lib/supabase/admin");
+  const admin = criarClienteAdmin();
+  const { data: t } = await admin
+    .from("tickets")
+    .select("id, vendedor_id, adiantamento_valor, adiantamento_recebido_em")
+    .eq("id", ticketId)
+    .maybeSingle();
+  if (!t) return { erro: "Ticket não encontrado." };
+  if (ehAgenteCrm(usuario.perfil) && t.vendedor_id && t.vendedor_id !== usuario.vendedor_id)
+    return { erro: "Este ticket é de outra agente." };
+  if (!t.adiantamento_valor || Number(t.adiantamento_valor) <= 0)
+    return { erro: "Este ticket não tem adiantamento a receber." };
+  if (t.adiantamento_recebido_em) return { erro: "Recebimento já confirmado." };
+
+  const agora = new Date().toISOString();
+  const { error } = await admin
+    .from("tickets")
+    .update({ adiantamento_recebido_em: agora, adiantamento_recebido_por: usuario.id, atualizado_em: agora })
+    .eq("id", ticketId);
+  if (error) return { erro: error.message };
+  await admin.from("ticket_eventos").insert({
+    ticket_id: ticketId,
+    tipo: "nota",
+    dados: {
+      texto: `💰 Adiantamento de R$ ${Number(t.adiantamento_valor).toFixed(2).replace(".", ",")} recebido — liberar ativação; valor vira crédito nas faturas.`,
+    },
+    usuario_id: usuario.id,
+  });
+  revalidatePath(`/crm/${ticketId}`);
+  revalidar();
+  return { ok: true };
+}
+
 export async function salvarTelefoneTicket(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
   const usuario = await exigirUsuario();
   if (!["gestor", "supervisor"].includes(usuario.perfil) && !ehAgenteCrm(usuario.perfil))
