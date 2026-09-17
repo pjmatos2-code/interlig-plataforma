@@ -220,9 +220,16 @@ export default async function CrmPage({
   const diaDaLeitura = (iso: string | null) =>
     iso ? new Date(Date.parse(iso) - 3 * 3600_000).toISOString().slice(0, 10) : "";
   const ultimoDia = brutosIa.length ? diaDaLeitura(brutosIa[0].resumo_em) : "";
-  const pendentesIa = brutosIa
-    .filter((f) => diaDaLeitura(f.resumo_em) === ultimoDia)
-    .sort((a, b) => (ORDEM_URGENCIA[a.urgencia ?? "baixa"] ?? 2) - (ORDEM_URGENCIA[b.urgencia ?? "baixa"] ?? 2));
+  // expira sozinho: follow-up com mais de 3 dias sai da fila sem precisar de
+  // clique — a seção é o resumo do ÚLTIMO dia de atendimento, não um mural
+  // eterno (47 cards de 11/09 entupindo a página, relato do gestor 17/09)
+  const corte3d = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
+  const pendentesIa =
+    ultimoDia < corte3d
+      ? []
+      : brutosIa
+          .filter((f) => diaDaLeitura(f.resumo_em) === ultimoDia)
+          .sort((a, b) => (ORDEM_URGENCIA[a.urgencia ?? "baixa"] ?? 2) - (ORDEM_URGENCIA[b.urgencia ?? "baixa"] ?? 2));
   const dataLeituraLabel = ultimoDia
     ? ultimoDia.split("-").reverse().slice(0, 2).join("/")
     : null;
@@ -546,7 +553,7 @@ export default async function CrmPage({
                 Resumo do último dia de atendimento — priorize pela cor da urgência
               </p>
               <div className="grid gap-3 lg:grid-cols-2">
-                {pendentesIa.map((f) => (
+                {pendentesIa.slice(0, 6).map((f) => (
                   <div
                     key={f.id}
                     className={cn(
@@ -593,6 +600,61 @@ export default async function CrmPage({
                   </div>
                 ))}
               </div>
+              {pendentesIa.length > 6 && (
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-xs font-medium text-primary hover:underline">
+                    mostrar mais {pendentesIa.length - 6} follow-up(s)
+                  </summary>
+                  <div className="mt-3 grid gap-3 lg:grid-cols-2">
+{pendentesIa.slice(6).map((f) => (
+                  <div
+                    key={f.id}
+                    className={cn(
+                      "rounded-xl border bg-white/80 p-3 backdrop-blur",
+                      f.urgencia === "alta"
+                        ? "border-rose-300/80"
+                        : f.urgencia === "media"
+                          ? "border-amber-300/80"
+                          : "border-emerald-300/70"
+                    )}
+                  >
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      <span
+                        className={cn(
+                          "rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wide",
+                          f.urgencia === "alta"
+                            ? "bg-rose-500 text-white"
+                            : f.urgencia === "media"
+                              ? "bg-amber-400 text-amber-950"
+                              : "bg-emerald-500 text-white"
+                        )}
+                      >
+                        {f.urgencia === "alta" ? "● Alta" : f.urgencia === "media" ? "● Média" : "● Baixa"}
+                      </span>
+                      <Link
+                        href={`/crm/${f.id}`}
+                        className="min-w-0 truncate text-sm font-bold text-slate-800 hover:text-primary hover:underline"
+                      >
+                        {f.cliente_nome}
+                      </Link>
+                      <span className="ml-auto text-[11px] text-slate-400">
+                        {f.vendedores?.nome ?? "sem vendedora"}
+                      </span>
+                    </div>
+                    <p className="text-xs leading-relaxed text-slate-600">{f.resumo_tratativa}</p>
+                    <div className="mt-2">
+                      <FollowupFeito ticketId={f.id} compacto />
+                    </div>
+                    {f.proxima_abordagem && (
+                      <p className="mt-1.5 rounded-lg bg-sky-50/80 px-2.5 py-1.5 text-xs font-medium text-sky-800">
+                        ➜ {f.proxima_abordagem}
+                      </p>
+                    )}
+                  </div>
+                ))}
+                  </div>
+                </details>
+              )}
             </div>
           )}
 
