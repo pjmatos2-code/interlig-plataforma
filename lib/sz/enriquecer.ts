@@ -32,7 +32,9 @@ export async function enriquecerTicketsAbertos(orcamentoMs = 40_000): Promise<Re
   if (!cred) return { ok: false, verificados: 0, atualizados: 0, erro: "credencial SZ ausente" };
 
   const admin = criarClienteAdmin();
-  const corte2h = new Date(Date.now() - 2 * 3600_000).toISOString();
+  // economia 18/09: resumo renova a cada 4h (era 2h) — o conteúdo de uma
+  // conversa raramente muda mais rápido que isso
+  const corte2h = new Date(Date.now() - 4 * 3600_000).toISOString();
   const corte30d = new Date(Date.now() - 30 * 86_400_000).toISOString();
 
   // prioridade: sem telefone primeiro (identidade), depois resumo mais velho
@@ -44,7 +46,7 @@ export async function enriquecerTicketsAbertos(orcamentoMs = 40_000): Promise<Re
     .gte("criado_em", corte30d)
     .or(`telefone.is.null,resumo_em.is.null,resumo_em.lt.${corte2h}`)
     .order("resumo_em", { ascending: true, nullsFirst: true })
-    .limit(10);
+    .limit(8);
   if (!pendentes?.length) return { ok: true, verificados: 0, atualizados: 0 };
 
   try {

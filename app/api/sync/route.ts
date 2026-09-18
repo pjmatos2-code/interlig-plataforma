@@ -5,7 +5,7 @@ import { executarRotinasCrm } from "@/lib/crm/rotinas";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+export const maxDuration = 180; // orçamentos internos somam < 150s; teto menor corta o pior caso
 
 /**
  * Worker de sync (PRD 7.1). Responde IMEDIATAMENTE e continua o trabalho em
@@ -54,22 +54,39 @@ async function roboSzSeDevido() {
 async function cicloCompleto() {
   const resultado = await executarSync();
   const rotinas = await executarRotinasCrm();
-  // enriquecimento DURANTE a conversa (leve: até 10 tickets/ciclo): telefone,
+  // enriquecimento DURANTE a conversa (leve: até 8 tickets/ciclo): telefone,
   // vendedora e resumo frescos sem esperar o encerramento nem o horário do
   // robô — negociação longa não pode depender da memória da vendedora
   {
     const { enriquecerTicketsAbertos } = await import("@/lib/sz/enriquecer");
-    const e = await enriquecerTicketsAbertos(30_000).catch((err) => ({
+    const e = await enriquecerTicketsAbertos(25_000).catch((err) => ({
       ok: false, verificados: 0, atualizados: 0, erro: String(err),
     }));
     console.log("enriquecimento SZ:", JSON.stringify(e));
   }
   // retenção ANTES do robô comercial: rodando por último ela ficava com as
-  // sobras dos 300s do serverless e vivia de orçamento esgotado
-  {
-    const { rodarRoboRetencao } = await import("@/lib/retencao/robo");
+  // sobras do serverless e vivia de orçamento esgotado. Cadência própria
+  // (economia 18/09): ~9 min no expediente, ~28 min fora — a paginação
+  // rotativa cobre a janela do mês em poucos ciclos de qualquer forma.
+  retencao: {
     const admin = criarClienteAdmin();
-    const r = await rodarRoboRetencao().catch((e) => ({
+    const { data: cfgRet } = await admin
+      .from("integracoes_config")
+      .select("config")
+      .eq("sistema", "szchat")
+      .maybeSingle();
+    const cfgR = (cfgRet?.config ?? {}) as Record<string, unknown>;
+    const horaR = new Date(Date.now() - 3 * 3600_000).getUTCHours();
+    const intervaloRet = horaR >= 7 && horaR < 20 ? 9 * 60_000 : 28 * 60_000;
+    const ultimaRet = typeof cfgR.retencao_robo_em === "string" ? Date.parse(cfgR.retencao_robo_em) : 0;
+    if (Date.now() - ultimaRet < intervaloRet) break retencao;
+    await admin.from("integracoes_config").upsert({
+      sistema: "szchat",
+      config: { ...cfgR, retencao_robo_em: new Date().toISOString() },
+      atualizado_em: new Date().toISOString(),
+    });
+    const { rodarRoboRetencao } = await import("@/lib/retencao/robo");
+    const r = await rodarRoboRetencao(undefined, 45_000).catch((e) => ({
       ok: false as const, lidas: 0, criados: 0, reincidentes: 0, erro: String(e),
     }));
     // registra em sync_runs — sem isso a falha só aparecia no console da Vercel
@@ -115,6 +132,24 @@ export async function GET(request: Request) {
     .lt("iniciado_em", corte);
 
   const url = new URL(request.url);
+
+  // modo econômico (18/09/2026, pós-upgrade Pro): fora do expediente
+  // (07-20h Santarém) o ciclo pleno roda a cada ~15 min, não a cada 5 —
+  // venda e atendimento não acontecem de madrugada; o cron externo continua
+  // chamando e a rota se autorregula. `aguardar=1` (uso manual) ignora.
+  const horaStm = new Date(Date.now() - 3 * 3600_000).getUTCHours();
+  if ((horaStm < 7 || horaStm >= 20) && url.searchParams.get("aguardar") !== "1") {
+    const { data: ultimoCiclo } = await admin
+      .from("sync_runs")
+      .select("iniciado_em")
+      .eq("entidade", "clientes")
+      .order("iniciado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (ultimoCiclo && Date.now() - Date.parse(ultimoCiclo.iniciado_em as string) < 14 * 60_000) {
+      return NextResponse.json({ resultado: "economia_noturna" });
+    }
+  }
   if (url.searchParams.get("aguardar") === "1") {
     const resultado = await cicloCompleto();
     const houveErro = resultado.execucoes.some((e) => e.status === "erro");
