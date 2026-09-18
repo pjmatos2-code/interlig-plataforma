@@ -62,13 +62,15 @@ export async function salvarConfig(
   const limpo = Object.fromEntries(
     Object.entries(parcial).filter(([, v]) => v !== "" && v !== undefined && v !== null)
   );
-  const { error } = await admin.from("integracoes_config").upsert({
-    sistema,
-    config: { ...atual, ...limpo },
-    atualizado_em: new Date().toISOString(),
-    atualizado_por: usuarioId,
-  });
+  // merge atômico (0086): nunca apaga chaves existentes, mesmo se a leitura
+  // acima falhar em corrida — foi assim que a credencial do robô se perdeu
+  const { error } = await admin.rpc("mesclar_config", { p_sistema: sistema, p_patch: limpo });
   if (error) throw new Error(error.message);
+  await admin
+    .from("integracoes_config")
+    .update({ atualizado_por: usuarioId })
+    .eq("sistema", sistema);
+  void atual; // leitura mantida só para validações futuras
 }
 
 export function mascarar(valor: string | null | undefined): string | null {

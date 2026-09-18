@@ -612,10 +612,9 @@ export async function executarSync(): Promise<ResultadoSync> {
             if (!error) gravados += 1;
           }
         }
-        await admin.from("integracoes_config").upsert({
-          sistema: "sgp",
-          config: { ...cfgAtualR, crescimento_v2_em: hojeStm },
-          atualizado_em: new Date().toISOString(),
+        await admin.rpc("mesclar_config", {
+          p_sistema: "sgp",
+          p_patch: { crescimento_v2_em: hojeStm },
         });
         await finalizarRun(admin, run, "sucesso", gravados);
         execucoes.push({ entidade: "crescimento_base" as Entidade, registros: gravados, status: "sucesso" });
@@ -634,20 +633,9 @@ export async function executarSync(): Promise<ResultadoSync> {
   if (sgp.modo === "real") {
     const progresso = (sgp as unknown as { progresso: { proximoOffset: number } | null }).progresso;
     if (progresso) {
-      // relê a config: outros passos deste MESMO ciclo (ex.: marcador diário
-      // do crescimento) podem ter gravado depois da leitura inicial
-      const { data: cfgFresca } = await admin
-        .from("integracoes_config")
-        .select("config")
-        .eq("sistema", "sgp")
-        .maybeSingle();
-      const atual = (cfgFresca?.config as Record<string, unknown>) ?? {};
       const proximo = progresso.proximoOffset === 0 ? 0 : Math.max(0, progresso.proximoOffset - 200);
-      await admin.from("integracoes_config").upsert({
-        sistema: "sgp",
-        config: { ...atual, scan_offset: proximo },
-        atualizado_em: new Date().toISOString(),
-      });
+      // merge atômico (0086): não relê nem corre o risco de apagar chaves
+      await admin.rpc("mesclar_config", { p_sistema: "sgp", p_patch: { scan_offset: proximo } });
     }
   }
 

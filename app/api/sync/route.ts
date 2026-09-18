@@ -37,10 +37,10 @@ async function roboSzSeDevido() {
   if (Date.now() - ultima < 9 * 60_000) return;
 
   // marca ANTES de rodar para não empilhar execuções concorrentes
-  await admin.from("integracoes_config").upsert({
-    sistema: "szchat",
-    config: { ...cfg, robo_diurno_em: new Date().toISOString() },
-    atualizado_em: new Date().toISOString(),
+  // (merge atômico — nunca apaga outras chaves; ver migração 0086)
+  await admin.rpc("mesclar_config", {
+    p_sistema: "szchat",
+    p_patch: { robo_diurno_em: new Date().toISOString() },
   });
   const { rodarRoboSz } = await import("@/lib/sz/robo");
   // sem backfill de janelas antigas: o filtro do SZ seleciona pela data de
@@ -80,10 +80,9 @@ async function cicloCompleto() {
     const intervaloRet = horaR >= 7 && horaR < 20 ? 9 * 60_000 : 28 * 60_000;
     const ultimaRet = typeof cfgR.retencao_robo_em === "string" ? Date.parse(cfgR.retencao_robo_em) : 0;
     if (Date.now() - ultimaRet < intervaloRet) break retencao;
-    await admin.from("integracoes_config").upsert({
-      sistema: "szchat",
-      config: { ...cfgR, retencao_robo_em: new Date().toISOString() },
-      atualizado_em: new Date().toISOString(),
+    await admin.rpc("mesclar_config", {
+      p_sistema: "szchat",
+      p_patch: { retencao_robo_em: new Date().toISOString() },
     });
     const { rodarRoboRetencao } = await import("@/lib/retencao/robo");
     const r = await rodarRoboRetencao(undefined, 45_000).catch((e) => ({

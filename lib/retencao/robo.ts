@@ -114,21 +114,10 @@ export async function rodarRoboRetencao(dia?: string, orcamentoMs = 60_000): Pro
     const conversas = await listarConversasCancelamento(
       sz, campanha, inicioJanela, alvo, orcamentoMs / 2, paginaInicial
     );
-    {
-      const { data: cfgAtual } = await admin
-        .from("integracoes_config")
-        .select("config")
-        .eq("sistema", "szchat")
-        .maybeSingle();
-      await admin.from("integracoes_config").upsert({
-        sistema: "szchat",
-        config: {
-          ...((cfgAtual?.config as Record<string, unknown>) ?? {}),
-          retencao_pagina: conversas.proximaPagina ?? 1,
-        },
-        atualizado_em: new Date().toISOString(),
-      });
-    }
+    await admin.rpc("mesclar_config", {
+      p_sistema: "szchat",
+      p_patch: { retencao_pagina: conversas.proximaPagina ?? 1 },
+    });
 
     // agente responsável: quem atendeu no SZ, se for do setor retenção
     const { data: agentes } = await admin
