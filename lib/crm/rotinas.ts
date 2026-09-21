@@ -46,6 +46,7 @@ export async function fecharTicketsInativos(): Promise<number> {
       .from("tickets")
       .update({
         etapa: "fechado",
+        etapa_encerramento: t.etapa, // onde a negociação parou (o quadro usa)
         desfecho: "nao_convertido",
         fechado_por: "auto_inatividade",
         motivo_id: motivo.id,

@@ -291,9 +291,13 @@ export async function carregarCrm(
   }
   for (const t of fechados) {
     if (filtros.perdidos && t.desfecho !== "nao_convertido") continue;
-    const destino =
-      t.desfecho === "nao_convertido" && t.etapa_encerramento && t.etapa_encerramento !== "fechado"
-        ? (t.etapa_encerramento as EtapaTicket)
+    // perdida NUNCA vai para "Contrato assinado" (coluna é só de vendidas):
+    // fica na etapa onde parou; sem registro válido, cai em Contato inicial
+    const destino: EtapaTicket =
+      t.desfecho === "nao_convertido"
+        ? t.etapa_encerramento && t.etapa_encerramento !== "fechado"
+          ? (t.etapa_encerramento as EtapaTicket)
+          : "em_atendimento"
         : "fechado";
     colunas[destino]?.push(paraCartao(t)); // perdidas entram após as abertas da coluna
   }
