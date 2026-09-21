@@ -142,16 +142,19 @@ export class PainelSgp {
    * novos entram no meio da lista e podem escapar da janela do sync. Esta
    * listagem entrega o id e o CPF dos últimos cadastros na hora.
    */
-  async clientesRecentes(quantidade = 100): Promise<{ sgpClienteId: string; cpf: string | null }[]> {
+  async clientesRecentes(
+    quantidade = 100
+  ): Promise<{ sgpClienteId: string; cpf: string | null; sgpContratoId: string | null }[]> {
     await this.login();
     // dpb_token vem da própria página do formulário
     const tela = await this.pegar("/admin/cliente/list/ultimos/");
     if (tela.status !== 200) return [];
     const dpb = (await tela.text()).match(/name='dpb_token' value='([^']+)'/)?.[1] ?? "";
-    const vistos = new Map<string, string | null>();
-    // status é obrigatório e único por consulta: Novo (6) pega o cadastro
-    // recém-feito; Ativo (1) pega quem já instalou
-    for (const status of ["6", "1"]) {
+    const vistos = new Map<string, { cpf: string | null; contrato: string | null }>();
+    // status é obrigatório e único por consulta: Novo (6) = recém-cadastrado,
+    // Inativo (2) = cadastro aguardando instalação (a MAIORIA das vendas do
+    // dia fica aqui — brecha achada em 21/09), Ativo (1) = já instalou
+    for (const status of ["6", "2", "1"]) {
       const res = await this.pegar(
         `/admin/cliente/list/ultimos/?dpb_token=${dpb}&pop=&plano=&quantidade=${quantidade}&status=${status}&crm=`
       );
@@ -167,10 +170,17 @@ export class PainelSgp {
           texto.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/)?.[0] ??
           texto.match(/(?<!\d)\d{11}(?!\d)/)?.[0] ??
           null;
-        vistos.set(id, cpf);
+        // id do contrato/serviço da linha ("Id: 22697 - login") — permite
+        // pegar RECONTRATAÇÃO: cliente antigo com contrato novo ausente
+        const contrato = texto.match(/\bId:?\s*(\d{3,})\b/)?.[1] ?? null;
+        vistos.set(id, { cpf, contrato });
       }
     }
-    return [...vistos.entries()].map(([sgpClienteId, cpf]) => ({ sgpClienteId, cpf }));
+    return [...vistos.entries()].map(([sgpClienteId, v]) => ({
+      sgpClienteId,
+      cpf: v.cpf,
+      sgpContratoId: v.contrato,
+    }));
   }
 
   /**

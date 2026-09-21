@@ -106,7 +106,22 @@ export async function executarSync(): Promise<ResultadoSync> {
               .in("sgp_cliente_id", ids.slice(i, i + 400));
             for (const c of parte ?? []) conhecidos.add(String(c.sgp_cliente_id));
           }
-          const faltam = recentes.filter((r) => !conhecidos.has(r.sgpClienteId) && r.cpf);
+          // contrato listado já existe? (recontratação de cliente antigo)
+          const idsContratos = recentes.map((r) => r.sgpContratoId).filter(Boolean) as string[];
+          const contratosConhecidos = new Set<string>();
+          for (let i = 0; i < idsContratos.length; i += 400) {
+            const { data: parte } = await admin
+              .from("contratos")
+              .select("sgp_contrato_id")
+              .in("sgp_contrato_id", idsContratos.slice(i, i + 400));
+            for (const c of parte ?? []) contratosConhecidos.add(String(c.sgp_contrato_id));
+          }
+          const faltam = recentes.filter(
+            (r) =>
+              r.cpf &&
+              (!conhecidos.has(r.sgpClienteId) ||
+                (r.sgpContratoId && !contratosConhecidos.has(r.sgpContratoId)))
+          );
           if (faltam.length > 0) {
             injetados = await (
               sgp as unknown as { carregarExtrasPorCpf: (cpfs: string[]) => Promise<number> }
