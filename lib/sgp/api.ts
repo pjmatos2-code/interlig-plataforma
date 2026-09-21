@@ -59,7 +59,14 @@ const cidadeEscopo = (s: string | undefined): string | null => {
   c = c.replace(/ (PA|PARA)$/, "");
   if (c === "ALTAMIA") c = "ALTAMIRA";
   if (c === "VTX" || c === "VITORIA DO XINFU") c = "VITORIA DO XINGU";
-  return CIDADES_ESCOPO.get(c) ?? null;
+  const direto = CIDADES_ESCOPO.get(c);
+  if (direto) return direto;
+  // cadastro com texto livre no campo cidade ("ZONA RURAL DE VTX", "RAMAL DO
+  // ALTAMIRA KM 12"…): reconhece a cidade CONTIDA na frase (caso real 21/09)
+  if (/\bVITORIA DO XINGU\b|\bVTX\b|\bXINGU\b/.test(c)) return "Vitória do Xingu";
+  if (/\bBRASIL NOVO\b/.test(c)) return "Brasil Novo";
+  if (/\bALTAMIRA\b/.test(c)) return "Altamira";
+  return null;
 };
 const num = (v: unknown) => {
   const n = Number(v);
