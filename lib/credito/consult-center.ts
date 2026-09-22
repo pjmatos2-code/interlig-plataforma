@@ -58,6 +58,10 @@ type Item = { str: string; x: number; y: number; pagina: number };
 /** Extrai os itens de texto com posição (pdfjs legacy, sem worker). */
 async function extrairItens(pdf: Buffer): Promise<Item[]> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // registra o worker no globalThis: o pdfjs deixa de fazer o import dinâmico
+  // interno (que o file tracing da Vercel não enxerga e quebrava no serverless)
+  // @ts-expect-error módulo sem tipos — só executa pelo efeito colateral
+  await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
   const doc = await pdfjs.getDocument({
     data: new Uint8Array(pdf),
     useSystemFonts: true,
