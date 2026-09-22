@@ -693,6 +693,14 @@ export async function salvarScoreTicket(_e: EstadoAcao, dados: FormData): Promis
 
   const { criarClienteAdmin } = await import("@/lib/supabase/admin");
   const admin = criarClienteAdmin();
+
+  // score vindo de consulta processada não tem edição manual comum
+  // (política de crédito 21/09/2026): o caminho é anexar nova consulta
+  const { data: tAtual } = await admin
+    .from("tickets").select("score_origem").eq("id", ticketId).maybeSingle();
+  if (tAtual?.score_origem === "consulta")
+    return { erro: "Este score veio da consulta Consult Center — anexe uma nova consulta para atualizar." };
+
   const { data: regua } = await admin
     .from("score_regua")
     .select("faixa, score_min, score_max, valor")
@@ -707,6 +715,7 @@ export async function salvarScoreTicket(_e: EstadoAcao, dados: FormData): Promis
       score,
       score_faixa: faixa.faixa,
       adiantamento_valor: Number(faixa.valor),
+      score_origem: "manual",
       atualizado_em: new Date().toISOString(),
     })
     .eq("id", ticketId);
@@ -828,6 +837,103 @@ export async function salvarEmailTicket(_e: EstadoAcao, dados: FormData): Promis
     .update({ email: email || null, atualizado_em: new Date().toISOString() })
     .eq("id", ticketId);
   if (error) return { erro: error.message };
+  revalidatePath(`/crm/${ticketId}`);
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Consulta de crédito Consult Center (21/09/2026) — fase MONITORAMENTO:
+// identifica, classifica, alerta e registra. NUNCA bloqueia a venda.
+// ---------------------------------------------------------------------------
+
+/** URL assinada (1h) do PDF da consulta — bucket privado, sem link permanente. */
+export async function urlConsultaCredito(consultaId: string): Promise<EstadoAcao & { url?: string }> {
+  const usuario = await exigirUsuario();
+  if (
+    !["gestor", "supervisor", "direcao"].includes(usuario.perfil) &&
+    !ehAgenteCrm(usuario.perfil)
+  )
+    return { erro: "Sem permissão." };
+
+  const { criarClienteAdmin } = await import("@/lib/supabase/admin");
+  const admin = criarClienteAdmin();
+  const { data: c } = await admin
+    .from("consultas_credito")
+    .select("arquivo_path, ticket_id, tickets(vendedor_id)")
+    .eq("id", consultaId)
+    .maybeSingle();
+  if (!c) return { erro: "Consulta não encontrada." };
+  if (ehAgenteCrm(usuario.perfil)) {
+    const dono = (c.tickets as unknown as { vendedor_id: string | null })?.vendedor_id;
+    if (dono && usuario.vendedor_id && dono !== usuario.vendedor_id)
+      return { erro: "Este ticket é de outra agente." };
+  }
+  const { data: assinada, error } = await admin.storage
+    .from("consultas-credito")
+    .createSignedUrl(c.arquivo_path, 3600);
+  if (error || !assinada?.signedUrl) return { erro: "Não consegui gerar o link do PDF." };
+  return { ok: true, url: assinada.signedUrl };
+}
+
+/**
+ * Registro do prosseguimento SEM pagamento confirmado (alerta não bloqueante,
+ * decisão deliberada da gestão para a fase inicial): a venda segue e fica o
+ * rastro estruturado para o piloto medir quantas avançaram sem o adiantamento.
+ */
+export async function registrarProsseguimentoSemPagamento(ticketId: string): Promise<EstadoAcao> {
+  const usuario = await exigirUsuario();
+  if (!["gestor", "supervisor"].includes(usuario.perfil) && !ehAgenteCrm(usuario.perfil))
+    return { erro: "Sem permissão." };
+
+  const { criarClienteAdmin } = await import("@/lib/supabase/admin");
+  const admin = criarClienteAdmin();
+  const { data: t } = await admin
+    .from("tickets")
+    .select("score_faixa, adiantamento_valor, adiantamento_recebido_em")
+    .eq("id", ticketId)
+    .maybeSingle();
+  if (!t) return { erro: "Ticket não encontrado." };
+
+  const status = t.adiantamento_recebido_em
+    ? "pagamento_confirmado"
+    : (t.adiantamento_valor ?? 0) > 0
+      ? "aguardando_pagamento"
+      : "nao_exigido";
+  await admin.from("credito_prosseguimentos").insert({
+    ticket_id: ticketId,
+    usuario_id: usuario.id,
+    faixa: t.score_faixa,
+    valor_recomendado: t.adiantamento_valor,
+    status_pagamento: status,
+  });
+  await admin.from("ticket_eventos").insert({
+    ticket_id: ticketId,
+    tipo: "nota",
+    dados: {
+      texto: `⚠️ Atendimento prosseguiu sem confirmação do adiantamento (faixa ${String(t.score_faixa ?? "?").toUpperCase()}, recomendado R$ ${Number(t.adiantamento_valor ?? 0).toFixed(2).replace(".", ",")}, status: ${status.replace(/_/g, " ")}).`,
+    },
+    usuario_id: usuario.id,
+  });
+  revalidatePath(`/crm/${ticketId}`);
+  return { ok: true };
+}
+
+/** Pedido de revisão do score à gestão (a vendedora não edita score de consulta). */
+export async function solicitarRevisaoScore(ticketId: string, motivo: string): Promise<EstadoAcao> {
+  const usuario = await exigirUsuario();
+  if (!["gestor", "supervisor"].includes(usuario.perfil) && !ehAgenteCrm(usuario.perfil))
+    return { erro: "Sem permissão." };
+  const texto = motivo.trim().slice(0, 400);
+  if (!texto) return { erro: "Descreva o motivo da revisão." };
+
+  const { criarClienteAdmin } = await import("@/lib/supabase/admin");
+  const admin = criarClienteAdmin();
+  await admin.from("ticket_eventos").insert({
+    ticket_id: ticketId,
+    tipo: "nota",
+    dados: { texto: `🔎 Revisão de score solicitada à gestão: ${texto}` },
+    usuario_id: usuario.id,
+  });
   revalidatePath(`/crm/${ticketId}`);
   return { ok: true };
 }

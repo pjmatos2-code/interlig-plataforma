@@ -17,6 +17,7 @@ import { AnexosVisita } from "@/components/crm/anexos-visita";
 import { EmailTicket } from "@/components/crm/email-ticket";
 import { CpfTicket } from "@/components/crm/cpf-ticket";
 import { ScoreTicket } from "@/components/crm/score-ticket";
+import { ConsultaCredito } from "@/components/crm/consulta-credito";
 import { TelefoneTicket } from "@/components/crm/telefone-ticket";
 import {
   BarraEtapas,
@@ -118,9 +119,51 @@ export default async function TicketPage({ params }: { params: { id: string } })
     fotoVersoUrl = await assinar(visita.foto_doc_verso_path ?? null);
   }
 
+  // consulta de crédito Consult Center (versões — a mais nova é a vigente)
+  const { data: consultasCc } = await supabase
+    .from("consultas_credito")
+    .select(
+      "id, versao, nome_titular, cpf, score, faixa, adiantamento_valor, protocolo, consulta_em, pendencias_qtd, pendencias_valor, pendencia_provedor, cpf_confere, sgp_vinculo, criado_em"
+    )
+    .eq("ticket_id", t.id)
+    .order("versao", { ascending: false });
+  const consultasCredito = (consultasCc ?? []).map((c) => ({
+    id: c.id as string,
+    versao: c.versao as number,
+    nomeTitular: c.nome_titular as string | null,
+    cpf: c.cpf as string | null,
+    score: c.score as number | null,
+    faixa: c.faixa as string | null,
+    adiantamentoValor: c.adiantamento_valor === null ? null : Number(c.adiantamento_valor),
+    protocolo: c.protocolo as string | null,
+    consultaEm: c.consulta_em as string | null,
+    pendenciasQtd: Number(c.pendencias_qtd ?? 0),
+    pendenciasValor: Number(c.pendencias_valor ?? 0),
+    pendenciaProvedor: Boolean(c.pendencia_provedor),
+    cpfConfere: c.cpf_confere as boolean | null,
+    sgpVinculo: c.sgp_vinculo as string | null,
+    criadoEm: c.criado_em as string,
+  }));
+
+  // feature flag da política de crédito: "monitoring" (atual — alerta e
+  // registra, nunca trava) | "enforced" (futuro, só por decisão da gestão)
+  const { data: cfgCredito } = await criarClienteAdmin()
+    .from("integracoes_config")
+    .select("config")
+    .eq("sistema", "politica_credito")
+    .maybeSingle();
+  const modoCredito =
+    ((cfgCredito?.config as Record<string, unknown>)?.modo as string) === "enforced"
+      ? "enforced"
+      : "monitoring";
+
   const fechado = t.etapa === "fechado";
   const reabrivel = podeReabrir(t, new Date().toISOString());
   const podeReatribuir = !ehAgenteCrm(usuario.perfil);
+  const podeOperarCredito =
+    (["gestor", "supervisor"].includes(usuario.perfil) || ehAgenteCrm(usuario.perfil)) &&
+    usuario.perfil !== "direcao" &&
+    (!fechado || t.desfecho === "convertido");
 
   return (
     <>
@@ -230,9 +273,21 @@ export default async function TicketPage({ params }: { params: { id: string } })
                 faixa={t.score_faixa}
                 adiantamentoValor={t.adiantamento_valor}
                 recebidoEm={t.adiantamento_recebido_em}
-                podeEditar={t.etapa !== "fechado" || t.desfecho === "convertido"}
+                podeEditar={
+                  // score vindo de consulta processada: sem edição manual —
+                  // o caminho é "Anexar nova consulta" no painel abaixo
+                  (t.etapa !== "fechado" || t.desfecho === "convertido") &&
+                  t.score_origem !== "consulta"
+                }
               />
             </div>
+            <ConsultaCredito
+              ticketId={t.id}
+              atual={consultasCredito[0] ?? null}
+              historico={consultasCredito}
+              adiantamentoRecebidoEm={t.adiantamento_recebido_em}
+              podeEditar={podeOperarCredito}
+            />
             <p><span className="text-muted-foreground">E-mail:</span> <EmailTicket ticketId={t.id} email={t.email ?? null} /></p>
             <p><span className="text-muted-foreground">Vendedora:</span> {t.vendedora ?? "Não atribuído"}</p>
             <p><span className="text-muted-foreground">POP:</span> {t.pop ?? "—"}</p>
@@ -391,6 +446,10 @@ export default async function TicketPage({ params }: { params: { id: string } })
                 cpf={t.cpf}
                 planos={planosPermitidos}
                 motivos={motivos ?? []}
+                scoreFaixa={t.score_faixa}
+                adiantamentoValor={t.adiantamento_valor}
+                adiantamentoRecebido={Boolean(t.adiantamento_recebido_em)}
+                modoCredito={modoCredito}
               />
             </CardContent>
           </Card>

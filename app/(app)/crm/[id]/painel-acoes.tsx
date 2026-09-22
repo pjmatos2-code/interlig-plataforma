@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
@@ -85,19 +85,91 @@ export function FormularioFechamento({
   cpf,
   planos,
   motivos,
+  scoreFaixa,
+  adiantamentoValor,
+  adiantamentoRecebido,
+  modoCredito = "monitoring",
 }: {
   ticketId: string;
   telefone: string | null;
   cpf: string | null;
   planos: { id: string; nome: string }[];
   motivos: { id: string; nome: string }[];
+  scoreFaixa?: string | null;
+  adiantamentoValor?: number | null;
+  adiantamentoRecebido?: boolean;
+  /** "monitoring" (fase atual: alerta, nunca trava) | "enforced" (futuro) */
+  modoCredito?: "monitoring" | "enforced";
 }) {
   const [estado, acao] = useFormState(fecharTicket, inicial);
   const [desfecho, setDesfecho] = useState<"convertido" | "nao_convertido" | "">("");
+  // política de crédito (fase monitoramento): fechar Vendida com adiantamento
+  // pendente mostra uma confirmação simples — NUNCA bloqueia o prosseguimento
+  const [confirmarCredito, setConfirmarCredito] = useState(false);
+  const [creditoOk, setCreditoOk] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const precisaConfirmarCredito =
+    desfecho === "convertido" &&
+    !creditoOk &&
+    !adiantamentoRecebido &&
+    (adiantamentoValor ?? 0) > 0 &&
+    (scoreFaixa === "amarelo" || scoreFaixa === "vermelho");
 
   return (
-    <form action={acao} className="space-y-3">
+    <form
+      ref={formRef}
+      action={acao}
+      onSubmit={(e) => {
+        if (precisaConfirmarCredito) {
+          e.preventDefault();
+          setConfirmarCredito(true);
+        }
+      }}
+      className="space-y-3"
+    >
       <input type="hidden" name="ticket_id" value={ticketId} />
+
+      {confirmarCredito && (
+        <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm">
+          <p className="font-medium text-amber-900">
+            Pagamento antecipado ainda não confirmado.
+          </p>
+          <p className="text-amber-900">
+            A condição recomendada para este cliente é{" "}
+            <strong>R$ {Number(adiantamentoValor ?? 0).toFixed(2).replace(".", ",")}</strong> de
+            adiantamento de fatura. Deseja continuar mesmo assim?
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmarCredito(false)}
+              className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-white"
+            >
+              Voltar e conferir pagamento
+            </button>
+            {/* arquitetura preparada para o modo enforced (futuro, decisão da
+                gestão): nele o prosseguimento sem pagamento não é oferecido.
+                Hoje TODAS as unidades operam em monitoring. */}
+            {modoCredito === "monitoring" && (
+            <button
+              type="button"
+              onClick={async () => {
+                // registra o prosseguimento (auditoria do piloto) e segue —
+                // decisão da gestão: a venda não é travada nesta fase
+                const { registrarProsseguimentoSemPagamento } = await import("../acoes");
+                await registrarProsseguimentoSemPagamento(ticketId).catch(() => null);
+                setCreditoOk(true);
+                setConfirmarCredito(false);
+                setTimeout(() => formRef.current?.requestSubmit(), 0);
+              }}
+              className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white"
+            >
+              Continuar atendimento
+            </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-2">
         <button

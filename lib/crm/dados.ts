@@ -548,6 +548,7 @@ export type DetalheTicket = {
   score_faixa: string | null;
   adiantamento_valor: number | null;
   adiantamento_recebido_em: string | null;
+  score_origem: string | null;
   id: string;
   analise_followup: Record<string, unknown> | null;
   followup_analisado_em: string | null;
@@ -603,7 +604,7 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
          criado_em, primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por,
          origem_cadastro, contrato_id, reconciliado_em, valor_estimado,
          resumo_tratativa, proxima_abordagem, urgencia,
-         score, score_faixa, adiantamento_valor, adiantamento_recebido_em,
+         score, score_faixa, adiantamento_valor, adiantamento_recebido_em, score_origem,
          analise_followup, followup_analisado_em,
          vendedores(nome), pops(nome), motivos_nao_conversao(nome), planos(nome),
          contratos(sgp_contrato_id, clientes(sgp_cliente_id, nome))`
@@ -651,6 +652,7 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
       (registro as unknown as { adiantamento_valor?: number | null }).adiantamento_valor ?? null,
     adiantamento_recebido_em:
       (registro as unknown as { adiantamento_recebido_em?: string | null }).adiantamento_recebido_em ?? null,
+    score_origem: (registro as unknown as { score_origem?: string | null }).score_origem ?? null,
     etapa: registro.etapa as EtapaTicket,
     origem_criacao: registro.origem_criacao,
     sz_conversa_id: registro.sz_conversa_id,

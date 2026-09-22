@@ -522,3 +522,41 @@ Formalizado no **Adendo 01/2026**.
 Karoline 30 (de 143 vendas) · Damely 15 (56) · Andrea 11 (30) · Janaína 6 (21) ·
 Tamiris 5 (26) · Ivanilda VTX 3 (12) · Aline Santos 3 (20) · Loja VTX 0 (6).
 Total: 73 pendentes de 314 vendas de maio (23%).
+
+## Consulta de crédito por PDF — Consult Center (21/09/2026)
+
+- **O que**: a vendedora anexa o relatório Serasa completo (PDF da Consult
+  Center) no ticket; a plataforma extrai score/CPF/titular/protocolo/pendências
+  localmente (pdfjs, sem serviço externo), enquadra na régua Interlig
+  (`score_regua`) e mostra a condição de entrada. Substitui a digitação manual
+  do score — score de consulta processada não tem edição manual
+  (`tickets.score_origem = 'consulta'`); o caminho é "Anexar nova consulta"
+  (versionada, nada é apagado).
+- **Fase 1 = MONITORAMENTO (decisão deliberada da gestão)**: pagamento pendente
+  NUNCA trava conversão, contrato, OS, agendamento, instalação ou ativação. O
+  fechamento como Vendida com adiantamento pendente mostra confirmação simples
+  ("Voltar e conferir pagamento" / "Continuar atendimento") e o prosseguimento
+  é registrado em `credito_prosseguimentos` (métrica do piloto). Sem
+  justificativa obrigatória nesta fase.
+- **Feature flag**: `integracoes_config['politica_credito'].modo` =
+  `monitoring` | `enforced`. O modo enforced existe só como arquitetura (o
+  botão de prosseguir some) e NÃO deve ser ligado sem decisão explícita da
+  gestão.
+- **Regras de extração**: score SÓ do padrão "Score NNN de 1000" (nunca o
+  percentual, a faixa 401-500 do texto Serasa ou a cor do gráfico); score
+  ausente ≠ zero (vira "requer conferência", sem faixa); data de referência =
+  bloco "Resultado da consulta"; totais de pendência saem do RESUMO (o
+  detalhamento só alimenta a lista — a mesma dívida aparece 2x no relatório).
+- **Titular**: CPF do PDF x CPF do ticket (string de 11 dígitos) + vínculo SGP
+  por CPF. Divergência = alerta forte + auditoria, sem trocar o titular e sem
+  atualizar o score do ticket (o score é de outro CPF). Nome extraído por
+  coluna (o PDF traz nome e nome da mãe lado a lado); nome da mãe/idade/sexo/
+  bairro não influenciam nada.
+- **Credores**: `credores_conhecidos` (MOV = "Provedor de internet",
+  classificação informada pela gestão). Só match EXATO de nome/alias mostra
+  "Pendência registrada com provedor de internet" — e pendência NÃO muda a
+  faixa nesta versão.
+- **Privacidade**: PDF em bucket privado `consultas-credito` (URL assinada 1h,
+  nome de arquivo sem CPF), CPF/nome mascarados na UI, orientação copiável ao
+  cliente nunca menciona faixa/score/dívida (classificação interna).
+- Migração: `0087_consulta_credito.sql`.
