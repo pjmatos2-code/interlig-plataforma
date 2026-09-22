@@ -169,7 +169,10 @@ export default async function DashboardPage({
 }) {
   const usuario = await exigirPerfil(["gestor", "supervisor", "direcao"]);
   const periodo = resolverPeriodo(searchParams);
-  const popFiltro = searchParams.pop || null;
+  // coordenador de unidade (21/09/2026): o dashboard é SEMPRE o do POP dele —
+  // meta, KPIs e gráficos saem escopados; gestor e direção filtram à vontade
+  const popSupervisor = usuario.perfil === "supervisor" ? usuario.pop_id : null;
+  const popFiltro = popSupervisor ?? (searchParams.pop || null);
   const ehGestor = usuario.perfil === "gestor";
 
   const d = await carregarDashboard(periodo, popFiltro);
@@ -210,11 +213,13 @@ export default async function DashboardPage({
   const porMes = new Map<string, { vendas: number; receita: number }>();
   const porDia6m = new Map<string, number>();
   for (let de = 0; de < 30_000; de += 1000) {
-    const { data: pg } = await admin
+    let consulta6m = admin
       .from("contratos")
       .select("data_venda, valor_mensalidade, status, motivo_cancelamento")
       .gte("data_venda", inicio6m)
       .range(de, de + 999);
+    if (popSupervisor) consulta6m = consulta6m.eq("pop_id", popSupervisor);
+    const { data: pg } = await consulta6m;
     for (const c of pg ?? []) {
       const motivo = String(c.motivo_cancelamento ?? "").toLowerCase();
       if (c.status === "cancelado" && (motivo.includes("erro de cadastro") || motivo.includes("duplicidade"))) continue;
@@ -244,12 +249,20 @@ export default async function DashboardPage({
     }
   }
   // meta total do mês (metas por vendedora) e dias úteis (seg–sáb)
-  const { data: metasMesRows } = await admin
-    .from("metas")
-    .select("quantidade_vendas")
-    .eq("mes_ano", mesAtual)
-    .eq("escopo", "vendedora");
-  const metaMensalTotal = (metasMesRows ?? []).reduce((t, m) => t + Number(m.quantidade_vendas ?? 0), 0);
+  const [{ data: metasMesRows }, { data: vendsPop }] = await Promise.all([
+    admin
+      .from("metas")
+      .select("quantidade_vendas, referencia_id")
+      .eq("mes_ano", mesAtual)
+      .eq("escopo", "vendedora"),
+    popSupervisor
+      ? admin.from("vendedores").select("id").eq("pop_id", popSupervisor).eq("ativo", true)
+      : Promise.resolve({ data: null }),
+  ]);
+  const idsPop = vendsPop ? new Set((vendsPop ?? []).map((v) => v.id as string)) : null;
+  const metaMensalTotal = (metasMesRows ?? [])
+    .filter((m) => !idsPop || idsPop.has(m.referencia_id as string))
+    .reduce((t, m) => t + Number(m.quantidade_vendas ?? 0), 0);
   const diasUteisMes = (() => {
     const d = new Date(`${mesAtual}T00:00:00Z`);
     let n = 0;
@@ -265,7 +278,11 @@ export default async function DashboardPage({
     .from("crescimento_base")
     .select("mes, unidade, ativos, novos, cancelados_mes, cancelados_acum, suspensos")
     .order("mes");
+  const nomePopSupervisor = popSupervisor
+    ? (d.pops.find((p) => p.id === popSupervisor)?.nome ?? null)
+    : null;
   const unidadesBase = ["Altamira", "Vitória do Xingu", "Brasil Novo"]
+    .filter((u) => !nomePopSupervisor || u === nomePopSupervisor)
     .map((unidade) => {
       const serie = (baseUnidades ?? []).filter((b) => b.unidade === unidade).slice(-6);
       return { unidade, serie };
