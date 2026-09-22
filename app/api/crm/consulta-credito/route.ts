@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   const admin = criarClienteAdmin();
   const { data: t } = await admin
     .from("tickets")
-    .select("id, cpf, vendedor_id, cliente_id")
+    .select("id, cpf, vendedor_id")
     .eq("id", ticketId)
     .maybeSingle();
   if (!t) return NextResponse.json({ erro: "Ticket não encontrado." }, { status: 404 });
