@@ -72,9 +72,10 @@ export async function listaVendedoras(
   const supabase = criarClienteServidor();
   const cal = await diasUteisDoMes(supabase);
 
-  // Coordenador: lista só as agentes dele (coordenador_id). Gestor: todas, com
-  // filtro opcional de POP. Os contratos já vêm escopados pela RLS (por agente
-  // para o coordenador — migração 0025); o filtro de POP é só do gestor.
+  // Coordenador: as agentes do POP dele + as que ele coordena em qualquer
+  // cidade (mesma união da RLS, 22/09/2026 — antes era só coordenador_id e o
+  // coordenador de unidade recém-criado via o painel vazio). Gestor: todas,
+  // com filtro opcional de POP.
   const ehCoord = usuario.perfil === "supervisor";
   let consultaVend = supabase
     .from("vendedores")
@@ -84,8 +85,11 @@ export async function listaVendedoras(
   // sem filtro, o painel mostra TODOS os setores — inclusive refidelização,
   // que tem métrica própria (planos, não vendas)
   if (setorFiltro) consultaVend = consultaVend.eq("setor", setorFiltro);
-  if (ehCoord) consultaVend = consultaVend.eq("coordenador_id", usuario.id);
-  else if (popFiltro) consultaVend = consultaVend.eq("pop_id", popFiltro);
+  if (ehCoord) {
+    consultaVend = usuario.pop_id
+      ? consultaVend.or(`coordenador_id.eq.${usuario.id},pop_id.eq.${usuario.pop_id}`)
+      : consultaVend.eq("coordenador_id", usuario.id);
+  } else if (popFiltro) consultaVend = consultaVend.eq("pop_id", popFiltro);
 
   const menorData = [periodo.de, cal.inicioMes, somarDias(cal.hoje, -13)].sort()[0];
 

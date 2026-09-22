@@ -350,7 +350,9 @@ export default async function DashboardPage({
 
       <FiltrosDashboard pops={d.pops} mostrarPop={ehGestor} de={periodo.de} ate={periodo.ate} />
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]">
+      {/* coordenador de unidade (22/09/2026): sem o trilho de alertas/ações
+          rápidas — o dashboard dele é só o resultado do POP */}
+      <div className={popSupervisor ? "grid gap-4" : "grid gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]"}>
         {/* coluna principal */}
         <div className="space-y-4">
           {/* KPIs */}
@@ -556,7 +558,8 @@ export default async function DashboardPage({
           </div>
         </div>
 
-        {/* trilho lateral */}
+        {/* trilho lateral (gestor e direção) */}
+        {!popSupervisor && (
         <div className="space-y-4">
           <Card>
             <CardHeader className="pb-2">
@@ -636,6 +639,7 @@ export default async function DashboardPage({
             </CardContent>
           </Card>
         </div>
+        )}
       </div>
     </>
   );
