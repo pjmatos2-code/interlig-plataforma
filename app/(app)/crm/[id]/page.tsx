@@ -123,7 +123,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
   const { data: consultasCc } = await supabase
     .from("consultas_credito")
     .select(
-      "id, versao, nome_titular, cpf, score, faixa, adiantamento_valor, protocolo, consulta_em, pendencias_qtd, pendencias_valor, pendencia_provedor, cpf_confere, sgp_vinculo, criado_em"
+      "id, versao, nome_titular, cpf, score, faixa, adiantamento_valor, protocolo, consulta_em, pendencias_qtd, pendencias_valor, pendencia_provedor, cpf_confere, sgp_vinculo, ocorrencias, criado_em"
     )
     .eq("ticket_id", t.id)
     .order("versao", { ascending: false });
@@ -142,6 +142,10 @@ export default async function TicketPage({ params }: { params: { id: string } })
     pendenciaProvedor: Boolean(c.pendencia_provedor),
     cpfConfere: c.cpf_confere as boolean | null,
     sgpVinculo: c.sgp_vinculo as string | null,
+    ocorrencias: ((c.ocorrencias ?? []) as {
+      data: string | null; modalidade: string | null; valor: number | null;
+      credor: string | null; categoria: string;
+    }[]),
     criadoEm: c.criado_em as string,
   }));
 

@@ -32,6 +32,13 @@ export type ConsultaResumo = {
   pendenciaProvedor: boolean;
   cpfConfere: boolean | null;
   sgpVinculo: string | null;
+  ocorrencias: {
+    data: string | null;
+    modalidade: string | null;
+    valor: number | null;
+    credor: string | null;
+    categoria: string;
+  }[];
   criadoEm: string;
 };
 
@@ -208,9 +215,33 @@ export function ConsultaCredito({
             <div><dt className="text-muted-foreground">CPF</dt><dd className="font-medium tabular-nums">{mascararCpf(atual.cpf)}</dd></div>
             <div><dt className="text-muted-foreground">Consulta</dt><dd>{dataHora(atual.consultaEm)}</dd></div>
             <div><dt className="text-muted-foreground">Protocolo</dt><dd className="tabular-nums">{atual.protocolo ?? "—"}</dd></div>
-            <div><dt className="text-muted-foreground">Pendências</dt><dd>{atual.pendenciasQtd > 0 ? `${atual.pendenciasQtd} · ${moeda(atual.pendenciasValor)}` : "nenhuma"}</dd></div>
+            <div>
+              <dt className="text-muted-foreground">Pendências</dt>
+              <dd>{atual.pendenciasQtd > 0 ? `${atual.pendenciasQtd} · ${moeda(atual.pendenciasValor)}` : "nenhuma"}</dd>
+            </div>
             <div><dt className="text-muted-foreground">Status</dt><dd className={statusPagamento === "Pagamento confirmado" ? "font-medium text-emerald-700" : precisaAdiantamento ? "font-medium text-amber-700" : ""}>{statusPagamento}</dd></div>
           </dl>
+
+          {/* débitos com o credor nomeado (análise de crédito: dívida com
+              outro provedor pesa mais que o valor em si) */}
+          {atual.pendenciasQtd > 0 && atual.ocorrencias.length > 0 && (
+            <div className="rounded-md border bg-muted/30 px-2.5 py-2">
+              <p className="mb-1 text-[11px] font-semibold text-muted-foreground">
+                Débitos do relatório
+              </p>
+              <ul className="space-y-0.5 text-xs">
+                {atual.ocorrencias.map((o, i) => (
+                  <li key={i} className="flex flex-wrap items-center gap-x-2">
+                    <span className="font-semibold">{o.credor ?? "credor não identificado"}</span>
+                    <span className="tabular-nums">{moeda(o.valor)}</span>
+                    {o.data && <span className="text-muted-foreground">{o.data}</span>}
+                    {o.modalidade && <span className="text-muted-foreground">· {o.modalidade}</span>}
+                    <span className="rounded bg-muted px-1 text-[10px] text-muted-foreground">{o.categoria}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* alertas */}
           <div className="space-y-1">
