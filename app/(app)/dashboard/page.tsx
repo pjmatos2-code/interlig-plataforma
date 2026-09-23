@@ -199,10 +199,7 @@ export default async function DashboardPage({
       Number(m.quantidade_vendas ?? 0),
     ])
   );
-  const popsAbaixo = d.vendasPorPop.filter((p) => {
-    const meta = metaPorPop.get(p.pop.toLowerCase());
-    return meta && meta > 0 && p.vendas / meta < 0.7;
-  });
+
 
   // vendas gerais dos últimos 6 meses (mesma régua 5.1: erro/duplicidade fora)
   const inicio6m = (() => {
@@ -249,23 +246,41 @@ export default async function DashboardPage({
     }
   }
   // meta total do mês (metas por vendedora) e dias úteis (seg–sáb)
-  const [{ data: metasMesRows }, { data: vendsMeta }] = await Promise.all([
+  // meta da evolução diária = MESMA régua do card "Meta do mês" (23/09/2026):
+  // meta por unidade cadastrada (BN/VTX 30) ou derivada dos agentes ativos
+  // (Altamira), com coordenadores fora da soma (0094)
+  const [{ data: metasMesRows }, { data: metasPopMes }, { data: vendsMeta }] = await Promise.all([
     admin
       .from("metas")
       .select("quantidade_vendas, referencia_id")
       .eq("mes_ano", mesAtual)
       .eq("escopo", "vendedora"),
+    admin
+      .from("metas")
+      .select("quantidade_vendas, referencia_id")
+      .eq("mes_ano", mesAtual)
+      .eq("escopo", "pop"),
     admin.from("vendedores").select("id, pop_id, eh_coordenador").eq("ativo", true),
   ]);
-  // meta de coordenador = meta do TIME (0094): fora da soma, senão duplica
-  const elegiveis = new Set(
-    (vendsMeta ?? [])
-      .filter((v) => !v.eh_coordenador && (!popSupervisor || v.pop_id === popSupervisor))
-      .map((v) => v.id as string)
+  const metaVendPorId = new Map(
+    (metasMesRows ?? []).map((m) => [m.referencia_id as string, Number(m.quantidade_vendas ?? 0)])
   );
-  const metaMensalTotal = (metasMesRows ?? [])
-    .filter((m) => elegiveis.has(m.referencia_id as string))
-    .reduce((t, m) => t + Number(m.quantidade_vendas ?? 0), 0);
+  const somaAgentesDoPop = (pid: string) =>
+    (vendsMeta ?? [])
+      .filter((v) => !v.eh_coordenador && v.pop_id === pid)
+      .reduce((t, v) => t + (metaVendPorId.get(v.id as string) ?? 0), 0);
+  const metaUnidade = (pid: string) =>
+    Number((metasPopMes ?? []).find((m) => m.referencia_id === pid)?.quantidade_vendas ?? 0) ||
+    somaAgentesDoPop(pid);
+  const metaMensalTotal = popSupervisor
+    ? metaUnidade(popSupervisor)
+    : d.pops.reduce((t, p) => t + metaUnidade(p.id), 0);
+  // sem meta de POP cadastrada, vale a derivada (soma dos agentes ativos)
+  const popsAbaixo = d.vendasPorPop.filter((p) => {
+    const pid = d.pops.find((x) => x.nome.toLowerCase() === p.pop.toLowerCase())?.id;
+    const meta = metaPorPop.get(p.pop.toLowerCase()) || (pid ? metaUnidade(pid) : 0);
+    return meta > 0 && p.vendas / meta < 0.7;
+  });
   const diasUteisMes = (() => {
     const d = new Date(`${mesAtual}T00:00:00Z`);
     let n = 0;

@@ -560,3 +560,19 @@ Total: 73 pendentes de 314 vendas de maio (23%).
   nome de arquivo sem CPF), CPF/nome mascarados na UI, orientação copiável ao
   cliente nunca menciona faixa/score/dívida (classificação interna).
 - Migração: `0087_consulta_credito.sql`.
+
+## Meta por unidade (23/09/2026)
+
+- **Coordenador não soma**: a meta de coordenador (`vendedores.eh_coordenador`,
+  0094) é a meta do TIME dele (Marcelo = externa; Aline Santos = BN) e fica
+  fora de qualquer soma de meta.
+- **Meta da unidade**: cadastrada em Metas com escopo POP quando é um número
+  de gestão — **BN = 30 e VTX = 30** (25 da agente local + 5 de vendas
+  ocasionais de agentes de outras cidades). **Altamira não tem meta de POP
+  cadastrada**: deriva da soma das metas dos agentes ativos da unidade
+  (internos + externos, sem coordenador) — hoje 215.
+- **Meta geral** (card do dashboard, evolução diária, desafio do dia do
+  totem): meta global cadastrada, ou a SOMA DAS METAS DAS UNIDADES
+  (cadastrada ?? derivada) — hoje 215 + 30 + 30 = 275.
+- Nos meses seguintes: cadastrar BN/VTX = 30 (ou o valor decidido) e deixar
+  Altamira sem cadastro de POP para continuar derivando sozinha.

@@ -160,15 +160,19 @@ export async function carregarDashboard(
           (filtroPop === null || popDoVendedor.get(m.referencia_id as string) === filtroPop)
       )
       .reduce((soma, m) => soma + m.quantidade_vendas, 0);
+  // meta por UNIDADE (23/09/2026): cadastrada no Metas (BN/VTX = 30, com a
+  // folga das vendas ocasionais de outras cidades) ou, sem cadastro,
+  // derivada da soma dos agentes ativos do POP (Altamira) — coordenador fora
+  const metaDaUnidade = (pid: string): number =>
+    metas.find((m) => m.escopo === "pop" && m.referencia_id === pid)?.quantidade_vendas ??
+    somaVendedoras(pid);
   let metaMensal: number | null = null;
   if (popId) {
-    metaMensal =
-      metas.find((m) => m.escopo === "pop" && m.referencia_id === popId)
-        ?.quantidade_vendas ?? (somaVendedoras(popId) || null);
+    metaMensal = metaDaUnidade(popId) || null;
   } else {
     metaMensal =
       metas.find((m) => m.escopo === "global")?.quantidade_vendas ??
-      (somaVendedoras(null) || null);
+      (pops.reduce((soma, p) => soma + metaDaUnidade(p.id), 0) || null);
   }
 
   // ---------- 5.1–5.3: período e comparativo ----------
