@@ -169,13 +169,18 @@ export default async function DashboardPage({
 }) {
   const usuario = await exigirPerfil(["gestor", "supervisor", "direcao"]);
   const periodo = resolverPeriodo(searchParams);
-  // coordenador de unidade (21/09/2026): o dashboard é SEMPRE o do POP dele —
-  // meta, KPIs e gráficos saem escopados; gestor e direção filtram à vontade
-  const popSupervisor = usuario.perfil === "supervisor" ? usuario.pop_id : null;
-  const popFiltro = popSupervisor ?? (searchParams.pop || null);
+  // coordenador (21-23/09/2026): de TIME (Marcelo/Rayssa) vê o TIME em
+  // qualquer cidade, com a meta do time; de UNIDADE vê o POP inteiro.
+  // Gestor e direção filtram à vontade.
+  const { timeDoCoordenador } = await import("@/lib/coordenacao");
+  const timeIds =
+    usuario.perfil === "supervisor" ? await timeDoCoordenador(usuario.id) : null;
+  const popSupervisor =
+    usuario.perfil === "supervisor" && !timeIds ? usuario.pop_id : null;
+  const popFiltro = popSupervisor ?? (usuario.perfil === "supervisor" ? null : searchParams.pop || null);
   const ehGestor = usuario.perfil === "gestor";
 
-  const d = await carregarDashboard(periodo, popFiltro);
+  const d = await carregarDashboard(periodo, popFiltro, timeIds);
 
   // trilho de alertas: POPs abaixo de 70% da meta e vendas aguardando decisão
   const admin = criarClienteAdmin();
@@ -215,7 +220,8 @@ export default async function DashboardPage({
       .select("data_venda, valor_mensalidade, status, motivo_cancelamento")
       .gte("data_venda", inicio6m)
       .range(de, de + 999);
-    if (popSupervisor) consulta6m = consulta6m.eq("pop_id", popSupervisor);
+    if (timeIds) consulta6m = consulta6m.in("vendedor_id", timeIds);
+    else if (popSupervisor) consulta6m = consulta6m.eq("pop_id", popSupervisor);
     const { data: pg } = await consulta6m;
     for (const c of pg ?? []) {
       const motivo = String(c.motivo_cancelamento ?? "").toLowerCase();
@@ -272,9 +278,13 @@ export default async function DashboardPage({
   const metaUnidade = (pid: string) =>
     Number((metasPopMes ?? []).find((m) => m.referencia_id === pid)?.quantidade_vendas ?? 0) ||
     somaAgentesDoPop(pid);
-  const metaMensalTotal = popSupervisor
-    ? metaUnidade(popSupervisor)
-    : d.pops.reduce((t, p) => t + metaUnidade(p.id), 0);
+  const metaMensalTotal = timeIds
+    ? (metasMesRows ?? [])
+        .filter((m) => timeIds.includes(m.referencia_id as string))
+        .reduce((t, m) => t + Number(m.quantidade_vendas ?? 0), 0)
+    : popSupervisor
+      ? metaUnidade(popSupervisor)
+      : d.pops.reduce((t, p) => t + metaUnidade(p.id), 0);
   // sem meta de POP cadastrada, vale a derivada (soma dos agentes ativos)
   const popsAbaixo = d.vendasPorPop.filter((p) => {
     const pid = d.pops.find((x) => x.nome.toLowerCase() === p.pop.toLowerCase())?.id;
@@ -299,7 +309,7 @@ export default async function DashboardPage({
   const nomePopSupervisor = popSupervisor
     ? (d.pops.find((p) => p.id === popSupervisor)?.nome ?? null)
     : null;
-  const unidadesBase = ["Altamira", "Vitória do Xingu", "Brasil Novo"]
+  const unidadesBase = (timeIds ? [] : ["Altamira", "Vitória do Xingu", "Brasil Novo"])
     .filter((u) => !nomePopSupervisor || u === nomePopSupervisor)
     .map((unidade) => {
       const serie = (baseUnidades ?? []).filter((b) => b.unidade === unidade).slice(-6);
@@ -362,7 +372,7 @@ export default async function DashboardPage({
         descricao={
           ehGestor
             ? `Visão consolidada · ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`
-            : `Sua POP · ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`
+            : `${timeIds ? "Seu time" : "Sua POP"} · ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`
         }
       />
 
@@ -370,7 +380,7 @@ export default async function DashboardPage({
 
       {/* coordenador de unidade (22/09/2026): sem o trilho de alertas/ações
           rápidas — o dashboard dele é só o resultado do POP */}
-      <div className={popSupervisor ? "grid gap-4" : "grid gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]"}>
+      <div className={popSupervisor || timeIds ? "grid gap-4" : "grid gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]"}>
         {/* coluna principal */}
         <div className="space-y-4">
           {/* KPIs */}
@@ -577,7 +587,7 @@ export default async function DashboardPage({
         </div>
 
         {/* trilho lateral (gestor e direção) */}
-        {!popSupervisor && (
+        {!popSupervisor && !timeIds && (
         <div className="space-y-4">
           <Card>
             <CardHeader className="pb-2">

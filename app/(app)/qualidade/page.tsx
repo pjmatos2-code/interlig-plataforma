@@ -129,7 +129,15 @@ export default async function QualidadePage({
   searchParams: { pop?: string };
 }) {
   const usuario = await exigirPerfil(["gestor", "supervisor", "direcao"]);
-  const popFiltro = usuario.perfil === "supervisor" ? usuario.pop_id : searchParams.pop || null;
+  // coordenador de TIME: a RLS já recorta as vendas do time (qualquer POP);
+  // coordenador de UNIDADE: trava no POP dele
+  const { timeDoCoordenador } = await import("@/lib/coordenacao");
+  const timeCoord =
+    usuario.perfil === "supervisor" ? await timeDoCoordenador(usuario.id) : null;
+  const popFiltro =
+    usuario.perfil === "supervisor"
+      ? (timeCoord ? null : usuario.pop_id)
+      : searchParams.pop || null;
 
   const supabase = criarClienteServidor();
   const { data: pops } = await supabase.from("pops").select("id, nome").order("nome");

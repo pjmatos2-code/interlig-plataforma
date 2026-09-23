@@ -86,9 +86,13 @@ export async function listaVendedoras(
   // que tem métrica própria (planos, não vendas)
   if (setorFiltro) consultaVend = consultaVend.eq("setor", setorFiltro);
   if (ehCoord) {
-    consultaVend = usuario.pop_id
-      ? consultaVend.or(`coordenador_id.eq.${usuario.id},pop_id.eq.${usuario.pop_id}`)
-      : consultaVend.eq("coordenador_id", usuario.id);
+    // coordenador de TIME (Marcelo/Rayssa): só as vendedoras do time, em
+    // qualquer cidade; coordenador de UNIDADE: as agentes do POP dele
+    const { timeDoCoordenador } = await import("@/lib/coordenacao");
+    const time = await timeDoCoordenador(usuario.id);
+    if (time) consultaVend = consultaVend.in("id", time);
+    else if (usuario.pop_id) consultaVend = consultaVend.eq("pop_id", usuario.pop_id);
+    else consultaVend = consultaVend.eq("coordenador_id", usuario.id);
   } else if (popFiltro) consultaVend = consultaVend.eq("pop_id", popFiltro);
 
   const menorData = [periodo.de, cal.inicioMes, somarDias(cal.hoje, -13)].sort()[0];

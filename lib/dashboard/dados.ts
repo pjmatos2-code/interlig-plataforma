@@ -67,7 +67,9 @@ export type DadosDashboard = {
  */
 export async function carregarDashboard(
   periodo: Periodo,
-  popId: string | null
+  popId: string | null,
+  /** coordenador de TIME: metas destas vendedoras (a RLS já limita as vendas) */
+  timeIds: string[] | null = null
 ): Promise<DadosDashboard> {
   const supabase = criarClienteServidor();
   const hoje = hojeIso();
@@ -167,7 +169,17 @@ export async function carregarDashboard(
     metas.find((m) => m.escopo === "pop" && m.referencia_id === pid)?.quantidade_vendas ??
     somaVendedoras(pid);
   let metaMensal: number | null = null;
-  if (popId) {
+  if (timeIds) {
+    metaMensal =
+      metas
+        .filter(
+          (m) =>
+            m.escopo === "vendedora" &&
+            timeIds.includes(m.referencia_id as string) &&
+            popDoVendedor.has(m.referencia_id as string)
+        )
+        .reduce((soma, m) => soma + m.quantidade_vendas, 0) || null;
+  } else if (popId) {
     metaMensal = metaDaUnidade(popId) || null;
   } else {
     metaMensal =
