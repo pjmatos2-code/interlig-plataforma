@@ -363,15 +363,30 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
     .eq("escopo", "global")
     .eq("mes_ano", inicioMes)
     .maybeSingle();
-  // meta de coordenador = meta do TIME (0094): fora da soma do desafio
+  // mesma régua do dashboard (23/09/2026): meta global cadastrada, ou a soma
+  // das METAS DAS UNIDADES — POP cadastrado (BN/VTX 30) ?? soma dos agentes
+  // ativos do POP, com coordenador (0094) fora
+  const { data: metasPop } = await admin
+    .from("metas")
+    .select("referencia_id, quantidade_vendas")
+    .eq("escopo", "pop")
+    .eq("mes_ano", inicioMes);
   const coordenadores = new Set(
     (vendedorasBrutas ?? [])
       .filter((v) => (v as { eh_coordenador?: boolean }).eh_coordenador)
       .map((v) => v.id as string)
   );
-  const somaMetas = [...metaPorVendedora.entries()]
-    .filter(([id]) => vendedoras.some((v) => v.id === id) && !coordenadores.has(id))
-    .reduce((soma, [, m]) => soma + m, 0);
+  const somaAgentesDoPop = (pid: string | null) =>
+    (vendedorasBrutas ?? [])
+      .filter((v) => v.pop_id === pid && !coordenadores.has(v.id as string))
+      .reduce((soma, v) => soma + (metaPorVendedora.get(v.id as string) ?? 0), 0);
+  const idsPops = [...new Set((vendedorasBrutas ?? []).map((v) => v.pop_id as string | null))];
+  const somaMetas = idsPops.reduce((soma, pid) => {
+    const cadastrada = Number(
+      (metasPop ?? []).find((m) => m.referencia_id === pid)?.quantidade_vendas ?? 0
+    );
+    return soma + (cadastrada || somaAgentesDoPop(pid));
+  }, 0);
   const metaMes = metaGlobal?.quantidade_vendas ?? (somaMetas || null);
   let desafioDia: DesafioDia | null = null;
   if (metaMes && diasUteisMes.length > 0) {
