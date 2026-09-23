@@ -74,6 +74,8 @@ export default async function EsteiraPage({
     "vendedora",
     "vendedora_externa",
     "agente_corporativo",
+    // gestor técnico acompanha o fluxo das instalações (pedido 23/09/2026)
+    "gestor_tecnico",
     "direcao",
   ]);
   const periodo = resolverPeriodo(searchParams);

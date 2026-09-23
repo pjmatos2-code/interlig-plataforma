@@ -18,7 +18,7 @@ export const ITENS_NAV: ItemNav[] = [
   { href: "/minha-comissao", rotulo: "Minha comissão", icone: "Wallet",       perfis: ["vendedora", "vendedora_externa", "agente_corporativo", "agente_atendimento"] },
   { href: "/ranking",       rotulo: "Ranking",     icone: "Trophy",          perfis: ["gestor", "supervisor", "vendedora", "vendedora_externa", "direcao"] },
   { href: "/crm",           rotulo: "CRM",         icone: "MessagesSquare",  perfis: ["gestor", "supervisor", "vendedora", "vendedora_externa", "agente_corporativo", "agente_atendimento", "agente_retencao", "direcao"] },
-  { href: "/esteira",       rotulo: "Esteira",     icone: "ListChecks",      perfis: ["gestor", "supervisor", "vendedora", "vendedora_externa", "agente_corporativo", "direcao"] },
+  { href: "/esteira",       rotulo: "Esteira",     icone: "ListChecks",      perfis: ["gestor", "supervisor", "vendedora", "vendedora_externa", "agente_corporativo", "gestor_tecnico", "direcao"] },
   { href: "/externa",       rotulo: "Venda Externa", icone: "Footprints",    perfis: ["gestor", "supervisor", "vendedora_externa", "direcao"] },
   { href: "/corporativo",   rotulo: "Setor Corporativo", icone: "Building2", perfis: ["gestor", "agente_corporativo", "direcao"] },
   { href: "/metas",         rotulo: "Metas e comissão", icone: "Target",     perfis: ["gestor", "direcao"] },
