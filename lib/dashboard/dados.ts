@@ -132,7 +132,7 @@ export async function carregarDashboard(
       .from("metas")
       .select("escopo, referencia_id, quantidade_vendas")
       .eq("mes_ano", inicioMes),
-    supabase.from("vendedores").select("id, pop_id").eq("ativo", true),
+    supabase.from("vendedores").select("id, pop_id, eh_coordenador").eq("ativo", true),
   ]);
 
   const contratos = (contratosBrutos ?? []) as ContratoDashboard[];
@@ -146,12 +146,17 @@ export async function carregarDashboard(
   // (interno 70×2 + externo 25×5 — pedido do gestor, 22/08).
   const metas = metasData ?? [];
   const popDoVendedor = new Map((vendedoresAtivos ?? []).map((v) => [v.id, v.pop_id]));
+  // meta de coordenador = meta do TIME (0094): fora da soma, senão duplica
+  const coordenadores = new Set(
+    (vendedoresAtivos ?? []).filter((v) => (v as { eh_coordenador?: boolean }).eh_coordenador).map((v) => v.id)
+  );
   const somaVendedoras = (filtroPop: string | null) =>
     metas
       .filter(
         (m) =>
           m.escopo === "vendedora" &&
           popDoVendedor.has(m.referencia_id as string) &&
+          !coordenadores.has(m.referencia_id as string) &&
           (filtroPop === null || popDoVendedor.get(m.referencia_id as string) === filtroPop)
       )
       .reduce((soma, m) => soma + m.quantidade_vendas, 0);

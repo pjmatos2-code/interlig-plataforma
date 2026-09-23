@@ -249,19 +249,22 @@ export default async function DashboardPage({
     }
   }
   // meta total do mês (metas por vendedora) e dias úteis (seg–sáb)
-  const [{ data: metasMesRows }, { data: vendsPop }] = await Promise.all([
+  const [{ data: metasMesRows }, { data: vendsMeta }] = await Promise.all([
     admin
       .from("metas")
       .select("quantidade_vendas, referencia_id")
       .eq("mes_ano", mesAtual)
       .eq("escopo", "vendedora"),
-    popSupervisor
-      ? admin.from("vendedores").select("id").eq("pop_id", popSupervisor).eq("ativo", true)
-      : Promise.resolve({ data: null }),
+    admin.from("vendedores").select("id, pop_id, eh_coordenador").eq("ativo", true),
   ]);
-  const idsPop = vendsPop ? new Set((vendsPop ?? []).map((v) => v.id as string)) : null;
+  // meta de coordenador = meta do TIME (0094): fora da soma, senão duplica
+  const elegiveis = new Set(
+    (vendsMeta ?? [])
+      .filter((v) => !v.eh_coordenador && (!popSupervisor || v.pop_id === popSupervisor))
+      .map((v) => v.id as string)
+  );
   const metaMensalTotal = (metasMesRows ?? [])
-    .filter((m) => !idsPop || idsPop.has(m.referencia_id as string))
+    .filter((m) => elegiveis.has(m.referencia_id as string))
     .reduce((t, m) => t + Number(m.quantidade_vendas ?? 0), 0);
   const diasUteisMes = (() => {
     const d = new Date(`${mesAtual}T00:00:00Z`);

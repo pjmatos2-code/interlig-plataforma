@@ -151,7 +151,7 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
 
   let consultaVend = admin
     .from("vendedores")
-    .select("id, nome, pop_id, foto_url, pops(nome)")
+    .select("id, nome, pop_id, foto_url, eh_coordenador, pops(nome)")
     .eq("ativo", true)
     // Atendimento refideliza, não vende: fora do ranking comercial
     .in("setor", ["comercial_interno", "comercial_externo", "corporativo"]);
@@ -363,8 +363,14 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
     .eq("escopo", "global")
     .eq("mes_ano", inicioMes)
     .maybeSingle();
+  // meta de coordenador = meta do TIME (0094): fora da soma do desafio
+  const coordenadores = new Set(
+    (vendedorasBrutas ?? [])
+      .filter((v) => (v as { eh_coordenador?: boolean }).eh_coordenador)
+      .map((v) => v.id as string)
+  );
   const somaMetas = [...metaPorVendedora.entries()]
-    .filter(([id]) => vendedoras.some((v) => v.id === id))
+    .filter(([id]) => vendedoras.some((v) => v.id === id) && !coordenadores.has(id))
     .reduce((soma, [, m]) => soma + m, 0);
   const metaMes = metaGlobal?.quantidade_vendas ?? (somaMetas || null);
   let desafioDia: DesafioDia | null = null;
