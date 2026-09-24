@@ -270,37 +270,32 @@ export async function carregarCrm(
     };
   };
 
-  // padrão RD Station: a perdida fica na coluna do funil onde parou (com o
-  // selo "Perdida"); só a vendida vai para a coluna Fechado.
+  // reorganização 24/09/2026: "Interessado" saiu do funil de trabalho e a
+  // coluna virou "Não convertido" — TODAS as perdidas do período moram nela
+  // (antes ficavam espalhadas na etapa onde pararam, padrão RD).
   const colunas: DadosCrm["colunas"] = {
     pre_cadastro: [],
     novo: [],
     em_atendimento: [],
-    proposta: [],
+    proposta: [], // = Não convertido (perdidas)
     aguardando: [],
     fechado: [],
   };
-  // chip "Perdidos": o quadro mostra SÓ as perdidas do período, cada uma na
-  // coluna do funil onde parou — abertas e vendidas ficam de fora
   for (const t of filtros.perdidos ? [] : abertos) {
-    colunas[t.etapa as EtapaTicket]?.push(paraCartao(t));
+    // ticket aberto remanescente da etapa antiga cai em Contato inicial
+    const etapa = (t.etapa === "proposta" ? "em_atendimento" : t.etapa) as EtapaTicket;
+    colunas[etapa]?.push(paraCartao(t));
   }
   // ordem de CHEGADA: leads mais novos no topo (decisão do gestor 27/08)
-  for (const etapa of ["novo", "em_atendimento", "proposta", "aguardando"] as const) {
+  for (const etapa of ["novo", "em_atendimento", "aguardando"] as const) {
     colunas[etapa].sort((a, b) => (a.criado_em > b.criado_em ? -1 : 1));
   }
   for (const t of fechados) {
     if (filtros.perdidos && t.desfecho !== "nao_convertido") continue;
-    // perdida NUNCA vai para "Contrato assinado" (coluna é só de vendidas):
-    // fica na etapa onde parou; sem registro válido, cai em Contato inicial
-    const destino: EtapaTicket =
-      t.desfecho === "nao_convertido"
-        ? t.etapa_encerramento && t.etapa_encerramento !== "fechado"
-          ? (t.etapa_encerramento as EtapaTicket)
-          : "em_atendimento"
-        : "fechado";
-    colunas[destino]?.push(paraCartao(t)); // perdidas entram após as abertas da coluna
+    colunas[t.desfecho === "nao_convertido" ? "proposta" : "fechado"].push(paraCartao(t));
   }
+  // não convertidas: as mais recentes primeiro (contato posterior)
+  colunas.proposta.sort((a, b) => (a.criado_em > b.criado_em ? -1 : 1));
 
   // follow-ups de hoje ou atrasados (lembrete na home da vendedora, PRD 3.9)
   const followupsHoje = abertos
@@ -344,7 +339,6 @@ export async function carregarCrm(
     { etapa: "pre_cadastro", rotulo: "Pré-Cadastro" },
     { etapa: "novo", rotulo: "Sem contato" },
     { etapa: "em_atendimento", rotulo: "Contato inicial" },
-    { etapa: "proposta", rotulo: "Interessado" },
     { etapa: "aguardando", rotulo: "Criação do contrato" },
     { etapa: "fechado", rotulo: "Contrato assinado" },
   ];
@@ -491,7 +485,6 @@ export async function carregarCrm(
   );
   const passouProposta = criadosNoPeriodo.filter(
     (t) =>
-      t.etapa === "proposta" ||
       t.etapa === "aguardando" ||
       (t.etapa === "fechado" && t.desfecho === "convertido")
   ).length;

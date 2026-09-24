@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 import { ROTULO_ETAPA, ROTULO_ORIGEM, type CategoriaOrigem, type EtapaTicket } from "@/lib/tipos";
 
 const inicial: EstadoAcao = {};
-const ETAPAS: EtapaTicket[] = ["novo", "em_atendimento", "proposta", "aguardando"];
+const ETAPAS: EtapaTicket[] = ["novo", "em_atendimento", "aguardando"];
 
 function BotaoEnviar({ rotulo, variante }: { rotulo: string; variante?: "default" | "destructive" }) {
   const { pending } = useFormStatus();

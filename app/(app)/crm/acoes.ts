@@ -98,7 +98,7 @@ export async function criarTicket(_e: EstadoAcao, dados: FormData): Promise<Esta
 // ---------------------------------------------------------------------------
 // Etapas, notas, follow-up, reatribuição
 // ---------------------------------------------------------------------------
-const ETAPAS_ABERTAS = ["novo", "em_atendimento", "proposta", "aguardando"];
+const ETAPAS_ABERTAS = ["novo", "em_atendimento", "aguardando"]; // "proposta" virou a coluna Não convertido (24/09)
 
 export async function mudarEtapa(ticketId: string, etapa: string): Promise<EstadoAcao> {
   await exigirUsuario();

@@ -15,7 +15,7 @@ import { FollowupFeito } from "@/components/crm/followup-feito";
 
 export const dynamic = "force-dynamic";
 
-const COLUNAS_TRILHA: EtapaTicket[] = ["pre_cadastro", "novo", "em_atendimento", "proposta", "aguardando", "fechado"];
+const COLUNAS_TRILHA: EtapaTicket[] = ["pre_cadastro", "novo", "em_atendimento", "aguardando", "fechado", "proposta"];
 const LIMITE_COLUNA = 15;
 
 /** paleta leve por coluna (liquid glass) */
@@ -23,7 +23,7 @@ const TOM_COLUNA: Record<string, { texto: string; fundo: string; borda: string }
   pre_cadastro: { texto: "text-indigo-700", fundo: "from-indigo-100/80", borda: "border-indigo-200/70" },
   novo: { texto: "text-slate-600", fundo: "from-slate-100/80", borda: "border-slate-200/70" },
   em_atendimento: { texto: "text-sky-700", fundo: "from-sky-100/80", borda: "border-sky-200/70" },
-  proposta: { texto: "text-violet-700", fundo: "from-violet-100/80", borda: "border-violet-200/70" },
+  proposta: { texto: "text-rose-800", fundo: "from-rose-300/80", borda: "border-rose-400/80" }, // Não convertido: vermelho forte
   aguardando: { texto: "text-amber-700", fundo: "from-amber-100/80", borda: "border-amber-200/70" },
   fechado: { texto: "text-emerald-700", fundo: "from-emerald-100/80", borda: "border-emerald-200/70" },
 };
@@ -39,7 +39,6 @@ function acaoSugerida(t: CartaoTicket, hoje: string): string {
     if (dia === hoje) return `Retornar às ${t.followup_em.slice(11, 16)}`;
     return `Retorno ${t.followup_em.slice(8, 10)}/${t.followup_em.slice(5, 7)}`;
   }
-  if (t.etapa === "proposta") return "Enviar proposta";
   if (t.etapa === "aguardando") return "Criar contrato";
   return "Ligar hoje";
 }
@@ -500,7 +499,9 @@ export default async function CrmPage({
                   >
                     <div className="flex items-center justify-between gap-1">
                       <p className={cn("truncate text-sm font-bold", tom.texto)}>
-                        {d.funilEtapas.find((f) => f.etapa === etapa)?.rotulo}
+                        {etapa === "proposta"
+                          ? "Não convertido"
+                          : d.funilEtapas.find((f) => f.etapa === etapa)?.rotulo}
                       </p>
                       <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-bold tabular-nums text-slate-600">
                         {itens.length}
@@ -757,6 +758,13 @@ export default async function CrmPage({
             <span className={cn(vidro, "px-3.5 py-2 text-sm font-semibold text-rose-600")}>
               🚩 Perdidos no período: {d.perdidosPeriodo}
             </span>
+            <a
+              href={`/api/crm/perdidos?de=${periodo.de}&ate=${periodo.ate}`}
+              className={cn(vidro, "px-3.5 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50")}
+              title="Baixa a planilha (CSV) com os perdidos do período para contato posterior"
+            >
+              ⬇ Exportar perdidos (planilha)
+            </a>
             <div
               className={cn(
                 vidro,

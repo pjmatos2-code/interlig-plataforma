@@ -79,7 +79,7 @@ export const ROTULO_ETAPA: Record<EtapaTicket, string> = {
   pre_cadastro: "Pré-cadastro",
   novo: "Sem contato",
   em_atendimento: "Contato inicial",
-  proposta: "Interessado",
+  proposta: "Não convertido",
   aguardando: "Criação do contrato",
   fechado: "Fechado",
 };
