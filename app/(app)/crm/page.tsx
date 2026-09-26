@@ -12,6 +12,7 @@ import { formatarMoeda, formatarMoedaKpi, formatarNumero, formatarPercentual } f
 import { cn } from "@/lib/utils";
 import { type EtapaTicket, ehAgenteCrm } from "@/lib/tipos";
 import { FollowupFeito } from "@/components/crm/followup-feito";
+import { ExportarCsv } from "@/components/crm/exportar-csv";
 
 export const dynamic = "force-dynamic";
 
@@ -389,12 +390,20 @@ export default async function CrmPage({
             {c.rotulo}
           </Link>
         ))}
-        <span className="ml-auto rounded-full border border-emerald-200/70 bg-emerald-50/80 px-3 py-1.5 text-xs font-semibold text-emerald-700 backdrop-blur">
-          ✓ Reconciliação com SGP{" "}
-          {d.kpis.reconciliacao.taxa === null
-            ? "—"
-            : formatarPercentual(d.kpis.reconciliacao.taxa, 0)}
-        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <ExportarCsv
+            vendedoras={vendedoras ?? []}
+            de={periodo.de}
+            ate={periodo.ate}
+            mostrarVendedora={!ehVend}
+          />
+          <span className="rounded-full border border-emerald-200/70 bg-emerald-50/80 px-3 py-1.5 text-xs font-semibold text-emerald-700 backdrop-blur">
+            ✓ Reconciliação com SGP{" "}
+            {d.kpis.reconciliacao.taxa === null
+              ? "—"
+              : formatarPercentual(d.kpis.reconciliacao.taxa, 0)}
+          </span>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -759,7 +768,7 @@ export default async function CrmPage({
               🚩 Perdidos no período: {d.perdidosPeriodo}
             </span>
             <a
-              href={`/api/crm/perdidos?de=${periodo.de}&ate=${periodo.ate}`}
+              href={`/api/crm/exportar?situacao=nao_convertido&de=${periodo.de}&ate=${periodo.ate}`}
               className={cn(vidro, "px-3.5 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50")}
               title="Baixa a planilha (CSV) com os perdidos do período para contato posterior"
             >
