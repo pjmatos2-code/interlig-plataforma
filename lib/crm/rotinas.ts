@@ -60,6 +60,74 @@ export async function fecharTicketsInativos(): Promise<number> {
 }
 
 /**
+ * Virada de mês (decisão do gestor, 27/09/2026): o funil de cada mês começa
+ * limpo — negociação não acumula de um mês para o outro. Nos primeiros dias
+ * do mês, todo ticket ABERTO criado no mês anterior é fechado como não
+ * convertido com o motivo padrão "Mês encerrado sem conversão"; a vendedora
+ * pode REABRIR (até 30 dias) se a negociação continuar de verdade, e os
+ * perdidos saem na exportação para o recontato.
+ */
+export async function fecharMesNaVirada(): Promise<number> {
+  const admin = criarClienteAdmin();
+  const agoraStm = new Date(Date.now() - 3 * 3600_000); // Santarém
+  if (agoraStm.getUTCDate() > 3) return 0; // só nos 3 primeiros dias
+  const inicioMes = `${agoraStm.toISOString().slice(0, 7)}-01`;
+
+  const { data: abertos } = await admin
+    .from("tickets")
+    .select("id, etapa, criado_em")
+    .neq("etapa", "fechado")
+    .lt("criado_em", `${inicioMes}T00:00:00`)
+    .limit(2000);
+  if (!abertos || abertos.length === 0) return 0;
+
+  // motivo padrão (cria uma única vez se não existir)
+  let { data: motivo } = await admin
+    .from("motivos_nao_conversao")
+    .select("id")
+    .ilike("nome", "mês encerrado%")
+    .maybeSingle();
+  if (!motivo) {
+    const { data: novo } = await admin
+      .from("motivos_nao_conversao")
+      .insert({ nome: "Mês encerrado sem conversão", ativo: true, ordem: 90 })
+      .select("id")
+      .single();
+    motivo = novo;
+  }
+  if (!motivo) return 0;
+
+  const agora = new Date().toISOString();
+  let fechados = 0;
+  for (const t of abertos) {
+    const { error } = await admin
+      .from("tickets")
+      .update({
+        etapa: "fechado",
+        etapa_encerramento: t.etapa,
+        desfecho: "nao_convertido",
+        fechado_por: "auto_inatividade",
+        motivo_id: motivo.id,
+        fechado_em: agora,
+      })
+      .eq("id", t.id)
+      .neq("etapa", "fechado");
+    if (!error) {
+      fechados += 1;
+      await admin.from("ticket_eventos").insert({
+        ticket_id: t.id,
+        tipo: "nota",
+        dados: {
+          texto:
+            "🗓️ Fechado automaticamente na virada do mês (motivo padrão: Mês encerrado sem conversão). Se a negociação continua, reabra o ticket.",
+        },
+      });
+    }
+  }
+  return fechados;
+}
+
+/**
  * Reconciliação ticket ↔ contrato do SGP (PRD 3.9, regra 5.17): cruza
  * convertidos sem contrato com contratos por CPF/telefone do cliente.
  * Quando casa: grava contrato_id + reconciliado_em no ticket e a origem do
@@ -367,7 +435,8 @@ export async function criarTicketsDeVendasSgp(): Promise<number> {
 }
 
 export async function executarRotinasCrm() {
-  const fechados = await fecharTicketsInativos();
+  const viradaMes = await fecharMesNaVirada().catch(() => 0);
+  const fechados = (await fecharTicketsInativos()) + viradaMes;
   const vendidos = await converterVendidosPorSgp().catch(() => 0);
   const criados = await criarTicketsDeVendasSgp().catch(() => 0);
   const reconciliados = await reconciliarTickets();

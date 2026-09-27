@@ -51,7 +51,7 @@ export async function GET(req: Request) {
   let q = supabase
     .from("tickets")
     .select(
-      `cliente_nome, telefone, cpf, email, etapa, desfecho, valor_estimado, origem_cadastro,
+      `id, cliente_nome, telefone, cpf, email, etapa, desfecho, valor_estimado, origem_cadastro,
        origem_criacao, criado_em, fechado_em, etapa_encerramento, resumo_tratativa,
        proxima_abordagem, score, score_faixa,
        vendedores(nome), pops(nome), motivos_nao_conversao(nome), planos(nome)`
@@ -79,6 +79,26 @@ export async function GET(req: Request) {
   const { data: tickets, error } = await q;
   if (error) return NextResponse.json({ erro: error.message }, { status: 500 });
 
+  // observação do fechamento (fica no histórico do ticket como nota)
+  const ids = (tickets ?? []).map((t) => (t as { id: string }).id);
+  const obsPorTicket = new Map<string, string>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data: evs } = await supabase
+      .from("ticket_eventos")
+      .select("ticket_id, dados, criado_em")
+      .in("ticket_id", ids.slice(i, i + 200))
+      .eq("tipo", "nota")
+      .like("dados->>texto", "Observação do fechamento:%")
+      .order("criado_em", { ascending: true });
+    for (const e of evs ?? []) {
+      const texto = String((e.dados as { texto?: string })?.texto ?? "");
+      obsPorTicket.set(
+        e.ticket_id as string,
+        texto.replace(/^Observação do fechamento:\s*/, "")
+      );
+    }
+  }
+
   const dataBr = (iso: string | null) =>
     iso
       ? new Date(iso).toLocaleString("pt-BR", {
@@ -91,7 +111,7 @@ export async function GET(req: Request) {
 
   const cab = [
     "Cliente", "Telefone", "CPF", "E-mail", "Cidade (POP)", "Vendedora",
-    "Situação", "Etapa", "Motivo da não conversão", "Plano", "Valor (R$)",
+    "Situação", "Etapa", "Motivo da não conversão", "Observação do fechamento", "Plano", "Valor (R$)",
     "Score", "Faixa", "Origem", "Fonte do ticket", "Criado em", "Fechado em",
     "Resumo da tratativa", "Próxima abordagem",
   ];
@@ -123,6 +143,7 @@ export async function GET(req: Request) {
       campo(situacaoTexto),
       campo(etapaTexto),
       campo(t.motivos_nao_conversao?.nome),
+      campo(obsPorTicket.get(t.id as string) ?? ""),
       campo(t.planos?.nome),
       campo(t.valor_estimado != null ? Number(t.valor_estimado).toFixed(2).replace(".", ",") : ""),
       campo(t.score ?? ""),

@@ -17,7 +17,6 @@ import { ExportarCsv } from "@/components/crm/exportar-csv";
 export const dynamic = "force-dynamic";
 
 const COLUNAS_TRILHA: EtapaTicket[] = ["pre_cadastro", "novo", "em_atendimento", "aguardando", "fechado", "proposta"];
-const LIMITE_COLUNA = 15;
 
 /** paleta leve por coluna (liquid glass) */
 const TOM_COLUNA: Record<string, { texto: string; fundo: string; borda: string }> = {
@@ -406,6 +405,29 @@ export default async function CrmPage({
         </div>
       </div>
 
+      {/* aviso de virada de mês (últimos 3 dias): funil começa o mês limpo */}
+      {(() => {
+        const stm = new Date(Date.now() - 3 * 3600_000);
+        const ultimoDia = new Date(Date.UTC(stm.getUTCFullYear(), stm.getUTCMonth() + 1, 0));
+        const diasParaFim = ultimoDia.getUTCDate() - stm.getUTCDate();
+        const abertosTotal =
+          d.colunas.pre_cadastro.length +
+          d.colunas.novo.length +
+          d.colunas.em_atendimento.length +
+          d.colunas.aguardando.length;
+        if (diasParaFim > 3 || abertosTotal === 0) return null;
+        return (
+          <div className="mb-4 rounded-2xl border border-amber-300/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-900 shadow-sm">
+            ⏳ <strong>Virada de mês:</strong> {abertosTotal} negociação(ões) em aberto precisam de
+            desfecho até {String(ultimoDia.getUTCDate()).padStart(2, "0")}/
+            {String(ultimoDia.getUTCMonth() + 1).padStart(2, "0")} — Vendida ou Não convertida com o
+            motivo. O que ficar aberto será fechado automaticamente como{" "}
+            <em>&quot;Mês encerrado sem conversão&quot;</em> no dia 1º (dá para reabrir em até 30 dias se a
+            negociação continuar).
+          </div>
+        );
+      })()}
+
       {/* KPIs */}
       <div className="mb-4 grid grid-cols-2 gap-3 xl:grid-cols-4">
         <div
@@ -524,7 +546,7 @@ export default async function CrmPage({
                     className="flex flex-col gap-2 overflow-y-auto p-2"
                     style={{ maxHeight: "30rem" }}
                   >
-                    {itens.slice(0, LIMITE_COLUNA).map((t) =>
+                    {itens.map((t) =>
                       etapa === "fechado" && t.desfecho === "convertido" ? (
                         <CartaoVendida key={t.id} t={t} linkTemplate={linkTemplate} />
                       ) : (
@@ -536,11 +558,6 @@ export default async function CrmPage({
                         <span className="text-2xl">📝</span>
                         <p className="text-xs">Nenhum ticket nesta etapa</p>
                       </div>
-                    )}
-                    {itens.length > LIMITE_COLUNA && (
-                      <p className="py-1 text-center text-[11px] text-slate-400">
-                        … e mais {itens.length - LIMITE_COLUNA}
-                      </p>
                     )}
                   </div>
                 </div>
