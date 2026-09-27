@@ -576,3 +576,16 @@ Total: 73 pendentes de 314 vendas de maio (23%).
   (cadastrada ?? derivada) — hoje 215 + 30 + 30 = 275.
 - Nos meses seguintes: cadastrar BN/VTX = 30 (ou o valor decidido) e deixar
   Altamira sem cadastro de POP para continuar derivando sozinha.
+
+## Virada de mês no CRM (27/09/2026)
+
+- **Modelo**: o funil de cada mês começa limpo. Negociação aberta não migra
+  de mês: até o último dia, toda negociação precisa de desfecho (Vendida ou
+  Não convertida com motivo obrigatório + observação opcional).
+- **Automação**: nos 3 primeiros dias do mês, `fecharMesNaVirada()` fecha os
+  abertos criados no mês anterior como não convertido, motivo padrão
+  **"Mês encerrado sem conversão"** (fica no histórico do ticket). Válvulas:
+  reabertura em até 30 dias se a negociação continuar; perdidos saem na
+  exportação para o recontato.
+- **Aviso**: banner âmbar no CRM nos últimos 3 dias do mês com a contagem de
+  abertos e a data-limite.
