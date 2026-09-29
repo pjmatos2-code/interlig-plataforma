@@ -11,6 +11,7 @@ import { CartaoAgenteComercial } from "@/components/agentes/cartao-agente-comerc
 import { formatarData } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // ação "Atualizar com SGP" (lote)
 
 export default async function MinhasVendasPage({
   searchParams,
@@ -49,7 +50,13 @@ export default async function MinhasVendasPage({
       />
       <CartaoAgenteComercial vendedorId={usuario.vendedor_id} />
       <FiltrosDashboard pops={[]} mostrarPop={false} de={periodo.de} ate={periodo.ate} />
-      {detalhe && <PainelDetalheVendedora detalhe={detalhe} linkTemplate={await templateLinkSgp()} />}
+      {detalhe && (
+        <PainelDetalheVendedora
+          detalhe={detalhe}
+          linkTemplate={await templateLinkSgp()}
+          vendedorId={usuario.vendedor_id}
+        />
+      )}
       {usuario.vendedor_id && (
         <p className="mt-6 rounded-md border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
           Sua comissão, pendências e simulador ficam em{" "}

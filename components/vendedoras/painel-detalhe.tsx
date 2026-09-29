@@ -68,12 +68,15 @@ export function PainelDetalheVendedora({
   detalhe,
   linkTemplate = "",
   ehGestor = false,
+  vendedorId = null,
 }: {
   detalhe: DetalheVendedora;
   /** template do link do SGP — deixa cliente e contrato clicáveis */
   linkTemplate?: string;
   /** gestor aprova/revoga a liberação direto na lista */
   ehGestor?: boolean;
+  /** habilita o botão de atualização forçada com o SGP (29/09/2026) */
+  vendedorId?: string | null;
 }) {
   const k = detalhe.kpis;
   const router = useRouter();
@@ -181,6 +184,34 @@ export function PainelDetalheVendedora({
                   <option key={st} value={st}>{st}</option>
                 ))}
               </select>
+              {vendedorId && (
+                <button
+                  type="button"
+                  disabled={ocupado}
+                  onClick={async () => {
+                    setOcupado(true);
+                    setAviso("Atualizando com o SGP… (até 1 min)");
+                    try {
+                      const { atualizarVendasDoSgp } = await import("@/app/(app)/vendedoras/acoes");
+                      const r = await atualizarVendasDoSgp(vendedorId);
+                      if (r.erro) setAviso(r.erro);
+                      else
+                        setAviso(
+                          `SGP: ${r.verificados} verificados, ${r.mudaram} mudaram${
+                            (r.restantes ?? 0) > 0 ? ` — restam ${r.restantes}, clique de novo` : ""
+                          }`
+                        );
+                      router.refresh();
+                    } finally {
+                      setOcupado(false);
+                    }
+                  }}
+                  className="h-8 rounded-md border px-2.5 text-xs font-medium hover:bg-muted disabled:opacity-60"
+                  title="Repassa aguardando ativação e suspensos dos últimos 120 dias pelo SGP agora"
+                >
+                  {ocupado ? "⏳ Atualizando…" : "⟳ Atualizar com SGP"}
+                </button>
+              )}
               {aviso && <span className="text-xs text-muted-foreground">{aviso}</span>}
             </div>
           </CardHeader>

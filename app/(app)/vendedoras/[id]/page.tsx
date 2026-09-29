@@ -12,6 +12,7 @@ import { CartaoAgenteComercial } from "@/components/agentes/cartao-agente-comerc
 import { formatarData } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // ação "Atualizar com SGP" (lote)
 
 export default async function VendedoraDetalhePage({
   params,
@@ -51,6 +52,7 @@ export default async function VendedoraDetalhePage({
       <CartaoAgenteComercial vendedorId={params.id} />
       <FiltrosDashboard pops={[]} mostrarPop={false} de={periodo.de} ate={periodo.ate} />
       <PainelDetalheVendedora
+        vendedorId={params.id}
         detalhe={detalhe}
         linkTemplate={await templateLinkSgp()}
         ehGestor={usuario.perfil === "gestor"}
