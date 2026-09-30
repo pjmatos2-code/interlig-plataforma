@@ -301,10 +301,14 @@ export default async function DashboardPage({
     return n;
   })();
 
+  // META GERAL 2026 (30/09/2026): fechar o ano com 10.000 ativos — soma da
+  // base ativa atual das 3 unidades (crescimento_base, atualizado 1x/dia)
+  const META_ATIVOS_2026 = 10_000;
+
   // base das unidades (Relatórios > Crescimento do SGP, sincronizado 1x/dia)
   const { data: baseUnidades } = await admin
     .from("crescimento_base")
-    .select("mes, unidade, ativos, novos, cancelados_mes, cancelados_acum, suspensos")
+    .select("mes, unidade, ativos, novos, cancelados_mes, cancelados_acum, suspensos, atualizado_em")
     .order("mes");
   const nomePopSupervisor = popSupervisor
     ? (d.pops.find((p) => p.id === popSupervisor)?.nome ?? null)
@@ -317,6 +321,18 @@ export default async function DashboardPage({
     })
     .filter((u) => u.serie.length > 0);
   const MES_CURTO = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const baseAtualPorUnidade = ["Altamira", "Vitória do Xingu", "Brasil Novo"]
+    .map((unidade) => {
+      const serie = (baseUnidades ?? []).filter((b) => b.unidade === unidade);
+      const atual = serie[serie.length - 1];
+      return atual ? { unidade, ativos: Number(atual.ativos ?? 0) } : null;
+    })
+    .filter(Boolean) as { unidade: string; ativos: number }[];
+  const ativosTotal = baseAtualPorUnidade.reduce((t, u) => t + u.ativos, 0);
+  const atualizadoEm = (baseUnidades ?? [])
+    .map((b) => (b as { atualizado_em?: string }).atualizado_em ?? "")
+    .sort()
+    .at(-1);
 
   const deltaVendas =
     d.vendasPeriodoAnterior === 0
@@ -448,6 +464,49 @@ export default async function DashboardPage({
               tom={d.ativacoesPendentes.emAlerta > 0 ? "vermelho" : null}
             />
           </div>
+
+          {/* META GERAL 2026: 10.000 ativos (soma das 3 bases, 1x/dia) */}
+          {ativosTotal > 0 && (
+            <Card className="border-none bg-gradient-to-r from-[#0B1B45] to-[#16305e] text-white">
+              <CardContent className="py-4">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-bold tracking-widest text-sky-300">
+                      🎯 META GERAL 2026 · FECHAR O ANO COM {META_ATIVOS_2026.toLocaleString("pt-BR")} ATIVOS
+                    </p>
+                    <p className="mt-1 text-3xl font-black tabular-nums">
+                      {ativosTotal.toLocaleString("pt-BR")}
+                      <span className="ml-2 text-sm font-semibold text-sky-200">
+                        ativos hoje · {((ativosTotal / META_ATIVOS_2026) * 100).toFixed(1).replace(".", ",")}% da meta
+                      </span>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-black tabular-nums text-amber-300">
+                      faltam {Math.max(0, META_ATIVOS_2026 - ativosTotal).toLocaleString("pt-BR")}
+                    </p>
+                    <p className="text-[11px] text-sky-200">
+                      até 31/12/2026
+                      {atualizadoEm ? ` · atualizado ${new Date(atualizadoEm).toLocaleDateString("pt-BR", { timeZone: "America/Santarem", day: "2-digit", month: "2-digit" })}` : ""}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/15">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-sky-400 to-emerald-400"
+                    style={{ width: `${Math.min(100, (ativosTotal / META_ATIVOS_2026) * 100)}%` }}
+                  />
+                </div>
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  {baseAtualPorUnidade.map((u) => (
+                    <span key={u.unidade} className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-sky-100">
+                      {u.unidade}: <span className="tabular-nums text-white">{u.ativos.toLocaleString("pt-BR")}</span>
+                    </span>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* evolução de vendas — modelo do mock 04/09 (diário/semanal/mensal) */}
           <Card>
