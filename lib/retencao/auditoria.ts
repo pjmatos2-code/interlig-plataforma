@@ -39,14 +39,31 @@ export async function auditarRetencao(): Promise<ResultadoAuditoria> {
   const cts = [...new Set((casos ?? []).map((c) => c.sgp_contrato_id as string))];
   const { data: contratos } = await admin
     .from("contratos")
-    .select("sgp_contrato_id, status, data_cancelamento")
+    .select("id, sgp_contrato_id, status, data_cancelamento")
     .in("sgp_contrato_id", cts.length ? cts : ["-"]);
   const st = new Map(
     (contratos ?? []).map((c) => [
       c.sgp_contrato_id as string,
-      { s: c.status as string, dc: c.data_cancelamento as string | null },
+      { s: c.status as string, dc: c.data_cancelamento as string | null, id: c.id as string },
     ])
   );
+
+  // suspensão temporária A PEDIDO x suspensão por débito (01/10/2026): o
+  // agente oferece a suspensão como alternativa ao cancelamento — se o
+  // contrato suspenso NÃO tem boleto vencido em aberto, é retenção bem
+  // sucedida, não risco. Boleto vencido sem pagamento = débito.
+  const hoje = new Date().toISOString().slice(0, 10);
+  const idsSuspensos = (contratos ?? []).filter((c) => c.status === "suspenso").map((c) => c.id as string);
+  const comDebito = new Set<string>();
+  for (let i = 0; i < idsSuspensos.length; i += 200) {
+    const { data: vencidos } = await admin
+      .from("titulos")
+      .select("contrato_id")
+      .in("contrato_id", idsSuspensos.slice(i, i + 200))
+      .is("data_pagamento", null)
+      .lt("vencimento", hoje);
+    for (const t of vencidos ?? []) comDebito.add(t.contrato_id as string);
+  }
 
   let verificados = 0, retidos = 0, perdidos = 0, emRisco = 0, clawbacks = 0;
   const agora = new Date().toISOString();
@@ -86,6 +103,21 @@ export async function auditarRetencao(): Promise<ResultadoAuditoria> {
         .eq("id", caso.id);
       perdidos++;
       if (ehClawback) clawbacks++;
+    } else if (x.s === "suspenso" && !comDebito.has(x.id)) {
+      // suspenso SEM débito = suspensão temporária a pedido → conta RETIDO
+      if (atual !== "retido") {
+        await admin
+          .from("casos_retencao")
+          .update({
+            etapa: "fechado",
+            desfecho: "retido",
+            desfecho_em: agora,
+            desfecho_auto: true,
+            alcada_usada: "suspensão temporária",
+          })
+          .eq("id", caso.id);
+      }
+      retidos++;
     } else if (x.s === "suspenso") {
       if (atual !== "em_risco") {
         await admin
