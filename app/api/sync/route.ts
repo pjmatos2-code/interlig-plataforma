@@ -47,8 +47,17 @@ async function roboSzSeDevido(orcamentoMs = 90_000) {
   // ENCERRAMENTO, então conversa aberta não aparece em listagem nenhuma — o
   // atendimento vira ticket na TRANSFERÊNCIA (webhook do fluxo) e o robô
   // fecha o ciclo quando a conversa encerra
-  const r = await rodarRoboSz(undefined, Math.min(90_000, orcamentoMs));
-  console.log("robô SZ diurno:", JSON.stringify(r));
+  const r = await rodarRoboSz(undefined, Math.min(90_000, orcamentoMs)).catch((e) => ({
+    ok: false as const, criados: 0, erro: String(e),
+  }));
+  // visível em Administração (30/09): sem isso a falha só existia no console
+  await admin.from("sync_runs").insert({
+    entidade: "robo_comercial",
+    finalizado_em: new Date().toISOString(),
+    registros: (r as { criados?: number }).criados ?? 0,
+    status: (r as { ok?: boolean }).ok ? "sucesso" : "erro",
+    erro: (r as { ok?: boolean; erro?: string }).ok ? null : String((r as { erro?: string }).erro ?? "falhou"),
+  }).then(({ error }) => { if (error) console.error("log robô comercial:", error.message); });
 }
 
 async function cicloCompleto() {
@@ -71,10 +80,21 @@ async function cicloCompleto() {
   }
   // robô comercial ANTES da retenção (30/09): no fim do ciclo ele nunca
   // alcançava o orçamento; o gate de 9 min segue valendo
-  if (restante() > 40_000)
+  if (restante() > 40_000) {
     await roboSzSeDevido(restante() - 15_000).catch((e) =>
       console.error("robô SZ diurno falhou:", e)
     );
+  } else {
+    // sem orçamento também é informação — aparece na Administração
+    const admin = criarClienteAdmin();
+    await admin.from("sync_runs").insert({
+      entidade: "robo_comercial",
+      finalizado_em: new Date().toISOString(),
+      registros: 0,
+      status: "erro",
+      erro: `sem orçamento no ciclo (restavam ${Math.round(restante() / 1000)}s)`,
+    }).then(({ error }) => { if (error) console.error("log robô comercial:", error.message); });
+  }
   // retenção com cadência própria (economia 18/09): ~9 min no expediente,
   // ~28 min fora — a paginação rotativa cobre a janela do mês
   retencao: {
