@@ -589,3 +589,10 @@ Total: 73 pendentes de 314 vendas de maio (23%).
   exportação para o recontato.
 - **Aviso**: banner âmbar no CRM nos últimos 3 dias do mês com a contagem de
   abertos e a data-limite.
+
+## Retenção: irreversível fora do denominador (30/09/2026)
+
+- Taxa de retenção = retidos ÷ (retidos + perdidos + em risco). Casos
+  irreversíveis (mudança p/ fora de cobertura etc.) NÃO pesam na taxa —
+  nem pendentes nem aprovados. A aprovação da evidência pelo gestor segue
+  como auditoria. (Antes: irreversível pendente pesava no denominador.)

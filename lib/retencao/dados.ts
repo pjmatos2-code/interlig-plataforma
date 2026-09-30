@@ -140,12 +140,14 @@ export async function retencaoDoMes(
     const retidos = conta("retido");
     const perdidos = conta("perdido");
     const emRisco = conta("em_risco");
-    // irreversível só sai da conta DEPOIS de aprovado pelo gestor; enquanto
-    // pendente, pesa no denominador — marcar sem evidência não melhora a taxa
+    // decisão do gestor (30/09/2026): irreversível NÃO conta no denominador
+    // da taxa — elegíveis = retidos + perdidos + em risco. A aprovação do
+    // irreversível pelo gestor segue existindo como auditoria da evidência,
+    // mas não segura mais a taxa da agente.
     const irreversiveisPendentes = linhas.filter(
       (l) => l.desfecho === "irreversivel" && l.irreversivelStatus !== "aprovado"
     ).length;
-    const elegiveis = retidos + perdidos + emRisco + irreversiveisPendentes;
+    const elegiveis = retidos + perdidos + emRisco;
     const taxaPct = elegiveis > 0 ? (retidos / elegiveis) * 100 : 0;
     const abaixoDoPiso = elegiveis < PISO_ELEGIVEIS;
     const faixaPct = abaixoDoPiso ? 0 : faixaRetencao(taxaPct);
