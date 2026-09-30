@@ -112,8 +112,18 @@ export async function editarIdentificacaoCaso(
     const { data: casoAtual } = await admin
       .from("casos_retencao").select("cliente_nome").eq("id", id).maybeSingle();
     const nomeRef = (nomeCaso || (casoAtual?.cliente_nome ?? "").toUpperCase()).split(/\s+/)[0] ?? "";
+    // mudança de titularidade (caso real 30/09): o contrato FICA em nome de
+    // outra pessoa e isso é o desfecho certo — a trava não se aplica
+    const { data: casoMotivo } = await admin
+      .from("casos_retencao")
+      .select("motivo_declarado, trilha, resumo")
+      .eq("id", id)
+      .maybeSingle();
+    const textoCaso = `${casoMotivo?.motivo_declarado ?? ""} ${casoMotivo?.trilha ?? ""} ${casoMotivo?.resumo ?? ""}`
+      .toLowerCase();
+    const mudancaTitularidade = /titularid/.test(textoCaso);
     const contratoDeOutro =
-      ct && nomeRef && donoDoContrato && !donoDoContrato.includes(nomeRef);
+      ct && nomeRef && donoDoContrato && !donoDoContrato.includes(nomeRef) && !mudancaTitularidade;
     if (!ct || contratoDeOutro) {
       const { data: cli } = await admin
         .from("clientes")
