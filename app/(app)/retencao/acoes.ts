@@ -97,12 +97,44 @@ export async function editarIdentificacaoCaso(
 
   const contratoSgp = campos.sgpContratoId?.trim().replace(/\D/g, "");
   if (contratoSgp) {
-    const { data: ct } = await admin
+    let { data: ct } = await admin
       .from("contratos")
       .select("id, sgp_contrato_id, valor_mensalidade, planos(valor_referencia), clientes(nome)")
       .eq("sgp_contrato_id", contratoSgp)
       .maybeSingle();
-    if (!ct) return { erro: `Contrato #${contratoSgp} não encontrado na plataforma — confira o número no SGP.` };
+
+    // guarda-corpo (30/09/2026): o campo é o ID do CONTRATO, mas era comum
+    // digitarem o ID do CLIENTE. Se o número for um cliente conhecido,
+    // resolve sozinho para o contrato dele; se for contrato de OUTRA pessoa,
+    // avisa em vez de gravar errado.
+    const nomeCaso = (nome ?? "").toUpperCase();
+    const donoDoContrato = ((ct?.clientes as unknown as { nome: string } | null)?.nome ?? "").toUpperCase();
+    const { data: casoAtual } = await admin
+      .from("casos_retencao").select("cliente_nome").eq("id", id).maybeSingle();
+    const nomeRef = (nomeCaso || (casoAtual?.cliente_nome ?? "").toUpperCase()).split(/\s+/)[0] ?? "";
+    const contratoDeOutro =
+      ct && nomeRef && donoDoContrato && !donoDoContrato.includes(nomeRef);
+    if (!ct || contratoDeOutro) {
+      const { data: cli } = await admin
+        .from("clientes")
+        .select("id, nome")
+        .eq("sgp_cliente_id", contratoSgp)
+        .maybeSingle();
+      if (cli && (!nomeRef || cli.nome.toUpperCase().includes(nomeRef))) {
+        const { data: cts } = await admin
+          .from("contratos")
+          .select("id, sgp_contrato_id, valor_mensalidade, planos(valor_referencia), clientes(nome)")
+          .eq("cliente_id", cli.id)
+          .order("data_venda", { ascending: false })
+          .limit(1);
+        if (cts && cts.length > 0) ct = cts[0];
+        else return { erro: `#${contratoSgp} é o ID do CLIENTE ${cli.nome}, que não tem contrato na plataforma — informe o nº do CONTRATO (SGP).` };
+      } else if (contratoDeOutro) {
+        return { erro: `O contrato #${contratoSgp} pertence a ${donoDoContrato} — confira: o campo é o nº do CONTRATO, não o ID do cliente.` };
+      } else {
+        return { erro: `Contrato #${contratoSgp} não encontrado na plataforma — confira o número no SGP (o campo é o nº do CONTRATO, não o ID do cliente).` };
+      }
+    }
     upd.contrato_id = ct.id;
     upd.sgp_contrato_id = ct.sgp_contrato_id;
     const ref = Number((ct.planos as unknown as { valor_referencia: number } | null)?.valor_referencia ?? 0);
