@@ -60,6 +60,11 @@ export async function auditarRetencao(): Promise<ResultadoAuditoria> {
     // irreversível e transferido são decisões humanas: a auditoria não mexe
     if (atual === "irreversivel" || atual === "transferido") continue;
 
+    // contrato cancelado ANTES do caso existir = vínculo errado (contrato
+    // antigo do mesmo cliente), não churn — a auditoria não julga por ele
+    // (caso real 01/10/2026: João 2022, Marina 2023 derrubando casos de set/26)
+    if (x.s === "cancelado" && x.dc && x.dc < String(caso.criado_em).slice(0, 10)) continue;
+
     if (x.s === "cancelado") {
       // clawback: era retido e o cancelamento veio em até 30 dias do carimbo
       const base = (caso.desfecho_em as string) ?? (caso.criado_em as string);
