@@ -18,7 +18,7 @@ export const maxDuration = 180; // orçamentos internos somam < 150s; teto menor
  * das 07h às 20h de Santarém — os tickets das conversas do dia nascem ao longo
  * do dia, não só na leitura das 19:30.
  */
-async function roboSzSeDevido() {
+async function roboSzSeDevido(orcamentoMs = 90_000) {
   const admin = criarClienteAdmin();
   const agoraStm = new Date(Date.now() - 3 * 3600_000);
   const hora = agoraStm.getUTCHours();
@@ -47,11 +47,16 @@ async function roboSzSeDevido() {
   // ENCERRAMENTO, então conversa aberta não aparece em listagem nenhuma — o
   // atendimento vira ticket na TRANSFERÊNCIA (webhook do fluxo) e o robô
   // fecha o ciclo quando a conversa encerra
-  const r = await rodarRoboSz(undefined, 90_000);
+  const r = await rodarRoboSz(undefined, Math.min(90_000, orcamentoMs));
   console.log("robô SZ diurno:", JSON.stringify(r));
 }
 
 async function cicloCompleto() {
+  // relógio do ciclo (30/09/2026): a função tem 180s; medindo o restante,
+  // nenhum módulo do fim fica sem vez — o robô comercial passava DIAS sem
+  // rodar porque a soma dos anteriores estourava o teto antes dele
+  const inicioCiclo = Date.now();
+  const restante = () => 172_000 - (Date.now() - inicioCiclo);
   const resultado = await executarSync();
   const rotinas = await executarRotinasCrm();
   // enriquecimento DURANTE a conversa (leve: até 8 tickets/ciclo): telefone,
@@ -64,11 +69,16 @@ async function cicloCompleto() {
     }));
     console.log("enriquecimento SZ:", JSON.stringify(e));
   }
-  // retenção ANTES do robô comercial: rodando por último ela ficava com as
-  // sobras do serverless e vivia de orçamento esgotado. Cadência própria
-  // (economia 18/09): ~9 min no expediente, ~28 min fora — a paginação
-  // rotativa cobre a janela do mês em poucos ciclos de qualquer forma.
+  // robô comercial ANTES da retenção (30/09): no fim do ciclo ele nunca
+  // alcançava o orçamento; o gate de 9 min segue valendo
+  if (restante() > 40_000)
+    await roboSzSeDevido(restante() - 15_000).catch((e) =>
+      console.error("robô SZ diurno falhou:", e)
+    );
+  // retenção com cadência própria (economia 18/09): ~9 min no expediente,
+  // ~28 min fora — a paginação rotativa cobre a janela do mês
   retencao: {
+    if (restante() < 30_000) break retencao; // sem tempo: fica para o próximo ciclo
     const admin = criarClienteAdmin();
     const { data: cfgRet } = await admin
       .from("integracoes_config")
@@ -85,7 +95,7 @@ async function cicloCompleto() {
       p_patch: { retencao_robo_em: new Date().toISOString() },
     });
     const { rodarRoboRetencao } = await import("@/lib/retencao/robo");
-    const r = await rodarRoboRetencao(undefined, 45_000).catch((e) => ({
+    const r = await rodarRoboRetencao(undefined, Math.min(45_000, restante() - 10_000)).catch((e) => ({
       ok: false as const, lidas: 0, criados: 0, reincidentes: 0, erro: String(e),
     }));
     // registra em sync_runs — sem isso a falha só aparecia no console da Vercel
@@ -98,7 +108,6 @@ async function cicloCompleto() {
     }).then(({ error }) => { if (error) console.error("log robô retenção:", error.message); });
     if (!r.ok) console.error("robô retenção falhou:", r.erro);
   }
-  await roboSzSeDevido().catch((e) => console.error("robô SZ diurno falhou:", e));
   return { ...resultado, rotinas };
 }
 
