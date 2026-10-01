@@ -624,3 +624,14 @@ Total: 73 pendentes de 314 vendas de maio (23%).
   `/monitoring/online-agents` (nome) com aprendizado em sz_atendentes_map.
 - Independe do nó de webhook do fluxo do 0800 (que segue funcionando).
 - Visível em Administração como `sz_atendimentos`.
+
+## Ticket vendido herda a vendedora do contrato (01/10/2026)
+
+- `herdarVendedoraDoContrato()` (a cada ciclo): ticket com contrato e sem
+  vendedora recebe a vendedora do contrato (leitor de painel). Migração
+  0102: ticket fechado aceita PREENCHER vendedora vazia; trocar continua
+  exigindo reabertura.
+- `descartarTicketsSgpDuplicados()`: ticket automático da venda no SGP
+  (`sgp_auto`, sem interação humana) é descartado quando existe ticket real
+  no mesmo contrato (a venda contava em dobro). Migração 0101: função de
+  sistema `descartar_ticket_automatico` — única exceção à trava de exclusão.

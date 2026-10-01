@@ -434,11 +434,75 @@ export async function criarTicketsDeVendasSgp(): Promise<number> {
   return criados;
 }
 
+/**
+ * Vendedora do ticket vendido segue a do CONTRATO (01/10/2026): o ticket
+ * automático da venda no SGP nasce no mesmo instante em que o leitor de
+ * painel identifica a vendedora — às vezes um segundo antes, e ficava órfão
+ * para sempre. Preenche só quem está sem vendedora (não sobrescreve escolha
+ * de gestor/coordenador).
+ */
+export async function herdarVendedoraDoContrato(): Promise<number> {
+  const admin = criarClienteAdmin();
+  const { data } = await admin
+    .from("tickets")
+    .select("id, contratos!inner(vendedor_id, pop_id)")
+    .is("vendedor_id", null)
+    .not("contrato_id", "is", null)
+    .not("contratos.vendedor_id", "is", null)
+    .limit(500);
+  let n = 0;
+  for (const t of data ?? []) {
+    const ct = t.contratos as unknown as { vendedor_id: string; pop_id: string | null };
+    const { error } = await admin
+      .from("tickets")
+      .update({ vendedor_id: ct.vendedor_id, ...(ct.pop_id ? { pop_id: ct.pop_id } : {}) })
+      .eq("id", t.id)
+      .is("vendedor_id", null);
+    if (!error) n += 1;
+  }
+  return n;
+}
+
+/**
+ * Mesma venda com dois tickets (01/10/2026): o automático do SGP
+ * (`sgp_auto`, sem interação humana) nasce antes de a vendedora fechar o
+ * ticket da conversa — os dois acabam no mesmo contrato e a venda conta em
+ * dobro na conversão. O automático é descartado; o da conversa (com
+ * histórico e consulta) fica.
+ */
+export async function descartarTicketsSgpDuplicados(): Promise<number> {
+  const admin = criarClienteAdmin();
+  const desde = new Date(Date.now() - 60 * 86_400_000).toISOString();
+  const { data: autos } = await admin
+    .from("tickets")
+    .select("id, contrato_id")
+    .eq("origem_criacao", "sgp_auto")
+    .not("contrato_id", "is", null)
+    .gte("criado_em", desde)
+    .limit(1000);
+  if (!autos?.length) return 0;
+  const { data: reais } = await admin
+    .from("tickets")
+    .select("contrato_id")
+    .neq("origem_criacao", "sgp_auto")
+    .in("contrato_id", [...new Set(autos.map((a) => a.contrato_id as string))]);
+  const comReal = new Set((reais ?? []).map((r) => r.contrato_id as string));
+  let n = 0;
+  for (const a of autos) {
+    if (!comReal.has(a.contrato_id as string)) continue;
+    const { data: ok } = await admin.rpc("descartar_ticket_automatico", { p_ticket_id: a.id });
+    if (ok === true) n += 1;
+  }
+  return n;
+}
+
 export async function executarRotinasCrm() {
   const viradaMes = await fecharMesNaVirada().catch(() => 0);
   const fechados = (await fecharTicketsInativos()) + viradaMes;
   const vendidos = await converterVendidosPorSgp().catch(() => 0);
   const criados = await criarTicketsDeVendasSgp().catch(() => 0);
+  await herdarVendedoraDoContrato().catch(() => 0);
+  await descartarTicketsSgpDuplicados().catch(() => 0);
   const reconciliados = await reconciliarTickets();
   const { despacharLembretes } = await import("@/lib/notificacoes/lembretes");
   const lembretes = await despacharLembretes().catch(() => 0);
