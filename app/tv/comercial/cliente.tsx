@@ -27,6 +27,7 @@ export function Relogio() {
     timeZone: "America/Santarem",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
   }).format(agora);
   return (
     <div className="text-right">
