@@ -53,7 +53,7 @@ function Kpi({
       <div className="min-w-0">
         <p className="text-sm font-semibold tracking-widest text-slate-300">{rotulo}</p>
         <p className="text-4xl font-black tabular-nums leading-tight text-white">{valor}</p>
-        <div className="text-sm text-slate-400">{rodape}</div>
+        <div className="truncate whitespace-nowrap text-sm text-slate-400">{rodape}</div>
       </div>
     </div>
   );
@@ -139,7 +139,7 @@ export default async function TvComercialPage({
       demo={searchParams.demo === "1"}
     />
     <PalcoTv>
-    <main className="flex h-full flex-col px-8 py-5 text-white">
+    <main className="flex h-full flex-col px-8 py-4 text-white">
       <AutoAtualizar />
 
       {/* cabeçalho */}
@@ -174,7 +174,7 @@ export default async function TvComercialPage({
           cor="#0f9f6e"
           rotulo="RECEITA HOJE"
           valor={moeda(d.receita.hoje, 0)}
-          rodape={<><Delta hoje={d.receita.hoje} antes={d.receita.antes} /> mensalidades vendidas</>}
+          rodape={<><Delta hoje={d.receita.hoje} antes={d.receita.antes} /> vs. dia útil anterior</>}
         />
         <Kpi
           tom="roxo"
@@ -202,7 +202,7 @@ export default async function TvComercialPage({
       </div>
 
       {/* META GERAL 2026 */}
-      <section className="mt-3 flex shrink-0 items-center gap-8 rounded-2xl border border-sky-400/40 bg-[#0b1f4a]/[0.86] px-7 py-3">
+      <section className="mt-3 flex shrink-0 items-center gap-8 rounded-2xl border border-sky-400/40 bg-[#0b1f4a]/[0.86] px-7 py-2.5">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
             <Target className="h-8 w-8 text-sky-400" />
@@ -211,7 +211,7 @@ export default async function TvComercialPage({
               <p className="text-sm text-slate-300">Base total de ativos (todas as unidades)</p>
             </div>
           </div>
-          <div className="mt-3 flex items-end gap-6">
+          <div className="mt-2 flex items-end gap-6">
             <p className="text-4xl font-black tabular-nums">
               {num(d.metaGeral.ativos)}
               <span className="ml-3 text-lg font-medium text-slate-300">
@@ -256,15 +256,15 @@ export default async function TvComercialPage({
       </section>
 
       {/* linha 3: vendas do mês por unidade · evolução por hora · funil */}
-      <div className="mt-3 grid min-h-0 flex-[0.9] grid-cols-[1fr_1.7fr_1.1fr] gap-4">
+      <div className="mt-3 grid flex-[0.9] grid-cols-[1fr_1.7fr_1.1fr] gap-4">
         <Painel titulo="VENDAS NO MÊS POR UNIDADE" sub={nomeMes[0].toUpperCase() + nomeMes.slice(1)}>
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {d.mes.unidades.map((u) => (
               <div key={u.nome} className="flex items-center gap-3">
                 <span className="flex w-40 shrink-0 items-center gap-2 text-sm text-slate-200">
                   <Building2 className="h-5 w-5" style={{ color: COR_UNIDADE[u.nome] }} /> {u.nome}
                 </span>
-                <div className="h-9 flex-1 rounded-md bg-white/5">
+                <div className="h-8 flex-1 rounded-md bg-white/5">
                   <div
                     className="flex h-full min-w-[3.5rem] items-center justify-center rounded-md"
                     style={{ width: `${(u.vendas / maxMes) * 100}%`, background: COR_UNIDADE[u.nome] }}
@@ -281,7 +281,7 @@ export default async function TvComercialPage({
               </div>
             ))}
           </div>
-          <div className="mt-4 flex items-center justify-between rounded-xl border border-sky-400/30 bg-sky-400/10 px-4 py-2.5">
+          <div className="mt-3 flex items-center justify-between rounded-xl border border-sky-400/30 bg-sky-400/10 px-4 py-2">
             <span className="text-sm font-semibold tracking-wide text-sky-200">TOTAL VENDIDO NO MÊS</span>
             <span className="flex items-baseline gap-2">
               <span className="text-3xl font-black tabular-nums text-sky-300">{num(totalMes)}</span>
@@ -336,7 +336,7 @@ export default async function TvComercialPage({
         </Painel>
 
         <Painel titulo="FUNIL DO DIA">
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {[
               { r: "Leads", v: d.funil.leads, ic: <UserPlus className="h-5 w-5" />, c: "#2f8cff" },
               { r: "Em atendimento", v: d.funil.atendimento, ic: <Headset className="h-5 w-5" />, c: "#22a7f0" },
@@ -354,7 +354,7 @@ export default async function TvComercialPage({
             ))}
           </div>
           {/* conversão do dia = contratos assinados ÷ leads do dia */}
-          <div className="mt-4 flex items-center justify-between rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2.5">
+          <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2">
             <span className="text-sm font-semibold tracking-wide text-emerald-200">TAXA DE CONVERSÃO DO DIA</span>
             <span className="flex items-baseline gap-2">
               <span className="text-3xl font-black tabular-nums text-emerald-400">
@@ -369,7 +369,7 @@ export default async function TvComercialPage({
       </div>
 
       {/* linha 4: top 5 · unidades */}
-      <div className="mt-3 grid min-h-0 flex-1 grid-cols-[1fr_1.6fr] gap-4">
+      <div className="mt-3 grid flex-1 grid-cols-[1fr_1.6fr] gap-4">
         <Painel titulo="TOP 5 AGENTES HOJE">
           <table className="w-full text-base">
             <thead>
@@ -404,9 +404,9 @@ export default async function TvComercialPage({
                     <span className="flex items-center gap-3">
                       {a.foto ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={a.foto} alt="" className="h-9 w-9 rounded-full border-2 border-sky-400/60 object-cover" />
+                        <img src={a.foto} alt="" className="h-8 w-8 rounded-full border-2 border-sky-400/60 object-cover" />
                       ) : (
-                        <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-sky-400/60 bg-sky-900 text-lg font-bold text-sky-200">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-sky-400/60 bg-sky-900 text-base font-bold text-sky-200">
                           {a.nome[0]}
                         </span>
                       )}
