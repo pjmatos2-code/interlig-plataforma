@@ -609,3 +609,18 @@ Total: 73 pendentes de 314 vendas de maio (23%).
   "Sem consulta"; contador "Vendidas sem consulta" no rodapé do CRM;
   coluna "Sem consulta" no Painel por vendedora (ranking da disciplina);
   esteira trata score manual antigo como sem consulta.
+
+## Ticket nasce quando a agente assume a conversa (01/10/2026)
+
+- O filtro de entrada (consulta + adiantamento) acontece DURANTE a
+  negociação — o ticket precisa existir antes do encerramento.
+- O relatório do SZ só lista encerradas e o Monitoramento usa websocket
+  (Pusher), mas a tela carrega o estado inicial por
+  `POST /monitoring/session/all` (attendance/navigating/wait).
+  `lib/sz/monitor.ts` lê esse estado a cada ciclo do sync (5 min) e no
+  botão "Atualizar do SZ": conversa EM ATENDIMENTO numa equipe comercial,
+  com agente atribuída, ganha ticket em "Contato inicial" (ou é amarrada ao
+  ticket aberto do mesmo telefone). Agente→vendedora via
+  `/monitoring/online-agents` (nome) com aprendizado em sz_atendentes_map.
+- Independe do nó de webhook do fluxo do 0800 (que segue funcionando).
+- Visível em Administração como `sz_atendimentos`.

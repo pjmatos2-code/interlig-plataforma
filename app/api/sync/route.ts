@@ -68,6 +68,21 @@ async function cicloCompleto() {
   const restante = () => 172_000 - (Date.now() - inicioCiclo);
   const resultado = await executarSync();
   const rotinas = await executarRotinasCrm();
+  // ticket nasce quando a agente ASSUME a conversa (01/10/2026): lê o painel
+  // de Monitoramento do SZ (conversas em atendimento) — independe do fluxo
+  {
+    const { sincronizarAtendimentosAbertos } = await import("@/lib/sz/monitor");
+    const m = await sincronizarAtendimentosAbertos().catch((e) => ({
+      ok: false, abertas: 0, criados: 0, vinculados: 0, erro: String(e),
+    }));
+    await criarClienteAdmin().from("sync_runs").insert({
+      entidade: "sz_atendimentos",
+      finalizado_em: new Date().toISOString(),
+      registros: m.criados,
+      status: m.ok ? "sucesso" : "erro",
+      erro: m.ok ? null : (m as { erro?: string }).erro ?? "falhou",
+    }).then(({ error }) => { if (error) console.error("log sz_atendimentos:", error.message); });
+  }
   // enriquecimento DURANTE a conversa (leve: até 8 tickets/ciclo): telefone,
   // vendedora e resumo frescos sem esperar o encerramento nem o horário do
   // robô — negociação longa não pode depender da memória da vendedora

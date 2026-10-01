@@ -997,7 +997,11 @@ export async function atualizarDoSzAgora(): Promise<
     p_patch: { robo_diurno_em: new Date().toISOString() },
   });
 
-  // enriquecimento PRIMEIRO: é rápido (busca por protocolo, ~600ms cada) e é o
+  // conversas EM ATENDIMENTO viram ticket na hora (painel de Monitoramento)
+  const { sincronizarAtendimentosAbertos } = await import("@/lib/sz/monitor");
+  const mon = await sincronizarAtendimentosAbertos().catch(() => ({ ok: false, abertas: 0, criados: 0, vinculados: 0 }));
+
+  // enriquecimento: é rápido (busca por protocolo, ~600ms cada) e é o
   // que de fato atualiza os tickets abertos — assim o clique sempre entrega
   // algo, mesmo que o robô das encerradas estoure o tempo depois
   const { enriquecerTicketsAbertos } = await import("@/lib/sz/enriquecer");
@@ -1009,8 +1013,8 @@ export async function atualizarDoSzAgora(): Promise<
   }));
 
   revalidar();
-  const criados = (robo as { criados?: number }).criados ?? 0;
-  const enriquecidos = (enr as { atualizados?: number }).atualizados ?? 0;
+  const criados = ((robo as { criados?: number }).criados ?? 0) + (mon.criados ?? 0);
+  const enriquecidos = ((enr as { atualizados?: number }).atualizados ?? 0) + (mon.vinculados ?? 0);
   const roboFalhou = (robo as { ok?: boolean }).ok === false;
   const erroRobo = String((robo as { erro?: string }).erro ?? "");
   // timeout do relatório do SZ não é erro do usuário — a busca das encerradas
