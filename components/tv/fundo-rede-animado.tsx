@@ -53,7 +53,7 @@ function criarSprite(tamanho: number, nucleo: string, meio: string, borda: strin
 function gerarRede() {
   const nos: No[] = [];
   // faixa principal: sobe da esquerda-baixo para a direita-meio (arte original)
-  for (let i = 0; i < 58; i++) {
+  for (let i = 0; i < 72; i++) {
     const t = Math.random();
     const centro = 0.8 - 0.42 * t;
     const desvio = (Math.random() + Math.random() + Math.random() - 1.5) * 0.16;
@@ -68,9 +68,9 @@ function gerarRede() {
   nos.forEach((n, i) => {
     const viz = nos
       .map((m, j) => ({ j, d: Math.hypot((m.x - n.x) * 1.78, m.y - n.y) }))
-      .filter((v) => v.j !== i && v.d < 0.32)
+      .filter((v) => v.j !== i && v.d < 0.46)
       .sort((p, q) => p.d - q.d)
-      .slice(0, Math.random() < 0.5 ? 2 : 3);
+      .slice(0, Math.random() < 0.5 ? 3 : 4);
     for (const v of viz) {
       const k = i < v.j ? `${i}-${v.j}` : `${v.j}-${i}`;
       if (chave.has(k)) continue;
