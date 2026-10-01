@@ -25,16 +25,41 @@ export type RegraComissao = {
 
 type ContratoC = ContratoIndicador & {
   id: string;
+  sgp_contrato_id?: string | null;
   vendedor_id: string | null;
   plano_id: string | null;
   termo_adesao_assinado: boolean | null;
   fidelidade_assinada: boolean | null;
   assinatura_dispensada: boolean | null;
   planos: { nome: string; exige_assinatura: boolean | null } | null;
+  clientes?: { nome: string; sgp_cliente_id: string | null } | null;
 };
 
 const dias = (de: string, ate: string) =>
   Math.round((Date.parse(`${ate}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000);
+
+function apurado(
+  c: ContratoC,
+  situacao: SituacaoContrato,
+  pendencias: string[],
+  aprovacao: ContratoApurado["aprovacao"]
+): ContratoApurado {
+  return {
+    id: c.id,
+    sgpContratoId: c.sgp_contrato_id ?? null,
+    sgpClienteId: c.clientes?.sgp_cliente_id ?? null,
+    cliente: c.clientes?.nome ?? "—",
+    plano: c.planos?.nome ?? null,
+    valor: Number(c.valor_mensalidade ?? 0),
+    dataVenda: c.data_venda,
+    dataAtivacao: c.data_ativacao,
+    status: c.status,
+    situacao,
+    pendencias,
+    desistencia: Boolean(c.desistencia_em),
+    aprovacao,
+  };
+}
 
 /** Todas as regras vigentes num mês (o chamador resolve a precedência). */
 export async function regrasVigentes(mesIso: string): Promise<RegraComissao[]> {
@@ -61,9 +86,47 @@ export function regraPara(
   );
 }
 
+/**
+ * Onde cada contrato do mês caiu na apuração — sai do MESMO laço que alimenta
+ * o cálculo, então a soma das situações bate sempre com o resultado.
+ */
+export type SituacaoContrato =
+  | "aprovada" // liberada pela regra (assinado + ativo)
+  | "aprovada_gestao" // liberada à mão pelo gestor (instalação no mês seguinte)
+  | "pendente_assinatura" // conta na meta, não comissiona: falta Termo/Fidelidade
+  | "pendente_ativacao" // conta na meta, ainda não ativou
+  | "estornada" // cancelou dentro da janela de estorno: sai da meta
+  | "nao_conta"; // cancelado antes de ativar por erro de cadastro/duplicidade
+
+export type ContratoApurado = {
+  id: string;
+  sgpContratoId: string | null;
+  sgpClienteId: string | null;
+  cliente: string;
+  plano: string | null;
+  valor: number;
+  dataVenda: string;
+  dataAtivacao: string | null;
+  status: string;
+  situacao: SituacaoContrato;
+  pendencias: string[];
+  desistencia: boolean;
+  aprovacao: { motivo: string; aprovadoPor: string | null } | null;
+};
+
+export type DetalheApuracao = {
+  /** de onde sai a base: vendas próprias ou ativações do time/POP (liderança) */
+  base: "proprias" | "equipe" | "pop";
+  contratos: ContratoApurado[];
+};
+
 export type ComissaoVendedora = {
   vendedorId: string;
   nome: string;
+  foto?: string | null;
+  setor?: string | null;
+  pop?: string | null;
+  detalhe?: DetalheApuracao | null;
   metaMensal: number | null;
   regra: RegraComissao | null;
   resultado: ResultadoComissao | null;
@@ -104,7 +167,7 @@ export async function comissoesDoMes(
     await Promise.all([
       supabase
         .from("vendedores")
-        .select("id, nome, pop_id, usuario_id, coordenador_id")
+        .select("id, nome, pop_id, usuario_id, coordenador_id, foto_url, setor, pops(nome)")
         .eq("ativo", true)
         // a comissão do Atendimento tem régua própria (lib/refidelizacao)
         .in("setor", ["comercial_interno", "comercial_externo", "corporativo"])
@@ -112,7 +175,7 @@ export async function comissoesDoMes(
       supabase
         .from("contratos")
         .select(
-          "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, valor_mensalidade, vendedor_id, pop_id, plano_id, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, planos(nome, exige_assinatura)"
+          "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, valor_mensalidade, vendedor_id, pop_id, plano_id, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, planos(nome, exige_assinatura), clientes(nome, sgp_cliente_id)"
         )
         .gte("data_venda", mes)
         .lte("data_venda", fim)
@@ -146,7 +209,7 @@ export async function comissoesDoMes(
     const { data } = await supabase
       .from("contratos")
       .select(
-        "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, valor_mensalidade, vendedor_id, pop_id, plano_id, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, planos(nome, exige_assinatura)"
+        "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, valor_mensalidade, vendedor_id, pop_id, plano_id, termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, planos(nome, exige_assinatura), clientes(nome, sgp_cliente_id)"
       )
       .gte("data_ativacao", mes)
       .lte("data_ativacao", ateData)
@@ -165,8 +228,15 @@ export async function comissoesDoMes(
   return (vendedoras ?? []).map((v) => {
     const meta = metaPor.get(v.id) ?? null;
     const regra = regraPara(regras, v.id, v.pop_id);
+    const ident = {
+      foto: (v.foto_url as string | null) ?? null,
+      setor: (v.setor as string | null) ?? null,
+      pop: (v.pops as unknown as { nome: string } | null)?.nome ?? null,
+    };
     if (!meta || !regra) {
       return {
+        ...ident,
+        detalhe: null,
         vendedorId: v.id,
         nome: v.nome,
         metaMensal: meta,
@@ -191,6 +261,16 @@ export async function comissoesDoMes(
             },
             { de: mes, ate: ateData }
           );
+    const apurados: ContratoApurado[] = [];
+    // cancelados antes de ativar por erro/duplicidade: não são venda (5.1),
+    // mas aparecem para a conta "cadastradas = vendidas + não contam" fechar
+    if (base === "proprias") {
+      const contaveis = new Set(proprias.map((c) => (c as ContratoC).id));
+      for (const c of contratos) {
+        if (c.vendedor_id !== v.id || c.data_venda > ateData || contaveis.has(c.id)) continue;
+        apurados.push(apurado(c, "nao_conta", [], null));
+      }
+    }
     const vendas: VendaComissao[] = proprias.map((contrato) => {
       const c = contrato as ContratoC;
       const referencia = c.data_ativacao ?? c.data_venda;
@@ -202,10 +282,29 @@ export async function comissoesDoMes(
       // pendências (venda do fim do mês que só instala no mês seguinte)
       // liderança remunera o que ATIVOU: o contrato já entrou na base, então
       // não se prende à assinatura de cada venda (isso é cobrança da agente)
-      const { liberada } =
+      const veredito =
         base === "proprias"
           ? avaliarLiberacao(c, aprovacoes.get(c.id) ?? null)
-          : { liberada: true };
+          : { liberada: true, pendencias: [] as string[], bloqueioAbsoluto: false, aprovacaoManual: null };
+      const { liberada } = veredito;
+      apurados.push(
+        apurado(
+          c,
+          estornada
+            ? "estornada"
+            : liberada
+              ? veredito.aprovacaoManual
+                ? "aprovada_gestao"
+                : "aprovada"
+              : veredito.bloqueioAbsoluto
+                ? "pendente_assinatura"
+                : "pendente_ativacao",
+          veredito.pendencias,
+          veredito.aprovacaoManual
+            ? { motivo: veredito.aprovacaoManual.motivo, aprovadoPor: veredito.aprovacaoManual.aprovadoPor }
+            : null
+        )
+      );
 
       return {
         valor_mensalidade: c.valor_mensalidade,
@@ -223,6 +322,11 @@ export async function comissoesDoMes(
       debitoMeta: debitoPorVendedora.get(v.id) ?? 0,
     };
     return {
+      ...ident,
+      detalhe: {
+        base,
+        contratos: apurados.sort((a, b) => (a.dataVenda < b.dataVenda ? -1 : 1)),
+      },
       vendedorId: v.id,
       nome: v.nome,
       metaMensal: meta,
