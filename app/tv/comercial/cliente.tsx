@@ -192,30 +192,26 @@ export function AlertaNovaVenda({
             @keyframes voaC{from{transform:translate(-55vw,45vh) rotate(140deg) scale(4);opacity:0}to{transform:none;opacity:1}}
             @keyframes voaD{from{transform:translate(55vw,45vh) rotate(-140deg) scale(4);opacity:0}to{transform:none;opacity:1}}
             @keyframes brilhoMarca{0%,100%{filter:brightness(1)}50%{filter:brightness(1.45)}}
-            @keyframes logoEntra{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
-            @keyframes entraMarca{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+                        @keyframes entraMarca{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
             .tv-risco{position:absolute;height:6px;width:45%;animation:fibra 1.5s ease-out both}
-            .tv-logo{position:relative;width:min(58vw,960px);aspect-ratio:1600/603;margin:0 auto}
-            .tv-logo img{position:absolute;display:block}
-            .tv-base{inset:0;width:100%;height:100%;animation:logoEntra .7s ease-out .5s both}
+            .tv-simbolo{position:relative;width:15rem;aspect-ratio:147/141;margin:0 auto}
+            .tv-simbolo img{display:block}
             .tv-px{animation-duration:.95s;animation-timing-function:cubic-bezier(.2,.8,.2,1);animation-fill-mode:both}
             .tv-px-brilho{animation:brilhoMarca 1.6s ease-in-out 1.4s infinite}
-            .tv-texto{animation:entraMarca .6s ease-out 1.05s both}
-            @media (prefers-reduced-motion:reduce){.tv-risco,.tv-base,.tv-px,.tv-px-brilho,.tv-texto{animation:none!important}}
+            .tv-texto{animation:entraMarca .6s ease-out .9s both}
+            @media (prefers-reduced-motion:reduce){.tv-risco,.tv-px,.tv-px-brilho,.tv-texto{animation:none!important}}
           `}</style>
           <span className="tv-risco top-[38%] bg-interlig-claro" />
           <span className="tv-risco top-[52%] bg-interlig-ceu" style={{ animationDelay: ".35s" }} />
           <div className="relative text-center">
-            {/* logomarca oficial: base + os 4 pixels recortados do arquivo da
-                marca, que voam de fora da tela e encaixam na posição real */}
-            <div className="tv-logo">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/marca/logo-sem-simbolo.png" alt="Interlig Internet Fibra" className="tv-base" />
+            {/* símbolo oficial (os 4 pixels da logo), recortado do arquivo da
+                marca e montado no arranjo exato; cada pixel voa de fora da tela */}
+            <div className="tv-simbolo">
               {[
-                { src: "/marca/simbolo-3.png", l: 77.688, t: 15.257, w: 5.25, h: 12.769, voo: "voaC", d: 0 },
-                { src: "/marca/simbolo-2.png", l: 80.375, t: 7.96, w: 2.438, h: 5.804, voo: "voaA", d: 0.12 },
-                { src: "/marca/simbolo-4.png", l: 83.5, t: 16.418, w: 2.438, h: 5.804, voo: "voaD", d: 0.24 },
-                { src: "/marca/simbolo-1.png", l: 83.312, t: 4.643, w: 3.562, h: 8.624, voo: "voaB", d: 0.36 },
+                { src: "/marca/simbolo-3.png", l: 0, t: 45.39, w: 57.14, h: 54.61, voo: "voaC", d: 0 },
+                { src: "/marca/simbolo-2.png", l: 29.25, t: 14.18, w: 26.53, h: 24.82, voo: "voaA", d: 0.12 },
+                { src: "/marca/simbolo-4.png", l: 63.27, t: 50.35, w: 26.53, h: 24.82, voo: "voaD", d: 0.24 },
+                { src: "/marca/simbolo-1.png", l: 61.22, t: 0, w: 38.78, h: 36.88, voo: "voaB", d: 0.36 },
               ].map((m) => (
                 <span
                   key={m.src}
