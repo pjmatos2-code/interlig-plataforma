@@ -344,7 +344,7 @@ function CartaoAgente({
           <p className="text-3xl font-bold tabular-nums">{formatarMoeda(a.comissao)}</p>
           {a.comissaoSeLiberar - a.comissao >= 0.01 && (
             <p className="text-xs text-muted-foreground">
-              {formatarMoeda(a.comissaoSeLiberar)} se as {pendentes} pendentes forem liberadas
+              {formatarMoeda(a.comissaoSeLiberar)} se todas as pendentes forem liberadas
             </p>
           )}
         </div>
@@ -393,6 +393,12 @@ function CartaoAgente({
                 nota={a.aprovadasGestao ? `${a.aprovadasGestao} pela gestão` : "geram comissão"}
               />
             </div>
+            {a.desistencias > 0 && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {a.desistencias} cliente{a.desistencias > 1 ? "s" : ""} desist{a.desistencias > 1 ? "iram" : "iu"} antes de instalar — conta
+                {a.desistencias > 1 ? "m" : ""} na meta, mas não comissiona{a.desistencias > 1 ? "m" : ""} nem vai{a.desistencias > 1 ? "o" : ""} para aprovação.
+              </p>
+            )}
             {pendentes > 0 && (
               <p className="mt-2 text-xs">
                 <span className="font-semibold text-yellow-700">{pendentes} pendente{pendentes > 1 ? "s" : ""}:</span>{" "}

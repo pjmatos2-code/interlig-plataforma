@@ -33,6 +33,8 @@ export type AgentePainel = {
   aprovadasGestao: number;
   pendAssinatura: number;
   pendAtivacao: number;
+  /** cliente desistiu antes de instalar: conta na meta, nunca comissiona, não vai para aprovação */
+  desistencias: number;
   /** atingimento em % (escala 0–100+) — válidas ÷ meta final */
   atingimento: number;
   degraus: DegrauComissao[];
@@ -104,6 +106,7 @@ export async function carregarPainelComissoes(mesIso?: string): Promise<PainelCo
     }
     const ct = c.detalhe.contratos;
     const conta = (s: ContratoApurado["situacao"]) => ct.filter((x) => x.situacao === s).length;
+    const pendente = (s: ContratoApurado["situacao"]) => ct.filter((x) => x.situacao === s && !x.desistencia).length;
     const naoContam = conta("nao_conta");
     const estornadas = conta("estornada");
     const vendidas = ct.length - naoContam;
@@ -135,8 +138,11 @@ export async function carregarPainelComissoes(mesIso?: string): Promise<PainelCo
       ativas: validasLista.filter((x) => x.status === "ativo").length,
       aprovadas: aprovadasLista.length,
       aprovadasGestao: conta("aprovada_gestao"),
-      pendAssinatura: conta("pendente_assinatura"),
-      pendAtivacao: conta("pendente_ativacao"),
+      pendAssinatura: pendente("pendente_assinatura"),
+      pendAtivacao: pendente("pendente_ativacao"),
+      desistencias: ct.filter(
+        (x) => x.desistencia && (x.situacao === "pendente_assinatura" || x.situacao === "pendente_ativacao")
+      ).length,
       atingimento: r.atingimentoPct,
       degraus,
       degrau: r.degrau,
