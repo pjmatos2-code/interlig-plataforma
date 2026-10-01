@@ -964,3 +964,51 @@ export async function solicitarRevisaoScore(ticketId: string, motivo: string): P
   revalidatePath(`/crm/${ticketId}`);
   return { ok: true };
 }
+
+/**
+ * Atualização forçada do SZ Chat (01/10/2026): dispara na hora o robô das
+ * conversas encerradas + o enriquecimento dos tickets abertos, sem esperar o
+ * ciclo (~9 min). Guarda de 2 min contra cliques em sequência.
+ *
+ * Limite conhecido: conversa ABERTA que não passou pelo fluxo do 0800 não é
+ * listável pelo SZ — vira ticket quando encerrar (robô) ou pelo fluxo.
+ */
+export async function atualizarDoSzAgora(): Promise<
+  EstadoAcao & { criados?: number; enriquecidos?: number; detalhe?: string }
+> {
+  const usuario = await exigirUsuario();
+  if (!["gestor", "supervisor"].includes(usuario.perfil) && !ehAgenteCrm(usuario.perfil))
+    return { erro: "Sem permissão." };
+
+  const { criarClienteAdmin } = await import("@/lib/supabase/admin");
+  const admin = criarClienteAdmin();
+  const { data: cfgRow } = await admin
+    .from("integracoes_config")
+    .select("config")
+    .eq("sistema", "szchat")
+    .maybeSingle();
+  const cfg = (cfgRow?.config ?? {}) as Record<string, unknown>;
+  const ultima = typeof cfg.robo_diurno_em === "string" ? Date.parse(cfg.robo_diurno_em) : 0;
+  if (Date.now() - ultima < 2 * 60_000)
+    return { ok: true, criados: 0, enriquecidos: 0, detalhe: "Atualizado há menos de 2 min — aguarde um instante." };
+
+  await admin.rpc("mesclar_config", {
+    p_sistema: "szchat",
+    p_patch: { robo_diurno_em: new Date().toISOString() },
+  });
+  const { rodarRoboSz } = await import("@/lib/sz/robo");
+  const robo = await rodarRoboSz(undefined, 60_000).catch((e) => ({
+    ok: false as const, criados: 0, erro: String(e),
+  }));
+  const { enriquecerTicketsAbertos } = await import("@/lib/sz/enriquecer");
+  const enr = await enriquecerTicketsAbertos(15_000).catch(() => ({ ok: false, verificados: 0, atualizados: 0 }));
+
+  revalidar();
+  const criados = (robo as { criados?: number }).criados ?? 0;
+  return {
+    ok: true,
+    criados,
+    enriquecidos: (enr as { atualizados?: number }).atualizados ?? 0,
+    detalhe: (robo as { ok?: boolean; erro?: string }).ok === false ? `robô: ${(robo as { erro?: string }).erro}` : undefined,
+  };
+}

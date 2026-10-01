@@ -13,9 +13,11 @@ import { cn } from "@/lib/utils";
 import { type EtapaTicket, ehAgenteCrm } from "@/lib/tipos";
 import { FollowupFeito } from "@/components/crm/followup-feito";
 import { ExcluirTicketMini } from "@/components/crm/excluir-ticket-mini";
+import { AtualizarSz } from "@/components/crm/atualizar-sz";
 import { ExportarCsv } from "@/components/crm/exportar-csv";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120; // ação "Atualizar do SZ" (robô sob demanda)
 
 const COLUNAS_TRILHA: EtapaTicket[] = ["pre_cadastro", "novo", "em_atendimento", "aguardando", "fechado", "proposta"];
 
@@ -428,6 +430,7 @@ export default async function CrmPage({
           </Link>
         ))}
         <div className="ml-auto flex items-center gap-2">
+          <AtualizarSz />
           <ExportarCsv
             vendedoras={vendedoras ?? []}
             de={periodo.de}
