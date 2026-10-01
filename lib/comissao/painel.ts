@@ -41,6 +41,8 @@ export type AgentePainel = {
   degrau: DegrauComissao | null;
   proximo: { faltam: number; degrau: DegrauComissao } | null;
   receitaAprovada: number;
+  /** VTV das vendas válidas (o que pontua a meta), aprovadas ou não */
+  vtvVendido: number;
   comissao: number;
   comissaoSeLiberar: number;
   bonusEGatilhos: number;
@@ -148,6 +150,7 @@ export async function carregarPainelComissoes(mesIso?: string): Promise<PainelCo
       degrau: r.degrau,
       proximo: acima ? { faltam: Math.max(1, vendasParaDegrau(acima.atingimento_min, metaFinal) - validasLista.length), degrau: acima } : null,
       receitaAprovada: aprovadasLista.reduce((s, x) => s + x.valor, 0),
+      vtvVendido: validasLista.reduce((s, x) => s + x.valor, 0),
       comissao: r.total,
       comissaoSeLiberar: r.totalSeLiberar,
       bonusEGatilhos,

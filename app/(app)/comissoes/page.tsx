@@ -192,7 +192,7 @@ export default async function ComissoesPage({ searchParams }: { searchParams: { 
           )}
 
           {/* resumo do time */}
-          <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+          <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
             {[
               ["Meta do time", soma((a) => a.meta), "soma das metas individuais"],
               ["Reposição", soma((a) => a.reposicao), "inadimplentes a repor"],
@@ -200,6 +200,7 @@ export default async function ComissoesPage({ searchParams }: { searchParams: { 
               ["Vendidas", soma((a) => a.vendidas), "cadastros que contam"],
               ["Ativas", soma((a) => a.ativas), "das vendas válidas"],
               ["Aprovadas", soma((a) => a.aprovadas), "liberadas para comissão"],
+              ["VTV aprovado", formatarMoeda(soma((a) => a.receitaAprovada)), `de ${formatarMoeda(soma((a) => a.vtvVendido))} vendido`],
               ["Comissão", formatarMoeda(soma((a) => a.comissao, p.agentes)), "inclui coordenação"],
             ].map(([r, v, s]) => (
               <Card key={r as string}>
@@ -229,7 +230,10 @@ export default async function ComissoesPage({ searchParams }: { searchParams: { 
                       <th className="px-2 py-2.5 text-right font-medium">Aprovadas</th>
                       <th className="min-w-[180px] px-3 py-2.5 font-medium">Atingimento</th>
                       <th className="px-2 py-2.5 text-right font-medium">Faixa</th>
-                      <th className="px-4 py-2.5 text-right font-medium">Comissão</th>
+                      <th className="px-2 py-2.5 text-right font-medium" title="Soma das mensalidades aprovadas — é sobre ela que a faixa incide. Embaixo, o VTV de todas as vendas válidas.">
+                        × VTV
+                      </th>
+                      <th className="px-4 py-2.5 text-right font-medium">= Comissão</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -264,6 +268,12 @@ export default async function ComissoesPage({ searchParams }: { searchParams: { 
                             </span>
                           </td>
                           <td className="px-2 py-2 text-right tabular-nums">{faixaTexto(a) ?? <span className="text-muted-foreground">—</span>}</td>
+                          <td className="whitespace-nowrap px-2 py-2 text-right tabular-nums">
+                            {formatarMoeda(a.receitaAprovada)}
+                            {a.vtvVendido - a.receitaAprovada >= 0.01 && (
+                              <span className="block text-[11px] text-muted-foreground">vendido {formatarMoeda(a.vtvVendido)}</span>
+                            )}
+                          </td>
                           <td className="px-4 py-2 text-right font-semibold tabular-nums">{formatarMoeda(a.comissao)}</td>
                         </tr>
                       );
