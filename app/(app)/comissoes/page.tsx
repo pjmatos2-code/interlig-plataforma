@@ -9,7 +9,7 @@ import { hojeIso, mesAtras, primeiroDiaDoMes } from "@/lib/datas";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { AvatarAgente } from "@/components/ui/avatar-agente";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatarMoeda } from "@/lib/format";
+import { formatarMoeda, formatarMoedaKpi } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -200,13 +200,13 @@ export default async function ComissoesPage({ searchParams }: { searchParams: { 
               ["Vendidas", soma((a) => a.vendidas), "cadastros que contam"],
               ["Ativas", soma((a) => a.ativas), "das vendas válidas"],
               ["Aprovadas", soma((a) => a.aprovadas), "liberadas para comissão"],
-              ["VTV aprovado", formatarMoeda(soma((a) => a.receitaAprovada)), `de ${formatarMoeda(soma((a) => a.vtvVendido))} vendido`],
-              ["Comissão", formatarMoeda(soma((a) => a.comissao, p.agentes)), "inclui coordenação"],
+              ["VTV aprovado", formatarMoedaKpi(soma((a) => a.receitaAprovada)), `de ${formatarMoedaKpi(soma((a) => a.vtvVendido))} vendido`],
+              ["Comissão", formatarMoedaKpi(soma((a) => a.comissao, p.agentes)), "inclui coordenação"],
             ].map(([r, v, s]) => (
               <Card key={r as string}>
                 <CardContent className="p-3">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{r}</p>
-                  <p className="text-2xl font-bold tabular-nums">{v}</p>
+                  <p className="whitespace-nowrap text-2xl font-bold tabular-nums">{v}</p>
                   <p className="text-xs text-muted-foreground">{s}</p>
                 </CardContent>
               </Card>
