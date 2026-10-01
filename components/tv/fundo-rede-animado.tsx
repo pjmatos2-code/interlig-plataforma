@@ -75,7 +75,7 @@ function gerarRede() {
       const k = i < v.j ? `${i}-${v.j}` : `${v.j}-${i}`;
       if (chave.has(k)) continue;
       chave.add(k);
-      ligs.push({ a: i, b: v.j, base: rand(0.1, 0.26), per: rand(7, 12), fase: rand(0, Math.PI * 2) });
+      ligs.push({ a: i, b: v.j, base: rand(0.4, 0.9), per: rand(7, 12), fase: rand(0, Math.PI * 2) });
     }
   });
 
@@ -85,7 +85,7 @@ function gerarRede() {
     vx: rand(-0.004, 0.006),
     vy: rand(-0.006, -0.0015),
     r: rand(0.6, 2.4),
-    alfa: rand(0.06, 0.22),
+    alfa: rand(0.18, 0.6),
     desfoque: Math.random() < 0.35,
   }));
   return { nos, ligs, particulas };
@@ -165,12 +165,12 @@ export function FundoRedeAnimado({ opacidade = OPACIDADE_REDE }: { opacidade?: n
       const pos = nos.map((n) => posicao(n, t, pxRede, pyRede));
 
       // ligações: opacidade 0.08–0.30, variando devagar
-      ctx.lineWidth = Math.max(0.6, 0.9 * escala);
+      ctx.lineWidth = Math.max(0.8, 1.3 * escala);
       for (const l of ligs) {
         const a = pos[l.a];
         const b = pos[l.b];
         const prof = (nos[l.a].prof + nos[l.b].prof) / 2;
-        const alfa = Math.min(0.3, Math.max(0.08, l.base * (0.75 + 0.25 * Math.sin((t / l.per) * Math.PI * 2 + l.fase)) * (0.6 + 0.4 * prof)));
+        const alfa = Math.min(0.92, Math.max(0.25, l.base * (0.75 + 0.25 * Math.sin((t / l.per) * Math.PI * 2 + l.fase)) * (0.6 + 0.4 * prof)));
         ctx.globalAlpha = alfa;
         ctx.strokeStyle = "rgb(120,185,255)";
         ctx.beginPath();
@@ -183,8 +183,8 @@ export function FundoRedeAnimado({ opacidade = OPACIDADE_REDE }: { opacidade?: n
       for (let i = 0; i < nos.length; i++) {
         const n = nos[i];
         const pulsa = 0.5 + 0.5 * Math.sin((t / n.brilhoPer) * Math.PI * 2 + n.brilhoFase);
-        ctx.globalAlpha = 0.25 + (0.2 + 0.25 * pulsa) * n.prof;
-        const r = (7 + 13 * n.prof * n.prof) * escala;
+        ctx.globalAlpha = Math.min(1, 0.55 + (0.2 + 0.25 * pulsa) * n.prof);
+        const r = (10 + 20 * n.prof * n.prof) * escala;
         ctx.drawImage(spriteNo, pos[i].x - r, pos[i].y - r, r * 2, r * 2);
       }
 
@@ -203,8 +203,8 @@ export function FundoRedeAnimado({ opacidade = OPACIDADE_REDE }: { opacidade?: n
         const l = ligs[p.lig];
         const [a, b] = p.sentido === 1 ? [pos[l.a], pos[l.b]] : [pos[l.b], pos[l.a]];
         const s = prog * prog * (3 - 2 * prog); // suaviza a partida e a chegada
-        const r = 9 * escala;
-        ctx.globalAlpha = 0.75 * Math.sin(Math.PI * prog);
+        const r = 14 * escala;
+        ctx.globalAlpha = Math.sin(Math.PI * prog);
         ctx.drawImage(spritePulso, a.x + (b.x - a.x) * s - r, a.y + (b.y - a.y) * s - r, r * 2, r * 2);
       }
       ctx.globalAlpha = 1;
@@ -260,7 +260,7 @@ export function FundoRedeAnimado({ opacidade = OPACIDADE_REDE }: { opacidade?: n
       {/* véu de leitura: a rede aparece nas áreas vazias, discreta atrás dos cards */}
       <div
         className="absolute inset-0"
-        style={{ background: "linear-gradient(180deg, rgba(2,11,28,0.30), rgba(2,11,28,0.48))" }}
+        style={{ background: "linear-gradient(180deg, rgba(2,11,28,0.10), rgba(2,11,28,0.28))" }}
       />
     </div>
   );
