@@ -68,7 +68,9 @@ export default async function ComissoesPage({ searchParams }: { searchParams: { 
   // pendentes por agente — mesma fila da página de aprovação (o número do atalho
   // é o que aparece lá ao clicar)
   const pendPorAgente = new Map<string, { nome: string; aprovaveis: number; assinatura: number }>();
-  for (const i of fila?.pendentes ?? []) {
+  const estornadas = new Set(p.agentes.flatMap((a) => a.contratos.filter((x) => x.situacao === "estornada").map((x) => x.id)));
+  const pendentesFila = (fila?.pendentes ?? []).filter((i) => !estornadas.has(i.contratoId));
+  for (const i of pendentesFila) {
     const k = i.vendedorId ?? "sem";
     const g = pendPorAgente.get(k) ?? { nome: i.vendedorId ? i.vendedora : "Sem vendedora", aprovaveis: 0, assinatura: 0 };
     if (i.bloqueioAbsoluto) g.assinatura += 1;
@@ -120,11 +122,11 @@ export default async function ComissoesPage({ searchParams }: { searchParams: { 
         </span>
       </div>
 
-      {ehGestor && fila && fila.pendentes.length > 0 && (
+      {ehGestor && pendentesFila.length > 0 && (
         <section className="mb-5 rounded-xl border border-farol-amarelo/50 bg-farol-amarelo/10 p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-base font-semibold">
-              {fila.pendentes.length} venda{fila.pendentes.length > 1 ? "s" : ""} aguardando aprovação em {nomeMes(mes)}
+              {pendentesFila.length} venda{pendentesFila.length > 1 ? "s" : ""} aguardando aprovação em {nomeMes(mes)}
             </h2>
             <Link
               href={`/metas/aprovacoes?mes=${mesParam}`}

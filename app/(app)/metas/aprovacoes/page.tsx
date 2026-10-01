@@ -25,12 +25,23 @@ export default async function AprovacoesPage({
     ? `${searchParams.mes}-01`
     : primeiroDiaDoMes(hojeIso());
 
-  const [fila, comissoes, template, debito] = await Promise.all([
+  const [filaBruta, comissoes, template, debito] = await Promise.all([
     filaAprovacao(mes),
     comissoesDoMes(mes),
     templateLinkSgp(),
     debitoPorCoorte(mes),
   ]);
+
+  // venda estornada (cancelou dentro da janela) já saiu da meta: aprovar não
+  // muda nada — fica fora da fila para o número bater com Comissões
+  const estornadas = new Set(
+    comissoes.flatMap((c) => (c.detalhe?.contratos ?? []).filter((x) => x.situacao === "estornada").map((x) => x.id))
+  );
+  const fila = {
+    ...filaBruta,
+    pendentes: filaBruta.pendentes.filter((i) => !estornadas.has(i.contratoId)),
+    totais: { ...filaBruta.totais, pendentes: filaBruta.pendentes.filter((i) => !estornadas.has(i.contratoId)).length },
+  };
 
   // filtro por agente (atalho da faixa de pendentes em Comissões): "sem" = sem vendedora
   const agente = searchParams.agente ?? null;
