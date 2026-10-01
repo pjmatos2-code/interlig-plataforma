@@ -63,7 +63,7 @@ export async function filaAprovacao(mesIso?: string): Promise<FilaAprovacao> {
         .gte("data_venda", mes)
         .lte("data_venda", fim)
         .limit(5000),
-      admin.from("vendedores").select("id, nome").eq("ativo", true).order("nome"),
+      admin.from("vendedores").select("id, nome, ativo").order("nome"),
       liberacoesManuais(mes),
     ]);
 
@@ -108,7 +108,7 @@ export async function filaAprovacao(mesIso?: string): Promise<FilaAprovacao> {
     competencia: mes,
     pendentes: pendentes.sort(ordenar),
     aprovados: aprovados.sort(ordenar),
-    vendedoras: (vendedoras ?? []) as { id: string; nome: string }[],
+    vendedoras: (vendedoras ?? []).filter((v) => v.ativo).map((v) => ({ id: v.id as string, nome: v.nome as string })),
     totais: {
       vendas: doMes.length,
       liberadasAuto,

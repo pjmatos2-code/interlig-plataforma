@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { exigirPerfil } from "@/lib/auth";
 import { carregarPainelComissoes, type AgentePainel } from "@/lib/comissao/painel";
+import { filaAprovacao } from "@/lib/comissao/aprovacoes";
 import type { ContratoApurado, SituacaoContrato } from "@/lib/comissao/dados";
 import { templateLinkSgp } from "@/lib/sgp/links-server";
 import { aplicarLinkSgp } from "@/lib/sgp/links";
@@ -50,7 +51,7 @@ const COR_TOM = { verde: "bg-farol-verde", ambar: "bg-farol-amarelo", vermelho: 
 const TEXTO_TOM = { verde: "text-farol-verde", ambar: "text-yellow-700", vermelho: "text-farol-vermelho" } as const;
 
 export default async function ComissoesPage({ searchParams }: { searchParams: { mes?: string } }) {
-  await exigirPerfil(["gestor", "direcao"]);
+  const usuario = await exigirPerfil(["gestor", "direcao"]);
   const atual = primeiroDiaDoMes(hojeIso());
   const opcoes = [mesAtras(atual, 3), mesAtras(atual, 2), mesAtras(atual, 1), atual];
   const pedido = /^\d{4}-\d{2}$/.test(searchParams.mes ?? "") ? `${searchParams.mes}-01` : null;
@@ -61,7 +62,21 @@ export default async function ComissoesPage({ searchParams }: { searchParams: { 
     mes = mesAtras(atual, 1);
     p = await carregarPainelComissoes(mes);
   }
-  const linkSgp = await templateLinkSgp();
+  const ehGestor = usuario.perfil === "gestor";
+  const [linkSgp, fila] = await Promise.all([templateLinkSgp(), ehGestor ? filaAprovacao(mes) : null]);
+  const mesParam = mes.slice(0, 7);
+  // pendentes por agente — mesma fila da página de aprovação (o número do atalho
+  // é o que aparece lá ao clicar)
+  const pendPorAgente = new Map<string, { nome: string; aprovaveis: number; assinatura: number }>();
+  for (const i of fila?.pendentes ?? []) {
+    const k = i.vendedorId ?? "sem";
+    const g = pendPorAgente.get(k) ?? { nome: i.vendedorId ? i.vendedora : "Sem vendedora", aprovaveis: 0, assinatura: 0 };
+    if (i.bloqueioAbsoluto) g.assinatura += 1;
+    else g.aprovaveis += 1;
+    pendPorAgente.set(k, g);
+  }
+  const fotoDe = new Map(p.agentes.map((a) => [a.vendedorId, a.foto]));
+  const comissaoPresa = p.agentes.reduce((s, a) => s + Math.max(0, a.comissaoSeLiberar - a.comissao), 0);
 
   const vendedoras = p.agentes.filter((a) => a.base === "proprias");
   const lideranca = p.agentes.filter((a) => a.base !== "proprias");
@@ -104,6 +119,56 @@ export default async function ComissoesPage({ searchParams }: { searchParams: { 
           {p.ultimaSync && <span>Dados do SGP de {dataHora(p.ultimaSync)}</span>}
         </span>
       </div>
+
+      {ehGestor && fila && fila.pendentes.length > 0 && (
+        <section className="mb-5 rounded-xl border border-farol-amarelo/50 bg-farol-amarelo/10 p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-base font-semibold">
+              {fila.pendentes.length} venda{fila.pendentes.length > 1 ? "s" : ""} aguardando aprovação em {nomeMes(mes)}
+            </h2>
+            <Link
+              href={`/metas/aprovacoes?mes=${mesParam}`}
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground"
+            >
+              Aprovar todas as pendentes →
+            </Link>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {[...pendPorAgente.values()].reduce((s, g) => s + g.aprovaveis, 0)} você pode liberar agora ·{" "}
+            {[...pendPorAgente.values()].reduce((s, g) => s + g.assinatura, 0)} travadas por falta de assinatura
+            {comissaoPresa >= 0.01 && <> · {formatarMoeda(comissaoPresa)} de comissão esperando liberação</>}
+            {p.fechamento && (
+              <span className="block text-yellow-700">
+                {nomeMes(mes)} já está fechado: o que for liberado agora só entra no pagamento depois de refazer o fechamento.
+              </span>
+            )}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[...pendPorAgente.entries()]
+              .sort((a, b) => b[1].aprovaveis + b[1].assinatura - (a[1].aprovaveis + a[1].assinatura))
+              .map(([id, g]) => (
+                <Link
+                  key={id}
+                  href={`/metas/aprovacoes?mes=${mesParam}&agente=${id}`}
+                  className="flex items-center gap-2 rounded-full border bg-background py-1 pl-1 pr-3 text-sm shadow-sm hover:border-primary hover:bg-primary/5"
+                >
+                  <AvatarAgente nome={g.nome} foto={fotoDe.get(id) ?? null} tamanho="sm" />
+                  <span className="font-medium">{g.nome}</span>
+                  {g.aprovaveis > 0 && (
+                    <span className="rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground" title="você pode liberar">
+                      {g.aprovaveis}
+                    </span>
+                  )}
+                  {g.assinatura > 0 && (
+                    <span className="rounded-full bg-farol-vermelho/15 px-1.5 text-xs font-semibold text-farol-vermelho" title="falta assinatura">
+                      {g.assinatura} 🔒
+                    </span>
+                  )}
+                </Link>
+              ))}
+          </div>
+        </section>
+      )}
 
       {p.agentes.length === 0 ? (
         <Card>
@@ -209,7 +274,13 @@ export default async function ComissoesPage({ searchParams }: { searchParams: { 
 
           <div className="space-y-5">
             {vendedoras.map((a) => (
-              <CartaoAgente key={a.vendedorId} a={a} linkSgp={linkSgp} debito={p.debito} />
+              <CartaoAgente
+                key={a.vendedorId}
+                a={a}
+                linkSgp={linkSgp}
+                debito={p.debito}
+                linkAprovar={ehGestor && pendPorAgente.has(a.vendedorId) ? `/metas/aprovacoes?mes=${mesParam}&agente=${a.vendedorId}` : null}
+              />
             ))}
             {lideranca.length > 0 && (
               <h2 className="pt-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Coordenação</h2>
@@ -235,9 +306,11 @@ function CartaoAgente({
   a,
   linkSgp,
   debito,
+  linkAprovar = null,
 }: {
   a: AgentePainel;
   linkSgp: string;
+  linkAprovar?: string | null;
   debito: { coorte: string; janela: { de: string; ate: string } | null; aplicado: boolean; observacao: string | null };
 }) {
   const t = tom(a);
@@ -325,6 +398,14 @@ function CartaoAgente({
                   .filter(Boolean)
                   .join(" · ")}
                 <span className="text-muted-foreground"> — contam na meta, só comissionam quando liberadas.</span>
+                {linkAprovar && (
+                  <Link
+                    href={linkAprovar}
+                    className="ml-2 inline-block rounded-md bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground"
+                  >
+                    Aprovar pendentes →
+                  </Link>
+                )}
               </p>
             )}
           </section>

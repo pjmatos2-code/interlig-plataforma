@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export default async function AprovacoesPage({
   searchParams,
 }: {
-  searchParams: { mes?: string };
+  searchParams: { mes?: string; agente?: string };
 }) {
   // Fechamento é decisão do Administrador (mesma régua do módulo Metas)
   await exigirPerfil(["gestor"]);
@@ -32,11 +32,33 @@ export default async function AprovacoesPage({
     debitoPorCoorte(mes),
   ]);
 
+  // filtro por agente (atalho da faixa de pendentes em Comissões): "sem" = sem vendedora
+  const agente = searchParams.agente ?? null;
+  const daAgente = (i: { vendedorId: string | null }) =>
+    !agente || (agente === "sem" ? !i.vendedorId : i.vendedorId === agente);
+  const filaFiltrada = {
+    ...fila,
+    pendentes: fila.pendentes.filter(daAgente),
+    aprovados: fila.aprovados.filter(daAgente),
+  };
+  const porAgente = new Map<string, { nome: string; n: number }>();
+  for (const i of fila.pendentes) {
+    const k = i.vendedorId ?? "sem";
+    const atual = porAgente.get(k) ?? { nome: i.vendedorId ? i.vendedora : "Sem vendedora", n: 0 };
+    atual.n += 1;
+    porAgente.set(k, atual);
+  }
+  const chips = [...porAgente.entries()].sort((a, b) => b[1].n - a[1].n);
+  const mesParam = mes.slice(0, 7);
+
   return (
     <>
-      <div className="mb-1 text-sm">
+      <div className="mb-1 flex gap-4 text-sm">
         <Link href="/metas" className="text-muted-foreground hover:text-foreground">
           ← Metas e comissão
+        </Link>
+        <Link href={`/comissoes?mes=${mesParam}`} className="text-muted-foreground hover:text-foreground">
+          ← Comissões
         </Link>
       </div>
       <CabecalhoPagina
@@ -97,7 +119,28 @@ export default async function AprovacoesPage({
         />
       </div>
 
-      <PainelAprovacoes fila={fila} template={template} />
+      {chips.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pendentes por agente:</span>
+          <Link
+            href={`/metas/aprovacoes?mes=${mesParam}`}
+            className={`rounded-full border px-3 py-1 text-sm ${!agente ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+          >
+            Todas ({fila.pendentes.length})
+          </Link>
+          {chips.map(([id, c]) => (
+            <Link
+              key={id}
+              href={`/metas/aprovacoes?mes=${mesParam}&agente=${id}`}
+              className={`rounded-full border px-3 py-1 text-sm ${agente === id ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+            >
+              {c.nome} ({c.n})
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <PainelAprovacoes fila={filaFiltrada} template={template} />
     </>
   );
 }
