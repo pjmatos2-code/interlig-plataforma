@@ -307,7 +307,7 @@ function CartaoAgente({
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {lider ? "Base do time" : "Vendas do mês"}
             </h3>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Etapa rotulo={lider ? "Ativações" : "Vendidas"} valor={a.vendidas} nota={a.naoContam ? `${a.naoContam} não contam` : undefined} />
               <Etapa rotulo="Válidas" valor={a.validas} nota={a.estornadas ? `−${a.estornadas} estornada${a.estornadas > 1 ? "s" : ""}` : "pontuam a meta"} />
               <Etapa rotulo="Ativas" valor={a.ativas} nota={a.validas - a.ativas > 0 ? `${a.validas - a.ativas} não ativas` : "todas ativas"} />
@@ -321,7 +321,7 @@ function CartaoAgente({
             {pendentes > 0 && (
               <p className="mt-2 text-xs">
                 <span className="font-semibold text-yellow-700">{pendentes} pendente{pendentes > 1 ? "s" : ""}:</span>{" "}
-                {[a.pendAssinatura && `${a.pendAssinatura} sem assinatura`, a.pendAtivacao && `${a.pendAtivacao} aguardando ativação`]
+                {[a.pendAssinatura && `${a.pendAssinatura} sem assinatura`, a.pendAtivacao && `${a.pendAtivacao} sem serviço ativo (aguardando, suspenso ou cancelado)`]
                   .filter(Boolean)
                   .join(" · ")}
                 <span className="text-muted-foreground"> — contam na meta, só comissionam quando liberadas.</span>
@@ -521,6 +521,15 @@ function TabelaContratos({ contratos, linkSgp }: { contratos: ContratoApurado[];
           {contratos.map((c) => {
             const link = aplicarLinkSgp(linkSgp, { clienteId: c.sgpClienteId, contratoId: c.sgpContratoId });
             const s = SITUACAO[c.situacao];
+            // sem serviço ativo: diz o status real (suspenso/cancelado ≠ aguardando)
+            const rotulo =
+              c.situacao === "pendente_ativacao"
+                ? c.status === "suspenso"
+                  ? "Suspenso"
+                  : c.status === "cancelado"
+                    ? "Cancelado"
+                    : s.rotulo
+                : s.rotulo;
             const obs = [
               ...(c.situacao === "aprovada" ? [] : c.pendencias),
               c.desistencia ? "cliente desistiu" : null,
@@ -541,7 +550,7 @@ function TabelaContratos({ contratos, linkSgp }: { contratos: ContratoApurado[];
                 <td className="px-3 py-1.5 tabular-nums">{data(c.dataAtivacao)}</td>
                 <td className="px-3 py-1.5 text-right tabular-nums">{formatarMoeda(c.valor)}</td>
                 <td className="px-3 py-1.5">
-                  <span className={cn("whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium", s.cls)}>{s.rotulo}</span>
+                  <span className={cn("whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium", s.cls)}>{rotulo}</span>
                 </td>
                 <td className="px-3 py-1.5 text-xs text-muted-foreground">{obs.join(" · ") || "—"}</td>
               </tr>
