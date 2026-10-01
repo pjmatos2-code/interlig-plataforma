@@ -1,14 +1,5 @@
 import type { ReactNode } from "react";
-import {
-  CalendarClock,
-  CircleDollarSign,
-  Headset,
-  ShoppingCart,
-  Tag,
-  Target,
-  UserPlus,
-  Wifi,
-} from "lucide-react";
+import { Building2, CircleDollarSign, Gauge, Headset, ShoppingCart, Tag, Target, UserPlus } from "lucide-react";
 import { exigirPerfil } from "@/lib/auth";
 import { carregarTvComercial } from "@/lib/tv/comercial";
 import { LogoInterlig } from "@/components/marca/logo-interlig";
@@ -79,11 +70,11 @@ function Painel({ titulo, sub, children, className }: { titulo: string; sub?: st
 }
 
 /** Velocímetro semicircular: vendas do dia ÷ meta diária. */
-function Velocimetro({ valor, meta }: { valor: number; meta: number }) {
+function Velocimetro({ valor, meta, className }: { valor: number; meta: number; className?: string }) {
   const pct = meta > 0 ? Math.min(1, valor / meta) : 0;
   const comprimento = Math.PI * 90;
   return (
-    <svg viewBox="0 0 220 125" className="w-full max-w-[220px]">
+    <svg viewBox="0 0 220 125" className={cn("w-full max-w-[220px]", className)}>
       <path d="M20 115 A90 90 0 0 1 200 115" fill="none" stroke="#1e2f57" strokeWidth="18" strokeLinecap="round" />
       <path
         d="M20 115 A90 90 0 0 1 200 115"
@@ -106,7 +97,7 @@ function Velocimetro({ valor, meta }: { valor: number; meta: number }) {
 export default async function TvComercialPage({
   searchParams,
 }: {
-  searchParams: { alerta?: string; som?: string; demo?: string };
+  searchParams: { alerta?: string; som?: string; demo?: string; mes?: string };
 }) {
   // visão da empresa inteira: mesmo público do dashboard principal
   await exigirPerfil(["gestor", "supervisor", "direcao"]);
@@ -117,7 +108,7 @@ export default async function TvComercialPage({
     | "sino"
     | "conexao"
     | "moedas";
-  const d = await carregarTvComercial();
+  const d = await carregarTvComercial({ mes: searchParams.mes });
 
   const pctMetaDia = d.metaDiaria > 0 ? Math.round((d.vendas.hoje / d.metaDiaria) * 100) : 0;
   const pctGeral = (d.metaGeral.ativos / d.metaGeral.meta) * 100;
@@ -125,6 +116,11 @@ export default async function TvComercialPage({
   const ritmoHora = d.metaDiaria / 12;
   const maxHora = Math.max(1, ritmoHora * 1.3, ...d.porHora.map((h) => h.vendas));
   const maxFunil = Math.max(1, d.funil.leads, d.funil.atendimento, d.funil.assinado);
+  const maxMes = Math.max(1, ...d.mes.unidades.map((u) => u.vendas));
+  const totalMes = d.mes.unidades.reduce((t, u) => t + u.vendas, 0);
+  const metaMes = d.mes.unidades.reduce((t, u) => t + u.meta, 0);
+  const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  const nomeMes = `${MESES[Number(d.mes.referencia.slice(5, 7)) - 1]} de ${d.mes.referencia.slice(0, 4)}`;
   const COR_UNIDADE: Record<string, string> = {
     Altamira: "#2f8cff",
     "Vitória do Xingu": "#22d3a6",
@@ -158,7 +154,7 @@ export default async function TvComercialPage({
         </div>
         <div className="text-center">
           <h1 className="text-4xl font-black tracking-[0.12em]">DASHBOARD COMERCIAL</h1>
-          <p className="text-sm tracking-[0.35em] text-slate-300">VENDAS · ATIVAÇÕES · RESULTADOS EM TEMPO REAL</p>
+          <p className="text-sm tracking-[0.35em] text-slate-300">VENDAS · METAS · RESULTADOS EM TEMPO REAL</p>
         </div>
         <Relogio />
       </header>
@@ -188,26 +184,21 @@ export default async function TvComercialPage({
           valor={moeda(d.ticket.hoje)}
           rodape={<><Delta hoje={d.ticket.hoje} antes={d.ticket.antes} /> vs. dia útil anterior</>}
         />
-        <Kpi
-          icone={<Wifi className="h-8 w-8 text-white" />}
-          cor="#0e7ae6"
-          rotulo="ATIVAÇÕES HOJE"
-          valor={num(d.ativacoes.hoje)}
-          rodape={<><Delta hoje={d.ativacoes.hoje} antes={d.ativacoes.antes} /> vs. dia útil anterior</>}
-        />
-        <Kpi
-          tom="ambar"
-          icone={<CalendarClock className="h-8 w-8 text-white" />}
-          cor="#d97706"
-          rotulo="INSTALAÇÕES AGENDADAS HOJE"
-          valor={num(d.agendadas.hoje)}
-          rodape={
-            <span>
-              {d.agendadas.sairamDaFila} saíram da fila · {d.agendadas.naFila} na fila
-              {d.agendadas.proxima && <span className="text-amber-300"> · próxima {d.agendadas.proxima}</span>}
-            </span>
-          }
-        />
+        {/* vendas do dia × meta diária (ocupa o espaço de dois cards) */}
+        <div className="col-span-2 flex items-center gap-6 rounded-2xl border border-sky-500/25 bg-[#0d1b3d]/[0.86] px-6 py-2">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#1d6ff2]">
+            <Gauge className="h-8 w-8 text-white" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold tracking-widest text-slate-300">VENDAS DO DIA × META</p>
+            <p className="text-sm text-slate-400">Meta diária: <b className="text-white">{Math.round(d.metaDiaria)}</b></p>
+          </div>
+          <Velocimetro valor={d.vendas.hoje} meta={d.metaDiaria} className="ml-auto h-[92px] w-auto" />
+          <div className="text-center">
+            <p className="text-5xl font-black tabular-nums text-sky-400">{pctMetaDia}%</p>
+            <p className="text-sm text-slate-300">da meta</p>
+          </div>
+        </div>
       </div>
 
       {/* META GERAL 2026 */}
@@ -264,18 +255,42 @@ export default async function TvComercialPage({
         </div>
       </section>
 
-      {/* linha 3: velocímetro · evolução por hora · funil */}
+      {/* linha 3: vendas do mês por unidade · evolução por hora · funil */}
       <div className="mt-3 grid min-h-0 flex-[0.9] grid-cols-[1fr_1.7fr_1.1fr] gap-4">
-        <Painel titulo="VENDAS DO DIA" sub="Acompanhe o desempenho em tempo real">
-          <div className="flex items-center justify-around">
-            <div className="flex flex-col items-center">
-              <Velocimetro valor={d.vendas.hoje} meta={d.metaDiaria} />
-              <p className="text-sm text-slate-300">Meta diária: {Math.round(d.metaDiaria)}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-5xl font-black text-sky-400">{pctMetaDia}%</p>
-              <p className="text-sm text-slate-300">da meta</p>
-            </div>
+        <Painel titulo="VENDAS NO MÊS POR UNIDADE" sub={nomeMes[0].toUpperCase() + nomeMes.slice(1)}>
+          <div className="space-y-3">
+            {d.mes.unidades.map((u) => (
+              <div key={u.nome} className="flex items-center gap-3">
+                <span className="flex w-40 shrink-0 items-center gap-2 text-sm text-slate-200">
+                  <Building2 className="h-5 w-5" style={{ color: COR_UNIDADE[u.nome] }} /> {u.nome}
+                </span>
+                <div className="h-9 flex-1 rounded-md bg-white/5">
+                  <div
+                    className="flex h-full min-w-[3.5rem] items-center justify-center rounded-md"
+                    style={{ width: `${(u.vendas / maxMes) * 100}%`, background: COR_UNIDADE[u.nome] }}
+                  >
+                    <span className="text-2xl font-black tabular-nums text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.45)]">
+                      {u.vendas}
+                    </span>
+                  </div>
+                </div>
+                <span className="w-16 text-right text-sm tabular-nums text-slate-300">
+                  {u.meta > 0 ? `${Math.round((u.vendas / u.meta) * 100)}%` : "—"}
+                  <span className="block text-xs text-slate-500">meta {u.meta || "—"}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex items-center justify-between rounded-xl border border-sky-400/30 bg-sky-400/10 px-4 py-2.5">
+            <span className="text-sm font-semibold tracking-wide text-sky-200">TOTAL VENDIDO NO MÊS</span>
+            <span className="flex items-baseline gap-2">
+              <span className="text-3xl font-black tabular-nums text-sky-300">{num(totalMes)}</span>
+              {metaMes > 0 && (
+                <span className="text-xs text-slate-300">
+                  de {num(metaMes)} · {Math.round((totalMes / metaMes) * 100)}% da meta
+                </span>
+              )}
+            </span>
           </div>
         </Painel>
 
@@ -412,7 +427,6 @@ export default async function TvComercialPage({
               <tr className="text-left text-xs tracking-wider text-slate-400">
                 <th className="pb-2">UNIDADE</th>
                 <th className="pb-2 text-right">VENDAS</th>
-                <th className="pb-2 text-right">ATIVAÇÕES</th>
                 <th className="pb-2 text-right">RECEITA</th>
                 <th className="pb-2 text-right">META (DIA)</th>
                 <th className="w-[28%] pb-2 pl-6">ATINGIMENTO</th>
@@ -428,7 +442,6 @@ export default async function TvComercialPage({
                       {u.nome}
                     </td>
                     <td className="py-2 text-right text-xl font-black tabular-nums">{u.vendas}</td>
-                    <td className="py-2 text-right tabular-nums">{u.ativacoes}</td>
                     <td className="py-2 text-right tabular-nums">{moeda(u.receita, 0)}</td>
                     <td className="py-2 text-right tabular-nums">{u.metaDia.toFixed(1).replace(".", ",")}</td>
                     <td className="py-2 pl-6">

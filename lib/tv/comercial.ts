@@ -28,15 +28,20 @@ export type DadosTvComercial = {
   vendas: { hoje: number; antes: number };
   receita: { hoje: number; antes: number };
   ticket: { hoje: number; antes: number };
-  ativacoes: { hoje: number; antes: number };
-  agendadas: { hoje: number; naFila: number; sairamDaFila: number; proxima: string | null };
   metaGeral: { meta: number; ativos: number; unidades: { nome: string; ativos: number }[] };
   metaDiaria: number;
   porHora: { hora: number; vendas: number }[];
   funil: { leads: number; atendimento: number; assinado: number };
   top5: { nome: string; foto: string | null; vendas: number; receita: number }[];
-  unidades: { nome: string; vendas: number; ativacoes: number; receita: number; metaDia: number }[];
+  unidades: { nome: string; vendas: number; receita: number; metaDia: number }[];
+  mes: MesPorUnidade;
   vendasRecentes: VendaRecente[];
+};
+
+/** vendas do mês por unidade (quadro de barras do gestor, 01/10/2026) */
+export type MesPorUnidade = {
+  referencia: string; // AAAA-MM
+  unidades: { nome: string; vendas: number; meta: number }[];
 };
 
 const UNIDADES = ["Altamira", "Vitória do Xingu", "Brasil Novo"];
@@ -51,10 +56,14 @@ type ContratoTv = ContratoIndicador & {
   pops: { nome: string } | null;
 };
 
-export async function carregarTvComercial(): Promise<DadosTvComercial> {
+export async function carregarTvComercial(opcoes: { mes?: string } = {}): Promise<DadosTvComercial> {
   const admin = criarClienteAdmin();
   const hoje = hojeStm();
   const inicioMes = `${hoje.slice(0, 7)}-01`;
+  // quadro mensal: mês corrente (ou ?mes=AAAA-MM para rever um mês fechado)
+  const mesRef = opcoes.mes && /^\d{4}-\d{2}$/.test(opcoes.mes) && opcoes.mes <= hoje.slice(0, 7) ? opcoes.mes : hoje.slice(0, 7);
+  const inicioRef = `${mesRef}-01`;
+  const fimRef = new Date(Date.UTC(Number(mesRef.slice(0, 4)), Number(mesRef.slice(5, 7)), 0)).toISOString().slice(0, 10);
 
   const [{ data: cal }, { data: pops }] = await Promise.all([
     admin.from("calendario").select("data, dia_util").gte("data", inicioMes).lte("data", `${hoje.slice(0, 7)}-31`),
@@ -75,24 +84,15 @@ export async function carregarTvComercial(): Promise<DadosTvComercial> {
   const CAMPOS =
     "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, valor_mensalidade, criado_em, vendedor_id, pop_id, vendedores(nome, foto_url), planos(nome), pops(nome)";
 
-  const [{ data: brutos }, { data: ativadosBrutos }, { data: osBrutas }, { data: ticketsHoje }] =
+  const [{ data: brutos }, { data: brutosMes }, { data: ticketsHoje }] =
     await Promise.all([
       admin.from("contratos").select(CAMPOS).gte("data_venda", antes).lte("data_venda", hoje).limit(2000),
       admin
         .from("contratos")
-        .select("data_ativacao, pop_id")
-        .gte("data_ativacao", antes)
-        .lte("data_ativacao", hoje)
-        .limit(2000),
-      // agendadas hoje = TODA OS de instalação com agendamento hoje (as que
-      // já saíram da fila também foram agendadas para hoje — mesma esteira)
-      admin
-        .from("os_instalacao")
-        .select("agendamento, situacao")
-        .not("agendamento", "is", null)
-        .gte("agendamento", `${hoje}T00:00:00-03:00`)
-        .lte("agendamento", `${hoje}T23:59:59-03:00`)
-        .limit(500),
+        .select("data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, valor_mensalidade, pop_id")
+        .gte("data_venda", inicioRef)
+        .lte("data_venda", fimRef)
+        .limit(5000),
       admin
         .from("tickets")
         .select("etapa")
@@ -105,18 +105,6 @@ export async function carregarTvComercial(): Promise<DadosTvComercial> {
   const vendasAntes = vendasDoPeriodo(contratos, antes, antes) as ContratoTv[];
   const soma = (l: ContratoTv[]) => l.reduce((t, c) => t + Number(c.valor_mensalidade ?? 0), 0);
   const ticket = (l: ContratoTv[]) => (l.length ? soma(l) / l.length : 0);
-
-  const ativ = ativadosBrutos ?? [];
-  const ativHoje = ativ.filter((c) => c.data_ativacao === hoje);
-
-  // ---------- instalações agendadas hoje ----------
-  const os = osBrutas ?? [];
-  const agora = paraStm(new Date().toISOString());
-  const proximas = os
-    .filter((o) => o.situacao === "aberta")
-    .map((o) => paraStm(o.agendamento as string))
-    .filter((h) => h >= agora)
-    .sort();
 
   // ---------- meta (mesma régua do dashboard: unidade cadastrada ?? agentes) ----------
   const [{ data: metasDoMes }, { data: vends }] = await Promise.all([
@@ -204,11 +192,33 @@ export async function carregarTvComercial(): Promise<DadosTvComercial> {
     return {
       nome: p.nome,
       vendas: v.length,
-      ativacoes: ativHoje.filter((c) => c.pop_id === p.id).length,
       receita: soma(v),
       metaDia: metaUnidade(p.id) / diasUteisMes,
     };
   });
+
+  // ---------- vendas por unidade no mês ----------
+  const vendasMes = vendasDoPeriodo((brutosMes ?? []) as unknown as ContratoTv[], inicioRef, fimRef);
+  // metas do mês consultado: o corrente usa a régua acima; mês passado, as metas dele
+  let metaRef = (popId: string) => metaUnidade(popId);
+  if (mesRef !== hoje.slice(0, 7)) {
+    const { data: m } = await admin
+      .from("metas")
+      .select("escopo, referencia_id, quantidade_vendas")
+      .eq("mes_ano", inicioRef);
+    const mv = new Map((m ?? []).filter((x) => x.escopo === "vendedora").map((x) => [x.referencia_id as string, Number(x.quantidade_vendas)]));
+    metaRef = (popId) =>
+      Number((m ?? []).find((x) => x.escopo === "pop" && x.referencia_id === popId)?.quantidade_vendas ?? 0) ||
+      (vends ?? []).filter((v) => v.pop_id === popId && !v.eh_coordenador).reduce((t, v) => t + (mv.get(v.id as string) ?? 0), 0);
+  }
+  const mes: MesPorUnidade = {
+    referencia: mesRef,
+    unidades: popsUnid.map((p) => ({
+      nome: p.nome,
+      vendas: vendasMes.filter((c) => c.pop_id === p.id).length,
+      meta: Math.round(metaRef(p.id)),
+    })),
+  };
 
   // ---------- vendas recentes (alerta de nova venda) ----------
   const vendasRecentes: VendaRecente[] = [...vendasHoje]
@@ -230,19 +240,13 @@ export async function carregarTvComercial(): Promise<DadosTvComercial> {
     vendas: { hoje: vendasHoje.length, antes: vendasAntes.length },
     receita: { hoje: soma(vendasHoje), antes: soma(vendasAntes) },
     ticket: { hoje: ticket(vendasHoje), antes: ticket(vendasAntes) },
-    ativacoes: { hoje: ativHoje.length, antes: ativ.filter((c) => c.data_ativacao === antes).length },
-    agendadas: {
-      hoje: os.length,
-      naFila: os.filter((o) => o.situacao === "aberta").length,
-      sairamDaFila: os.filter((o) => o.situacao !== "aberta").length,
-      proxima: proximas[0]?.slice(11, 16) ?? null,
-    },
     metaGeral: { meta: 10_000, ativos: unidadesBase.reduce((t, u) => t + u.ativos, 0), unidades: unidadesBase },
     metaDiaria: metaDiariaAgentes,
     porHora,
     funil,
     top5,
     unidades,
+    mes,
     vendasRecentes,
   };
 }
