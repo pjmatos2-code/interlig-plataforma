@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { VendaRecente } from "@/lib/tv/comercial";
+import { FundoRedeAnimado } from "@/components/tv/fundo-rede-animado";
 
 /** Data e hora de Santarém, no cabeçalho. */
 export function Relogio() {
@@ -322,8 +323,10 @@ export function PalcoTv({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("resize", ajustar);
   }, []);
   return (
-    <div className="flex h-screen w-screen items-center justify-center overflow-hidden bg-[#071330]">
-      <div style={{ width: 1920 * dim.escala, height: dim.altura * dim.escala }}>
+    <div className="relative flex h-screen w-screen items-center justify-center overflow-hidden bg-[#020B1C]">
+      {/* fundo animado na tela inteira, fora do palco escalado (nítido em 4K) */}
+      <FundoRedeAnimado />
+      <div className="relative z-10" style={{ width: 1920 * dim.escala, height: dim.altura * dim.escala }}>
         <div style={{ width: 1920, height: dim.altura, transform: `scale(${dim.escala})`, transformOrigin: "top left" }}>
           {children}
         </div>

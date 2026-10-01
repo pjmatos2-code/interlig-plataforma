@@ -55,7 +55,7 @@ function Kpi({
     ambar: "border-amber-400/35",
   }[tom];
   return (
-    <div className={cn("flex items-center gap-5 rounded-2xl border bg-[#0d1b3d] px-6 py-3", borda)}>
+    <div className={cn("flex items-center gap-5 rounded-2xl border bg-[#0d1b3d]/[0.86] px-6 py-3", borda)}>
       <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full" style={{ background: cor }}>
         {icone}
       </div>
@@ -70,7 +70,7 @@ function Kpi({
 
 function Painel({ titulo, sub, children, className }: { titulo: string; sub?: string; children: ReactNode; className?: string }) {
   return (
-    <section className={cn("flex flex-col rounded-2xl border border-sky-500/20 bg-[#0d1b3d] px-4 py-3", className)}>
+    <section className={cn("flex flex-col rounded-2xl border border-sky-500/20 bg-[#0d1b3d]/[0.86] px-4 py-3", className)}>
       <h2 className="text-lg font-bold tracking-wide text-white">{titulo}</h2>
       {sub && <p className="text-sm text-slate-400">{sub}</p>}
       <div className="mt-2 flex min-h-0 flex-1 flex-col justify-center">{children}</div>
@@ -143,7 +143,7 @@ export default async function TvComercialPage({
       demo={searchParams.demo === "1"}
     />
     <PalcoTv>
-    <main className="flex h-full flex-col bg-[#071330] px-8 py-5 text-white">
+    <main className="flex h-full flex-col px-8 py-5 text-white">
       <AutoAtualizar />
 
       {/* cabeçalho */}
@@ -211,7 +211,7 @@ export default async function TvComercialPage({
       </div>
 
       {/* META GERAL 2026 */}
-      <section className="mt-3 flex shrink-0 items-center gap-8 rounded-2xl border border-sky-400/40 bg-[#0b1f4a] px-7 py-3">
+      <section className="mt-3 flex shrink-0 items-center gap-8 rounded-2xl border border-sky-400/40 bg-[#0b1f4a]/[0.86] px-7 py-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
             <Target className="h-8 w-8 text-sky-400" />
