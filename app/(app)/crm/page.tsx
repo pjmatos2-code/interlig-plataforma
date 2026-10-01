@@ -107,8 +107,17 @@ function CartaoVendida({ t, linkTemplate }: { t: CartaoTicket; linkTemplate: str
       <p className="mt-0.5 truncate text-xs text-slate-500">{t.plano ?? "—"}</p>
       <p className="mt-1 truncate text-[11px] text-slate-400">{t.vendedora ?? "Sem vendedora"}</p>
       <div className="mt-2 flex items-center justify-between gap-2 border-t border-emerald-100 pt-2">
-        <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
-          ● Vendida
+        <span className="flex items-center gap-1.5">
+          <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+            ● Vendida
+          </span>
+          {/* acesso explícito ao ticket (01/10): consulta, tratativa, histórico */}
+          <Link
+            href={`/crm/${t.id}`}
+            className="rounded-md border border-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 hover:border-interlig-ceu hover:text-interlig-azul"
+          >
+            Abrir ticket →
+          </Link>
         </span>
         {t.sgpContratoId && link ? (
           <a
