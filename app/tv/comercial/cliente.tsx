@@ -305,3 +305,36 @@ export function AlertaNovaVenda({
     </>
   );
 }
+
+/**
+ * Palco 16:9 (1920px de largura): mede a altura real do conteúdo e escala
+ * para caber INTEIRO em qualquer TV (HD, Full HD, 4K), sem rolagem.
+ */
+export function PalcoTv({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [escala, setEscala] = useState(1);
+  useEffect(() => {
+    const ajustar = () => {
+      const alt = ref.current?.scrollHeight ?? 1080;
+      setEscala(Math.min(window.innerWidth / 1920, window.innerHeight / alt));
+    };
+    ajustar();
+    const obs = new ResizeObserver(ajustar);
+    if (ref.current) obs.observe(ref.current);
+    window.addEventListener("resize", ajustar);
+    return () => {
+      obs.disconnect();
+      window.removeEventListener("resize", ajustar);
+    };
+  }, []);
+  return (
+    <div className="h-screen w-screen overflow-hidden bg-[#071330]">
+      <div
+        ref={ref}
+        style={{ width: 1920, transform: `scale(${escala})`, transformOrigin: "top left" }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}

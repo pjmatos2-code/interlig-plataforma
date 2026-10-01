@@ -14,7 +14,7 @@ import { exigirUsuario } from "@/lib/auth";
 import { carregarTvComercial } from "@/lib/tv/comercial";
 import { LogoInterlig } from "@/components/marca/logo-interlig";
 import { cn } from "@/lib/utils";
-import { AlertaNovaVenda, AutoAtualizar, Relogio } from "./cliente";
+import { AlertaNovaVenda, AutoAtualizar, PalcoTv, Relogio } from "./cliente";
 
 export const dynamic = "force-dynamic";
 
@@ -56,8 +56,8 @@ function Kpi({
     ambar: "border-amber-400/35",
   }[tom];
   return (
-    <div className={cn("flex items-center gap-5 rounded-2xl border bg-[#0d1b3d] px-6 py-5", borda)}>
-      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full" style={{ background: cor }}>
+    <div className={cn("flex items-center gap-5 rounded-2xl border bg-[#0d1b3d] px-6 py-4", borda)}>
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full" style={{ background: cor }}>
         {icone}
       </div>
       <div className="min-w-0">
@@ -71,7 +71,7 @@ function Kpi({
 
 function Painel({ titulo, sub, children, className }: { titulo: string; sub?: string; children: ReactNode; className?: string }) {
   return (
-    <section className={cn("rounded-2xl border border-sky-500/20 bg-[#0d1b3d] p-5", className)}>
+    <section className={cn("rounded-2xl border border-sky-500/20 bg-[#0d1b3d] p-4", className)}>
       <h2 className="text-lg font-bold tracking-wide text-white">{titulo}</h2>
       {sub && <p className="text-sm text-slate-400">{sub}</p>}
       <div className="mt-3">{children}</div>
@@ -84,7 +84,7 @@ function Velocimetro({ valor, meta }: { valor: number; meta: number }) {
   const pct = meta > 0 ? Math.min(1, valor / meta) : 0;
   const comprimento = Math.PI * 90;
   return (
-    <svg viewBox="0 0 220 125" className="w-full max-w-[300px]">
+    <svg viewBox="0 0 220 125" className="w-full max-w-[250px]">
       <path d="M20 115 A90 90 0 0 1 200 115" fill="none" stroke="#1e2f57" strokeWidth="18" strokeLinecap="round" />
       <path
         d="M20 115 A90 90 0 0 1 200 115"
@@ -131,19 +131,22 @@ export default async function TvComercialPage({
   };
 
   return (
-    <main className="min-h-screen bg-[#071330] px-8 py-6 text-white">
+    <>
+    {/* fora do palco escalado: o alerta ocupa a TV inteira */}
+    <AlertaNovaVenda
+      vendas={d.vendasRecentes}
+      totalHoje={d.vendas.hoje}
+      metaDiaria={d.metaDiaria}
+      estilo={estilo}
+      som={som}
+      demo={searchParams.demo === "1"}
+    />
+    <PalcoTv>
+    <main className="bg-[#071330] px-8 py-4 text-white">
       <AutoAtualizar />
-      <AlertaNovaVenda
-        vendas={d.vendasRecentes}
-        totalHoje={d.vendas.hoje}
-        metaDiaria={d.metaDiaria}
-        estilo={estilo}
-        som={som}
-        demo={searchParams.demo === "1"}
-      />
 
       {/* cabeçalho */}
-      <header className="mb-5 flex items-center justify-between">
+      <header className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-5">
           <LogoInterlig variante="clara" tamanho="md" />
           <p className="border-l border-white/20 pl-5 text-sm font-semibold leading-snug tracking-[0.3em] text-slate-300">
@@ -218,7 +221,7 @@ export default async function TvComercialPage({
       </div>
 
       {/* META GERAL 2026 */}
-      <section className="mt-4 flex items-center gap-8 rounded-2xl border border-sky-400/40 bg-[#0b1f4a] px-7 py-5">
+      <section className="mt-3 flex items-center gap-8 rounded-2xl border border-sky-400/40 bg-[#0b1f4a] px-7 py-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
             <Target className="h-8 w-8 text-sky-400" />
@@ -228,7 +231,7 @@ export default async function TvComercialPage({
             </div>
           </div>
           <div className="mt-3 flex items-end gap-6">
-            <p className="text-5xl font-black tabular-nums">
+            <p className="text-4xl font-black tabular-nums">
               {num(d.metaGeral.ativos)}
               <span className="ml-3 text-lg font-medium text-slate-300">
                 ativos hoje · {pctGeral.toFixed(1).replace(".", ",")}% da meta
@@ -272,7 +275,7 @@ export default async function TvComercialPage({
       </section>
 
       {/* linha 3: velocímetro · evolução por hora · funil */}
-      <div className="mt-4 grid grid-cols-[1fr_1.7fr_1.1fr] gap-4">
+      <div className="mt-3 grid grid-cols-[1fr_1.7fr_1.1fr] gap-4">
         <Painel titulo="VENDAS DO DIA" sub="Acompanhe o desempenho em tempo real">
           <div className="flex items-center justify-around">
             <div className="flex flex-col items-center">
@@ -301,7 +304,7 @@ export default async function TvComercialPage({
               <span className="text-3xl font-black text-sky-300">{Math.round(d.metaDiaria)}</span>
             </span>
           </div>
-          <div className="relative h-36">
+          <div className="relative h-32">
             <div
               className="absolute inset-x-0 z-10 border-t-2 border-dashed border-slate-400/70"
               style={{ bottom: `${(ritmoHora / maxHora) * 100}%` }}
@@ -350,7 +353,7 @@ export default async function TvComercialPage({
       </div>
 
       {/* linha 4: top 5 · unidades */}
-      <div className="mt-4 grid grid-cols-[1fr_1.6fr] gap-4">
+      <div className="mt-3 grid grid-cols-[1fr_1.6fr] gap-4">
         <Painel titulo="TOP 5 AGENTES HOJE">
           <table className="w-full text-base">
             <thead>
@@ -371,7 +374,7 @@ export default async function TvComercialPage({
               )}
               {d.top5.map((a, i) => (
                 <tr key={a.nome} className="border-t border-white/5">
-                  <td className="py-2">
+                  <td className="py-1.5">
                     <span
                       className={cn(
                         "flex h-7 w-7 items-center justify-center rounded-full text-sm font-black",
@@ -381,21 +384,21 @@ export default async function TvComercialPage({
                       {i + 1}
                     </span>
                   </td>
-                  <td className="py-2">
+                  <td className="py-1.5">
                     <span className="flex items-center gap-3">
                       {a.foto ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={a.foto} alt="" className="h-12 w-12 rounded-full border-2 border-sky-400/60 object-cover" />
+                        <img src={a.foto} alt="" className="h-10 w-10 rounded-full border-2 border-sky-400/60 object-cover" />
                       ) : (
-                        <span className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-sky-400/60 bg-sky-900 text-lg font-bold text-sky-200">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-sky-400/60 bg-sky-900 text-lg font-bold text-sky-200">
                           {a.nome[0]}
                         </span>
                       )}
                       <span className="text-lg font-semibold">{a.nome}</span>
                     </span>
                   </td>
-                  <td className="py-2 text-right text-xl font-black tabular-nums">{a.vendas}</td>
-                  <td className="py-2 text-right tabular-nums text-slate-200">{moeda(a.receita)}</td>
+                  <td className="py-1.5 text-right text-xl font-black tabular-nums">{a.vendas}</td>
+                  <td className="py-1.5 text-right tabular-nums text-slate-200">{moeda(a.receita)}</td>
                 </tr>
               ))}
             </tbody>
@@ -419,15 +422,15 @@ export default async function TvComercialPage({
                 const pct = u.metaDia > 0 ? Math.round((u.vendas / u.metaDia) * 100) : 0;
                 return (
                   <tr key={u.nome} className="border-t border-white/5">
-                    <td className="py-3 font-semibold">
+                    <td className="py-2 font-semibold">
                       <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ background: COR_UNIDADE[u.nome] }} />
                       {u.nome}
                     </td>
-                    <td className="py-3 text-right text-xl font-black tabular-nums">{u.vendas}</td>
-                    <td className="py-3 text-right tabular-nums">{u.ativacoes}</td>
-                    <td className="py-3 text-right tabular-nums">{moeda(u.receita, 0)}</td>
-                    <td className="py-3 text-right tabular-nums">{u.metaDia.toFixed(1).replace(".", ",")}</td>
-                    <td className="py-3 pl-6">
+                    <td className="py-2 text-right text-xl font-black tabular-nums">{u.vendas}</td>
+                    <td className="py-2 text-right tabular-nums">{u.ativacoes}</td>
+                    <td className="py-2 text-right tabular-nums">{moeda(u.receita, 0)}</td>
+                    <td className="py-2 text-right tabular-nums">{u.metaDia.toFixed(1).replace(".", ",")}</td>
+                    <td className="py-2 pl-6">
                       <span className="flex items-center gap-3">
                         <span className="h-3 flex-1 overflow-hidden rounded-full bg-white/10">
                           <span
@@ -446,7 +449,7 @@ export default async function TvComercialPage({
         </Painel>
       </div>
 
-      <footer className="mt-4 flex items-center justify-between text-sm">
+      <footer className="mt-3 flex items-center justify-between text-sm">
         <p className="tracking-[0.35em] text-slate-300">INTERLIG · CONECTANDO O QUE IMPORTA</p>
         <p className="flex items-center gap-2 text-slate-300">
           <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400" /> Dados atualizados em tempo real
@@ -454,5 +457,7 @@ export default async function TvComercialPage({
         <p className="italic text-slate-300">Mais que internet, conexões reais.</p>
       </footer>
     </main>
+    </PalcoTv>
+    </>
   );
 }

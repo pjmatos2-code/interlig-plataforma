@@ -117,15 +117,33 @@ export async function carregarTvComercial(): Promise<DadosTvComercial> {
     .sort();
 
   // ---------- meta (mesma régua do dashboard: unidade cadastrada ?? agentes) ----------
-  const [{ data: metas }, { data: vends }] = await Promise.all([
+  const [{ data: metasDoMes }, { data: vends }] = await Promise.all([
     admin.from("metas").select("escopo, referencia_id, quantidade_vendas").eq("mes_ano", inicioMes),
     admin.from("vendedores").select("id, pop_id, eh_coordenador").eq("ativo", true),
   ]);
+  // mês novo ainda sem metas cadastradas: a TV usa as do último mês que tem
+  // (a tela não pode ficar com "meta 0" nos primeiros dias do mês)
+  let metas = metasDoMes ?? [];
+  if (metas.length === 0) {
+    const { data: ultimo } = await admin
+      .from("metas")
+      .select("mes_ano")
+      .lt("mes_ano", inicioMes)
+      .order("mes_ano", { ascending: false })
+      .limit(1);
+    if (ultimo?.[0]) {
+      const { data: anteriores } = await admin
+        .from("metas")
+        .select("escopo, referencia_id, quantidade_vendas")
+        .eq("mes_ano", ultimo[0].mes_ano);
+      metas = anteriores ?? [];
+    }
+  }
   const metaVend = new Map(
-    (metas ?? []).filter((m) => m.escopo === "vendedora").map((m) => [m.referencia_id as string, Number(m.quantidade_vendas)])
+    metas.filter((m) => m.escopo === "vendedora").map((m) => [m.referencia_id as string, Number(m.quantidade_vendas)])
   );
   const metaUnidade = (popId: string) =>
-    Number((metas ?? []).find((m) => m.escopo === "pop" && m.referencia_id === popId)?.quantidade_vendas ?? 0) ||
+    Number(metas.find((m) => m.escopo === "pop" && m.referencia_id === popId)?.quantidade_vendas ?? 0) ||
     (vends ?? [])
       .filter((v) => v.pop_id === popId && !v.eh_coordenador)
       .reduce((t, v) => t + (metaVend.get(v.id as string) ?? 0), 0);
@@ -133,7 +151,7 @@ export async function carregarTvComercial(): Promise<DadosTvComercial> {
     id: string;
     nome: string;
   }[];
-  const metaGlobal = Number((metas ?? []).find((m) => m.escopo === "global")?.quantidade_vendas ?? 0);
+  const metaGlobal = Number(metas.find((m) => m.escopo === "global")?.quantidade_vendas ?? 0);
   const metaMes = metaGlobal || popsUnid.reduce((t, p) => t + metaUnidade(p.id), 0);
 
   // ---------- base ativa (Relatórios > Crescimento, 1x/dia) ----------
