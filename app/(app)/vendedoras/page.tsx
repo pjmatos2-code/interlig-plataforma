@@ -72,6 +72,7 @@ export default async function VendedorasPage({
                   <th className="px-3 py-2.5 text-right font-medium">Vendas</th>
                   <th className="px-3 py-2.5 text-right font-medium">Receita</th>
                   <th className="px-3 py-2.5 text-right font-medium">Ticket médio</th>
+                <th className="px-3 py-2 text-right font-medium">Sem consulta</th>
                   <th className="px-3 py-2.5 text-right font-medium">% da meta</th>
                   <th className="px-3 py-2.5 text-right font-medium">Pace</th>
                   <th className="px-3 py-2.5 text-center font-medium">Projeção</th>
@@ -110,6 +111,15 @@ export default async function VendedorasPage({
                     <td className="px-3 py-2.5 text-right tabular-nums">{formatarNumero(l.vendas)}</td>
                     <td className="px-3 py-2.5 text-right tabular-nums">{formatarMoeda(l.receita)}</td>
                     <td className="px-3 py-2.5 text-right tabular-nums">{formatarMoeda(l.ticketMedio)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">
+                      {l.semConsulta > 0 ? (
+                        <span className="rounded-md bg-rose-100 px-1.5 py-0.5 text-xs font-bold text-rose-700">
+                          🔴 {l.semConsulta}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-emerald-600">✓</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2.5 text-right tabular-nums">
                       {l.percentualMeta === null ? "—" : formatarPercentual(l.percentualMeta, 0)}
                       {l.metaMensal !== null && (

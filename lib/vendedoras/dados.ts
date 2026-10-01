@@ -35,6 +35,8 @@ export type LinhaVendedora = {
   pace: number | null;
   farol: "verde" | "amarelo" | "vermelho" | null;
   tendencia: "sobe" | "desce" | "estavel";
+  /** vendidas do período SEM a consulta Consult Center (disciplina 01/10) */
+  semConsulta: number;
 };
 
 /** Contexto de dias úteis do mês corrente, compartilhado pelos cálculos. */
@@ -106,7 +108,7 @@ export async function listaVendedoras(
     .limit(5000);
   if (!ehCoord && popFiltro) consultaContratos = consultaContratos.eq("pop_id", popFiltro);
 
-  const [{ data: vendedoras }, { data: contratosBrutos }, { data: metas }] = await Promise.all([
+  const [{ data: vendedoras }, { data: contratosBrutos }, { data: metas }, { data: ticketsVendidos }] = await Promise.all([
     consultaVend,
     consultaContratos,
     supabase
@@ -114,7 +116,22 @@ export async function listaVendedoras(
       .select("referencia_id, quantidade_vendas")
       .eq("escopo", "vendedora")
       .eq("mes_ano", cal.inicioMes),
+    supabase
+      .from("tickets")
+      .select("vendedor_id, score, score_origem")
+      .eq("etapa", "fechado")
+      .eq("desfecho", "convertido")
+      .gte("fechado_em", `${periodo.de}T00:00:00`)
+      .lte("fechado_em", `${periodo.ate}T23:59:59`)
+      .limit(3000),
   ]);
+  // disciplina do filtro de entrada (01/10): vendida sem PDF da Consult Center
+  const semConsultaPor = new Map<string, number>();
+  for (const t of ticketsVendidos ?? []) {
+    if (!t.vendedor_id) continue;
+    if (t.score === null || t.score_origem !== "consulta")
+      semConsultaPor.set(t.vendedor_id as string, (semConsultaPor.get(t.vendedor_id as string) ?? 0) + 1);
+  }
 
   const contratos = (contratosBrutos ?? []) as ContratoVend[];
 
@@ -186,6 +203,7 @@ export async function listaVendedoras(
         pop: popRelR?.nome ?? "—",
         vendas: refid.planos,
         receita: refid.vtv,
+        semConsulta: 0, // refidelização não vende — fora do filtro de entrada
         ticketMedio: refid.planos > 0 ? refid.vtv / refid.planos : 0,
         metaMensal: refid.meta,
         percentualMeta: percentualMeta(refid.planos, refid.meta),
@@ -233,6 +251,7 @@ export async function listaVendedoras(
       pace: meta ? pace(meta, vendasMes, cal.restantesInclusiveHoje) : null,
       farol,
       tendencia: tendencia(ult7, ant7),
+      semConsulta: semConsultaPor.get(v.id) ?? 0,
     };
   });
 

@@ -186,7 +186,7 @@ export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<Est
   // guardamos a etapa atual antes de fechar
   const { data: atual } = await supabase
     .from("tickets")
-    .select("etapa, score, vendedor_id, vendedores(setor)")
+    .select("etapa, score, score_origem, vendedor_id, vendedores(setor)")
     .eq("id", ticketId)
     .maybeSingle();
   const etapaEncerramento =
@@ -198,9 +198,14 @@ export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<Est
   if (desfecho === "convertido") {
     const setor = (atual?.vendedores as unknown as { setor?: string } | null)?.setor ?? null;
     const corporativo = setor === "corporativo";
-    if (!corporativo && (atual?.score === null || atual?.score === undefined))
+    // 01/10/2026: só vale consulta EXTRAÍDA DO PDF (score manual desativado)
+    const temConsulta =
+      atual?.score !== null &&
+      atual?.score !== undefined &&
+      (atual as { score_origem?: string | null })?.score_origem === "consulta";
+    if (!corporativo && !temConsulta)
       return {
-        erro: "Lance o score do cliente antes de fechar como Vendida (filtro de entrada por faixa).",
+        erro: "Anexe a consulta Consult Center (PDF) antes de fechar como Vendida — o score manual foi desativado em 01/10.",
       };
   }
 
@@ -680,8 +685,18 @@ export async function anexarVisitaManual(_e: EstadoAcao, dados: FormData): Promi
 
 
 /** Inclui ou corrige o e-mail do cliente no ticket (opcional em todos). */
-/** Filtro de entrada por score (17/09/2026): lança e enquadra na régua. */
-export async function salvarScoreTicket(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
+/**
+ * DESATIVADO em 01/10/2026 (decisão do gestor): o score manual saiu de cena —
+ * a única porta é o PDF da Consult Center (extração valida CPF, pendências e
+ * dívida com outro provedor). A função fica para histórico/reativação.
+ */
+export async function salvarScoreTicket(_e: EstadoAcao, _dados: FormData): Promise<EstadoAcao> {
+  return {
+    erro: "Score manual foi desativado (01/10/2026) — anexe o PDF da consulta Consult Center no painel 'Consulta de crédito'.",
+  };
+}
+
+async function _salvarScoreTicketDesativado(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
   const usuario = await exigirUsuario();
   if (!["gestor", "supervisor"].includes(usuario.perfil) && !ehAgenteCrm(usuario.perfil))
     return { erro: "Sem permissão." };

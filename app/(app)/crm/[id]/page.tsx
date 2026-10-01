@@ -277,12 +277,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
                 faixa={t.score_faixa}
                 adiantamentoValor={t.adiantamento_valor}
                 recebidoEm={t.adiantamento_recebido_em}
-                podeEditar={
-                  // score vindo de consulta processada: sem edição manual —
-                  // o caminho é "Anexar nova consulta" no painel abaixo
-                  (t.etapa !== "fechado" || t.desfecho === "convertido") &&
-                  t.score_origem !== "consulta"
-                }
+                podeEditar={false} // 01/10/2026: score manual desativado — só o PDF
               />
             </div>
             <ConsultaCredito

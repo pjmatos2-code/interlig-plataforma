@@ -44,6 +44,22 @@ function acaoSugerida(t: CartaoTicket, hoje: string): string {
   return "Ligar hoje";
 }
 
+/** selo do filtro de entrada (01/10/2026): consulta Consult Center */
+function SeloConsulta({ t }: { t: CartaoTicket }) {
+  if (!t.consulta || t.consulta === "ok") return null;
+  const S: Record<string, { txt: string; cls: string }> = {
+    sem_consulta: { txt: "🔴 SEM CONSULTA", cls: "bg-rose-600 text-white" },
+    divergencia: { txt: "🟠 DIVERGÊNCIA DE TITULAR", cls: "bg-orange-500 text-white" },
+    adiantamento_pendente: { txt: "🟡 ADIANTAMENTO PENDENTE", cls: "bg-amber-400 text-amber-950" },
+  };
+  const v = S[t.consulta];
+  return (
+    <span className={cn("inline-block rounded-md px-1.5 py-0.5 text-[9.5px] font-black tracking-wide", v.cls)}>
+      {v.txt}
+    </span>
+  );
+}
+
 function Prioridade({ t }: { t: CartaoTicket }) {
   const p =
     t.aviso === "fechar"
@@ -67,7 +83,12 @@ function CartaoVendida({ t, linkTemplate }: { t: CartaoTicket; linkTemplate: str
       <div className="flex items-start justify-between gap-2">
         <Link
           href={`/crm/${t.id}`}
-          className="min-w-0 truncate font-semibold text-slate-800 hover:text-primary hover:underline"
+          className={cn(
+            "min-w-0 truncate font-semibold hover:underline",
+            t.consulta === "sem_consulta"
+              ? "text-rose-600 hover:text-rose-700"
+              : "text-slate-800 hover:text-primary"
+          )}
         >
           {t.cliente_nome}
         </Link>
@@ -77,6 +98,7 @@ function CartaoVendida({ t, linkTemplate }: { t: CartaoTicket; linkTemplate: str
           </span>
         )}
       </div>
+      <SeloConsulta t={t} />
       {t.clienteSgpNome && t.clienteSgpNome.toLowerCase() !== t.cliente_nome.toLowerCase() && (
         <p className="mt-0.5 truncate text-[11px] text-emerald-700" title={`Titular no SGP: ${t.clienteSgpNome}`}>
           🪪 {t.clienteSgpNome}
@@ -135,6 +157,7 @@ function CartaoGlass({ t, hoje, podeExcluir = false }: { t: CartaoTicket; hoje: 
         </span>
       </div>
       <p className="mt-0.5 truncate text-xs text-slate-500">{t.plano ?? "Plano a definir"}</p>
+      <SeloConsulta t={t} />
       <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-600">
         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-interlig-ceu/30 to-interlig-azul/30 text-[9px] font-bold text-interlig-azul">
           {iniciais}
@@ -185,6 +208,7 @@ export default async function CrmPage({
     emRisco: searchParams.risco === "1",
     altoValor: searchParams.alto_valor === "1",
     perdidos: searchParams.perdidos === "1",
+    semConsulta: searchParams.sem_consulta === "1",
   };
   const d = await carregarCrm(periodo, usuario, filtros);
   const hoje = new Date().toISOString().slice(0, 10);
@@ -263,6 +287,7 @@ export default async function CrmPage({
     { chave: "risco", rotulo: "⚠️ Em risco" },
     { chave: "alto_valor", rotulo: "💲 Alto valor" },
     { chave: "perdidos", rotulo: "🚩 Perdidos" },
+    { chave: "sem_consulta", rotulo: "🔴 Sem consulta" },
   ];
 
   const t1a = d.kpis.primeiraTratativaMin;
@@ -787,6 +812,17 @@ export default async function CrmPage({
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <span className={cn(vidro, "px-3.5 py-2 text-sm font-semibold text-rose-600")}>
               🚩 Perdidos no período: {d.perdidosPeriodo}
+            </span>
+            <span
+              className={cn(
+                vidro,
+                "px-3.5 py-2 text-sm font-semibold",
+                d.vendidasSemConsulta > 0 ? "text-rose-700" : "text-emerald-700"
+              )}
+            >
+              {d.vendidasSemConsulta > 0
+                ? `🔴 Vendidas sem consulta: ${d.vendidasSemConsulta}`
+                : "✓ Todas as vendidas com consulta"}
             </span>
             <a
               href={`/api/crm/exportar?situacao=nao_convertido&de=${periodo.de}&ate=${periodo.ate}`}

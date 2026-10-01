@@ -596,3 +596,16 @@ Total: 73 pendentes de 314 vendas de maio (23%).
   irreversíveis (mudança p/ fora de cobertura etc.) NÃO pesam na taxa —
   nem pendentes nem aprovados. A aprovação da evidência pelo gestor segue
   como auditoria. (Antes: irreversível pendente pesava no denominador.)
+
+## Filtro de entrada 2ª fase: só PDF + sinalização (01/10/2026)
+
+- **Score manual DESATIVADO**: a única porta é o PDF da Consult Center
+  (extração local valida score, CPF × titular, pendências, valor e dívida
+  com provedor de internet). Fechar como Vendida (residencial) exige
+  consulta EXTRAÍDA (`score_origem = 'consulta'`); corporativo segue isento.
+- **Sinalização (continua não bloqueante nos fluxos automáticos)**:
+  selos nos cards do CRM — 🔴 SEM CONSULTA (nome em vermelho na vendida),
+  🟠 DIVERGÊNCIA DE TITULAR, 🟡 ADIANTAMENTO PENDENTE; chip de filtro
+  "Sem consulta"; contador "Vendidas sem consulta" no rodapé do CRM;
+  coluna "Sem consulta" no Painel por vendedora (ranking da disciplina);
+  esteira trata score manual antigo como sem consulta.

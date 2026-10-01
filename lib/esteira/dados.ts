@@ -200,12 +200,15 @@ export async function carregarEsteira(
       for (let i = 0; i < ids.length; i += 400) {
         const { data: tk } = await admin
           .from("tickets")
-          .select("contrato_id, score, adiantamento_valor, adiantamento_recebido_em, vendedores(setor)")
+          .select("contrato_id, score, score_origem, adiantamento_valor, adiantamento_recebido_em, vendedores(setor)")
           .in("contrato_id", ids.slice(i, i + 400));
         for (const t of tk ?? []) {
           if (!t.contrato_id) continue;
           porContrato.set(t.contrato_id as string, {
-            score: (t.score as number | null) ?? null,
+            score:
+              (t as { score_origem?: string | null }).score_origem === "consulta"
+                ? ((t.score as number | null) ?? null)
+                : null, // 01/10: score manual não vale — só consulta do PDF
             valor: (t.adiantamento_valor as number | null) ?? null,
             recebido: (t.adiantamento_recebido_em as string | null) ?? null,
             setor: (t.vendedores as unknown as { setor?: string } | null)?.setor ?? null,

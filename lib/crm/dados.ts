@@ -12,6 +12,8 @@ import type { CategoriaOrigem, EtapaTicket, Usuario } from "@/lib/tipos";
 import type { Periodo } from "@/lib/datas";
 
 export type CartaoTicket = {
+  /** filtro de entrada (01/10/2026): estado da consulta Consult Center */
+  consulta: "ok" | "sem_consulta" | "divergencia" | "adiantamento_pendente" | null;
   id: string;
   cliente_nome: string;
   telefone: string | null;
@@ -49,6 +51,8 @@ export type FiltrosCrm = {
   altoValor?: boolean;
   /** mostra SOMENTE os tickets perdidos (fechados não convertidos) do período */
   perdidos?: boolean;
+  /** mostra SOMENTE tickets sem a consulta Consult Center anexada */
+  semConsulta?: boolean;
 };
 
 export type EtapaFunil = {
@@ -90,6 +94,8 @@ export type DadosCrm = {
     ultimas: { id: string; cliente: string; valor: number }[];
   };
   perdidosPeriodo: number;
+  /** vendidas do período SEM a consulta Consult Center (disciplina 01/10) */
+  vendidasSemConsulta: number;
   rodape: {
     receitaSemana: number;
     receitaSemanaDeltaPct: number | null;
@@ -106,6 +112,11 @@ export type DadosCrm = {
 
 type Bruto = TicketIndicador & {
   id: string;
+  score: number | null;
+  score_origem: string | null;
+  score_faixa: string | null;
+  adiantamento_valor: number | null;
+  adiantamento_recebido_em: string | null;
   cliente_nome: string;
   telefone: string | null;
   vendedor_id: string | null;
@@ -127,6 +138,7 @@ type Bruto = TicketIndicador & {
 const CAMPOS = `id, cliente_nome, telefone, cpf, email, vendedor_id, pop_id, etapa, criado_em,
   primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por, origem_criacao,
   motivo_id, contrato_id, reconciliado_em, atualizado_em, valor_estimado, etapa_encerramento,
+  score, score_origem, score_faixa, adiantamento_valor, adiantamento_recebido_em,
   contratos(sgp_contrato_id, data_venda, clientes(sgp_cliente_id, nome)),
   vendedores(nome), pops(nome), planos(nome), motivos_nao_conversao(nome)`;
 
@@ -222,7 +234,7 @@ export async function carregarCrm(
     if (filtros.altoValor && (t.valor_estimado ?? 0) < 130) return false;
     return true;
   };
-  const abertos = todosAbertos.filter(casaFiltro);
+  let abertos = todosAbertos.filter(casaFiltro);
   // nos fechados valem os filtros de DIMENSÃO (busca/POP/vendedora/origem/meus);
   // chips de estado (sem contato, risco…) só se aplicam a tickets abertos
   const casaDimensao = (t: Bruto): boolean => {
@@ -239,12 +251,40 @@ export async function carregarCrm(
     if (filtros.altoValor && (t.valor_estimado ?? 0) < 130) return false;
     return true;
   };
-  const fechados = todosFechados.filter(casaDimensao);
+  let fechados = todosFechados.filter(casaDimensao);
+
+  // estado da consulta Consult Center por ticket (01/10/2026)
+  const idsTodos = [...abertos, ...todosFechados].map((t) => t.id);
+  const divergentes = new Set<string>();
+  for (let i = 0; i < idsTodos.length; i += 300) {
+    const { data: cc } = await supabase
+      .from("consultas_credito")
+      .select("ticket_id, cpf_confere")
+      .eq("atual", true)
+      .eq("cpf_confere", false)
+      .in("ticket_id", idsTodos.slice(i, i + 300));
+    for (const c of cc ?? []) divergentes.add(c.ticket_id as string);
+  }
+  const estadoConsulta = (t: Bruto): CartaoTicket["consulta"] => {
+    if (t.etapa === "fechado" && t.desfecho !== "convertido") return null; // perdida: sem selo
+    if (t.score === null || t.score_origem !== "consulta") return "sem_consulta";
+    if (divergentes.has(t.id)) return "divergencia";
+    if ((t.adiantamento_valor ?? 0) > 0 && !t.adiantamento_recebido_em) return "adiantamento_pendente";
+    return "ok";
+  };
+
+  if (filtros.semConsulta) {
+    abertos = abertos.filter((t) => estadoConsulta(t) === "sem_consulta");
+    fechados = fechados.filter(
+      (t) => t.desfecho === "convertido" && estadoConsulta(t) === "sem_consulta"
+    );
+  }
 
   const paraCartao = (t: Bruto): CartaoTicket => {
     const referencia = t.etapa === "fechado" ? t.fechado_em! : t.atualizado_em;
     const est = estadoInatividade(t, agora, crmDiasInatividade());
     return {
+      consulta: estadoConsulta(t),
       id: t.id,
       cliente_nome: t.cliente_nome,
       telefone: t.telefone,
@@ -509,6 +549,9 @@ export async function carregarCrm(
     retornosVencidos,
     fechadosMes,
     perdidosPeriodo,
+    vendidasSemConsulta: fechados.filter(
+      (t) => t.desfecho === "convertido" && estadoConsulta(t) === "sem_consulta"
+    ).length,
     rodape,
     followupsHoje,
     colunas,
