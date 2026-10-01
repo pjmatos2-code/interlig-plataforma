@@ -19,9 +19,10 @@ export function AtualizarSz() {
           setMsg("Buscando no SZ Chat… (até 1 min)");
           try {
             const r = await atualizarDoSzAgora();
+            const resumo = `SZ: ${r.criados ?? 0} novo(s) · ${r.enriquecidos ?? 0} atualizado(s)`;
             if (r.erro) setMsg(r.erro);
-            else if (r.detalhe && !r.criados) setMsg(r.detalhe);
-            else setMsg(`SZ: ${r.criados ?? 0} ticket(s) novo(s) · ${r.enriquecidos ?? 0} enriquecido(s)`);
+            else if (r.detalhe) setMsg(`${resumo} — ${r.detalhe}`);
+            else setMsg(resumo);
             router.refresh();
           } finally {
             setOcupado(false);

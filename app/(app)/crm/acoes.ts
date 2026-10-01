@@ -996,19 +996,36 @@ export async function atualizarDoSzAgora(): Promise<
     p_sistema: "szchat",
     p_patch: { robo_diurno_em: new Date().toISOString() },
   });
+
+  // enriquecimento PRIMEIRO: é rápido (busca por protocolo, ~600ms cada) e é o
+  // que de fato atualiza os tickets abertos — assim o clique sempre entrega
+  // algo, mesmo que o robô das encerradas estoure o tempo depois
+  const { enriquecerTicketsAbertos } = await import("@/lib/sz/enriquecer");
+  const enr = await enriquecerTicketsAbertos(20_000).catch(() => ({ ok: false, verificados: 0, atualizados: 0 }));
+
   const { rodarRoboSz } = await import("@/lib/sz/robo");
-  const robo = await rodarRoboSz(undefined, 60_000).catch((e) => ({
+  const robo = await rodarRoboSz(undefined, 50_000).catch((e) => ({
     ok: false as const, criados: 0, erro: String(e),
   }));
-  const { enriquecerTicketsAbertos } = await import("@/lib/sz/enriquecer");
-  const enr = await enriquecerTicketsAbertos(15_000).catch(() => ({ ok: false, verificados: 0, atualizados: 0 }));
 
   revalidar();
   const criados = (robo as { criados?: number }).criados ?? 0;
-  return {
-    ok: true,
-    criados,
-    enriquecidos: (enr as { atualizados?: number }).atualizados ?? 0,
-    detalhe: (robo as { ok?: boolean; erro?: string }).ok === false ? `robô: ${(robo as { erro?: string }).erro}` : undefined,
-  };
+  const enriquecidos = (enr as { atualizados?: number }).atualizados ?? 0;
+  const roboFalhou = (robo as { ok?: boolean }).ok === false;
+  const erroRobo = String((robo as { erro?: string }).erro ?? "");
+  // timeout do relatório do SZ não é erro do usuário — a busca das encerradas
+  // segue no ciclo automático; mostra uma mensagem tranquila
+  const foiTimeout = /timeout|aborted|abort/i.test(erroRobo);
+
+  let detalhe: string | undefined;
+  if (roboFalhou && foiTimeout) {
+    detalhe =
+      enriquecidos > 0
+        ? "tickets abertos atualizados; a busca de encerradas segue em segundo plano"
+        : "a busca no SZ está demorando e segue em segundo plano — recarregue em instantes";
+  } else if (roboFalhou) {
+    detalhe = `não foi possível concluir agora (${erroRobo.slice(0, 60)})`;
+  }
+
+  return { ok: true, criados, enriquecidos, detalhe };
 }
