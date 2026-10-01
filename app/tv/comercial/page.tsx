@@ -107,7 +107,7 @@ function Velocimetro({ valor, meta }: { valor: number; meta: number }) {
 export default async function TvComercialPage({
   searchParams,
 }: {
-  searchParams: { alerta?: string; som?: string };
+  searchParams: { alerta?: string; som?: string; demo?: string };
 }) {
   await exigirUsuario();
   // estilo do alerta e som escolhidos pela URL (?alerta=marca&som=conexao)
@@ -139,6 +139,7 @@ export default async function TvComercialPage({
         metaDiaria={d.metaDiaria}
         estilo={estilo}
         som={som}
+        demo={searchParams.demo === "1"}
       />
 
       {/* cabeçalho */}

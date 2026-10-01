@@ -107,12 +107,15 @@ export function AlertaNovaVenda({
   metaDiaria,
   estilo = "sino",
   som = "sino",
+  demo = false,
 }: {
   vendas: VendaRecente[];
   totalHoje: number;
   metaDiaria: number;
   estilo?: EstiloAlerta;
   som?: SomAlerta;
+  /** ?demo=1: botão que simula uma venda (testar a TV sem esperar venda real) */
+  demo?: boolean;
 }) {
   const vistas = useRef<Set<string> | null>(null);
   const [fila, setFila] = useState<{ venda: VendaRecente; ordem: number }[]>([]);
@@ -164,30 +167,72 @@ export function AlertaNovaVenda({
         </button>
       )}
 
+      {demo && (
+        <button
+          type="button"
+          onClick={() => {
+            const base = vendas[0];
+            const venda: VendaRecente = base
+              ? { ...base, id: `demo-${Date.now()}` }
+              : { id: `demo-${Date.now()}`, vendedora: "Karoline", foto: null, plano: "FIBRA 400MB", valor: 99.9, unidade: "Altamira", criadoEm: new Date().toISOString() };
+            setFila((f) => [...f, { venda, ordem: totalHoje + 1 }]);
+          }}
+          className="fixed bottom-4 left-4 z-40 rounded-full border border-sky-400/50 bg-sky-400/15 px-4 py-2 text-sm font-semibold text-sky-200"
+        >
+          ▶ Simular venda (demonstração)
+        </button>
+      )}
+
       {atual && estilo === "marca" && (
         <div key={atual.venda.id} className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-interlig-marinho" role="alert">
           <style>{`
             @keyframes fibra{0%{left:-45%;opacity:0}15%{opacity:1}100%{left:110%;opacity:0}}
-            @keyframes q1{from{transform:translate(-45vw,-35vh) rotate(-90deg);opacity:0}to{transform:none;opacity:1}}
-            @keyframes q2{from{transform:translate(45vw,-35vh) rotate(90deg);opacity:0}to{transform:none;opacity:1}}
-            @keyframes q3{from{transform:translate(-45vw,35vh) rotate(90deg);opacity:0}to{transform:none;opacity:1}}
-            @keyframes q4{from{transform:translate(45vw,35vh) rotate(-90deg);opacity:0}to{transform:none;opacity:1}}
-            @keyframes pulsaMarca{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
-            @keyframes entraMarca{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+            @keyframes voaA{from{transform:translate(-55vw,-45vh) rotate(-140deg) scale(4);opacity:0}to{transform:none;opacity:1}}
+            @keyframes voaB{from{transform:translate(55vw,-45vh) rotate(140deg) scale(4);opacity:0}to{transform:none;opacity:1}}
+            @keyframes voaC{from{transform:translate(-55vw,45vh) rotate(140deg) scale(4);opacity:0}to{transform:none;opacity:1}}
+            @keyframes voaD{from{transform:translate(55vw,45vh) rotate(-140deg) scale(4);opacity:0}to{transform:none;opacity:1}}
+            @keyframes brilhoMarca{0%,100%{filter:brightness(1)}50%{filter:brightness(1.45)}}
+            @keyframes logoEntra{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+            @keyframes entraMarca{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
             .tv-risco{position:absolute;height:6px;width:45%;animation:fibra 1.5s ease-out both}
-            .tv-marca{display:grid;grid-template-columns:repeat(2,5.5rem);gap:1.4rem;width:max-content;margin:0 auto;animation:pulsaMarca 1.4s ease-in-out 1s infinite}
-            .tv-marca span{width:5.5rem;height:5.5rem;border-radius:1rem;transform:skewX(-10deg)}
-            .tv-texto{animation:entraMarca .6s ease-out .5s both}
-            @media (prefers-reduced-motion:reduce){.tv-risco,.tv-marca,.tv-marca span,.tv-texto{animation:none!important}}
+            .tv-logo{position:relative;width:min(58vw,960px);aspect-ratio:1600/603;margin:0 auto}
+            .tv-logo img{position:absolute;display:block}
+            .tv-base{inset:0;width:100%;height:100%;animation:logoEntra .7s ease-out .5s both}
+            .tv-px{animation-duration:.95s;animation-timing-function:cubic-bezier(.2,.8,.2,1);animation-fill-mode:both}
+            .tv-px-brilho{animation:brilhoMarca 1.6s ease-in-out 1.4s infinite}
+            .tv-texto{animation:entraMarca .6s ease-out 1.05s both}
+            @media (prefers-reduced-motion:reduce){.tv-risco,.tv-base,.tv-px,.tv-px-brilho,.tv-texto{animation:none!important}}
           `}</style>
-          <span className="tv-risco top-[42%] bg-interlig-claro" />
-          <span className="tv-risco top-[60%] bg-interlig-ceu" style={{ animationDelay: ".35s" }} />
+          <span className="tv-risco top-[38%] bg-interlig-claro" />
+          <span className="tv-risco top-[52%] bg-interlig-ceu" style={{ animationDelay: ".35s" }} />
           <div className="relative text-center">
-            <div className="tv-marca">
-              <span className="bg-interlig-claro" style={{ animation: "q1 .8s ease-out both" }} />
-              <span className="bg-interlig-medio" style={{ animation: "q2 .8s ease-out .08s both" }} />
-              <span className="bg-interlig-ceu" style={{ animation: "q3 .8s ease-out .16s both" }} />
-              <span className="border-4 border-interlig-medio bg-interlig-azul" style={{ animation: "q4 .8s ease-out .24s both" }} />
+            {/* logomarca oficial: base + os 4 pixels recortados do arquivo da
+                marca, que voam de fora da tela e encaixam na posição real */}
+            <div className="tv-logo">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/marca/logo-sem-simbolo.png" alt="Interlig Internet Fibra" className="tv-base" />
+              {[
+                { src: "/marca/simbolo-3.png", l: 77.688, t: 15.257, w: 5.25, h: 12.769, voo: "voaC", d: 0 },
+                { src: "/marca/simbolo-2.png", l: 80.375, t: 7.96, w: 2.438, h: 5.804, voo: "voaA", d: 0.12 },
+                { src: "/marca/simbolo-4.png", l: 83.5, t: 16.418, w: 2.438, h: 5.804, voo: "voaD", d: 0.24 },
+                { src: "/marca/simbolo-1.png", l: 83.312, t: 4.643, w: 3.562, h: 8.624, voo: "voaB", d: 0.36 },
+              ].map((m) => (
+                <span
+                  key={m.src}
+                  className="tv-px absolute"
+                  style={{
+                    left: `${m.l}%`,
+                    top: `${m.t}%`,
+                    width: `${m.w}%`,
+                    height: `${m.h}%`,
+                    animationName: m.voo,
+                    animationDelay: `${m.d}s`,
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={m.src} alt="" className="tv-px-brilho h-full w-full" />
+                </span>
+              ))}
             </div>
             <div className="tv-texto">
               <p className="mt-10 text-3xl font-bold tracking-[0.6em] text-interlig-claro">NOVA VENDA</p>
