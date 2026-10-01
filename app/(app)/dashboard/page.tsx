@@ -383,14 +383,24 @@ export default async function DashboardPage({
 
   return (
     <>
-      <CabecalhoPagina
-        titulo="Dashboard geral"
-        descricao={
-          ehGestor
-            ? `Visão consolidada · ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`
-            : `${timeIds ? "Seu time" : "Sua POP"} · ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`
-        }
-      />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <CabecalhoPagina
+          titulo="Dashboard geral"
+          descricao={
+            ehGestor
+              ? `Visão consolidada · ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`
+              : `${timeIds ? "Seu time" : "Sua POP"} · ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`
+          }
+        />
+        <a
+          href="/tv/comercial"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mb-5 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-interlig-azul to-interlig-ceu px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02]"
+        >
+          📺 Ver no modo TV →
+        </a>
+      </div>
 
       <FiltrosDashboard pops={d.pops} mostrarPop={ehGestor} de={periodo.de} ate={periodo.ate} />
 

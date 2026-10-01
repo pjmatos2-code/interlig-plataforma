@@ -10,7 +10,7 @@ import {
   UserPlus,
   Wifi,
 } from "lucide-react";
-import { exigirUsuario } from "@/lib/auth";
+import { exigirPerfil } from "@/lib/auth";
 import { carregarTvComercial } from "@/lib/tv/comercial";
 import { LogoInterlig } from "@/components/marca/logo-interlig";
 import { cn } from "@/lib/utils";
@@ -109,10 +109,12 @@ export default async function TvComercialPage({
 }: {
   searchParams: { alerta?: string; som?: string; demo?: string };
 }) {
-  await exigirUsuario();
-  // estilo do alerta e som escolhidos pela URL (?alerta=marca&som=conexao)
-  const estilo = searchParams.alerta === "marca" ? "marca" : "sino";
-  const som = (["sino", "conexao", "moedas"].includes(searchParams.som ?? "") ? searchParams.som : "sino") as
+  // visão da empresa inteira: mesmo público do dashboard principal
+  await exigirPerfil(["gestor", "supervisor", "direcao"]);
+  // padrão aprovado (01/10/2026): símbolo da marca + moedas; a URL ainda
+  // permite trocar (?alerta=sino&som=conexao)
+  const estilo = searchParams.alerta === "sino" ? "sino" : "marca";
+  const som = (["sino", "conexao", "moedas"].includes(searchParams.som ?? "") ? searchParams.som : "moedas") as
     | "sino"
     | "conexao"
     | "moedas";

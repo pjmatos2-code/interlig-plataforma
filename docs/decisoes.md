@@ -635,3 +635,18 @@ Total: 73 pendentes de 314 vendas de maio (23%).
   (`sgp_auto`, sem interação humana) é descartado quando existe ticket real
   no mesmo contrato (a venda contava em dobro). Migração 0101: função de
   sistema `descartar_ticket_automatico` — única exceção à trava de exclusão.
+
+## Modo TV oficial = dashboard comercial (01/10/2026)
+
+- `/tv/comercial`: dashboard da empresa inteira no modelo aprovado
+  (vendas/receita/ticket/ativações hoje vs. dia útil anterior, instalações
+  agendadas hoje no lugar de cancelamentos — cancelamento diário não é
+  confiável hoje —, Meta Geral 2026, meta do dia, evolução por hora, funil,
+  top 5 com fotos, 3 unidades). Escala sozinha para qualquer TV.
+- Alerta de nova venda em tela cheia: padrão = símbolo oficial (4 pixels
+  recortados do arquivo da marca) + som de moedas; `?alerta=sino`,
+  `?som=conexao|sino` trocam; `?demo=1` mostra botão de simulação.
+- Acesso: gestor, supervisor e direção (usuário de TV: perfil direção).
+  `/tv` redireciona para `/tv/comercial`; `/tv/ranking` (totem vertical)
+  segue separado. Botão "Ver no modo TV" no dashboard principal.
+- Mês sem metas cadastradas: a TV usa as metas do último mês cadastrado.
