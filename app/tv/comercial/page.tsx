@@ -338,6 +338,18 @@ export default async function TvComercialPage({
               </div>
             ))}
           </div>
+          {/* conversão do dia = contratos assinados ÷ leads do dia */}
+          <div className="mt-4 flex items-center justify-between rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2.5">
+            <span className="text-sm font-semibold tracking-wide text-emerald-200">TAXA DE CONVERSÃO DO DIA</span>
+            <span className="flex items-baseline gap-2">
+              <span className="text-3xl font-black tabular-nums text-emerald-400">
+                {d.funil.leads > 0 ? Math.round((d.funil.assinado / d.funil.leads) * 100) : 0}%
+              </span>
+              <span className="text-xs text-slate-300">
+                {d.funil.assinado} de {d.funil.leads} leads
+              </span>
+            </span>
+          </div>
         </Painel>
       </div>
 
