@@ -196,17 +196,29 @@ export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<Est
   // com o score lançado — corporativo fica fora da régua. Vale apenas no
   // fechamento MANUAL; as automações (robô/reconciliação) não são travadas.
   if (desfecho === "convertido") {
+    // Fase de IMPLANTAÇÃO do filtro de entrada (01/10/2026, decisão do
+    // gestor): fechar sem a consulta NÃO bloqueia — só sinaliza (selo 🔴 no
+    // card, chip e contadores) e registra no histórico. Quando a migração
+    // terminar, a trava pode voltar aqui.
     const setor = (atual?.vendedores as unknown as { setor?: string } | null)?.setor ?? null;
     const corporativo = setor === "corporativo";
-    // 01/10/2026: só vale consulta EXTRAÍDA DO PDF (score manual desativado)
     const temConsulta =
       atual?.score !== null &&
       atual?.score !== undefined &&
       (atual as { score_origem?: string | null })?.score_origem === "consulta";
-    if (!corporativo && !temConsulta)
-      return {
-        erro: "Anexe a consulta Consult Center (PDF) antes de fechar como Vendida — o score manual foi desativado em 01/10.",
-      };
+    if (!corporativo && !temConsulta) {
+      const usuarioAtual = await exigirUsuario();
+      const { criarClienteAdmin } = await import("@/lib/supabase/admin");
+      await criarClienteAdmin().from("ticket_eventos").insert({
+        ticket_id: ticketId,
+        tipo: "nota",
+        dados: {
+          texto:
+            "🔴 Fechada como Vendida SEM a consulta Consult Center (fase de implantação — sinalização apenas; anexe o PDF quando possível).",
+        },
+        usuario_id: usuarioAtual.id,
+      });
+    }
   }
 
   if (desfecho === "convertido") {
