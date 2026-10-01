@@ -71,10 +71,10 @@ function Kpi({
 
 function Painel({ titulo, sub, children, className }: { titulo: string; sub?: string; children: ReactNode; className?: string }) {
   return (
-    <section className={cn("rounded-2xl border border-sky-500/20 bg-[#0d1b3d] p-4", className)}>
+    <section className={cn("flex flex-col rounded-2xl border border-sky-500/20 bg-[#0d1b3d] p-4", className)}>
       <h2 className="text-lg font-bold tracking-wide text-white">{titulo}</h2>
       {sub && <p className="text-sm text-slate-400">{sub}</p>}
-      <div className="mt-3">{children}</div>
+      <div className="mt-3 flex min-h-0 flex-1 flex-col justify-center">{children}</div>
     </section>
   );
 }
@@ -144,11 +144,11 @@ export default async function TvComercialPage({
       demo={searchParams.demo === "1"}
     />
     <PalcoTv>
-    <main className="bg-[#071330] px-8 py-4 text-white">
+    <main className="flex h-[1080px] flex-col bg-[#071330] px-8 py-5 text-white">
       <AutoAtualizar />
 
       {/* cabeçalho */}
-      <header className="mb-3 flex items-center justify-between">
+      <header className="mb-4 flex shrink-0 items-center justify-between">
         <div className="flex items-center gap-5">
           <LogoInterlig variante="clara" tamanho="md" />
           <p className="border-l border-white/20 pl-5 text-sm font-semibold leading-snug tracking-[0.3em] text-slate-300">
@@ -161,20 +161,11 @@ export default async function TvComercialPage({
           <h1 className="text-4xl font-black tracking-[0.12em]">DASHBOARD COMERCIAL</h1>
           <p className="text-sm tracking-[0.35em] text-slate-300">VENDAS · ATIVAÇÕES · RESULTADOS EM TEMPO REAL</p>
         </div>
-        <div className="flex items-center gap-6">
-          <Relogio />
-          <p className="border-l border-white/20 pl-5 text-xs font-semibold leading-relaxed tracking-[0.3em] text-slate-300">
-            PESSOAS
-            <br />
-            INTERNET
-            <br />
-            RESULTADOS
-          </p>
-        </div>
+        <Relogio />
       </header>
 
       {/* KPIs */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid shrink-0 grid-cols-5 gap-4">
         <Kpi
           icone={<ShoppingCart className="h-8 w-8 text-white" />}
           cor="#1d6ff2"
@@ -223,7 +214,7 @@ export default async function TvComercialPage({
       </div>
 
       {/* META GERAL 2026 */}
-      <section className="mt-3 flex items-center gap-8 rounded-2xl border border-sky-400/40 bg-[#0b1f4a] px-7 py-4">
+      <section className="mt-4 flex shrink-0 items-center gap-8 rounded-2xl border border-sky-400/40 bg-[#0b1f4a] px-7 py-4">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
             <Target className="h-8 w-8 text-sky-400" />
@@ -277,7 +268,7 @@ export default async function TvComercialPage({
       </section>
 
       {/* linha 3: velocímetro · evolução por hora · funil */}
-      <div className="mt-3 grid grid-cols-[1fr_1.7fr_1.1fr] gap-4">
+      <div className="mt-4 grid min-h-0 flex-[1.05] grid-cols-[1fr_1.7fr_1.1fr] gap-4">
         <Painel titulo="VENDAS DO DIA" sub="Acompanhe o desempenho em tempo real">
           <div className="flex items-center justify-around">
             <div className="flex flex-col items-center">
@@ -306,7 +297,7 @@ export default async function TvComercialPage({
               <span className="text-3xl font-black text-sky-300">{Math.round(d.metaDiaria)}</span>
             </span>
           </div>
-          <div className="relative h-32">
+          <div className="relative min-h-[8rem] flex-1">
             <div
               className="absolute inset-x-0 z-10 border-t-2 border-dashed border-slate-400/70"
               style={{ bottom: `${(ritmoHora / maxHora) * 100}%` }}
@@ -355,7 +346,7 @@ export default async function TvComercialPage({
       </div>
 
       {/* linha 4: top 5 · unidades */}
-      <div className="mt-3 grid grid-cols-[1fr_1.6fr] gap-4">
+      <div className="mt-4 grid min-h-0 flex-1 grid-cols-[1fr_1.6fr] gap-4">
         <Painel titulo="TOP 5 AGENTES HOJE">
           <table className="w-full text-base">
             <thead>
@@ -451,13 +442,6 @@ export default async function TvComercialPage({
         </Painel>
       </div>
 
-      <footer className="mt-3 flex items-center justify-between text-sm">
-        <p className="tracking-[0.35em] text-slate-300">INTERLIG · CONECTANDO O QUE IMPORTA</p>
-        <p className="flex items-center gap-2 text-slate-300">
-          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-400" /> Dados atualizados em tempo real
-        </p>
-        <p className="italic text-slate-300">Mais que internet, conexões reais.</p>
-      </footer>
     </main>
     </PalcoTv>
     </>
