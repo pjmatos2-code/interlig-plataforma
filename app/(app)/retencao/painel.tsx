@@ -212,6 +212,25 @@ function Detalhe({
                   {editandoId ? "cancelar" : "editar"}
                 </button>
               )}
+              {ehGestor && (
+                <button
+                  type="button"
+                  disabled={ocupado}
+                  title="Excluir caso (duplicidade) — permanente"
+                  onClick={() => {
+                    if (!confirm(`Excluir DEFINITIVAMENTE o caso de "${c.clienteNome}"?\nUse apenas para DUPLICIDADE — caso legítimo deve ser encerrado com desfecho.`)) return;
+                    executar(async () => {
+                      const { excluirCasoRetencao } = await import("./acoes");
+                      const r = await excluirCasoRetencao(c.id);
+                      if (!r.erro) onFechar();
+                      return r;
+                    }, "Caso excluído.");
+                  }}
+                  className="rounded-md px-1 text-[13px] leading-none text-slate-300 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                >
+                  🗑
+                </button>
+              )}
             </div>
             {editandoId && (
               <div className="mt-2 flex flex-wrap items-center gap-2">

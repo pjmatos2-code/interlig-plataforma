@@ -379,3 +379,18 @@ export async function reabrirCaso(
       : "Caso reaberto em negociação.",
   };
 }
+
+/**
+ * Exclusão de caso DUPLICADO (gestor, 01/10/2026): o robô às vezes abre dois
+ * casos para a mesma conversa/cliente. Permanente — usar só para duplicidade;
+ * caso legítimo encerra com desfecho (a taxa e a auditoria dependem disso).
+ */
+export async function excluirCasoRetencao(id: string): Promise<Resultado> {
+  await exigirPerfil(["gestor"]);
+  const { criarClienteAdmin } = await import("@/lib/supabase/admin");
+  const admin = criarClienteAdmin();
+  const { error } = await admin.from("casos_retencao").delete().eq("id", id);
+  if (error) return { erro: `Não foi possível excluir: ${error.message}` };
+  revalidar();
+  return { ok: "Caso excluído." };
+}
