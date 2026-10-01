@@ -310,7 +310,7 @@ function CartaoAgente({
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Etapa rotulo={lider ? "Ativações" : "Vendidas"} valor={a.vendidas} nota={a.naoContam ? `${a.naoContam} não contam` : undefined} />
               <Etapa rotulo="Válidas" valor={a.validas} nota={a.estornadas ? `−${a.estornadas} estornada${a.estornadas > 1 ? "s" : ""}` : "pontuam a meta"} />
-              <Etapa rotulo="Ativas" valor={a.ativas} nota={a.validas - a.ativas > 0 ? `${a.validas - a.ativas} não ativas` : "todas ativas"} />
+              <Etapa rotulo="Ativas" valor={a.ativas} nota={a.validas - a.ativas > 0 ? `${a.validas - a.ativas} não ativa${a.validas - a.ativas > 1 ? "s" : ""}` : "todas ativas"} />
               <Etapa
                 rotulo="Aprovadas"
                 valor={a.aprovadas}
