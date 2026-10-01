@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import {
   CalendarClock,
   CircleDollarSign,
-  FileSignature,
   Headset,
   ShoppingCart,
   Tag,
@@ -125,7 +124,7 @@ export default async function TvComercialPage({
   const faltam = Math.max(0, d.metaGeral.meta - d.metaGeral.ativos);
   const ritmoHora = d.metaDiaria / 12;
   const maxHora = Math.max(1, ritmoHora * 1.3, ...d.porHora.map((h) => h.vendas));
-  const maxFunil = Math.max(1, d.funil.leads, d.funil.atendimento, d.funil.contrato, d.funil.assinado);
+  const maxFunil = Math.max(1, d.funil.leads, d.funil.atendimento, d.funil.assinado);
   const COR_UNIDADE: Record<string, string> = {
     Altamira: "#2f8cff",
     "Vitória do Xingu": "#22d3a6",
@@ -326,7 +325,6 @@ export default async function TvComercialPage({
             {[
               { r: "Leads", v: d.funil.leads, ic: <UserPlus className="h-5 w-5" />, c: "#2f8cff" },
               { r: "Em atendimento", v: d.funil.atendimento, ic: <Headset className="h-5 w-5" />, c: "#22a7f0" },
-              { r: "Criação do contrato", v: d.funil.contrato, ic: <FileSignature className="h-5 w-5" />, c: "#22c4c9" },
               { r: "Contrato assinado", v: d.funil.assinado, ic: <ShoppingCart className="h-5 w-5" />, c: "#22d3a6" },
             ].map((f) => (
               <div key={f.r} className="flex items-center gap-3">

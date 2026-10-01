@@ -33,7 +33,7 @@ export type DadosTvComercial = {
   metaGeral: { meta: number; ativos: number; unidades: { nome: string; ativos: number }[] };
   metaDiaria: number;
   porHora: { hora: number; vendas: number }[];
-  funil: { leads: number; atendimento: number; contrato: number; assinado: number };
+  funil: { leads: number; atendimento: number; assinado: number };
   top5: { nome: string; foto: string | null; vendas: number; receita: number }[];
   unidades: { nome: string; vendas: number; ativacoes: number; receita: number; metaDia: number }[];
   vendasRecentes: VendaRecente[];
@@ -99,14 +99,6 @@ export async function carregarTvComercial(): Promise<DadosTvComercial> {
         .gte("criado_em", `${hoje}T00:00:00-03:00`)
         .limit(3000),
     ]);
-  // tickets que FORAM para "Criação do contrato" hoje (histórico de etapas)
-  const { data: paraContrato } = await admin
-    .from("ticket_eventos")
-    .select("ticket_id")
-    .eq("tipo", "mudanca_etapa")
-    .eq("dados->>para", "aguardando")
-    .gte("criado_em", `${hoje}T00:00:00-03:00`)
-    .limit(3000);
 
   const contratos = (brutos ?? []) as unknown as ContratoTv[];
   const vendasHoje = vendasDoPeriodo(contratos, hoje, hoje) as ContratoTv[];
@@ -195,8 +187,6 @@ export async function carregarTvComercial(): Promise<DadosTvComercial> {
     leads: tk.length,
     // em atendimento = tickets de hoje que ainda não viraram venda (abertos)
     atendimento: tk.filter((t) => t.etapa !== "fechado").length,
-    // foram para "Criação do contrato" hoje
-    contrato: new Set((paraContrato ?? []).map((e) => e.ticket_id as string)).size,
     // contrato assinado = vendas de hoje
     assinado: vendasHoje.length,
   };
