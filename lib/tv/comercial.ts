@@ -29,11 +29,11 @@ export type DadosTvComercial = {
   receita: { hoje: number; antes: number };
   ticket: { hoje: number; antes: number };
   ativacoes: { hoje: number; antes: number };
-  agendadas: { hoje: number; semTecnico: number; proxima: string | null };
+  agendadas: { hoje: number; naFila: number; sairamDaFila: number; proxima: string | null };
   metaGeral: { meta: number; ativos: number; unidades: { nome: string; ativos: number }[] };
   metaDiaria: number;
   porHora: { hora: number; vendas: number }[];
-  funil: { leads: number; atendimento: number; contrato: number; vendas: number };
+  funil: { leads: number; atendimento: number; contrato: number; assinado: number };
   top5: { nome: string; foto: string | null; vendas: number; receita: number }[];
   unidades: { nome: string; vendas: number; ativacoes: number; receita: number; metaDia: number }[];
   vendasRecentes: VendaRecente[];
@@ -84,20 +84,29 @@ export async function carregarTvComercial(): Promise<DadosTvComercial> {
         .gte("data_ativacao", antes)
         .lte("data_ativacao", hoje)
         .limit(2000),
+      // agendadas hoje = TODA OS de instalação com agendamento hoje (as que
+      // já saíram da fila também foram agendadas para hoje — mesma esteira)
       admin
         .from("os_instalacao")
-        .select("agendamento, responsavel")
-        .eq("situacao", "aberta")
+        .select("agendamento, situacao")
         .not("agendamento", "is", null)
         .gte("agendamento", `${hoje}T00:00:00-03:00`)
         .lte("agendamento", `${hoje}T23:59:59-03:00`)
         .limit(500),
       admin
         .from("tickets")
-        .select("etapa, desfecho, primeira_tratativa_em")
+        .select("etapa")
         .gte("criado_em", `${hoje}T00:00:00-03:00`)
         .limit(3000),
     ]);
+  // tickets que FORAM para "Criação do contrato" hoje (histórico de etapas)
+  const { data: paraContrato } = await admin
+    .from("ticket_eventos")
+    .select("ticket_id")
+    .eq("tipo", "mudanca_etapa")
+    .eq("dados->>para", "aguardando")
+    .gte("criado_em", `${hoje}T00:00:00-03:00`)
+    .limit(3000);
 
   const contratos = (brutos ?? []) as unknown as ContratoTv[];
   const vendasHoje = vendasDoPeriodo(contratos, hoje, hoje) as ContratoTv[];
@@ -112,6 +121,7 @@ export async function carregarTvComercial(): Promise<DadosTvComercial> {
   const os = osBrutas ?? [];
   const agora = paraStm(new Date().toISOString());
   const proximas = os
+    .filter((o) => o.situacao === "aberta")
     .map((o) => paraStm(o.agendamento as string))
     .filter((h) => h >= agora)
     .sort();
@@ -119,7 +129,7 @@ export async function carregarTvComercial(): Promise<DadosTvComercial> {
   // ---------- meta (mesma régua do dashboard: unidade cadastrada ?? agentes) ----------
   const [{ data: metasDoMes }, { data: vends }] = await Promise.all([
     admin.from("metas").select("escopo, referencia_id, quantidade_vendas").eq("mes_ano", inicioMes),
-    admin.from("vendedores").select("id, pop_id, eh_coordenador").eq("ativo", true),
+    admin.from("vendedores").select("id, pop_id, eh_coordenador, setor").eq("ativo", true),
   ]);
   // mês novo ainda sem metas cadastradas: a TV usa as do último mês que tem
   // (a tela não pode ficar com "meta 0" nos primeiros dias do mês)
@@ -151,8 +161,13 @@ export async function carregarTvComercial(): Promise<DadosTvComercial> {
     id: string;
     nome: string;
   }[];
-  const metaGlobal = Number(metas.find((m) => m.escopo === "global")?.quantidade_vendas ?? 0);
-  const metaMes = metaGlobal || popsUnid.reduce((t, p) => t + metaUnidade(p.id), 0);
+  // meta do dia (regra do gestor, 01/10/2026): soma da meta diária de cada
+  // agente comercial ativa — meta individual ÷ dias úteis do mês. Coordenador
+  // fica fora (a meta dele é a do time) e refidelização/retenção não vendem.
+  const SETORES_VENDA = ["comercial_interno", "comercial_externo", "corporativo"];
+  const metaDiariaAgentes = (vends ?? [])
+    .filter((v) => !v.eh_coordenador && SETORES_VENDA.includes(v.setor as string))
+    .reduce((t, v) => t + (metaVend.get(v.id as string) ?? 0) / diasUteisMes, 0);
 
   // ---------- base ativa (Relatórios > Crescimento, 1x/dia) ----------
   const { data: base } = await admin
@@ -176,10 +191,14 @@ export async function carregarTvComercial(): Promise<DadosTvComercial> {
   // ---------- funil do dia ----------
   const tk = ticketsHoje ?? [];
   const funil = {
+    // leads = tickets criados hoje
     leads: tk.length,
-    atendimento: tk.filter((t) => t.primeira_tratativa_em).length,
-    contrato: tk.filter((t) => t.etapa === "aguardando" || (t.etapa === "fechado" && t.desfecho === "convertido")).length,
-    vendas: vendasHoje.length,
+    // em atendimento = tickets de hoje que ainda não viraram venda (abertos)
+    atendimento: tk.filter((t) => t.etapa !== "fechado").length,
+    // foram para "Criação do contrato" hoje
+    contrato: new Set((paraContrato ?? []).map((e) => e.ticket_id as string)).size,
+    // contrato assinado = vendas de hoje
+    assinado: vendasHoje.length,
   };
 
   // ---------- top 5 do dia ----------
@@ -224,11 +243,12 @@ export async function carregarTvComercial(): Promise<DadosTvComercial> {
     ativacoes: { hoje: ativHoje.length, antes: ativ.filter((c) => c.data_ativacao === antes).length },
     agendadas: {
       hoje: os.length,
-      semTecnico: os.filter((o) => !o.responsavel).length,
+      naFila: os.filter((o) => o.situacao === "aberta").length,
+      sairamDaFila: os.filter((o) => o.situacao !== "aberta").length,
       proxima: proximas[0]?.slice(11, 16) ?? null,
     },
     metaGeral: { meta: 10_000, ativos: unidadesBase.reduce((t, u) => t + u.ativos, 0), unidades: unidadesBase },
-    metaDiaria: metaMes / diasUteisMes,
+    metaDiaria: metaDiariaAgentes,
     porHora,
     funil,
     top5,

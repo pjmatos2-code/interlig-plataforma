@@ -93,6 +93,12 @@ async function cicloCompleto() {
     }));
     console.log("enriquecimento SZ:", JSON.stringify(e));
   }
+  // instalação concluída → confere a ativação no SGP na hora (card da TV)
+  if (restante() > 50_000) {
+    const { conferirAtivacoesDaEsteira } = await import("@/lib/sgp/atualizar");
+    await conferirAtivacoesDaEsteira(8).catch((e) => console.error("ativações da esteira:", e));
+  }
+
   // robô comercial ANTES da retenção (30/09): no fim do ciclo ele nunca
   // alcançava o orçamento; o gate de 9 min segue valendo
   if (restante() > 40_000) {

@@ -303,21 +303,27 @@ export function AlertaNovaVenda({
 }
 
 /**
- * Palco 16:9 fixo (1920×1080): escala para PREENCHER a TV — em tela 16:9 ocupa
- * tudo; em proporções diferentes fica centralizado, sem rolagem nem corte.
+ * Palco da TV: largura de referência 1920px e altura adaptada à proporção
+ * da tela — preenche TV, monitor ou janela de ponta a ponta, sem faixas
+ * vazias, sem rolagem e sem distorcer (os painéis esticam na vertical).
  */
 export function PalcoTv({ children }: { children: React.ReactNode }) {
-  const [escala, setEscala] = useState(1);
+  const [dim, setDim] = useState({ escala: 1, altura: 1080 });
   useEffect(() => {
-    const ajustar = () => setEscala(Math.min(window.innerWidth / 1920, window.innerHeight / 1080));
+    const ajustar = () => {
+      const porLargura = window.innerWidth / 1920;
+      // altura do palco na proporção da tela, dentro de um limite legível
+      const altura = Math.min(1400, Math.max(1000, window.innerHeight / porLargura));
+      setDim({ altura, escala: Math.min(porLargura, window.innerHeight / altura) });
+    };
     ajustar();
     window.addEventListener("resize", ajustar);
     return () => window.removeEventListener("resize", ajustar);
   }, []);
   return (
     <div className="flex h-screen w-screen items-center justify-center overflow-hidden bg-[#071330]">
-      <div style={{ width: 1920 * escala, height: 1080 * escala }}>
-        <div style={{ width: 1920, height: 1080, transform: `scale(${escala})`, transformOrigin: "top left" }}>
+      <div style={{ width: 1920 * dim.escala, height: dim.altura * dim.escala }}>
+        <div style={{ width: 1920, height: dim.altura, transform: `scale(${dim.escala})`, transformOrigin: "top left" }}>
           {children}
         </div>
       </div>

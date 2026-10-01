@@ -203,3 +203,29 @@ export async function atualizarContratoDoSgp(contratoId: string): Promise<Resumo
     colunaPara,
   };
 }
+
+/**
+ * Ativação em quase tempo real (01/10/2026): a OS de instalação saiu da fila
+ * da esteira (técnico executou), mas a troca Inativo → Ativo no SGP só era
+ * percebida quando a varredura rotativa passava pelo cliente — às vezes dias
+ * depois. A cada ciclo, confere direto no SGP os contratos nessa situação; ao
+ * virar ativo, a data de ativação é carimbada no dia (card "Ativações hoje").
+ */
+export async function conferirAtivacoesDaEsteira(limite = 8): Promise<number> {
+  const admin = criarClienteAdmin();
+  const desde = new Date(Date.now() - 3 * 86_400_000).toISOString();
+  const { data: os } = await admin
+    .from("os_instalacao")
+    .select("contrato_id, contratos!inner(id, status)")
+    .eq("situacao", "saiu_da_fila")
+    .eq("contratos.status", "aguardando_ativacao")
+    .gte("visto_em", desde)
+    .limit(limite * 3);
+  const ids = [...new Set((os ?? []).map((o) => o.contrato_id as string))].slice(0, limite);
+  let ativados = 0;
+  for (const id of ids) {
+    const r = await atualizarContratoDoSgp(id).catch(() => null);
+    if (r?.ok && r.status === "ativo") ativados += 1;
+  }
+  return ativados;
+}
