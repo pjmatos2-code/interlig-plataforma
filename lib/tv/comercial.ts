@@ -161,10 +161,11 @@ export async function carregarTvComercial(opcoes: { mes?: string } = {}): Promis
   }));
 
   // ---------- evolução por hora (horário em que o cadastro entrou) ----------
-  const porHora = Array.from({ length: 13 }, (_, i) => ({ hora: i + 8, vendas: 0 }));
+  // 8h–18h; o que entra depois das 18h soma na barra das 18h (antes das 8h, na das 8h)
+  const porHora = Array.from({ length: 11 }, (_, i) => ({ hora: i + 8, vendas: 0 }));
   for (const c of vendasHoje) {
     const h = Number(paraStm(c.criado_em).slice(11, 13));
-    const slot = porHora.find((p) => p.hora === Math.min(20, Math.max(8, h)));
+    const slot = porHora.find((p) => p.hora === Math.min(18, Math.max(8, h)));
     if (slot) slot.vendas += 1;
   }
 

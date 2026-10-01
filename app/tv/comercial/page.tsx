@@ -113,7 +113,7 @@ export default async function TvComercialPage({
   const pctMetaDia = d.metaDiaria > 0 ? Math.round((d.vendas.hoje / d.metaDiaria) * 100) : 0;
   const pctGeral = (d.metaGeral.ativos / d.metaGeral.meta) * 100;
   const faltam = Math.max(0, d.metaGeral.meta - d.metaGeral.ativos);
-  const ritmoHora = d.metaDiaria / 12;
+  const ritmoHora = d.metaDiaria / d.porHora.length;
   const maxHora = Math.max(1, ritmoHora * 1.3, ...d.porHora.map((h) => h.vendas));
   const maxFunil = Math.max(1, d.funil.leads, d.funil.atendimento, d.funil.assinado);
   const maxMes = Math.max(1, ...d.mes.unidades.map((u) => u.vendas));
