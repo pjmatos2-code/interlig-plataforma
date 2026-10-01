@@ -12,6 +12,7 @@ import { formatarMoeda, formatarMoedaKpi, formatarNumero, formatarPercentual } f
 import { cn } from "@/lib/utils";
 import { type EtapaTicket, ehAgenteCrm } from "@/lib/tipos";
 import { FollowupFeito } from "@/components/crm/followup-feito";
+import { ExcluirTicketMini } from "@/components/crm/excluir-ticket-mini";
 import { ExportarCsv } from "@/components/crm/exportar-csv";
 
 export const dynamic = "force-dynamic";
@@ -107,7 +108,7 @@ function CartaoVendida({ t, linkTemplate }: { t: CartaoTicket; linkTemplate: str
   );
 }
 
-function CartaoGlass({ t, hoje }: { t: CartaoTicket; hoje: string }) {
+function CartaoGlass({ t, hoje, podeExcluir = false }: { t: CartaoTicket; hoje: string; podeExcluir?: boolean }) {
   const perdida = t.etapa === "fechado" && t.desfecho === "nao_convertido";
   const iniciais = (t.vendedora ?? "?")
     .split(/\s+/)
@@ -124,11 +125,14 @@ function CartaoGlass({ t, hoje }: { t: CartaoTicket; hoje: string }) {
     >
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 truncate font-semibold text-slate-800">{t.cliente_nome}</p>
-        {t.valor != null && t.valor > 0 && (
-          <span className="shrink-0 text-sm font-bold tabular-nums text-slate-900">
-            {formatarMoeda(t.valor)}
-          </span>
-        )}
+        <span className="flex shrink-0 items-center gap-1">
+          {t.valor != null && t.valor > 0 && (
+            <span className="text-sm font-bold tabular-nums text-slate-900">
+              {formatarMoeda(t.valor)}
+            </span>
+          )}
+          {podeExcluir && <ExcluirTicketMini ticketId={t.id} cliente={t.cliente_nome} />}
+        </span>
       </div>
       <p className="mt-0.5 truncate text-xs text-slate-500">{t.plano ?? "Plano a definir"}</p>
       <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-600">
@@ -550,7 +554,7 @@ export default async function CrmPage({
                       etapa === "fechado" && t.desfecho === "convertido" ? (
                         <CartaoVendida key={t.id} t={t} linkTemplate={linkTemplate} />
                       ) : (
-                        <CartaoGlass key={t.id} t={t} hoje={hoje} />
+                        <CartaoGlass key={t.id} t={t} hoje={hoje} podeExcluir={usuario.perfil === "gestor"} />
                       )
                     )}
                     {itens.length === 0 && (
