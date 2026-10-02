@@ -53,7 +53,7 @@ export function Kpi({
       <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", TONS[tom])}>{icone}</span>
       <div className="min-w-0">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{rotulo}</p>
-        <p className={cn("text-3xl font-bold leading-tight tabular-nums", alerta && "text-farol-vermelho")}>{valor}</p>
+        <p className={cn("font-bold leading-tight tabular-nums", valor.length > 7 ? "text-2xl" : "text-3xl", alerta && "text-farol-vermelho")}>{valor}</p>
         <div className="text-xs text-muted-foreground">{rodape}</div>
       </div>
     </div>
