@@ -26,8 +26,9 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
     const { data: pop } = usuario.pop_id
       ? await criarClienteAdmin().from("pops").select("nome").eq("id", usuario.pop_id).maybeSingle()
       : { data: null };
+    // Fidelidade e Meu painel (comissão de coordenação) são da coordenação de unidade
     if (!["Brasil Novo", "Vitória do Xingu"].includes(String(pop?.nome ?? ""))) {
-      itens = itens.filter((i) => i.href !== "/fidelidade");
+      itens = itens.filter((i) => i.href !== "/fidelidade" && i.href !== "/meu-painel");
     }
   }
 

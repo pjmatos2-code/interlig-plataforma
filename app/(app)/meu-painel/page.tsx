@@ -46,7 +46,14 @@ export default async function MeuPainelPage({
         .in("setor", ["comercial_interno", "comercial_externo", "corporativo", "atendimento"])
         .order("nome")
     : { data: [] };
-  const vendedorId = gestao ? searchParams.agente ?? null : usuario.vendedor_id;
+  // coordenação de unidade (Aline Moraes, Railson): o cadastro de agente é
+  // ligado pelo usuario_id, não por usuarios.vendedor_id
+  let vendedorProprio = usuario.vendedor_id;
+  if (!gestao && !vendedorProprio && usuario.perfil === "supervisor") {
+    const { data: vinc } = await admin.from("vendedores").select("id").eq("usuario_id", usuario.id).eq("ativo", true).maybeSingle();
+    vendedorProprio = (vinc?.id as string | undefined) ?? null;
+  }
+  const vendedorId = gestao ? searchParams.agente ?? null : vendedorProprio;
 
   const atual = primeiroDiaDoMes(hojeIso());
   const opcoes = [mesAtras(atual, 2), mesAtras(atual, 1), atual];
@@ -152,6 +159,58 @@ export default async function MeuPainelPage({
     p = await carregarPainelComissoes(mes, { vendedorId });
   }
   const a = p.agentes[0] ?? null;
+
+  // coordenação: comissão sobre a base da unidade/equipe — o cartão e a
+  // conferência bastam (CRM e vendas próprias não se aplicam)
+  if (a && a.base !== "proprias") {
+    const [{ data: vc }, linkSgpC] = await Promise.all([
+      admin.from("vendedores").select("nome").eq("id", vendedorId).maybeSingle(),
+      templateLinkSgp(),
+    ]);
+    const sufixoC = gestao ? `&agente=${vendedorId}` : "";
+    return (
+      <>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">
+              {gestao ? `Painel de ${vc?.nome ?? "agente"}` : `Olá, ${String(vc?.nome ?? "").split(/\s+/)[0]}!`}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sua comissão de coordenação — {a.base === "pop" ? "sobre as ativações da sua unidade" : "sobre as ativações do seu time"}, com a conta e os contratos.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {opcoes.map((m) => (
+              <Link
+                key={m}
+                href={`/meu-painel?mes=${m.slice(0, 7)}${sufixoC}`}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-sm capitalize",
+                  m === mes ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
+                )}
+              >
+                {nomeMes(m)}
+              </Link>
+            ))}
+          </div>
+        </div>
+        {seletorGestao}
+        <div className="mb-4 flex flex-wrap gap-2 text-xs">
+          {p.fechamento ? (
+            <span className="rounded-full bg-farol-verde/15 px-2.5 py-1 font-medium text-farol-verde">
+              {nomeMes(mes)} fechado em {dataHora(p.fechamento.em)}
+              {p.fechamento.pago ? " · pagamento registrado" : " · aguardando pagamento"}
+            </span>
+          ) : (
+            <span className="rounded-full bg-farol-amarelo/20 px-2.5 py-1 font-medium text-yellow-700">
+              {p.emAndamento ? "Mês em andamento — valores parciais, atualizados com o SGP" : "Ainda não fechado"}
+            </span>
+          )}
+        </div>
+        <CartaoResultadoAgente a={a} linkSgp={linkSgpC} debito={p.debito} />
+      </>
+    );
+  }
   const [{ data: v }, linkSgp, x] = await Promise.all([
     admin.from("vendedores").select("nome").eq("id", vendedorId).maybeSingle(),
     templateLinkSgp(),

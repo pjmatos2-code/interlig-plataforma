@@ -58,6 +58,8 @@ export type OsLinha = {
   encerradaNoMes: boolean;
   /** OS que caracterizou o retorno (anula a comissão desta) */
   retornoOsId: string | null;
+  /** retorno que a gestão aprovou: a OS volta a pontuar */
+  retornoAprovadoOsId: string | null;
   valorPorTecnico: Record<string, number>; // técnico.id -> R$
   /** técnicos cadastrados que participam desta OS (responsável ou auxiliar) */
   tecnicoIds: string[];
@@ -144,7 +146,7 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
     if (!pagina || pagina.length < 1000) break;
   }
 
-  const [{ data: tecnicos }, { data: seguintes }, { data: ajustes }] = await Promise.all([
+  const [{ data: tecnicos }, { data: seguintes }, { data: ajustes }, { data: aprovadas }] = await Promise.all([
     admin.from("tecnicos").select("*").eq("ativo", true).order("nome"),
     // OS do início do mês seguinte: um encerramento no fim do mês pode ter
     // retorno já na virada (janela de 72h)
@@ -154,7 +156,9 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
       .gt("criada_em", fim)
       .limit(1000),
     admin.from("ajustes_tecnica").select("*").eq("competencia", mes),
+    admin.from("tecnica_os_aprovadas").select("sgp_os_id"),
   ]);
+  const aprovadasSet = new Set((aprovadas ?? []).map((a) => a.sgp_os_id as string));
 
   // tendência: encerramentos por mês em toda a base (colunas leves, paginado)
   const tendMap = new Map<string, number>();
@@ -232,6 +236,13 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
       }
     }
 
+    // gestão aprovou a OS apesar do retorno: volta a pontuar
+    let retornoAprovadoOsId: string | null = null;
+    if (retornoOsId && aprovadasSet.has(o.sgp_os_id as string)) {
+      retornoAprovadoOsId = retornoOsId;
+      retornoOsId = null;
+    }
+
     // quem pontua nesta OS: responsável + auxiliares cadastrados
     const idsOs = tecnicosDaOs(o.responsavel as string | null, o.auxiliares as string | null, cad);
 
@@ -262,6 +273,7 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
       categoria,
       encerradaNoMes: Boolean(encerrada),
       retornoOsId,
+      retornoAprovadoOsId,
       valorPorTecnico,
       tecnicoIds: idsOs,
     });

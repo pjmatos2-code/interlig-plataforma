@@ -15,6 +15,27 @@ export async function sincronizarOsDoMes(mes: string): Promise<Resultado> {
   return { ok: `${r.lidas} OS lidas · ${r.gravadas} gravadas.` };
 }
 
+/** Aprova a comissão de uma OS anulada por retorno em 72h — sem justificativa. */
+export async function aprovarOsTecnica(sgpOsId: string): Promise<Resultado> {
+  const usuario = await exigirPerfil(["gestor"]);
+  const { criarClienteAdmin } = await import("@/lib/supabase/admin");
+  const { error } = await criarClienteAdmin()
+    .from("tecnica_os_aprovadas")
+    .upsert({ sgp_os_id: sgpOsId, aprovado_por: usuario.id }, { onConflict: "sgp_os_id" });
+  if (error) return { erro: error.message };
+  revalidatePath("/tecnica");
+  return { ok: "Aprovada." };
+}
+
+export async function desfazerAprovacaoOsTecnica(sgpOsId: string): Promise<Resultado> {
+  await exigirPerfil(["gestor"]);
+  const { criarClienteAdmin } = await import("@/lib/supabase/admin");
+  const { error } = await criarClienteAdmin().from("tecnica_os_aprovadas").delete().eq("sgp_os_id", sgpOsId);
+  if (error) return { erro: error.message };
+  revalidatePath("/tecnica");
+  return { ok: "Aprovação desfeita." };
+}
+
 const TIPOS_FOTO = new Map([
   ["image/jpeg", "jpg"],
   ["image/png", "png"],

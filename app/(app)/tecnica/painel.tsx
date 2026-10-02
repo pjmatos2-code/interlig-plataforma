@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Wrench,
@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FotoTecnico } from "@/components/tecnica/foto-tecnico";
 import { formatarMoeda, formatarData } from "@/lib/format";
 import type { TecnicaMes, OsLinha } from "@/lib/tecnica/dados";
-import { sincronizarOsDoMes } from "./acoes";
+import { aprovarOsTecnica, desfazerAprovacaoOsTecnica, sincronizarOsDoMes } from "./acoes";
 
 /** Painel da Equipe Técnica — layout aprovado (01/09): KPIs · ranking com
  * foto · lista paginada · resumo da comissão · alertas · tendência. */
@@ -56,7 +56,39 @@ function Kpi({
   );
 }
 
+/** gestor aprova a comissão da OS anulada por retorno — um clique, sem justificativa */
+function BotaoAprovarOs({ sgpOsId, desfazer = false }: { sgpOsId: string; desfazer?: boolean }) {
+  const router = useRouter();
+  const [pendente, iniciar] = useTransition();
+  const [erro, setErro] = useState<string | null>(null);
+  return (
+    <span className="inline-flex items-center gap-1">
+      <button
+        type="button"
+        disabled={pendente}
+        onClick={() =>
+          iniciar(async () => {
+            const r = desfazer ? await desfazerAprovacaoOsTecnica(sgpOsId) : await aprovarOsTecnica(sgpOsId);
+            if (r.erro) setErro(r.erro);
+            else router.refresh();
+          })
+        }
+        className={
+          desfazer
+            ? "text-[11px] text-muted-foreground underline hover:text-foreground disabled:opacity-50"
+            : "rounded-md bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+        }
+      >
+        {pendente ? "…" : desfazer ? "desfazer" : "Aprovar"}
+      </button>
+      {erro && <span className="text-[11px] text-rose-700">{erro}</span>}
+    </span>
+  );
+}
+
 function chipCategoria(l: OsLinha) {
+  if (l.retornoAprovadoOsId && l.categoria !== "outros")
+    return <span className="whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">retorno aprovado pela gestão</span>;
   if (l.retornoOsId && l.categoria !== "outros")
     return <span className="whitespace-nowrap rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-800">retorno 72h — não pontua</span>;
   if (!l.encerradaNoMes && (l.status ?? "").toLowerCase() === "encerrada")
@@ -77,10 +109,13 @@ export function PainelTecnica({
   dados,
   baseSgp,
   ehGestor,
+  podeAprovar = false,
 }: {
   dados: TecnicaMes;
   baseSgp: string | null;
   ehGestor: boolean;
+  /** só o gestor aprova comissão de OS anulada por retorno */
+  podeAprovar?: boolean;
 }) {
   const router = useRouter();
   const [fTecnico, setFTecnico] = useState("");
@@ -90,6 +125,11 @@ export function PainelTecnica({
   const [pagina, setPagina] = useState(1);
   const [sincronizando, setSincronizando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+
+  const pendentesRetorno = useMemo(
+    () => dados.linhas.filter((l) => l.encerradaNoMes && l.retornoOsId && l.categoria !== "outros"),
+    [dados.linhas]
+  );
 
   const linhas = useMemo(() => {
     let ls = dados.linhas;
@@ -148,6 +188,40 @@ export function PainelTecnica({
         <Kpi icone={<Users className="h-4 w-4" />} cor="#7c3aed" rotulo="Técnicos ativos" valor={String(dados.tecnicos.length)} sub="equipe operacional" />
         <Kpi icone={<Wallet className="h-4 w-4" />} cor="#059669" rotulo="Comissão do setor" valor={formatarMoeda(dados.totais.comissao)} sub="prévia — muda até fechar" />
       </div>
+
+      {/* comissão pendente: OS anuladas por retorno que o gestor pode aprovar */}
+      {podeAprovar && pendentesRetorno.length > 0 && (
+        <Card className="border-rose-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              Comissão pendente <span className="text-sm font-normal text-muted-foreground">· {pendentesRetorno.length} OS anulada(s) por retorno em 72h — aprove para voltar a pontuar</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="max-h-72 overflow-y-auto p-0 pb-2">
+            <table className="w-full text-sm">
+              <tbody>
+                {pendentesRetorno.map((l) => (
+                  <tr key={l.id} className="border-t">
+                    <td className="whitespace-nowrap px-4 py-2 font-mono text-xs">
+                      {baseSgp ? (
+                        <a href={`${baseSgp}/atendimento/relatorios/ocorrencia/os/?os_id=${l.sgpOsId}`} target="_blank" rel="noopener noreferrer"
+                          className="text-interlig-ceu hover:underline">#{l.sgpOsId} ↗</a>
+                      ) : `#${l.sgpOsId}`}
+                    </td>
+                    <td className="max-w-[14rem] truncate px-2 py-2">{l.cliente ?? "—"}</td>
+                    <td className="px-2 py-2 text-xs text-muted-foreground">{l.motivo ?? "—"}</td>
+                    <td className="px-2 py-2 text-xs">
+                      {dados.tecnicos.filter((t) => l.tecnicoIds.includes(t.tecnicoId)).map((t) => t.nome).join(", ") || "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-2 py-2 text-xs text-rose-700">retorno: OS #{l.retornoOsId}</td>
+                    <td className="px-4 py-2 text-right"><BotaoAprovarOs sgpOsId={l.sgpOsId} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* filtros */}
       <Card>
@@ -370,6 +444,8 @@ export function PainelTecnica({
                       <span>{l.motivo ?? "—"}</span>
                       <span>· {l.encerradaEm ? formatarData(l.encerradaEm.slice(0, 10)) : "—"}</span>
                       {chipCategoria(l)}
+                      {podeAprovar && l.retornoOsId && l.categoria !== "outros" && <BotaoAprovarOs sgpOsId={l.sgpOsId} />}
+                      {podeAprovar && l.retornoAprovadoOsId && l.categoria !== "outros" && <BotaoAprovarOs sgpOsId={l.sgpOsId} desfazer />}
                     </div>
                   </div>
                 );
