@@ -41,8 +41,9 @@ export default async function FidelidadePage() {
   // base; a coordenação de Altamira cuida de equipes e não acessa
   let unidadeFixa: string | null = null;
   if (usuario.perfil === "supervisor") {
-    unidadeFixa = (pops ?? []).find((x) => x.id === usuario.pop_id)?.nome ?? "—";
-    if (!["Brasil Novo", "Vitória do Xingu"].includes(unidadeFixa)) redirect("/dashboard");
+    const nomePop = String((pops ?? []).find((x) => x.id === usuario.pop_id)?.nome ?? "");
+    if (!["Brasil Novo", "Vitória do Xingu"].includes(nomePop)) redirect("/dashboard");
+    unidadeFixa = nomePop;
   }
   const r = unidadeFixa ? { ...resumo, unidades: resumo.unidades.filter((u) => u.nome === unidadeFixa) } : resumo;
   const baseSgp = String((cfg?.config as Record<string, string> | null)?.base_url ?? "");
