@@ -149,6 +149,29 @@ async function cicloCompleto() {
     }).then(({ error }) => { if (error) console.error("log robô retenção:", error.message); });
     if (!r.ok) console.error("robô retenção falhou:", r.erro);
   }
+  // fidelidade da base (01/10/2026): relatório pesado no SGP (~70s para as
+  // três unidades) — roda fora do expediente, 1x/dia, continuando de onde parou
+  fidelidade: {
+    const horaF = new Date(Date.now() - 3 * 3600_000).getUTCHours();
+    if ((horaF >= 7 && horaF < 20) || restante() < 60_000) break fidelidade;
+    const admin = criarClienteAdmin();
+    const { data: maisAntiga } = await admin
+      .from("fidelidade_resumo")
+      .select("atualizado_em")
+      .order("atualizado_em", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (maisAntiga && Date.now() - Date.parse(maisAntiga.atualizado_em as string) < 20 * 3600_000) break fidelidade;
+    const { atualizarResumoFidelidade } = await import("@/lib/sgp/fidelidade");
+    const f = await atualizarResumoFidelidade(restante() - 10_000);
+    await admin.from("sync_runs").insert({
+      entidade: "fidelidade",
+      finalizado_em: new Date().toISOString(),
+      registros: f.lidas,
+      status: f.ok ? "sucesso" : "erro",
+      erro: f.ok ? null : f.erro ?? "falhou",
+    }).then(({ error }) => { if (error) console.error("log fidelidade:", error.message); });
+  }
   return { ...resultado, rotinas };
 }
 

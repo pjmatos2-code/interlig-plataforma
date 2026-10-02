@@ -17,6 +17,10 @@ import { formatarMoeda } from "@/lib/format";
 import type { ReactNode } from "react";
 import { AlertTriangle, ArrowRight, Clock, Filter, MessagesSquare, ShoppingCart, UserX, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Bloco, ItemFoco, Kpi } from "@/components/agente/blocos";
+import { carregarPainelAtendimento } from "@/lib/agente/atendimento";
+import { PainelAtendimentoAgente } from "@/components/agente/painel-atendimento";
+import { lerResumoFidelidade } from "@/lib/sgp/fidelidade";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +43,7 @@ export default async function MeuPainelPage({
         .from("vendedores")
         .select("id, nome")
         .eq("ativo", true)
-        .in("setor", ["comercial_interno", "comercial_externo", "corporativo"])
+        .in("setor", ["comercial_interno", "comercial_externo", "corporativo", "atendimento"])
         .order("nome")
     : { data: [] };
   const vendedorId = gestao ? searchParams.agente ?? null : usuario.vendedor_id;
@@ -76,6 +80,61 @@ export default async function MeuPainelPage({
             <CardContent className="p-8 text-center text-sm text-muted-foreground">
               Seu usuário não está vinculado a um cadastro de agente. O vínculo é feito pelo
               Administrador em Administração → Usuários e perfis.
+            </CardContent>
+          </Card>
+        )}
+      </>
+    );
+  }
+
+  const { data: cadastro } = await admin.from("vendedores").select("nome, setor").eq("id", vendedorId).maybeSingle();
+
+  // ---------- Atendimento (refidelização): meta fixa de 150, sem cadastro mensal ----------
+  if (cadastro?.setor === "atendimento") {
+    const mesA = pedido ?? atual;
+    const [pa, resumo, { data: cfgSgp }] = await Promise.all([
+      carregarPainelAtendimento(vendedorId, mesA),
+      lerResumoFidelidade(),
+      admin.from("integracoes_config").select("config").eq("sistema", "sgp").maybeSingle(),
+    ]);
+    const sufixo = gestao ? `&agente=${vendedorId}` : "";
+    const somaFaixa = (f: "sem" | "ate30") => resumo.unidades.reduce((s, u) => s + u.faixas[f], 0);
+    return (
+      <>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">
+              {gestao ? `Painel de ${cadastro.nome}` : `Olá, ${String(cadastro.nome).split(/\s+/)[0]}!`}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">Sua meta de refidelização e sua comissão — com a conta de cada número.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {opcoes.map((m) => (
+              <Link
+                key={m}
+                href={`/meu-painel?mes=${m.slice(0, 7)}${sufixo}`}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-sm capitalize",
+                  m === mesA ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"
+                )}
+              >
+                {nomeMes(m)}
+              </Link>
+            ))}
+          </div>
+        </div>
+        {seletorGestao}
+        {pa ? (
+          <PainelAtendimentoAgente
+            p={pa}
+            baseSgp={String((cfgSgp?.config as Record<string, string> | null)?.base_url ?? "")}
+            semFidelidade={somaFaixa("sem")}
+            venceEm30={somaFaixa("ate30")}
+          />
+        ) : (
+          <Card>
+            <CardContent className="p-8 text-center text-sm text-muted-foreground">
+              Cadastro sem login do SGP — o vínculo é feito em Administração → Vendedoras.
             </CardContent>
           </Card>
         )}
@@ -194,68 +253,6 @@ export default async function MeuPainelPage({
 const num = (v: number) => v.toLocaleString("pt-BR");
 const dec = (v: number) => v.toFixed(1).replace(".", ",");
 
-function Bloco({ titulo, extra, children, className }: { titulo: string; extra?: ReactNode; children: ReactNode; className?: string }) {
-  return (
-    <section className={cn("rounded-xl border bg-card p-5 shadow-sm", className)}>
-      <div className="mb-4 flex items-baseline justify-between gap-3">
-        <h2 className="text-base font-semibold">{titulo}</h2>
-        {extra}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-const TONS = {
-  azul: "bg-sky-500/10 text-sky-600",
-  indigo: "bg-indigo-500/10 text-indigo-600",
-  violeta: "bg-violet-500/10 text-violet-600",
-  ambar: "bg-amber-500/15 text-amber-600",
-  vermelho: "bg-farol-vermelho/10 text-farol-vermelho",
-} as const;
-
-function Kpi({
-  icone,
-  tom,
-  rotulo,
-  valor,
-  rodape,
-  href,
-  alerta,
-}: {
-  icone: ReactNode;
-  tom: keyof typeof TONS;
-  rotulo: string;
-  valor: string;
-  rodape: ReactNode;
-  href?: string;
-  alerta?: boolean;
-}) {
-  const corpo = (
-    <div
-      className={cn(
-        "flex h-full items-start gap-3 rounded-xl border bg-card p-4 shadow-sm transition-colors",
-        href && "hover:border-primary/40",
-        alerta && "border-farol-vermelho/40"
-      )}
-    >
-      <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", TONS[tom])}>{icone}</span>
-      <div className="min-w-0">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{rotulo}</p>
-        <p className={cn("text-3xl font-bold leading-tight tabular-nums", alerta && "text-farol-vermelho")}>{valor}</p>
-        <div className="text-xs text-muted-foreground">{rodape}</div>
-      </div>
-    </div>
-  );
-  return href ? (
-    <Link href={href} className="block">
-      {corpo}
-    </Link>
-  ) : (
-    corpo
-  );
-}
-
 function Indicadores({ a, x }: { a: AgentePainel | null; x: ExtrasAgente }) {
   const pend = a ? a.pendAssinatura + a.pendAtivacao : 0;
   const delta = x.vendasHoje.hoje - x.vendasHoje.anterior;
@@ -373,20 +370,6 @@ function EvolucaoDiaria({ x, mes }: { x: ExtrasAgente; mes: string }) {
       </div>
     </Bloco>
   );
-}
-
-function ItemFoco({ icone, titulo, texto, href, tom }: { icone: ReactNode; titulo: string; texto: string; href?: string; tom: string }) {
-  const corpo = (
-    <div className="flex items-start gap-3 rounded-lg p-2 transition-colors hover:bg-muted/50">
-      <span className={cn("mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full", tom)}>{icone}</span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold">{titulo}</p>
-        <p className="text-xs text-muted-foreground">{texto}</p>
-      </div>
-      {href && <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />}
-    </div>
-  );
-  return href ? <Link href={href}>{corpo}</Link> : corpo;
 }
 
 function FocoDoDia({ a, x }: { a: AgentePainel | null; x: ExtrasAgente }) {

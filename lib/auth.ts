@@ -40,7 +40,7 @@ export function rotaInicial(perfil: Perfil): string {
   if (perfil === "agente_corporativo") return "/meu-painel";
   if (perfil === "vendedora") return "/meu-painel";
   if (perfil === "financeiro") return "/financeiro";
-  if (perfil === "agente_atendimento") return "/minha-comissao";
+  if (perfil === "agente_atendimento") return "/meu-painel";
   if (perfil === "agente_retencao") return "/retencao";
   if (perfil === "gestor_tecnico") return "/tecnica";
   return "/dashboard";

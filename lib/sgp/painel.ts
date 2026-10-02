@@ -100,6 +100,22 @@ export class PainelSgp {
   }
 
   /** IDs dos serviços de internet do cliente, na ordem em que aparecem após cada contrato. */
+  /**
+   * Relatório Financeiro → Fidelidades: quantas linhas a consulta devolve.
+   * Altamira inteira leva ~15s no SGP, por isso o prazo maior que o padrão.
+   */
+  async contarRelatorioFidelidade(params: Record<string, string>): Promise<number> {
+    if (!this.logado) await this.login();
+    const q = new URLSearchParams(params).toString();
+    const res = await this.pegar(`/admin/financeiro/relatorios/fidelidade/?${q}`, {
+      signal: AbortSignal.timeout(90_000),
+    });
+    if (res.status !== 200) throw new Error(`relatório de fidelidade respondeu ${res.status}`);
+    const html = await res.text();
+    const tbody = html.match(/<tbody[\s\S]*?<\/tbody>/i)?.[0] ?? "";
+    return (tbody.match(/<tr[\s>]/gi) ?? []).length;
+  }
+
   private async servicoDoContrato(
     sgpClienteId: string,
     sgpContratoId: string
