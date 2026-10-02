@@ -3,7 +3,7 @@ import { navDoPerfil } from "@/lib/nav";
 import { AppShell } from "@/components/layout/app-shell";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { haQuantoTempo } from "@/lib/format";
-import { timeDoCoordenador } from "@/lib/coordenacao";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +18,17 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
     .eq("entidade", "contratos")
     .maybeSingle();
 
-  // Fidelidade da base é da coordenação de UNIDADE (Aline Moraes, Railson);
-  // quem coordena equipe (Marcelo Otávio, Rayssa) não vê
+  // Fidelidade da base é da coordenação das UNIDADES (Aline Moraes em Brasil
+  // Novo, Railson em Vitória do Xingu); a coordenação de Altamira cuida de
+  // equipes (Marcelo Otávio, Rayssa) e não vê
   let itens = navDoPerfil(usuario.perfil);
-  if (usuario.perfil === "supervisor" && (await timeDoCoordenador(usuario.id))) {
-    itens = itens.filter((i) => i.href !== "/fidelidade");
+  if (usuario.perfil === "supervisor") {
+    const { data: pop } = usuario.pop_id
+      ? await criarClienteAdmin().from("pops").select("nome").eq("id", usuario.pop_id).maybeSingle()
+      : { data: null };
+    if (!["Brasil Novo", "Vitória do Xingu"].includes(String(pop?.nome ?? ""))) {
+      itens = itens.filter((i) => i.href !== "/fidelidade");
+    }
   }
 
   return (

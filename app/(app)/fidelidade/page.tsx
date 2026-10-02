@@ -11,7 +11,6 @@ import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { dataHora } from "@/components/comissao/cartao-resultado-agente";
 import { cn } from "@/lib/utils";
 import { redirect } from "next/navigation";
-import { timeDoCoordenador } from "@/lib/coordenacao";
 import { BotaoAtualizarFidelidade } from "./botao";
 
 export const dynamic = "force-dynamic";
@@ -38,11 +37,12 @@ export default async function FidelidadePage() {
     criarClienteAdmin().from("integracoes_config").select("config").eq("sistema", "sgp").maybeSingle(),
     criarClienteAdmin().from("pops").select("id, nome"),
   ]);
-  // coordenação de unidade vê só a própria base; coordenação de equipe não acessa
+  // coordenação de unidade (Brasil Novo, Vitória do Xingu) vê só a própria
+  // base; a coordenação de Altamira cuida de equipes e não acessa
   let unidadeFixa: string | null = null;
   if (usuario.perfil === "supervisor") {
-    if (await timeDoCoordenador(usuario.id)) redirect("/dashboard");
     unidadeFixa = (pops ?? []).find((x) => x.id === usuario.pop_id)?.nome ?? "—";
+    if (!["Brasil Novo", "Vitória do Xingu"].includes(unidadeFixa)) redirect("/dashboard");
   }
   const r = unidadeFixa ? { ...resumo, unidades: resumo.unidades.filter((u) => u.nome === unidadeFixa) } : resumo;
   const baseSgp = String((cfg?.config as Record<string, string> | null)?.base_url ?? "");
