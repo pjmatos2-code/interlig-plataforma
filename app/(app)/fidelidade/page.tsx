@@ -42,10 +42,12 @@ export default async function FidelidadePage() {
   return (
     <>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <CabecalhoPagina
+        <div className="min-w-0 flex-1">
+          <CabecalhoPagina
           titulo="Fidelidade da base"
           descricao="Clientes ativos sem fidelidade e os que perdem a fidelidade nos próximos 90 dias, por unidade. Clique num número para abrir a lista no SGP."
-        />
+          />
+        </div>
         <div className="flex flex-col items-end gap-1">
           <BotaoAtualizarFidelidade />
           <span className="text-xs text-muted-foreground">

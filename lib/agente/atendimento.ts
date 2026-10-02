@@ -77,6 +77,14 @@ export async function carregarPainelAtendimento(vendedorId: string, mesIso: stri
   const porDia = new Map<string, number>();
   for (const l of validas) porDia.set(l.data, (porDia.get(l.data) ?? 0) + 1);
   const diaAnterior = (anteriores?.[0]?.data as string | undefined) ?? null;
+  // "hoje" e o dia útil anterior independem do mês exibido (1º do mês: o
+  // anterior está no mês passado)
+  const mesHoje = primeiroDiaDoMes(hoje);
+  const doMes = new Map<string, AditivoLinha[]>([[mes, linhas]]);
+  for (const m of new Set([mesHoje, diaAnterior ? primeiroDiaDoMes(diaAnterior) : mesHoje])) {
+    if (!doMes.has(m)) doMes.set(m, (await refidelizacaoDoMes(m, [login])).agentes[0]?.linhas ?? []);
+  }
+  const validosEm = (dia: string) => (doMes.get(primeiroDiaDoMes(dia)) ?? []).filter((l) => l.conta && l.data === dia).length;
 
   const porPlano = new Map<string, number>();
   for (const l of validas) {
@@ -108,10 +116,10 @@ export async function carregarPainelAtendimento(vendedorId: string, mesIso: stri
     comissaoSeAssinarem: faixaSe ? (vtvSe * faixaSe.pct) / 100 : 0,
     vtvMedio: validas.length ? vtv / validas.length : 0,
     hoje: {
-      hoje: validas.filter((l) => l.data === hoje).length,
-      anterior: diaAnterior ? validas.filter((l) => l.data === diaAnterior).length : 0,
+      hoje: validosEm(hoje),
+      anterior: diaAnterior ? validosEm(diaAnterior) : 0,
       diaAnterior,
-      metaDia: mes === primeiroDiaDoMes(hoje) && uteis > 0 ? META_REFIDELIZACAO / uteis : null,
+      metaDia: mes === mesHoje && uteis > 0 ? META_REFIDELIZACAO / uteis : null,
     },
     dias: diasCal.map((d) => ({ data: d.data, validos: porDia.get(d.data) ?? 0, util: d.dia_util, futuro: d.data > hoje })),
     metaDiaMes: uteis > 0 ? META_REFIDELIZACAO / uteis : null,
