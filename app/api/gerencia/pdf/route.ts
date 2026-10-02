@@ -65,7 +65,7 @@ export async function GET(req: Request) {
     );
   }
   r.nota(
-    `Flags da competência: early churn ${d.flags.earlyChurn ? "ON" : "OFF"} · clawback ${d.flags.clawback ? "ON" : "OFF"}${d.flags.observacao ? ` (${d.flags.observacao})` : ""}. Risco de zerar: qualquer pilar abaixo da entrada (vendas < 60%, refidelização < 60%, retenção < 16) zera o override do mês inteiro.`
+    `Risco de zerar: qualquer pilar abaixo da entrada (vendas < 60%, refidelização < 60%, retenção < 16) zera o override do mês inteiro.`
   );
   r.nota("Valor oficial de pagamento: snapshot gravado no fechamento da competência (módulo Financeiro).");
 

@@ -115,12 +115,6 @@ export default async function GerenciaPage({
             Aplicar
           </button>
         </form>
-        <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${d.flags.earlyChurn ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-amber-300 bg-amber-50 text-amber-800"}`}>
-          Early churn: {d.flags.earlyChurn ? "ON" : "OFF (migração)"}
-        </span>
-        <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${d.flags.clawback ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-sky-300 bg-sky-50 text-sky-800"}`}>
-          Clawback: {d.flags.clawback ? "ON" : "OFF (migração)"}
-        </span>
         <span className="text-xs text-muted-foreground">Competência: {mesBr} · dados validados da plataforma</span>
         <a
           href={`/api/gerencia/pdf?mes=${d.competencia}`}

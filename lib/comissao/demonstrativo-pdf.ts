@@ -275,10 +275,6 @@ export async function gerarDemonstrativoPdf(
     linhaValor("LIGCHIP (compõe valor, fora do volume)", moeda(g.base.vtvLigchip));
     linhaValor("Base global", moeda(g.base.total), true);
     linhaValor("Override aplicado", `${g.overridePct.toFixed(1).replace(".", ",")}%`, true);
-    linhaValor(
-      "Flags da competência",
-      `early churn ${g.flags.earlyChurn ? "ON" : "OFF"} · clawback ${g.flags.clawback ? "ON" : "OFF"}${snap.debito.observacao ? ` (${snap.debito.observacao})` : ""}`
-    );
   } else {
     linhaValor(rotuloQtd, String(snap.resultado.vendasComissionaveis));
   }
