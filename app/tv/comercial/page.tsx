@@ -4,7 +4,7 @@ import { exigirPerfil } from "@/lib/auth";
 import { carregarTvComercial } from "@/lib/tv/comercial";
 import { LogoInterlig } from "@/components/marca/logo-interlig";
 import { cn } from "@/lib/utils";
-import { AlertaNovaVenda, AutoAtualizar, PalcoTv, Relogio } from "./cliente";
+import { AlertaNovaVenda, AutoAtualizar, BotaoTelaCheia, PalcoTv, Relogio } from "./cliente";
 
 export const dynamic = "force-dynamic";
 
@@ -138,6 +138,7 @@ export default async function TvComercialPage({
       som={som}
       demo={searchParams.demo === "1"}
     />
+    <BotaoTelaCheia />
     <PalcoTv>
     <main className="flex h-full flex-col px-8 py-4 text-white">
       <AutoAtualizar />

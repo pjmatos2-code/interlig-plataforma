@@ -38,6 +38,81 @@ export function Relogio() {
   );
 }
 
+type DocTelaCheia = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => Promise<void> };
+type ElTelaCheia = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
+
+/**
+ * Tela cheia de verdade (Fullscreen API): some com abas, barra de endereço e
+ * menus do navegador. O botão aparece ao mexer o mouse e some sozinho — na TV
+ * fica só o painel. Atalho: F (Esc sai, padrão do navegador).
+ */
+export function BotaoTelaCheia() {
+  const [cheia, setCheia] = useState(false);
+  const [visivel, setVisivel] = useState(true);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const alternar = async () => {
+    const d = document as DocTelaCheia;
+    const el = document.documentElement as ElTelaCheia;
+    try {
+      if (d.fullscreenElement || d.webkitFullscreenElement) {
+        await (d.exitFullscreen ? d.exitFullscreen() : d.webkitExitFullscreen?.());
+      } else {
+        await (el.requestFullscreen ? el.requestFullscreen() : el.webkitRequestFullscreen?.());
+      }
+    } catch {
+      /* navegador recusou (ex.: sem gesto do usuário) — o botão continua lá */
+    }
+  };
+
+  useEffect(() => {
+    const d = document as DocTelaCheia;
+    const mudou = () => setCheia(Boolean(d.fullscreenElement || d.webkitFullscreenElement));
+    const mostrar = () => {
+      setVisivel(true);
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => setVisivel(false), 4000);
+    };
+    const tecla = (e: KeyboardEvent) => {
+      if ((e.key === "f" || e.key === "F") && !e.ctrlKey && !e.metaKey && !e.altKey) alternar();
+    };
+    document.addEventListener("fullscreenchange", mudou);
+    document.addEventListener("webkitfullscreenchange", mudou);
+    window.addEventListener("mousemove", mostrar);
+    window.addEventListener("touchstart", mostrar);
+    window.addEventListener("keydown", tecla);
+    timer.current = setTimeout(() => setVisivel(false), 8000);
+    return () => {
+      document.removeEventListener("fullscreenchange", mudou);
+      document.removeEventListener("webkitfullscreenchange", mudou);
+      window.removeEventListener("mousemove", mostrar);
+      window.removeEventListener("touchstart", mostrar);
+      window.removeEventListener("keydown", tecla);
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onClick={alternar}
+      title={cheia ? "Sair da tela cheia (Esc)" : "Tela cheia (F)"}
+      className={`fixed bottom-4 left-4 z-40 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition-opacity duration-500 hover:bg-white/20 ${
+        visivel ? "opacity-100" : "pointer-events-none opacity-0"
+      }`}
+    >
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {cheia ? (
+          <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />
+        ) : (
+          <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+        )}
+      </svg>
+      {cheia ? "Sair da tela cheia" : "Tela cheia"}
+    </button>
+  );
+}
+
 /** Recarrega os dados da tela a cada 30s (o sync do SGP roda a cada 5 min). */
 export function AutoAtualizar() {
   const router = useRouter();
@@ -179,7 +254,7 @@ export function AlertaNovaVenda({
               : { id: `demo-${Date.now()}`, vendedora: "Karoline", foto: null, plano: "FIBRA 400MB", valor: 99.9, unidade: "Altamira", criadoEm: new Date().toISOString() };
             setFila((f) => [...f, { venda, ordem: totalHoje + 1 }]);
           }}
-          className="fixed bottom-4 left-4 z-40 rounded-full border border-sky-400/50 bg-sky-400/15 px-4 py-2 text-sm font-semibold text-sky-200"
+          className="fixed bottom-16 left-4 z-40 rounded-full border border-sky-400/50 bg-sky-400/15 px-4 py-2 text-sm font-semibold text-sky-200"
         >
           ▶ Simular venda (demonstração)
         </button>
