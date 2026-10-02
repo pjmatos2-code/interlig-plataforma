@@ -36,9 +36,9 @@ export async function exigirPerfil(perfis: Perfil[]): Promise<Usuario> {
 
 /** Rota inicial de cada perfil. */
 export function rotaInicial(perfil: Perfil): string {
-  if (perfil === "vendedora_externa") return "/externa";
-  if (perfil === "agente_corporativo") return "/corporativo";
-  if (perfil === "vendedora") return "/minhas-vendas";
+  if (perfil === "vendedora_externa") return "/meu-painel";
+  if (perfil === "agente_corporativo") return "/meu-painel";
+  if (perfil === "vendedora") return "/meu-painel";
   if (perfil === "financeiro") return "/financeiro";
   if (perfil === "agente_atendimento") return "/minha-comissao";
   if (perfil === "agente_retencao") return "/retencao";

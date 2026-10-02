@@ -72,14 +72,23 @@ function vendasParaDegrau(min: number, metaFinal: number): number {
   return n;
 }
 
-export async function carregarPainelComissoes(mesIso?: string): Promise<PainelComissoes> {
+export async function carregarPainelComissoes(
+  mesIso?: string,
+  opcoes: {
+    /**
+     * Painel da PRÓPRIA agente ("Meu painel"): lê pelo client de serviço (a
+     * agente não enxerga títulos/coorte pela RLS) e devolve SÓ ela.
+     */
+    vendedorId?: string;
+  } = {}
+): Promise<PainelComissoes> {
   const admin = criarClienteAdmin();
   const hoje = hojeIso();
   const mes = primeiroDiaDoMes(mesIso ?? hoje);
 
   const [comissoes, debito, { data: fechadas }, { data: metas }, { data: vends }, { data: sync }] =
     await Promise.all([
-      comissoesDoMes(mes),
+      comissoesDoMes(mes, opcoes.vendedorId ? { ignorarRls: true } : undefined),
       debitoPorCoorte(mes),
       admin
         .from("comissoes_fechadas")
@@ -101,6 +110,7 @@ export async function carregarPainelComissoes(mesIso?: string): Promise<PainelCo
   const agentes: AgentePainel[] = [];
   const semMetaOuRegra: string[] = [];
   for (const c of comissoes) {
+    if (opcoes.vendedorId && c.vendedorId !== opcoes.vendedorId) continue;
     const r = c.resultado;
     if (!r || !c.regra || !c.metaMensal || !c.detalhe) {
       semMetaOuRegra.push(c.nome);
@@ -171,6 +181,23 @@ export async function carregarPainelComissoes(mesIso?: string): Promise<PainelCo
   }
   // liderança no fim: o foco do painel é quem vende
   agentes.sort((a, b) => (a.base === "proprias" ? 0 : 1) - (b.base === "proprias" ? 0 : 1) || b.comissao - a.comissao);
+
+  if (opcoes.vendedorId) {
+    // fora do time inteiro: nada de nomes de colegas nem totais do fechamento
+    const minha = (fechadas ?? []).find((f) => f.vendedor_id === opcoes.vendedorId);
+    return {
+      mes,
+      emAndamento: ultimoDiaDoMes(mes) >= hoje,
+      fechamento: minha
+        ? { em: minha.fechado_em as string, por: null, total: Number(minha.valor_total), pago: Boolean(minha.pago_em) }
+        : null,
+      ultimaSync: (sync?.[0]?.finalizado_em as string | undefined) ?? null,
+      debito: { coorte: debito.coorte, janela: debito.janela, aplicado: debito.aplicado, observacao: debito.observacao },
+      agentes,
+      inativasComMeta: [],
+      semMetaOuRegra: [],
+    };
+  }
 
   const ativos = new Set(comissoes.map((c) => c.vendedorId));
   const inativasComMeta = (metas ?? [])
