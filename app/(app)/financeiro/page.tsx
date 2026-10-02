@@ -11,6 +11,7 @@ import {
 import { hojeIso, primeiroDiaDoMes } from "@/lib/datas";
 import { PainelFinanceiro } from "./painel";
 import { PainelApuracao } from "./apuracao";
+import { BadgeDollarSign, Hourglass, Wallet } from "lucide-react";
 import { PainelComissoesComercial } from "@/components/comissao/painel-comissoes";
 
 export const dynamic = "force-dynamic";
@@ -180,24 +181,31 @@ export default async function FinanceiroPage({
 }
 
 function AbasFinanceiro({ mes, aba }: { mes: string; aba: "pagar" | "apuracao" | "comissoes" }) {
-  const abas: [typeof aba, string, string][] = [
-    ["pagar", "A pagar (fechado)", `/financeiro?mes=${mes.slice(0, 7)}`],
-    ["apuracao", "Em apuração (mês corrente)", `/financeiro?mes=${mes.slice(0, 7)}&aba=apuracao`],
-    ["comissoes", "Comissões", `/financeiro?aba=comissoes`],
+  const abas: [typeof aba, string, string, React.ReactNode][] = [
+    ["pagar", "A pagar (fechado)", `/financeiro?mes=${mes.slice(0, 7)}`, <Wallet key="i" className="h-4 w-4" />],
+    ["apuracao", "Em apuração (mês corrente)", `/financeiro?mes=${mes.slice(0, 7)}&aba=apuracao`, <Hourglass key="i" className="h-4 w-4" />],
+    ["comissoes", "Comissões", `/financeiro?aba=comissoes`, <BadgeDollarSign key="i" className="h-4 w-4" />],
   ];
   return (
-    <div className="mb-4 flex gap-1 border-b">
-      {abas.map(([chave, rotulo, href]) => (
-        <a
-          key={chave}
-          href={href}
-          className={`px-4 py-2 text-sm font-medium ${
-            aba === chave ? "-mb-px border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          {rotulo}
-        </a>
-      ))}
-    </div>
+    <nav className="mb-5 inline-flex max-w-full flex-wrap gap-1 rounded-xl border bg-muted/50 p-1" aria-label="Seções do financeiro">
+      {abas.map(([chave, rotulo, href, icone]) => {
+        const ativa = aba === chave;
+        return (
+          <a
+            key={chave}
+            href={href}
+            aria-current={ativa ? "page" : undefined}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              ativa
+                ? "bg-card text-primary shadow-sm ring-1 ring-border"
+                : "text-muted-foreground hover:bg-card/70 hover:text-foreground"
+            }`}
+          >
+            <span className={ativa ? "text-primary" : "text-muted-foreground"}>{icone}</span>
+            {rotulo}
+          </a>
+        );
+      })}
+    </nav>
   );
 }
