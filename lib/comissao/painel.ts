@@ -80,6 +80,8 @@ export async function carregarPainelComissoes(
      * agente não enxerga títulos/coorte pela RLS) e devolve SÓ ela.
      */
     vendedorId?: string;
+    /** Financeiro: lê pelo client de serviço (a RLS zeraria os contratos) */
+    ignorarRls?: boolean;
   } = {}
 ): Promise<PainelComissoes> {
   const admin = criarClienteAdmin();
@@ -88,7 +90,7 @@ export async function carregarPainelComissoes(
 
   const [comissoes, debito, { data: fechadas }, { data: metas }, { data: vends }, { data: sync }] =
     await Promise.all([
-      comissoesDoMes(mes, opcoes.vendedorId ? { ignorarRls: true } : undefined),
+      comissoesDoMes(mes, opcoes.vendedorId || opcoes.ignorarRls ? { ignorarRls: true } : undefined),
       debitoPorCoorte(mes),
       admin
         .from("comissoes_fechadas")

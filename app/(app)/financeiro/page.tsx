@@ -11,6 +11,7 @@ import {
 import { hojeIso, primeiroDiaDoMes } from "@/lib/datas";
 import { PainelFinanceiro } from "./painel";
 import { PainelApuracao } from "./apuracao";
+import { PainelComissoesComercial } from "@/components/comissao/painel-comissoes";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export default async function FinanceiroPage({
   const fechadas = await competenciasFechadas();
   const mesCorrente = primeiroDiaDoMes(hojeIso());
   const emApuracao = searchParams.aba === "apuracao";
+  const emComissoes = searchParams.aba === "comissoes";
 
 
   if (fechadas.length === 0) {
@@ -55,6 +57,26 @@ export default async function FinanceiroPage({
   const mes = fechadas.includes(`${searchParams.mes}-01`)
     ? `${searchParams.mes}-01`
     : fechadas[0];
+
+  // aba Comissões: o mesmo painel do módulo Comissões (conta e contratos por agente)
+  if (emComissoes) {
+    return (
+      <>
+        <CabecalhoPagina
+          titulo="Financeiro — comissões"
+          descricao="Meta, reposição, vendas, aprovações, atingimento e a conta da comissão de cada agente, com a conferência contra o valor fechado."
+        />
+        <AbasFinanceiro mes={mes} aba="comissoes" />
+        <PainelComissoesComercial
+          mesPedido={searchParams.mes}
+          linkMes={(m) => `/financeiro?aba=comissoes&mes=${m}`}
+          ehGestor={usuario.perfil === "gestor"}
+          podeVerPainelAgente={usuario.perfil !== "financeiro"}
+          ignorarRls
+        />
+      </>
+    );
+  }
   const dados = await competenciaFinanceiro(mes);
   const apuracao = emApuracao ? await apuracaoEmAndamento(mesCorrente) : null;
 
@@ -76,28 +98,7 @@ export default async function FinanceiroPage({
         descricao="Valores congelados no fechamento. Confira, baixe o demonstrativo de cada agente e registre o pagamento."
       />
 
-      <div className="mb-4 flex gap-1 border-b">
-        <a
-          href={`/financeiro?mes=${mes.slice(0, 7)}`}
-          className={`px-4 py-2 text-sm font-medium ${
-            emApuracao
-              ? "text-muted-foreground hover:text-foreground"
-              : "-mb-px border-b-2 border-primary text-foreground"
-          }`}
-        >
-          A pagar (fechado)
-        </a>
-        <a
-          href={`/financeiro?mes=${mes.slice(0, 7)}&aba=apuracao`}
-          className={`px-4 py-2 text-sm font-medium ${
-            emApuracao
-              ? "-mb-px border-b-2 border-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Em apuração (mês corrente)
-        </a>
-      </div>
+      <AbasFinanceiro mes={mes} aba={emApuracao ? "apuracao" : "pagar"} />
 
       {!emApuracao && (
         <form method="get" className="mb-4 flex flex-wrap items-end gap-2">
@@ -175,5 +176,28 @@ export default async function FinanceiroPage({
       </>
       )}
     </>
+  );
+}
+
+function AbasFinanceiro({ mes, aba }: { mes: string; aba: "pagar" | "apuracao" | "comissoes" }) {
+  const abas: [typeof aba, string, string][] = [
+    ["pagar", "A pagar (fechado)", `/financeiro?mes=${mes.slice(0, 7)}`],
+    ["apuracao", "Em apuração (mês corrente)", `/financeiro?mes=${mes.slice(0, 7)}&aba=apuracao`],
+    ["comissoes", "Comissões", `/financeiro?aba=comissoes`],
+  ];
+  return (
+    <div className="mb-4 flex gap-1 border-b">
+      {abas.map(([chave, rotulo, href]) => (
+        <a
+          key={chave}
+          href={href}
+          className={`px-4 py-2 text-sm font-medium ${
+            aba === chave ? "-mb-px border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {rotulo}
+        </a>
+      ))}
+    </div>
   );
 }
