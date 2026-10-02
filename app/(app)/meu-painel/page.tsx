@@ -460,7 +460,7 @@ function FunilCrm({ x }: { x: ExtrasAgente }) {
   const max = Math.max(1, x.funil.leads);
   const etapas = [
     { r: "Leads", v: x.funil.leads, c: "bg-sky-500" },
-    { r: "Atendidos", v: x.funil.atendidos, c: "bg-indigo-500" },
+    { r: "Em atendimento", v: x.funil.emAtendimento, c: "bg-indigo-500" },
     { r: "Contrato assinado", v: x.funil.assinados, c: "bg-emerald-500" },
   ];
   return (

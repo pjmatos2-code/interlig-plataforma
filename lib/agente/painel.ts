@@ -15,7 +15,7 @@ export type ExtrasAgente = {
   crm: { abertos: number; parados: number };
   vendasHoje: { hoje: number; anterior: number; diaAnterior: string | null; metaDia: number | null };
   /** funil do mês: tickets de conversa (o automático de venda direta no SGP fica fora) */
-  funil: { leads: number; atendidos: number; assinados: number; naoConvertidos: number; semTicket: number };
+  funil: { leads: number; emAtendimento: number; assinados: number; naoConvertidos: number; semTicket: number };
   conversao: number | null;
   dias: { data: string; vendas: number; util: boolean; futuro: boolean }[];
   metaDiaMes: number | null;
@@ -26,8 +26,8 @@ export type ExtrasAgente = {
 /** "FIBRA 400MB | PÓS PAGO" → "Fibra 400MB" (o sufixo de cobrança não ajuda a ler) */
 function nomeCurtoPlano(nome: string | null): string {
   if (!nome) return "Sem plano";
-  const base = nome.split("|")[0].trim();
-  return base.charAt(0) + base.slice(1).toLowerCase().replace(/(\d+)\s*(mb|gb|mbps)/gi, (_, n, u) => `${n} ${u.toUpperCase()}`);
+  const base = nome.split("|")[0].trim().toLowerCase().replace(/(\d+)\s*(mbps|mb|gb)/g, (_, n, u) => `${n} ${u.toUpperCase()}`);
+  return base.charAt(0).toUpperCase() + base.slice(1);
 }
 
 export async function carregarExtrasAgente(
@@ -101,7 +101,8 @@ export async function carregarExtrasAgente(
   const contratosComConversa = new Set(assinadosTk.map((t) => t.contrato_id as string | null).filter(Boolean));
   const funil = {
     leads: tk.length,
-    atendidos: tk.filter((t) => t.primeira_tratativa_em || t.etapa !== "novo").length,
+    // ainda abertos (negociando) — o ticket já nasce quando a agente assume a conversa
+    emAtendimento: tk.filter((t) => t.etapa !== "fechado").length,
     assinados: assinadosTk.length,
     naoConvertidos: tk.filter((t) => t.etapa === "fechado" && t.desfecho === "nao_convertido").length,
     semTicket: validas.filter((c) => !contratosComConversa.has(c.id)).length,
