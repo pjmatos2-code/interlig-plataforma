@@ -56,12 +56,15 @@ export function CartaoResultadoAgente({
   debito,
   linkAprovar = null,
   linkPainel = null,
+  semConferencia = false,
 }: {
   a: AgentePainel;
   linkSgp: string;
   linkAprovar?: string | null;
   /** gestão: abre o "Meu painel" da agente (o que ela vê) */
   linkPainel?: string | null;
+  /** o Meu painel mostra a conferência no fim da página */
+  semConferencia?: boolean;
   debito: { coorte: string; janela: { de: string; ate: string } | null; aplicado: boolean; observacao: string | null };
 }) {
   const t = tom(a);
@@ -69,9 +72,6 @@ export function CartaoResultadoAgente({
   const escala = Math.max(130, (a.degraus.at(-1)?.atingimento_min ?? 100) + 15, a.atingimento + 5);
   const pos = (v: number) => `${(Math.min(v, escala) / escala) * 100}%`;
   const pendentes = a.pendAssinatura + a.pendAtivacao;
-  const contratos = [...a.contratos].sort(
-    (x, y) => SITUACAO[x.situacao].ordem - SITUACAO[y.situacao].ordem || (x.dataVenda < y.dataVenda ? -1 : 1)
-  );
   const faixa = faixaTexto(a);
   const fechadoDiverge = a.fechado && Math.abs(a.fechado.valor - a.comissao) >= 0.01;
 
@@ -251,10 +251,21 @@ export function CartaoResultadoAgente({
         </div>
       </CardContent>
 
-      {/* conferência: contratos e inadimplentes */}
-      <div className="border-t">
+      {!semConferencia && <ConferenciaAgente a={a} linkSgp={linkSgp} />}
+    </Card>
+  );
+}
+
+/** "Conferir contratos / inadimplentes" — no cartão (gestor) ou no fim do Meu painel */
+export function ConferenciaAgente({ a, linkSgp, className }: { a: AgentePainel; linkSgp: string; className?: string }) {
+  const lider = a.base !== "proprias";
+  const contratos = [...a.contratos].sort(
+    (x, y) => SITUACAO[x.situacao].ordem - SITUACAO[y.situacao].ordem || (x.dataVenda < y.dataVenda ? -1 : 1)
+  );
+  return (
+    <div className={cn("border-t", className)}>
         {contratos.length > 0 && (
-          <details className="group border-b last:border-0">
+          <details id="conferir-contratos" className="group scroll-mt-20 border-b last:border-0">
             <summary className="cursor-pointer select-none px-5 py-2.5 text-sm font-medium hover:bg-muted/40">
               Conferir os {contratos.length} contratos {lider ? "da base" : "vendidos"}
             </summary>
@@ -262,7 +273,7 @@ export function CartaoResultadoAgente({
           </details>
         )}
         {a.inadimplentes.length > 0 && (
-          <details className="group">
+          <details id="conferir-inadimplentes" className="group scroll-mt-20">
             <summary className="cursor-pointer select-none px-5 py-2.5 text-sm font-medium hover:bg-muted/40">
               Conferir os {a.inadimplentes.length} inadimplentes da reposição
             </summary>
@@ -321,7 +332,6 @@ export function CartaoResultadoAgente({
           </details>
         )}
       </div>
-    </Card>
   );
 }
 
