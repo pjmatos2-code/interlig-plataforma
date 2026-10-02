@@ -128,8 +128,30 @@ const moeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curr
 export type SomAlerta = "sino" | "conexao" | "moedas";
 export type EstiloAlerta = "sino" | "marca";
 
-/** Sons gerados no próprio navegador (sem arquivo de áudio). */
+/** Aviso de nova venda: gravação de caixa registradora (public/sons). */
+const ARQUIVO_VENDA = "/sons/nova-venda-caixa.m4a";
+let audioVenda: HTMLAudioElement | null = null;
+
+/** Toca o som do aviso; "moedas" usa a gravação e cai no sintetizado se falhar. */
 function tocarSom(tipo: SomAlerta) {
+  if (tipo === "moedas") {
+    try {
+      if (!audioVenda) {
+        audioVenda = new Audio(ARQUIVO_VENDA);
+        audioVenda.preload = "auto";
+      }
+      audioVenda.currentTime = 0;
+      void audioVenda.play().catch(() => tocarSintetizado("moedas"));
+      return;
+    } catch {
+      /* sem suporte a <audio>: segue para o sintetizado */
+    }
+  }
+  tocarSintetizado(tipo);
+}
+
+/** Sons gerados no próprio navegador (reserva quando o arquivo não toca). */
+function tocarSintetizado(tipo: SomAlerta) {
   try {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const c = new Ctx();
