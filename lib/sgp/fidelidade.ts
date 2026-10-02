@@ -27,6 +27,23 @@ export const FAIXAS_FIDELIDADE: { chave: FaixaFidelidade; rotulo: string; de?: n
   { chave: "ate90", rotulo: "61 a 90 dias", de: 61, ate: 90 },
 ];
 
+/**
+ * Fora da lista de contato (gestor, 01/10/2026): permutas, isentos e órgãos
+ * públicos. "INTERLIG PLAY ISENTO" é o SVA que acompanha a internet de quase
+ * todo cliente — não torna o contrato isento.
+ */
+const PERMUTA = /PERMUTA/i;
+const ORGAO_PUBLICO =
+  /PREFEITURA|FUNDO MUNICIPAL|SECRETARIA|MUNIC[IÍ]PIO|C[AÂ]MARA MUNICIPAL|PREF\.? ?ATM|SEMED|SESPA|CENTRO REGIONAL DE SA[UÚ]DE|GOVERNO|ESTADO DO PAR/i;
+const PLANO_ISENTO = /ISENT|CORTESIA|CONTROLE INTERNO/i;
+
+function motivoExclusao(texto: string, mensalidadeZero: boolean): string | null {
+  if (PERMUTA.test(texto)) return "permuta";
+  if (ORGAO_PUBLICO.test(texto)) return "órgão público";
+  if (mensalidadeZero || PLANO_ISENTO.test(texto.replace(/PLAY ISENTO/gi, ""))) return "isento";
+  return null;
+}
+
 /** dd/mm/aaaa de hoje + n dias, no fuso de Santarém */
 function dataBr(dias: number): string {
   const d = new Date(Date.now() - 3 * 3600_000 + dias * 86_400_000);
@@ -54,13 +71,19 @@ export function linkFidelidadeSgp(baseUrl: string, pop: number, faixa: FaixaFide
 
 export type ResumoFidelidade = {
   atualizadoEm: string | null;
-  unidades: { pop: number; nome: string; faixas: Record<FaixaFidelidade, number> }[];
+  unidades: {
+    pop: number;
+    nome: string;
+    faixas: Record<FaixaFidelidade, number>;
+    /** permutas, isentos e órgãos públicos tirados da contagem (o SGP ainda os lista) */
+    excluidos: Record<FaixaFidelidade, number>;
+  }[];
 };
 
 export async function lerResumoFidelidade(): Promise<ResumoFidelidade> {
   const { data } = await criarClienteAdmin()
     .from("fidelidade_resumo")
-    .select("pop_sgp_id, faixa, quantidade, atualizado_em");
+    .select("pop_sgp_id, faixa, quantidade, excluidos, atualizado_em");
   const linhas = data ?? [];
   const atualizadoEm = linhas.map((l) => l.atualizado_em as string).sort()[0] ?? null;
   return {
@@ -72,6 +95,12 @@ export async function lerResumoFidelidade(): Promise<ResumoFidelidade> {
         FAIXAS_FIDELIDADE.map((f) => [
           f.chave,
           Number(linhas.find((l) => l.pop_sgp_id === u.pop && l.faixa === f.chave)?.quantidade ?? 0),
+        ])
+      ) as Record<FaixaFidelidade, number>,
+      excluidos: Object.fromEntries(
+        FAIXAS_FIDELIDADE.map((f) => [
+          f.chave,
+          Number(linhas.find((l) => l.pop_sgp_id === u.pop && l.faixa === f.chave)?.excluidos ?? 0),
         ])
       ) as Record<FaixaFidelidade, number>,
     })),
@@ -110,9 +139,28 @@ export async function atualizarResumoFidelidade(
         if (Date.now() - inicio > orcamentoMs - 20_000) {
           return { ok: false, lidas, erro: "orçamento esgotado — continua na próxima atualização" };
         }
-        const quantidade = await painel.contarRelatorioFidelidade(filtrosFidelidade(u.pop, f.chave));
+        const linhas = await painel.linhasRelatorioFidelidade(filtrosFidelidade(u.pop, f.chave));
+        // mensalidade zero no nosso cadastro = isento (controle interno, teste, cortesia)
+        const zerados = new Set<string>();
+        const ids = linhas.map((l) => l.contrato).filter(Boolean);
+        for (let i = 0; i < ids.length; i += 300) {
+          const { data: cts } = await admin
+            .from("contratos")
+            .select("sgp_contrato_id")
+            .in("sgp_contrato_id", ids.slice(i, i + 300))
+            .eq("valor_mensalidade", 0);
+          for (const c of cts ?? []) zerados.add(c.sgp_contrato_id as string);
+        }
+        const excluidos = linhas.filter((l) => motivoExclusao(l.texto, zerados.has(l.contrato))).length;
         const { error } = await admin.from("fidelidade_resumo").upsert(
-          { pop_sgp_id: u.pop, unidade: u.nome, faixa: f.chave, quantidade, atualizado_em: new Date().toISOString() },
+          {
+            pop_sgp_id: u.pop,
+            unidade: u.nome,
+            faixa: f.chave,
+            quantidade: linhas.length - excluidos,
+            excluidos,
+            atualizado_em: new Date().toISOString(),
+          },
           { onConflict: "pop_sgp_id,faixa" }
         );
         if (error) return { ok: false, lidas, erro: error.message };

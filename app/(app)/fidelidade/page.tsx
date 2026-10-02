@@ -107,6 +107,14 @@ export default async function FidelidadePage() {
                         ) : (
                           <span className="px-2 text-xl font-bold tabular-nums text-muted-foreground">{num(u.faixas[f.chave])}</span>
                         )}
+                        {u.excluidos[f.chave] > 0 && (
+                          <span
+                            className="block pr-2 text-[11px] text-muted-foreground"
+                            title="Permutas, isentos e órgãos públicos: ficam fora da contagem, mas o SGP ainda os lista"
+                          >
+                            +{num(u.excluidos[f.chave])} fora da contagem
+                          </span>
+                        )}
                       </td>
                     ))}
                     <td className="px-5 py-4">
@@ -143,6 +151,12 @@ export default async function FidelidadePage() {
         <p className="rounded-lg border bg-card p-3">
           <b className="text-foreground">Como abrir a lista:</b> os números abrem o relatório Fidelidades do SGP já
           filtrado (unidade, contratos ativos e a faixa). É preciso estar logada no SGP no navegador.
+        </p>
+        <p className="rounded-lg border bg-card p-3 md:col-span-2">
+          <b className="text-foreground">Fora da contagem:</b> permutas, isentos (mensalidade zero, cortesia, controle
+          interno) e órgãos públicos (prefeituras, fundos e secretarias municipais) não entram nos números da
+          plataforma. O filtro do SGP não consegue tirá-los, então a lista que abre lá mostra esses contratos a mais —
+          pule-os no contato.
         </p>
       </div>
     </>

@@ -101,10 +101,10 @@ export class PainelSgp {
 
   /** IDs dos serviços de internet do cliente, na ordem em que aparecem após cada contrato. */
   /**
-   * Relatório Financeiro → Fidelidades: quantas linhas a consulta devolve.
+   * Relatório Financeiro → Fidelidades: as linhas (contrato e o texto da 1ª coluna).
    * Altamira inteira leva ~15s no SGP, por isso o prazo maior que o padrão.
    */
-  async contarRelatorioFidelidade(params: Record<string, string>): Promise<number> {
+  async linhasRelatorioFidelidade(params: Record<string, string>): Promise<{ contrato: string; texto: string }[]> {
     if (!this.logado) await this.login();
     const q = new URLSearchParams(params).toString();
     const res = await this.pegar(`/admin/financeiro/relatorios/fidelidade/?${q}`, {
@@ -113,7 +113,12 @@ export class PainelSgp {
     if (res.status !== 200) throw new Error(`relatório de fidelidade respondeu ${res.status}`);
     const html = await res.text();
     const tbody = html.match(/<tbody[\s\S]*?<\/tbody>/i)?.[0] ?? "";
-    return (tbody.match(/<tr[\s>]/gi) ?? []).length;
+    // 1ª coluna: "22731 - CLIENTE 123 - Login: …, PLANO, Contrato: 22731"
+    return [...tbody.matchAll(/<tr[\s\S]*?<\/tr>/gi)].map((m) => {
+      const primeira = m[0].match(/<td[^>]*>([\s\S]*?)<\/td>/i)?.[1] ?? "";
+      const texto = primeira.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+      return { contrato: texto.match(/^(\d+)/)?.[1] ?? "", texto };
+    });
   }
 
   private async servicoDoContrato(
