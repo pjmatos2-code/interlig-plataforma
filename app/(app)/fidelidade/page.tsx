@@ -10,6 +10,8 @@ import {
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { dataHora } from "@/components/comissao/cartao-resultado-agente";
 import { cn } from "@/lib/utils";
+import { redirect } from "next/navigation";
+import { timeDoCoordenador } from "@/lib/coordenacao";
 import { BotaoAtualizarFidelidade } from "./botao";
 
 export const dynamic = "force-dynamic";
@@ -30,11 +32,19 @@ const num = (v: number) => v.toLocaleString("pt-BR");
  * a lista nominal (com contrato e plano) mora lá.
  */
 export default async function FidelidadePage() {
-  await exigirPerfil(["gestor", "direcao", "agente_atendimento"]);
-  const [r, { data: cfg }] = await Promise.all([
+  const usuario = await exigirPerfil(["gestor", "direcao", "agente_atendimento", "supervisor"]);
+  const [resumo, { data: cfg }, { data: pops }] = await Promise.all([
     lerResumoFidelidade(),
     criarClienteAdmin().from("integracoes_config").select("config").eq("sistema", "sgp").maybeSingle(),
+    criarClienteAdmin().from("pops").select("id, nome"),
   ]);
+  // coordenação de unidade vê só a própria base; coordenação de equipe não acessa
+  let unidadeFixa: string | null = null;
+  if (usuario.perfil === "supervisor") {
+    if (await timeDoCoordenador(usuario.id)) redirect("/dashboard");
+    unidadeFixa = (pops ?? []).find((x) => x.id === usuario.pop_id)?.nome ?? "—";
+  }
+  const r = unidadeFixa ? { ...resumo, unidades: resumo.unidades.filter((u) => u.nome === unidadeFixa) } : resumo;
   const baseSgp = String((cfg?.config as Record<string, string> | null)?.base_url ?? "");
   const total = (f: FaixaFidelidade) => r.unidades.reduce((s, u) => s + u.faixas[f], 0);
   const maxLinha = Math.max(1, ...r.unidades.map((u) => FAIXAS_FIDELIDADE.reduce((s, f) => s + u.faixas[f.chave], 0)));
@@ -44,12 +54,12 @@ export default async function FidelidadePage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <CabecalhoPagina
-          titulo="Fidelidade da base"
-          descricao="Clientes ativos sem fidelidade e os que perdem a fidelidade nos próximos 90 dias, por unidade. Clique num número para abrir a lista no SGP."
+          titulo={unidadeFixa ? `Fidelidade da base · ${unidadeFixa}` : "Fidelidade da base"}
+          descricao={`Clientes ativos sem fidelidade e os que perdem a fidelidade nos próximos 90 dias${unidadeFixa ? "" : ", por unidade"}. Clique num número para abrir a lista no SGP.`}
           />
         </div>
         <div className="flex flex-col items-end gap-1">
-          <BotaoAtualizarFidelidade />
+          {!unidadeFixa && <BotaoAtualizarFidelidade />}
           <span className="text-xs text-muted-foreground">
             {r.atualizadoEm ? `Dados do SGP de ${dataHora(r.atualizadoEm)} · atualiza sozinho toda madrugada` : "Ainda sem leitura do SGP"}
           </span>
