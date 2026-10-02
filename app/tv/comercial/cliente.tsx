@@ -152,21 +152,54 @@ function tocarSom(tipo: SomAlerta) {
       [523, 784, 1047].forEach((f) => nota(f, 0.4, 1.2, "sine", 0.15));
     }
     if (tipo === "moedas") {
-      nota(1975, 0, 0.35, "square", 0.1);
-      nota(2637, 0.11, 0.6, "square", 0.1);
-      nota(3951, 0.11, 0.5, "sine", 0.12);
-      const buf = c.createBuffer(1, c.sampleRate * 0.12, c.sampleRate);
+      // moeda de verdade: parciais INARMÔNICAS (metal) com decaimento rápido —
+      // um "tchim" de caixa e depois moedas caindo umas sobre as outras
+      const saida = c.createGain();
+      saida.gain.value = 0.9;
+      saida.connect(c.destination);
+      const clink = (ini: number, base: number, vol: number, dur: number) => {
+        const parciais: [number, number, number][] = [
+          [1, 1, 1],
+          [2.76, 0.55, 0.7],
+          [5.4, 0.3, 0.45],
+          [8.93, 0.16, 0.3],
+        ];
+        for (const [razao, amp, fDur] of parciais) {
+          const o = c.createOscillator();
+          const g = c.createGain();
+          o.type = "sine";
+          o.frequency.value = base * razao;
+          g.gain.setValueAtTime(0.0001, t + ini);
+          g.gain.exponentialRampToValueAtTime(vol * amp, t + ini + 0.004);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + ini + dur * fDur);
+          o.connect(g).connect(saida);
+          o.start(t + ini);
+          o.stop(t + ini + dur + 0.05);
+        }
+      };
+      // "ka": a gaveta do caixa (ruído curto e grave)
+      const buf = c.createBuffer(1, Math.floor(c.sampleRate * 0.05), c.sampleRate);
       const d = buf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
       const ruido = c.createBufferSource();
       const filtro = c.createBiquadFilter();
-      const g = c.createGain();
-      filtro.type = "highpass";
-      filtro.frequency.value = 3000;
-      g.gain.value = 0.15;
+      const gR = c.createGain();
+      filtro.type = "bandpass";
+      filtro.frequency.value = 1800;
+      gR.gain.value = 0.35;
       ruido.buffer = buf;
-      ruido.connect(filtro).connect(g).connect(c.destination);
-      ruido.start(t + 0.02);
+      ruido.connect(filtro).connect(gR).connect(saida);
+      ruido.start(t);
+      // "tchim": o sino do caixa, longo
+      clink(0.05, 2093, 0.28, 1.1);
+      clink(0.05, 2637, 0.16, 0.9);
+      // moedas caindo (tempos e tons fixos: o som é sempre o mesmo)
+      const queda: [number, number, number][] = [
+        [0.2, 3150, 0.2], [0.27, 2760, 0.17], [0.32, 3420, 0.16], [0.4, 2950, 0.14],
+        [0.46, 3620, 0.12], [0.54, 2580, 0.11], [0.63, 3280, 0.09], [0.71, 2880, 0.08],
+        [0.82, 3050, 0.06], [0.94, 3350, 0.05],
+      ];
+      for (const [ini, base, vol] of queda) clink(ini, base, vol, 0.32);
     }
   } catch {
     // sem áudio: a animação segue sozinha
@@ -240,7 +273,7 @@ export function AlertaNovaVenda({
           }}
           className="fixed bottom-4 right-4 z-40 rounded-full border border-amber-400/50 bg-amber-400/15 px-4 py-2 text-sm font-semibold text-amber-200"
         >
-          🔔 Ativar som do sino
+          🪙 Ativar som do aviso de venda
         </button>
       )}
 
