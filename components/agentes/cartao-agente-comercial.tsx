@@ -30,7 +30,7 @@ export async function CartaoAgenteComercial({ vendedorId }: { vendedorId: string
       resumo={
         r
           ? `${r.vendasComissionaveis} venda(s) liberadas · ${Math.round(r.atingimentoPct)}% da meta${pop ? ` · ${pop}` : ""}`
-          : `sem regra de comissão vigente${pop ? ` · ${pop}` : ""}`
+          : `${c.metaMensal ? "sem regra de comissão vigente" : "meta do mês ainda não cadastrada"}${pop ? ` · ${pop}` : ""}`
       }
       stats={[
         { rotulo: "Pendências", valor: String(c.pendentes.length) },
