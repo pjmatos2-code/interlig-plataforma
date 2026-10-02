@@ -127,8 +127,19 @@ export function PainelTecnica({
   const [aviso, setAviso] = useState<string | null>(null);
 
   const pendentesRetorno = useMemo(
-    () => dados.linhas.filter((l) => l.encerradaNoMes && l.retornoOsId && l.categoria !== "outros"),
-    [dados.linhas]
+    // só o que devolve valor a alguém: ativação de técnico cadastrado, ou
+    // suporte de técnico habilitado a receber suporte
+    () =>
+      dados.linhas.filter(
+        (l) =>
+          l.encerradaNoMes &&
+          l.retornoOsId &&
+          l.categoria !== "outros" &&
+          dados.tecnicos.some(
+            (t) => l.tecnicoIds.includes(t.tecnicoId) && (l.categoria === "ativacao" || t.recebeSuporte)
+          )
+      ),
+    [dados.linhas, dados.tecnicos]
   );
 
   const linhas = useMemo(() => {
