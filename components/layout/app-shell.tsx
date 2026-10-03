@@ -78,7 +78,7 @@ export function AppShell({
   return (
     <div className="min-h-screen bg-muted/30">
       {/* Barra superior — mobile-first (CLAUDE.md), no marinho da marca */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-white/10 bg-interlig-marinho px-4 text-white lg:px-6">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-white/10 bg-interlig-marinho px-3 text-white sm:gap-3 sm:px-4 lg:px-6">
         <Button
           variant="ghost"
           size="icon"
@@ -98,7 +98,7 @@ export function AppShell({
           <span className="hidden text-xs text-white/60 sm:inline">{atualizadoEm}</span>
           <BotaoInstalarApp />
           <SinoNotificacoes />
-          <Badge className="border-transparent bg-interlig-ceu/25 text-interlig-claro">
+          <Badge className="hidden border-transparent bg-interlig-ceu/25 text-interlig-claro sm:inline-flex">
             {ROTULO_PERFIL[usuario.perfil]}
           </Badge>
           <form action="/api/sair" method="post">
@@ -153,6 +153,7 @@ export function AppShell({
               <div className="mb-4 px-3 pt-2">
                 <p className="truncate text-sm font-medium">{usuario.nome}</p>
                 <p className="truncate text-xs text-muted-foreground">{usuario.email}</p>
+                <p className="mt-1 text-xs font-medium text-primary">{ROTULO_PERFIL[usuario.perfil]}</p>
               </div>
               {renderLinks(false)}
             </aside>
