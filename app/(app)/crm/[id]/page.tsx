@@ -69,6 +69,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
       .from("motivos_nao_conversao")
       .select("id, nome")
       .eq("ativo", true)
+      .lt("ordem", 90) // "Mês encerrado sem conversão" é só da rotina da virada
       .order("ordem"),
     ehAgenteCrm(usuario.perfil)
       ? Promise.resolve({ data: [] as { id: string; nome: string }[] })

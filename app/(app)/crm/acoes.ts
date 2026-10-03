@@ -252,6 +252,13 @@ export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<Est
     const motivoId = String(dados.get("motivo_id") ?? "");
     const observacao = String(dados.get("observacao") ?? "").trim();
     if (!motivoId) return { erro: "Não convertido exige o motivo." };
+    const { data: motivo } = await supabase.from("motivos_nao_conversao").select("nome").eq("id", motivoId).maybeSingle();
+    // "Outra cidade" (03/10/2026): a cidade é obrigatória — demanda por expansão
+    const cidadeBruta = String(dados.get("cidade_fora_area") ?? "").trim().replace(/\s+/g, " ");
+    const cidade = cidadeBruta
+      ? cidadeBruta.toLowerCase().replace(/(^|\s)(\S)/g, (_, esp: string, c: string) => esp + c.toUpperCase())
+      : null;
+    if (motivo?.nome === "Outra cidade" && !cidade) return { erro: "Informe a cidade do cliente." };
 
     const { error } = await supabase
       .from("tickets")
@@ -261,16 +268,18 @@ export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<Est
         desfecho: "nao_convertido",
         fechado_por: "vendedora",
         motivo_id: motivoId,
+        cidade_fora_area: motivo?.nome === "Outra cidade" ? cidade : null,
       })
       .eq("id", ticketId);
     if (error) return { erro: `O banco recusou o fechamento: ${error.message}` };
 
-    if (observacao) {
+    const textoObs = [motivo?.nome === "Outra cidade" && cidade ? `Cidade: ${cidade}` : "", observacao].filter(Boolean).join(" · ");
+    if (textoObs) {
       const usuario = await exigirUsuario();
       await supabase.from("ticket_eventos").insert({
         ticket_id: ticketId,
         tipo: "nota",
-        dados: { texto: `Observação do fechamento: ${observacao}` },
+        dados: { texto: `Observação do fechamento: ${textoObs}` },
         usuario_id: usuario.id,
       });
     }

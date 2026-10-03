@@ -103,6 +103,9 @@ export function FormularioFechamento({
 }) {
   const [estado, acao] = useFormState(fecharTicket, inicial);
   const [desfecho, setDesfecho] = useState<"convertido" | "nao_convertido" | "">("");
+  const [motivoSel, setMotivoSel] = useState("");
+  // "Outra cidade": a cidade é obrigatória — mede a demanda por expansão da rede
+  const ehOutraCidade = motivos.find((m) => m.id === motivoSel)?.nome === "Outra cidade";
   // política de crédito (fase monitoramento): fechar Vendida com adiantamento
   // pendente mostra uma confirmação simples — NUNCA bloqueia o prosseguimento
   const [confirmarCredito, setConfirmarCredito] = useState(false);
@@ -257,6 +260,8 @@ export function FormularioFechamento({
               id="motivo_id"
               name="motivo_id"
               required
+              value={motivoSel}
+              onChange={(e) => setMotivoSel(e.target.value)}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="">Selecione…</option>
@@ -267,6 +272,20 @@ export function FormularioFechamento({
               ))}
             </select>
           </div>
+          {ehOutraCidade && (
+            <div className="space-y-1.5">
+              <Label htmlFor="cidade_fora_area">Cidade do cliente *</Label>
+              <Input
+                id="cidade_fora_area"
+                name="cidade_fora_area"
+                required
+                placeholder="Ex.: Anapu, Medicilândia, Uruará…"
+              />
+              <p className="text-xs text-muted-foreground">
+                Usada para medir a procura em cidades onde ainda não atendemos (página Mapa).
+              </p>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="observacao">Observação (opcional)</Label>
             <Input id="observacao" name="observacao" placeholder="detalhe do motivo" />
