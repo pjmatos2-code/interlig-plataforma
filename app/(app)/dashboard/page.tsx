@@ -245,7 +245,8 @@ export default async function DashboardPage({
   // série diária contínua (dias sem venda = 0) do início 6m até hoje
   const serieDiaria: { dia: string; vendas: number }[] = [];
   {
-    const fim = new Date().toISOString().slice(0, 10);
+    // "hoje" em Santarém (UTC−3): depois das 21h o UTC já é o dia seguinte
+    const fim = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
     for (let d = new Date(`${inicio6m}T00:00:00Z`); d.toISOString().slice(0, 10) <= fim; d.setUTCDate(d.getUTCDate() + 1)) {
       const dia = d.toISOString().slice(0, 10);
       serieDiaria.push({ dia, vendas: porDia6m.get(dia) ?? 0 });
@@ -520,10 +521,7 @@ export default async function DashboardPage({
 
           {/* evolução de vendas — modelo do mock 04/09 (diário/semanal/mensal) */}
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle>Evolução diária de vendas</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6">
               <EvolucaoVendas serie={serieDiaria} metaMensal={metaMensalTotal} diasUteisMes={diasUteisMes} />
             </CardContent>
           </Card>
