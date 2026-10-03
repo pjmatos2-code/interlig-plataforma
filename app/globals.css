@@ -33,3 +33,15 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
+
+/*
+ * Celular (03/10/2026): grade sem colunas definidas usa coluna implícita
+ * "auto", que cresce até a tabela mais larga do cartão e empurra a página
+ * para os lados. Na camada base, os utilitários grid-cols-* continuam
+ * mandando quando existem; sem eles, a coluna encolhe até a tela.
+ */
+@layer base {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
