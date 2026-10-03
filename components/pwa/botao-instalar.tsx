@@ -36,10 +36,12 @@ export function BotaoInstalarApp() {
         await evento.userChoice.catch(() => null);
         setEvento(null);
       }}
-      className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white hover:bg-white/20"
+      aria-label="Instalar app"
+      title="Instalar app"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 p-2 text-xs font-semibold text-white hover:bg-white/20 sm:px-3 sm:py-1"
     >
-      <Download className="h-3.5 w-3.5" />
-      Instalar app
+      <Download className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+      <span className="hidden sm:inline">Instalar app</span>
     </button>
   );
 }

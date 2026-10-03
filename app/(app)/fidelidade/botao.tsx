@@ -8,7 +8,7 @@ export function BotaoAtualizarFidelidade() {
   const [pendente, iniciar] = useTransition();
   const [msg, setMsg] = useState<{ erro?: string; ok?: string } | null>(null);
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col items-start gap-1 md:items-end">
       <button
         type="button"
         disabled={pendente}
@@ -18,7 +18,7 @@ export function BotaoAtualizarFidelidade() {
         <RefreshCw className={`h-4 w-4 ${pendente ? "animate-spin" : ""}`} />
         {pendente ? "Consultando o SGP (até 2 min)…" : "Atualizar agora"}
       </button>
-      {msg?.erro && <span className="max-w-xs text-right text-xs text-farol-vermelho">{msg.erro}</span>}
+      {msg?.erro && <span className="max-w-xs text-xs text-farol-vermelho md:text-right">{msg.erro}</span>}
       {msg?.ok && <span className="text-xs text-farol-verde">{msg.ok}</span>}
     </div>
   );

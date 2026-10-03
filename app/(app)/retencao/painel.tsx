@@ -75,7 +75,7 @@ function Kpi({
   sub?: string;
 }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-xl border bg-card p-3">
+    <div className="flex flex-col items-start gap-2 rounded-xl border bg-card p-3 sm:flex-row sm:items-center sm:gap-2.5">
       <span
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
         style={{ backgroundColor: `${cor}18`, color: cor }}

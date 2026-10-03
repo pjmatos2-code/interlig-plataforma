@@ -56,14 +56,14 @@ export default async function FidelidadePage({
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
+      <div className="mb-1 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0 md:flex-1">
           <CabecalhoPagina
           titulo={unidadeFixa ? `Fidelidade da base · ${unidadeFixa}` : "Fidelidade da base"}
           descricao={`Clientes ativos sem fidelidade e os que perdem a fidelidade nos próximos 90 dias${unidadeFixa ? "" : ", por unidade"}. Clique num número para abrir a lista no SGP.`}
           />
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col items-start gap-1 md:max-w-xs md:items-end md:text-right">
           {!unidadeFixa && <BotaoAtualizarFidelidade />}
           <span className="text-xs text-muted-foreground">
             {r.atualizadoEm ? `Dados do SGP de ${dataHora(r.atualizadoEm)} · atualiza sozinho toda madrugada` : "Ainda sem leitura do SGP"}
@@ -257,16 +257,16 @@ function GraficoPlanos({
             const corp = /corporativo/i.test(plano);
             const especial = ESPECIAIS.test(plano) || plano.startsWith("Outros ");
             return (
-              <div key={plano} className="flex items-center gap-3">
-                <span className="w-44 shrink-0 truncate text-sm" title={plano}>{plano}</span>
-                <div className="h-6 flex-1 rounded-md bg-muted/60">
+              <div key={plano} className="flex items-center gap-2 sm:gap-3">
+                <span className="w-28 shrink-0 truncate text-xs sm:w-44 sm:text-sm" title={plano}>{plano}</span>
+                <div className="h-6 min-w-[3rem] flex-1 rounded-md bg-muted/60">
                   <div
                     className={cn("flex h-full items-center rounded-md", corp ? "bg-violet-500" : especial ? "bg-slate-400" : "bg-sky-500")}
                     style={{ width: `${Math.max(1.5, (n / max) * 100)}%` }}
                   />
                 </div>
-                <span className="w-12 text-right text-sm font-bold tabular-nums">{num(n)}</span>
-                <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">{Math.round((n / total) * 100)}%</span>
+                <span className="w-10 text-right text-sm font-bold tabular-nums sm:w-12">{num(n)}</span>
+                <span className="w-9 text-right text-xs tabular-nums text-muted-foreground sm:w-12">{Math.round((n / total) * 100)}%</span>
               </div>
             );
           })}

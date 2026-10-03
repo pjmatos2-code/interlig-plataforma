@@ -89,12 +89,12 @@ export function AppShell({
           {aberto ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
 
-        <Link href="/" className="flex items-center" aria-label="Início">
+        <Link href="/" className="flex shrink-0 items-center" aria-label="Início">
           <LogoInterlig variante="clara" tamanho="sm" />
         </Link>
         <span className="hidden text-sm text-white/60 md:inline">· Inteligência Comercial</span>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
           <span className="hidden text-xs text-white/60 sm:inline">{atualizadoEm}</span>
           <BotaoInstalarApp />
           <SinoNotificacoes />
@@ -159,7 +159,7 @@ export function AppShell({
           </div>
         )}
 
-        <main className="min-w-0 flex-1 p-4 lg:p-6">{children}</main>
+        <main className="min-w-0 flex-1 overflow-x-clip p-4 lg:p-6">{children}</main>
       </div>
     </div>
   );

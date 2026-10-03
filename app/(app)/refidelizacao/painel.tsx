@@ -65,16 +65,16 @@ function Kpi({
   sub?: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border bg-card p-4">
+    <div className="flex flex-col items-start gap-2 rounded-xl border bg-card p-3 sm:flex-row sm:items-center sm:gap-3 sm:p-4">
       <span
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
         style={{ backgroundColor: `${cor}18`, color: cor }}
       >
         {icone}
       </span>
-      <div className="min-w-0">
-        <p className="truncate text-xs text-muted-foreground">{rotulo}</p>
-        <p className="text-xl font-semibold tabular-nums leading-tight">{valor}</p>
+      <div className="w-full min-w-0">
+        <p className="text-xs leading-snug text-muted-foreground sm:truncate">{rotulo}</p>
+        <p className="break-words text-lg font-semibold tabular-nums leading-tight sm:text-xl">{valor}</p>
         {sub && <p className="truncate text-[11px] text-muted-foreground">{sub}</p>}
       </div>
     </div>
