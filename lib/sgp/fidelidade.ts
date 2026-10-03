@@ -44,6 +44,33 @@ function motivoExclusao(texto: string, mensalidadeZero: boolean): string | null 
   return null;
 }
 
+/**
+ * Família do plano para o gráfico (gestor, 03/10/2026): velocidade + se é
+ * corporativo. "1GB SPEEDMAX INDIVIDUAL | PÓS PAGO" → "1 GB";
+ * "FIBRA CORPORATE 500MB" / "… | PJ |" / "DEDICADO" → "… corporativo".
+ */
+export function familiaPlano(nome: string | null | undefined): string {
+  const n = String(nome ?? "").toUpperCase();
+  if (!n.trim()) return "Plano não identificado";
+  if (/REDE NEUTRA/.test(n)) return "Rede neutra (Netsky)";
+  if (/LIGCHIP/.test(n)) return "LigChip (chip)";
+  if (/FONE|TELEFONIA/.test(n)) return "Telefonia";
+  if (/\bPLAY\b/.test(n)) return "Interlig Play";
+  const corporativo = /CORPORATE|\bPJ\b|DEDICADO|COMERCIAL|EMPRESARIAL|SEMED|SAUDE|SESPA|PREF/.test(n);
+  const m = n.match(/(\d+)\s*(GB|MBPS|MB|MEGA)/);
+  // sem velocidade no nome (Fibra Mult, Fibra Gamer…): o próprio nome do plano
+  const semVel = n.split(/\s[-|]\s|\|/)[0].trim().toLowerCase().replace(/(^|\s)\S/g, (x) => x.toUpperCase());
+  let vel = m ? `${m[1]} ${m[2] === "GB" ? "GB" : "MB"}` : semVel || "Outros planos";
+  if (/R[AÁ]DIO/.test(n) && m) vel = `Rádio ${vel}`;
+  return corporativo && m ? `${vel} corporativo` : vel;
+}
+
+/** plano de internet citado na 1ª coluna do relatório (fallback sem cadastro) */
+function planoDoTexto(texto: string): string | null {
+  const partes = texto.split(/,\s*/).filter((p) => /\d+\s*(MB|GB|MEGA)/i.test(p) && !/PLAY|CURSOS|LIGCHIP/i.test(p));
+  return partes[0] ?? null;
+}
+
 /** dd/mm/aaaa de hoje + n dias, no fuso de Santarém */
 function dataBr(dias: number): string {
   const d = new Date(Date.now() - 3 * 3600_000 + dias * 86_400_000);
@@ -77,13 +104,15 @@ export type ResumoFidelidade = {
     faixas: Record<FaixaFidelidade, number>;
     /** permutas, isentos e órgãos públicos tirados da contagem (o SGP ainda os lista) */
     excluidos: Record<FaixaFidelidade, number>;
+    /** contratos por família de plano, em cada faixa */
+    planos: Record<FaixaFidelidade, Record<string, number>>;
   }[];
 };
 
 export async function lerResumoFidelidade(): Promise<ResumoFidelidade> {
   const { data } = await criarClienteAdmin()
     .from("fidelidade_resumo")
-    .select("pop_sgp_id, faixa, quantidade, excluidos, atualizado_em");
+    .select("pop_sgp_id, faixa, quantidade, excluidos, planos, atualizado_em");
   const linhas = data ?? [];
   const atualizadoEm = linhas.map((l) => l.atualizado_em as string).sort()[0] ?? null;
   return {
@@ -97,6 +126,12 @@ export async function lerResumoFidelidade(): Promise<ResumoFidelidade> {
           Number(linhas.find((l) => l.pop_sgp_id === u.pop && l.faixa === f.chave)?.quantidade ?? 0),
         ])
       ) as Record<FaixaFidelidade, number>,
+      planos: Object.fromEntries(
+        FAIXAS_FIDELIDADE.map((f) => [
+          f.chave,
+          ((linhas.find((l) => l.pop_sgp_id === u.pop && l.faixa === f.chave)?.planos ?? {}) as Record<string, number>),
+        ])
+      ) as Record<FaixaFidelidade, Record<string, number>>,
       excluidos: Object.fromEntries(
         FAIXAS_FIDELIDADE.map((f) => [
           f.chave,
@@ -140,18 +175,31 @@ export async function atualizarResumoFidelidade(
           return { ok: false, lidas, erro: "orçamento esgotado — continua na próxima atualização" };
         }
         const linhas = await painel.linhasRelatorioFidelidade(filtrosFidelidade(u.pop, f.chave));
-        // mensalidade zero no nosso cadastro = isento (controle interno, teste, cortesia)
+        // cadastro: mensalidade zero = isento (controle interno, teste,
+        // cortesia) e o plano do contrato para o gráfico
         const zerados = new Set<string>();
+        const planoDe = new Map<string, string>();
         const ids = linhas.map((l) => l.contrato).filter(Boolean);
         for (let i = 0; i < ids.length; i += 300) {
           const { data: cts } = await admin
             .from("contratos")
-            .select("sgp_contrato_id")
-            .in("sgp_contrato_id", ids.slice(i, i + 300))
-            .eq("valor_mensalidade", 0);
-          for (const c of cts ?? []) zerados.add(c.sgp_contrato_id as string);
+            .select("sgp_contrato_id, valor_mensalidade, planos(nome)")
+            .in("sgp_contrato_id", ids.slice(i, i + 300));
+          for (const c of cts ?? []) {
+            if (Number(c.valor_mensalidade) === 0) zerados.add(c.sgp_contrato_id as string);
+            const nome = (c.planos as unknown as { nome: string } | null)?.nome;
+            if (nome) planoDe.set(c.sgp_contrato_id as string, nome);
+          }
         }
-        const excluidos = linhas.filter((l) => motivoExclusao(l.texto, zerados.has(l.contrato))).length;
+        const contam = linhas.filter((l) => !motivoExclusao(l.texto, zerados.has(l.contrato)));
+        const excluidos = linhas.length - contam.length;
+        const planos: Record<string, number> = {};
+        for (const l of contam) {
+          // o plano de INTERNET do relatório vale mais que o do cadastro (no
+          // cadastro, o principal às vezes é o SVA "Interlig Play")
+          const fam = familiaPlano(planoDoTexto(l.texto) ?? planoDe.get(l.contrato));
+          planos[fam] = (planos[fam] ?? 0) + 1;
+        }
         const { error } = await admin.from("fidelidade_resumo").upsert(
           {
             pop_sgp_id: u.pop,
@@ -159,6 +207,7 @@ export async function atualizarResumoFidelidade(
             faixa: f.chave,
             quantidade: linhas.length - excluidos,
             excluidos,
+            planos,
             atualizado_em: new Date().toISOString(),
           },
           { onConflict: "pop_sgp_id,faixa" }

@@ -30,7 +30,11 @@ const num = (v: number) => v.toLocaleString("pt-BR");
  * número abre o relatório Fidelidades do SGP já filtrado na unidade e faixa:
  * a lista nominal (com contrato e plano) mora lá.
  */
-export default async function FidelidadePage() {
+export default async function FidelidadePage({
+  searchParams,
+}: {
+  searchParams: { unidade?: string; faixa?: string };
+}) {
   const usuario = await exigirPerfil(["gestor", "direcao", "agente_atendimento", "supervisor"]);
   const [resumo, { data: cfg }, { data: pops }] = await Promise.all([
     lerResumoFidelidade(),
@@ -154,6 +158,13 @@ export default async function FidelidadePage() {
         </div>
       </section>
 
+      <GraficoPlanos
+        unidades={r.unidades}
+        unidadeSel={unidadeFixa ? null : searchParams.unidade ?? null}
+        faixaSel={(FAIXAS_FIDELIDADE.find((f) => f.chave === searchParams.faixa)?.chave ?? "sem") as FaixaFidelidade}
+        podeTrocarUnidade={!unidadeFixa}
+      />
+
       <div className="mt-4 grid gap-3 text-sm text-muted-foreground md:grid-cols-2">
         <p className="rounded-lg border bg-card p-3">
           <b className="text-foreground">Por onde começar:</b> quem vence em até 30 dias ainda tem o desconto da
@@ -171,5 +182,101 @@ export default async function FidelidadePage() {
         </p>
       </div>
     </>
+  );
+}
+
+/** grupos que não são internet residencial/corporativa ganham cor neutra */
+const ESPECIAIS = /Rede neutra|LigChip|Telefonia|Interlig Play|Desativado|não identificado|Lan To Lan/i;
+
+function GraficoPlanos({
+  unidades,
+  unidadeSel,
+  faixaSel,
+  podeTrocarUnidade,
+}: {
+  unidades: { pop: number; nome: string; planos: Record<FaixaFidelidade, Record<string, number>> }[];
+  unidadeSel: string | null;
+  faixaSel: FaixaFidelidade;
+  podeTrocarUnidade: boolean;
+}) {
+  const escopo = unidadeSel ? unidades.filter((u) => String(u.pop) === unidadeSel) : unidades;
+  const soma = new Map<string, number>();
+  for (const u of escopo) for (const [plano, n] of Object.entries(u.planos[faixaSel] ?? {})) soma.set(plano, (soma.get(plano) ?? 0) + n);
+  const ordenado = [...soma.entries()].sort((a, b) => b[1] - a[1]);
+  const LIMITE = 14;
+  const barras = ordenado.slice(0, LIMITE);
+  const resto = ordenado.slice(LIMITE);
+  if (resto.length) barras.push([`Outros ${resto.length} planos`, resto.reduce((t, [, n]) => t + n, 0)]);
+  const total = ordenado.reduce((t, [, n]) => t + n, 0);
+  const max = Math.max(1, ...barras.map(([, n]) => n));
+  const href = (u: string | null, f: string) => {
+    const q = new URLSearchParams();
+    if (u) q.set("unidade", u);
+    if (f !== "sem") q.set("faixa", f);
+    const qs = q.toString();
+    return `/fidelidade${qs ? `?${qs}` : ""}#planos`;
+  };
+  const chip = (ativo: boolean) =>
+    cn(
+      "rounded-full border px-3 py-1 text-xs font-medium",
+      ativo ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
+    );
+  const rotuloFaixa = FAIXAS_FIDELIDADE.find((f) => f.chave === faixaSel)?.rotulo ?? "";
+
+  return (
+    <section id="planos" className="mt-5 scroll-mt-20 rounded-xl border bg-card p-5 shadow-sm">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold">Planos dos clientes · {rotuloFaixa.toLowerCase()}</h2>
+          <p className="text-sm text-muted-foreground">
+            {num(total)} contratos ativos por plano (velocidade e residencial × corporativo){unidadeSel ? "" : podeTrocarUnidade ? " · todas as unidades" : ""}
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          {podeTrocarUnidade && (
+            <div className="flex flex-wrap justify-end gap-1.5">
+              <a href={href(null, faixaSel)} className={chip(!unidadeSel)}>Todas</a>
+              {unidades.map((u) => (
+                <a key={u.pop} href={href(String(u.pop), faixaSel)} className={chip(unidadeSel === String(u.pop))}>{u.nome}</a>
+              ))}
+            </div>
+          )}
+          <div className="flex flex-wrap justify-end gap-1.5">
+            {FAIXAS_FIDELIDADE.map((f) => (
+              <a key={f.chave} href={href(unidadeSel, f.chave)} className={chip(faixaSel === f.chave)}>{f.rotulo}</a>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {total === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">Nenhum contrato nesta seleção.</p>
+      ) : (
+        <div className="space-y-2">
+          {barras.map(([plano, n]) => {
+            const corp = /corporativo/i.test(plano);
+            const especial = ESPECIAIS.test(plano) || plano.startsWith("Outros ");
+            return (
+              <div key={plano} className="flex items-center gap-3">
+                <span className="w-44 shrink-0 truncate text-sm" title={plano}>{plano}</span>
+                <div className="h-6 flex-1 rounded-md bg-muted/60">
+                  <div
+                    className={cn("flex h-full items-center rounded-md", corp ? "bg-violet-500" : especial ? "bg-slate-400" : "bg-sky-500")}
+                    style={{ width: `${Math.max(1.5, (n / max) * 100)}%` }}
+                  />
+                </div>
+                <span className="w-12 text-right text-sm font-bold tabular-nums">{num(n)}</span>
+                <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">{Math.round((n / total) * 100)}%</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-sky-500" /> residencial</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-violet-500" /> corporativo (corporate, PJ, dedicado)</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-slate-400" /> outros serviços (rede neutra, LigChip, telefonia, Play)</span>
+      </div>
+    </section>
   );
 }
