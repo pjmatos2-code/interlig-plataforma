@@ -211,7 +211,7 @@ export function EvolucaoVendas({
         )}
         {dados.meta !== null && (
           <span className="inline-flex items-center gap-1.5">
-            <span className="font-semibold text-emerald-600">00</span> número verde = bateu a meta
+            número em <span className="font-semibold text-emerald-600">verde</span> = bateu a meta
           </span>
         )}
         {visao === "diario" && (
@@ -223,14 +223,25 @@ export function EvolucaoVendas({
 
       {/* gráfico: no celular rola de lado para as barras e os números não espremerem */}
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
-        <div className="flex" style={{ minWidth: dados.barras.length * dados.larguraMin + 40 }}>
+        <div className="flex pt-2" style={{ minWidth: dados.barras.length * dados.larguraMin + 44 }}>
           {/* eixo Y */}
-          <div className="relative mr-2 h-56 w-8 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
-            {linhas.map((v) => (
-              <span key={v} className="absolute right-0 leading-none" style={{ bottom: `${pct(v)}%`, transform: "translateY(50%)" }}>
-                {num(v)}
+          <div className="relative mr-2 h-56 w-9 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
+            {linhas
+              .filter((v) => dados.meta === null || Math.abs(pct(v) - pct(dados.meta)) > 6)
+              .map((v) => (
+                <span key={v} className="absolute right-0 leading-none" style={{ bottom: `${pct(v)}%`, transform: "translateY(50%)" }}>
+                  {num(v)}
+                </span>
+              ))}
+            {dados.meta !== null && dados.meta <= topo && (
+              <span
+                className="absolute right-0 rounded bg-slate-600 px-1 py-0.5 font-semibold leading-none text-white"
+                style={{ bottom: `${pct(dados.meta)}%`, transform: "translateY(50%)" }}
+                title={dados.rotuloMeta}
+              >
+                {num(dados.meta, dados.meta < 100 && !Number.isInteger(dados.meta) ? 1 : 0)}
               </span>
-            ))}
+            )}
           </div>
 
           <div className="min-w-0 flex-1">
@@ -241,18 +252,10 @@ export function EvolucaoVendas({
               ))}
               {/* meta */}
               {dados.meta !== null && dados.meta <= topo && (
-                <>
-                  <div
-                    className="absolute inset-x-0 z-10 border-t-2 border-dashed border-slate-400"
-                    style={{ bottom: `${pct(dados.meta)}%` }}
-                  />
-                  <span
-                    className="absolute right-0 z-20 rounded-md border bg-background/95 px-2 py-0.5 text-[11px] font-medium text-slate-600 shadow-sm"
-                    style={{ bottom: `calc(${pct(dados.meta)}% + 4px)` }}
-                  >
-                    {dados.rotuloMeta}
-                  </span>
-                </>
+                <div
+                  className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-dashed border-slate-400"
+                  style={{ bottom: `${pct(dados.meta)}%` }}
+                />
               )}
 
               {/* barras */}
@@ -370,7 +373,7 @@ export function EvolucaoVendas({
             cor: "bg-blue-500/10 text-blue-600",
             rotulo: visao === "diario" ? "Média por dia trabalhado" : `Média por ${dados.unidade}`,
             valor: comValor.length ? `${num(media, 1)} vendas` : "—",
-            sub: visao === "diario" ? "segunda a sábado até hoje" : `nos ${comValor.length} períodos do gráfico`,
+            sub: visao === "diario" ? "seg. a sáb. até hoje" : `em ${comValor.length} ${visao === "semanal" ? "semanas" : "meses"}`,
           },
           {
             icone: <CalendarCheck2 className="h-4 w-4" />,
