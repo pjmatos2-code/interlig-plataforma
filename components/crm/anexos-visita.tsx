@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { anexarVisitaManual } from "@/app/(app)/crm/acoes";
+import { reduzirFoto } from "@/lib/imagem/reduzir-foto";
 
 /**
  * Complemento manual do pré-cadastro pelo ticket: fotos da casa e do
@@ -22,6 +23,7 @@ function CampoArquivo({
   aoEscolher: (f: File | null) => void;
 }) {
   const ref = useRef<HTMLInputElement>(null);
+  const [preparando, setPreparando] = useState(false);
   return (
     <button
       type="button"
@@ -30,15 +32,23 @@ function CampoArquivo({
         arquivo ? "border-emerald-400 bg-emerald-50/60 text-emerald-800" : "text-muted-foreground hover:border-primary/60"
       }`}
     >
-      <span className="text-lg">{arquivo ? "✓" : "📷"}</span>
-      <span className="px-1 text-center leading-tight">{arquivo ? arquivo.name.slice(0, 24) : rotulo}</span>
+      <span className="text-lg">{preparando ? "⏳" : arquivo ? "✓" : "📷"}</span>
+      <span className="px-1 text-center leading-tight">
+        {preparando ? "Preparando foto…" : arquivo ? `${rotulo} pronta` : rotulo}
+      </span>
       <input
         ref={ref}
         type="file"
         name={nome}
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
-        onChange={(e) => aoEscolher(e.target.files?.[0] ?? null)}
+        onChange={async (e) => {
+          const f = e.target.files?.[0] ?? null;
+          if (!f) return aoEscolher(null);
+          setPreparando(true);
+          aoEscolher(await reduzirFoto(f));
+          setPreparando(false);
+        }}
       />
     </button>
   );
@@ -96,7 +106,12 @@ export function AnexosVisita({ ticketId }: { ticketId: string }) {
               if (doc) dados.set("foto_doc", doc);
               if (verso) dados.set("foto_doc_verso", verso);
               if (endereco.trim()) dados.set("endereco_manual", endereco.trim());
-              const r = await anexarVisitaManual({}, dados);
+              let r: Awaited<ReturnType<typeof anexarVisitaManual>>;
+              try {
+                r = await anexarVisitaManual({}, dados);
+              } catch {
+                return setErro("Não foi possível enviar as fotos. Confira a internet e tente de novo.");
+              }
               if (r.erro) return setErro(r.erro);
               setAberto(false);
               setCasa(null);

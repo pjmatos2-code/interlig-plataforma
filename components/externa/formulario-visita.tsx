@@ -4,26 +4,10 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { registrarVisita } from "@/app/(app)/externa/acoes";
 import { cn } from "@/lib/utils";
+import { reduzirFoto } from "@/lib/imagem/reduzir-foto";
 
 type PlanoOpcao = { id: string; nome: string; valor_referencia: number | null };
 type Vendedora = { id: string; nome: string };
-
-/** Reduz a foto no aparelho (máx 1280px, JPEG) — 4G de campo agradece. */
-async function reduzirFoto(arquivo: File, maxLado = 1280): Promise<File> {
-  try {
-    const img = await createImageBitmap(arquivo);
-    const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(img.width * escala);
-    canvas.height = Math.round(img.height * escala);
-    canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-    img.close();
-    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", 0.82));
-    return blob ? new File([blob], "foto.jpg", { type: "image/jpeg" }) : arquivo;
-  } catch {
-    return arquivo;
-  }
-}
 
 function CampoFoto({
   rotulo,
