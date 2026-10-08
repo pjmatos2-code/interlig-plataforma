@@ -45,32 +45,50 @@ export function EvolucaoVendas({
   serie,
   metaMensal,
   diasUteisMes,
+  inicio,
+  fim,
+  hoje,
 }: {
-  /** vendas por dia (últimos ~6 meses, ordenado) */
+  /** vendas por dia, contínua, terminando em `fim` (cobre ao menos 6 meses) */
   serie: PontoDia[];
-  /** meta total (soma das metas) do mês corrente */
+  /** meta total do mês do início do período */
   metaMensal: number;
   diasUteisMes: number;
+  /** período escolhido no Dashboard (o gráfico acompanha o filtro) */
+  inicio: string;
+  fim: string;
+  /** hoje em Santarém — dias depois dele ficam vazios */
+  hoje: string;
 }) {
   const [visao, setVisao] = useState<Visao>("diario");
   const [sel, setSel] = useState<number | null>(null);
-  const hoje = serie[serie.length - 1]?.dia ?? isoDia(new Date());
   const mesAtual = hoje.slice(0, 7);
+  const dataBr = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
   const metaDiaria = diasUteisMes > 0 && metaMensal > 0 ? metaMensal / diasUteisMes : null;
 
   const dados = useMemo(() => {
     const porDia = new Map(serie.map((p) => [p.dia, p.vendas]));
 
     if (visao === "diario") {
-      const [a, m] = mesAtual.split("-").map(Number);
-      const ultimo = new Date(Date.UTC(a, m, 0)).getUTCDate();
-      const barras: Barra[] = Array.from({ length: ultimo }, (_, i) => {
-        const d = new Date(Date.UTC(a, m - 1, i + 1));
-        const dia = isoDia(d);
+      // período que começa no dia 1 e fica num só mês = mês inteiro (dias que
+      // faltam aparecem vazios); qualquer outro = exatamente os dias escolhidos
+      // (no máximo os últimos 93, para o gráfico não virar um tapete)
+      const mesInteiro = inicio.slice(8, 10) === "01" && inicio.slice(0, 7) === fim.slice(0, 7);
+      const [a, m] = inicio.split("-").map(Number);
+      const dias: string[] = [];
+      if (mesInteiro) {
+        const ultimo = new Date(Date.UTC(a, m, 0)).getUTCDate();
+        for (let i = 1; i <= ultimo; i++) dias.push(isoDia(new Date(Date.UTC(a, m - 1, i))));
+      } else {
+        for (let d = new Date(`${inicio}T00:00:00Z`); isoDia(d) <= fim; d.setUTCDate(d.getUTCDate() + 1)) dias.push(isoDia(d));
+      }
+      const barras: Barra[] = dias.slice(-93).map((dia) => {
+        const d = new Date(`${dia}T00:00:00Z`);
+        const mm = d.getUTCMonth();
         return {
           chave: dia,
-          rotulo: String(i + 1).padStart(2, "0"),
-          titulo: `${String(i + 1).padStart(2, "0")} de ${MES_CURTO[m - 1]} (${DIA_SEMANA[d.getUTCDay()]})`,
+          rotulo: mesInteiro ? dia.slice(8, 10) : dia.slice(8, 10) === "01" || dia === dias[0] ? dataBr(dia) : dia.slice(8, 10),
+          titulo: `${dia.slice(8, 10)} de ${MES_CURTO[mm]} (${DIA_SEMANA[d.getUTCDay()]})`,
           valor: dia > hoje ? null : porDia.get(dia) ?? 0,
           destaque: dia === hoje,
           esmaecido: d.getUTCDay() === 0,
@@ -80,7 +98,7 @@ export function EvolucaoVendas({
       const trabalhados = barras.filter((b) => b.valor !== null && !b.esmaecido);
       return {
         titulo: "Vendas diárias",
-        subtitulo: `${MES_CURTO[m - 1]}/${a} · desempenho de cada dia em relação à meta diária`,
+        subtitulo: `${mesInteiro ? `${MES_CURTO[m - 1]}/${a}` : `${dataBr(inicio)} a ${dataBr(fim)}`} · desempenho de cada dia em relação à meta diária`,
         barras,
         meta: metaDiaria,
         rotuloMeta: metaDiaria ? `Meta ${num(metaDiaria, 1)}/dia` : "",
@@ -99,8 +117,15 @@ export function EvolucaoVendas({
         d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
         porSemana.set(isoDia(d), (porSemana.get(isoDia(d)) ?? 0) + p.vendas);
       }
-      const semanas = [...porSemana.entries()].sort().slice(-12);
-      const atual = semanas[semanas.length - 1]?.[0];
+      const segunda = (iso: string) => {
+        const d = new Date(`${iso}T00:00:00Z`);
+        d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+        return isoDia(d);
+      };
+      const todas = [...porSemana.entries()].sort().filter(([seg]) => seg <= segunda(fim));
+      const doPeriodo = todas.filter(([seg]) => seg >= segunda(inicio));
+      const semanas = (doPeriodo.length >= 12 ? doPeriodo : todas.slice(-12)).slice(-26);
+      const atual = segunda(hoje);
       const barras: Barra[] = semanas.map(([seg, v]) => ({
         chave: seg,
         rotulo: `${seg.slice(8, 10)}/${seg.slice(5, 7)}`,
@@ -112,7 +137,7 @@ export function EvolucaoVendas({
       const meta = metaDiaria ? metaDiaria * 6 : null;
       return {
         titulo: "Vendas semanais",
-        subtitulo: "últimas 12 semanas (segunda a domingo) · a semana atual ainda está em andamento",
+        subtitulo: `${semanas.length} semanas até ${dataBr(fim)} (segunda a domingo)${semanas.some(([seg]) => seg === atual) ? " · a semana atual ainda está em andamento" : ""}`,
         barras,
         meta,
         rotuloMeta: meta ? `Meta ${num(meta, 0)}/semana` : "",
@@ -125,7 +150,9 @@ export function EvolucaoVendas({
 
     const porMes = new Map<string, number>();
     for (const p of serie) porMes.set(p.dia.slice(0, 7), (porMes.get(p.dia.slice(0, 7)) ?? 0) + p.vendas);
-    const meses = [...porMes.entries()].sort().slice(-6);
+    const todosMeses = [...porMes.entries()].sort().filter(([mm]) => mm <= fim.slice(0, 7));
+    const mesesPeriodo = todosMeses.filter(([mm]) => mm >= inicio.slice(0, 7));
+    const meses = (mesesPeriodo.length >= 6 ? mesesPeriodo : todosMeses.slice(-6)).slice(-12);
     const barras: Barra[] = meses.map(([mm, v]) => ({
       chave: mm,
       rotulo: `${MES_CURTO[Number(mm.slice(5, 7)) - 1]}/${mm.slice(2, 4)}`,
@@ -136,16 +163,16 @@ export function EvolucaoVendas({
     }));
     return {
       titulo: "Vendas mensais",
-      subtitulo: "últimos 6 meses · o mês atual ainda está em andamento",
+      subtitulo: `${meses.length} meses até ${MES_CURTO[Number(fim.slice(5, 7)) - 1]}/${fim.slice(0, 4)}${meses.some(([mm]) => mm === mesAtual) ? " · o mês atual ainda está em andamento" : ""}`,
       barras,
       meta: metaMensal || null,
-      rotuloMeta: metaMensal ? `Meta do mês atual: ${num(metaMensal)}` : "",
+      rotuloMeta: metaMensal ? `Meta de ${MES_CURTO[Number(inicio.slice(5, 7)) - 1]}: ${num(metaMensal)}` : "",
       unidade: "mês",
       base: barras,
       baseMinimo: barras.filter((b) => !b.destaque),
       larguraMin: 56,
     };
-  }, [visao, serie, hoje, mesAtual, metaDiaria, metaMensal]);
+  }, [visao, serie, hoje, mesAtual, metaDiaria, metaMensal, inicio, fim]);
 
   // ---------- escala ----------
   const maiorValor = Math.max(...dados.barras.map((b) => b.valor ?? 0), dados.meta ?? 0, 1) * 1.15;
@@ -378,7 +405,7 @@ export function EvolucaoVendas({
           {
             icone: <CalendarCheck2 className="h-4 w-4" />,
             cor: "bg-amber-500/10 text-amber-600",
-            rotulo: visao === "mensal" ? "Acima da meta atual" : visao === "diario" ? "Dias na meta" : "Semanas na meta",
+            rotulo: visao === "mensal" ? "Meses acima da meta" : visao === "diario" ? "Dias na meta" : "Semanas na meta",
             valor: naMeta === null ? "sem meta" : `${naMeta} de ${comValor.length}`,
             sub: dados.rotuloMeta,
           },

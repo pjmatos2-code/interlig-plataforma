@@ -206,11 +206,16 @@ export default async function DashboardPage({
   );
 
 
-  // vendas gerais dos últimos 6 meses (mesma régua 5.1: erro/duplicidade fora)
+  // vendas por dia para o gráfico de evolução (mesma régua 5.1: erro/
+  // duplicidade fora). A série acompanha o PERÍODO escolhido (07/10/2026):
+  // termina no fim dele (ou hoje) e cobre ao menos os 6 meses anteriores.
+  const hojeStm = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
+  const fimSerie = periodo.ate < hojeStm ? periodo.ate : hojeStm;
   const inicio6m = (() => {
-    const dt = new Date(`${mesAtual}T00:00:00Z`);
+    const dt = new Date(`${fimSerie.slice(0, 7)}-01T00:00:00Z`);
     dt.setUTCMonth(dt.getUTCMonth() - 5);
-    return dt.toISOString().slice(0, 10);
+    const seisMeses = dt.toISOString().slice(0, 10);
+    return periodo.de < seisMeses ? periodo.de : seisMeses;
   })();
   const porMes = new Map<string, { vendas: number; receita: number }>();
   const porDia6m = new Map<string, number>();
@@ -219,9 +224,13 @@ export default async function DashboardPage({
       .from("contratos")
       .select("data_venda, valor_mensalidade, status, motivo_cancelamento")
       .gte("data_venda", inicio6m)
+      .lte("data_venda", fimSerie)
+      // ordem fixa: sem ela o PostgREST repete e pula linhas entre as páginas
+      // (o gráfico chegou a mostrar maio 486 e setembro 137)
+      .order("id")
       .range(de, de + 999);
     if (timeIds) consulta6m = consulta6m.in("vendedor_id", timeIds);
-    else if (popSupervisor) consulta6m = consulta6m.eq("pop_id", popSupervisor);
+    else if (popFiltro) consulta6m = consulta6m.eq("pop_id", popFiltro);
     const { data: pg } = await consulta6m;
     for (const c of pg ?? []) {
       const motivo = String(c.motivo_cancelamento ?? "").toLowerCase();
@@ -245,9 +254,7 @@ export default async function DashboardPage({
   // série diária contínua (dias sem venda = 0) do início 6m até hoje
   const serieDiaria: { dia: string; vendas: number }[] = [];
   {
-    // "hoje" em Santarém (UTC−3): depois das 21h o UTC já é o dia seguinte
-    const fim = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
-    for (let d = new Date(`${inicio6m}T00:00:00Z`); d.toISOString().slice(0, 10) <= fim; d.setUTCDate(d.getUTCDate() + 1)) {
+    for (let d = new Date(`${inicio6m}T00:00:00Z`); d.toISOString().slice(0, 10) <= fimSerie; d.setUTCDate(d.getUTCDate() + 1)) {
       const dia = d.toISOString().slice(0, 10);
       serieDiaria.push({ dia, vendas: porDia6m.get(dia) ?? 0 });
     }
@@ -522,7 +529,14 @@ export default async function DashboardPage({
           {/* evolução de vendas — modelo do mock 04/09 (diário/semanal/mensal) */}
           <Card>
             <CardContent className="p-4 sm:p-6">
-              <EvolucaoVendas serie={serieDiaria} metaMensal={metaMensalTotal} diasUteisMes={diasUteisMes} />
+              <EvolucaoVendas
+                serie={serieDiaria}
+                metaMensal={metaMensalTotal}
+                diasUteisMes={diasUteisMes}
+                inicio={periodo.de}
+                fim={fimSerie}
+                hoje={hojeStm}
+              />
             </CardContent>
           </Card>
 

@@ -167,6 +167,7 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
       .from("os_tecnicas")
       .select("encerrada_em")
       .not("encerrada_em", "is", null)
+      .order("id") // paginar sem ordem repete e pula linhas entre páginas
       .range(de, de + 999);
     for (const r of pg ?? []) {
       const m = String(r.encerrada_em).slice(0, 7);
