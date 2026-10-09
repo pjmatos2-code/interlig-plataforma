@@ -10,7 +10,9 @@ import { hojeIso, primeiroDiaDoMes, ultimoDiaDoMes } from "@/lib/datas";
  *       ATM R$ 30 · BN R$ 15 · VTX R$ 15 (por OS encerrada)
  *   - Suporte (Preventiva, Corretiva, Atendimento Fortics, LOS, Sem Acesso,
  *     Instalação de roteador adicional, Troca de equipamento, Mudança de
- *     Comodo): R$ 10 por OS — só para técnicos com recebe_suporte.
+ *     Comodo): R$ 10 por OS — só para técnicos com recebe_suporte (a partir
+ *     de recebe_suporte_desde, quando preenchido: quem passou a fazer suporte
+ *     no meio do caminho não reabre os meses anteriores).
  *   - Auxiliar pontua igual ao responsável (cada técnico da OS recebe).
  *   - Retorno em <72h (ajuste do gestor, 01/09): nova OS do MESMO contrato
  *     criada em até 72h após o encerramento anula a comissão da OS de origem.
@@ -158,6 +160,9 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
     admin.from("ajustes_tecnica").select("*").eq("competencia", mes),
     admin.from("tecnica_os_aprovadas").select("sgp_os_id"),
   ]);
+  // habilitação de suporte com data de início (0108)
+  const recebeSuporte = (t: Record<string, unknown>) =>
+    Boolean(t.recebe_suporte) && (!t.recebe_suporte_desde || String(t.recebe_suporte_desde) <= mes);
   const aprovadasSet = new Set((aprovadas ?? []).map((a) => a.sgp_os_id as string));
 
   // tendência: encerramentos por mês em toda a base (colunas leves, paginado)
@@ -252,7 +257,7 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
       for (const id of idsOs) {
         const t = (tecnicos ?? []).find((x) => x.id === id)!;
         if (categoria === "ativacao") valorPorTecnico[id] = VALOR_ATIVACAO[t.unidade as string] ?? 0;
-        else if (categoria === "suporte" && t.recebe_suporte) valorPorTecnico[id] = VALOR_SUPORTE;
+        else if (categoria === "suporte" && recebeSuporte(t)) valorPorTecnico[id] = VALOR_SUPORTE;
       }
     }
 
@@ -285,7 +290,7 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
     const minhas = linhas.filter((l) => tecnicosDaOs(l.responsavel, l.auxiliares, [eu]).length > 0);
     const encerradas = minhas.filter((l) => l.encerradaNoMes);
     const ativacoes = encerradas.filter((l) => l.categoria === "ativacao" && !l.retornoOsId).length;
-    const suportes = t.recebe_suporte
+    const suportes = recebeSuporte(t)
       ? encerradas.filter((l) => l.categoria === "suporte" && !l.retornoOsId).length
       : 0;
     const anuladasLinhas = encerradas.filter((l) => l.retornoOsId && l.categoria !== "outros");
@@ -293,7 +298,7 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
     // quanto os retornos custaram: o valor que a OS pagaria se não anulada
     const valorAnuladoRetorno = anuladasLinhas.reduce((s2, l) => {
       if (l.categoria === "ativacao") return s2 + (VALOR_ATIVACAO[t.unidade as string] ?? 0);
-      if (l.categoria === "suporte" && t.recebe_suporte) return s2 + VALOR_SUPORTE;
+      if (l.categoria === "suporte" && recebeSuporte(t)) return s2 + VALOR_SUPORTE;
       return s2;
     }, 0);
     const calculada = linhas.reduce((s2, l) => s2 + (l.valorPorTecnico[t.id as string] ?? 0), 0);
@@ -311,7 +316,7 @@ export async function tecnicaDoMes(mesIso?: string): Promise<TecnicaMes> {
       tecnicoId: t.id as string,
       nome: t.nome as string,
       unidade: t.unidade as string,
-      recebeSuporte: t.recebe_suporte as boolean,
+      recebeSuporte: recebeSuporte(t),
       foto: (t.foto_url as string | null) ?? null,
       ativacoes,
       suportes,
