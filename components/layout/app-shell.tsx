@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import {
   LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare,
   Target, ShieldCheck, Settings, Trophy, Map, Menu, X, LogOut,
-  PanelLeftClose, PanelLeftOpen, Footprints, Building2, Receipt, RefreshCw, Wallet, ShieldAlert, History, Crown, Wrench, BadgeDollarSign, HeartHandshake, type LucideIcon,
+  PanelLeftClose, PanelLeftOpen, Footprints, Building2, Receipt, RefreshCw, Wallet, ShieldAlert, History, Crown, Wrench, BadgeDollarSign, HeartHandshake, LifeBuoy, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import { SinoNotificacoes } from "@/components/layout/sino-notificacoes";
 import { BotaoInstalarApp } from "@/components/pwa/botao-instalar";
 
 const ICONES: Record<string, LucideIcon> = {
-  LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare, Target, ShieldCheck, Settings, Trophy, Map, Footprints, Building2, Receipt, RefreshCw, Wallet, ShieldAlert, History, Crown, Wrench, BadgeDollarSign, HeartHandshake,
+  LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare, Target, ShieldCheck, Settings, Trophy, Map, Footprints, Building2, Receipt, RefreshCw, Wallet, ShieldAlert, History, Crown, Wrench, BadgeDollarSign, HeartHandshake, LifeBuoy,
 };
 
 const CHAVE_RECOLHIDO = "interlig-menu-recolhido";

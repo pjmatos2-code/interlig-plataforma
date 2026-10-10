@@ -28,7 +28,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       : { data: null };
     // Fidelidade e Meu painel (comissão de coordenação) são da coordenação de unidade
     if (!["Brasil Novo", "Vitória do Xingu"].includes(String(pop?.nome ?? ""))) {
-      itens = itens.filter((i) => i.href !== "/fidelidade" && i.href !== "/meu-painel");
+      itens = itens.filter((i) => !["/fidelidade", "/meu-painel", "/prevencao"].includes(i.href));
     }
   }
 
