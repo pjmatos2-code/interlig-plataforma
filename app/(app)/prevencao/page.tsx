@@ -510,7 +510,9 @@ async function AbaPedidos({
   const [a, m] = ref.split("-").map(Number);
   const mesAnt = new Date(Date.UTC(a, m - 2, 1)).toISOString().slice(0, 7);
   const mesSeg = new Date(Date.UTC(a, m, 1)).toISOString().slice(0, 7);
-  const nomeMes = new Date(Date.UTC(a, m - 1, 15)).toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
+  const nomeMes = new Date(Date.UTC(a, m - 1, 15))
+    .toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" })
+    .replace(/^./, (c) => c.toUpperCase());
 
   return (
     <>
@@ -522,7 +524,7 @@ async function AbaPedidos({
       </Nota>
       <div className="mb-4 flex items-center gap-2 text-sm">
         <a href={href({ mes: mesAnt })} className="rounded-md border px-2.5 py-1 hover:bg-muted">‹</a>
-        <span className="min-w-[150px] text-center font-semibold capitalize">{nomeMes}</span>
+        <span className="min-w-[150px] text-center font-semibold">{nomeMes}</span>
         {mesSeg <= agora && <a href={href({ mes: mesSeg })} className="rounded-md border px-2.5 py-1 hover:bg-muted">›</a>}
       </div>
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -624,7 +626,7 @@ async function AbaMotivos({ unidade, corporativo }: { unidade: string | null; co
   const maxMes = Math.max(1, ...meses.map((m) => m.voluntarios + m.debito));
   const nome = (mes: string) => {
     const [a, m] = mes.split("-").map(Number);
-    return new Date(Date.UTC(a, m - 1, 15)).toLocaleDateString("pt-BR", { month: "short", year: "2-digit", timeZone: "UTC" });
+    return `${["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"][m - 1]}/${String(a).slice(2)}`;
   };
   return (
     <>
@@ -641,7 +643,7 @@ async function AbaMotivos({ unidade, corporativo }: { unidade: string | null; co
         <div className="space-y-2">
           {meses.map((m) => (
             <div key={m.mes} className="grid grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-3 text-sm">
-              <span className="text-xs capitalize text-muted-foreground">{nome(m.mes)}</span>
+              <span className="text-xs text-muted-foreground">{nome(m.mes)}</span>
               <span className="flex h-4 overflow-hidden rounded-full bg-muted">
                 <span className="bg-sky-500" style={{ width: `${(m.voluntarios / maxMes) * 100}%` }} title={`Voluntários: ${m.voluntarios}`} />
                 <span className="bg-farol-vermelho" style={{ width: `${(m.debito / maxMes) * 100}%` }} title={`Débito: ${m.debito}`} />

@@ -174,7 +174,7 @@ export async function efeitoContatos(fila: "debito" | "insatisfacao"): Promise<{
 // ---------------------------------------------------------------------------
 
 const FORA_DA_BASE =
-  /REDE NEUTRA|PERMUTA|PREFEITURA|FUNDO MUNICIPAL|SECRETARIA|MUNIC[IÍ]PIO|C[AÂ]MARA MUNICIPAL|SEMED|SESPA|CENTRO REGIONAL DE SA[UÚ]DE|GOVERNO|ESTADO DO PAR/i;
+  /REDE NEUTRA|PERMUTA|PREFEITURA|FUNDO MUNICIPAL|SECRETARIA|MUNIC[IÍ]PIO|C[AÂ]MARA MUNICIPAL|SEMED|SESPA|CENTRO REGIONAL DE SA[UÚ]DE|GOVERNO|ESTADO DO PAR|FUNDA[CÇ][AÃ]O NACIONAL|FUNDA[CÇ][AÃ]O INSTITUTO BRASILEIRO|AG[EÊ]NCIA BRASILEIRA|CONSELHO ESCOLAR|CONS[OÓ]RCIO POLICL|POL[IÍ]CIA MILITAR|MINIST[EÉ]RIO P[UÚ]BLICO|TRIBUNAL|DEFENSORIA|INSTITUTO FEDERAL|UNIVERSIDADE FEDERAL/i;
 
 export type PedidoCancelamento = {
   sgpContratoId: string;
@@ -227,7 +227,7 @@ export async function pedidosCancelamento(mesIso: string): Promise<PedidoCancela
     }
   }
   const ids = [...pedidos.keys()];
-  const contratos = new Map<string, { cliente: string; cpf: string | null; pop: string | null; plano: string | null; valor: number }>();
+  const contratos = new Map<string, { cliente: string; cpf: string | null; fone: string; pop: string | null; plano: string | null; valor: number }>();
   const casos = new Map<string, { criado: string; desfecho: string | null }[]>();
   const cancelamentos = new Map<string, { data: string; motivo: string | null }[]>();
   for (let i = 0; i < ids.length; i += 300) {
@@ -235,7 +235,7 @@ export async function pedidosCancelamento(mesIso: string): Promise<PedidoCancela
     const [{ data: cts }, { data: cr }, { data: cs }] = await Promise.all([
       admin
         .from("contratos")
-        .select("sgp_contrato_id, valor_mensalidade, clientes(nome, cpf), planos(nome), pops(nome)")
+        .select("sgp_contrato_id, valor_mensalidade, clientes(nome, cpf, telefone), planos(nome), pops(nome)")
         .in("sgp_contrato_id", lote),
       admin.from("casos_retencao").select("sgp_contrato_id, criado_em, desfecho").in("sgp_contrato_id", lote),
       admin
@@ -245,10 +245,11 @@ export async function pedidosCancelamento(mesIso: string): Promise<PedidoCancela
         .gte("data_cancelamento", ini),
     ]);
     for (const c of cts ?? []) {
-      const cl = c.clientes as unknown as { nome: string; cpf: string | null } | null;
+      const cl = c.clientes as unknown as { nome: string; cpf: string | null; telefone: string | null } | null;
       contratos.set(c.sgp_contrato_id as string, {
         cliente: cl?.nome ?? "—",
         cpf: cl?.cpf ?? null,
+        fone: (cl?.telefone ?? "").replace(/\D/g, "").slice(-8),
         plano: (c.planos as unknown as { nome: string } | null)?.nome ?? null,
         pop: (c.pops as unknown as { nome: string } | null)?.nome ?? null,
         valor: Number(c.valor_mensalidade ?? 0),
@@ -265,6 +266,22 @@ export async function pedidosCancelamento(mesIso: string): Promise<PedidoCancela
       cancelamentos.set(c.sgp_contrato_id as string, l);
     }
   }
+  // casos abertos pelo WhatsApp às vezes ficam sem contrato: casa pelo telefone
+  const { data: semContrato } = await admin
+    .from("casos_retencao")
+    .select("telefone, criado_em, desfecho")
+    .is("sgp_contrato_id", null)
+    .not("telefone", "is", null)
+    .gte("criado_em", new Date(Date.parse(ini) - 31 * 86_400_000).toISOString())
+    .lt("criado_em", new Date(Date.parse(fim) + 4 * 86_400_000).toISOString());
+  const casosPorFone = new Map<string, { criado: string; desfecho: string | null }[]>();
+  for (const c of semContrato ?? []) {
+    const f = String(c.telefone).replace(/\D/g, "").slice(-8);
+    if (f.length < 8) continue;
+    const l = casosPorFone.get(f) ?? [];
+    l.push({ criado: c.criado_em as string, desfecho: (c.desfecho as string | null) ?? null });
+    casosPorFone.set(f, l);
+  }
   const hoje = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
   const dia = 86_400_000;
   const saida: PedidoCancelamento[] = [];
@@ -272,8 +289,11 @@ export async function pedidosCancelamento(mesIso: string): Promise<PedidoCancela
     const ct = contratos.get(id);
     if (ct && FORA_DA_BASE.test(`${ct.cliente} ${ct.plano ?? ""}`)) continue;
     const t = Date.parse(p.em);
-    // caso de retenção aberto até 7 dias antes ou 3 dias depois do pedido
-    const caso = (casos.get(id) ?? []).find((c) => Math.abs(Date.parse(c.criado) - t) <= 7 * dia && Date.parse(c.criado) - t <= 3 * dia);
+    // caso de retenção aberto de 30 dias antes até 3 dias depois do pedido
+    const naJanela = (c: { criado: string }) => Date.parse(c.criado) >= t - 30 * dia && Date.parse(c.criado) <= t + 3 * dia;
+    const caso =
+      (casos.get(id) ?? []).find(naJanela) ??
+      (ct?.fone && ct.fone.length === 8 ? (casosPorFone.get(ct.fone) ?? []).find(naJanela) : undefined);
     const canc = (cancelamentos.get(id) ?? [])
       .filter((c) => c.data >= p.em.slice(0, 10) || Date.parse(c.data) >= t - dia)
       .sort((x, y) => (x.data < y.data ? -1 : 1))[0];
