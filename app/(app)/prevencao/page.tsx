@@ -187,7 +187,7 @@ function Kpi({ rotulo, valor, detalhe, tom }: { rotulo: string; valor: string; d
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{rotulo}</p>
       <p
         className={cn(
-          "text-2xl font-bold tabular-nums sm:text-3xl",
+          "break-words text-2xl font-bold tabular-nums xl:text-3xl",
           tom === "vermelho" && "text-farol-vermelho",
           tom === "amarelo" && "text-amber-600",
           tom === "verde" && "text-farol-verde"
