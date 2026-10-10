@@ -264,7 +264,11 @@ export class SgpApiClient implements SgpClient {
           // D12b: no SGP a instalação é a virada Inativo→Ativo — contrato
           // INATIVO ainda não foi instalado (sem data de ativação)
           data_ativacao: st.includes("INATIV") ? null : dataVenda,
-          data_cancelamento: cancelado ? dataVenda : null, // o worker preserva data melhor
+          // a URA não informa quando cancelou: carimba o dia em que o sync
+          // percebeu (o worker preserva a data já gravada) e a leitura do
+          // relatório "Cancelados" do SGP corrige para a data oficial —
+          // antes era a data da venda, e o cancelamento caía no mês errado
+          data_cancelamento: cancelado ? new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10) : null,
           motivo_cancelamento: cancelado ? ct.motivo_status || null : null,
         });
       }

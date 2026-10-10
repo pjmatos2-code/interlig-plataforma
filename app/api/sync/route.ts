@@ -149,6 +149,62 @@ async function cicloCompleto() {
     }).then(({ error }) => { if (error) console.error("log robô retenção:", error.message); });
     if (!r.ok) console.error("robô retenção falhou:", r.erro);
   }
+  // cancelamentos oficiais (10/10/2026): relatório "Cancelados" do SGP do mês
+  // anterior até hoje — corrige data e motivo que a URA não informa. Leve
+  // (~2s por página de 100), 1x a cada 6h para o dia de hoje não ficar errado
+  cancelamentos: {
+    if (restante() < 45_000) break cancelamentos;
+    const admin = criarClienteAdmin();
+    const { data: ultima } = await admin
+      .from("sync_runs")
+      .select("finalizado_em")
+      .eq("entidade", "cancelamentos")
+      .eq("status", "sucesso")
+      .order("finalizado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (ultima && Date.now() - Date.parse(ultima.finalizado_em as string) < 6 * 3600_000) break cancelamentos;
+    const hojeC = new Date(Date.now() - 3 * 3600_000);
+    const deC = new Date(Date.UTC(hojeC.getUTCFullYear(), hojeC.getUTCMonth() - 1, 1)).toISOString().slice(0, 10);
+    const { atualizarCancelamentos } = await import("@/lib/sgp/cancelados");
+    const c = await atualizarCancelamentos(deC, hojeC.toISOString().slice(0, 10));
+    await admin.from("sync_runs").insert({
+      entidade: "cancelamentos",
+      finalizado_em: new Date().toISOString(),
+      registros: c.corrigidos,
+      status: c.ok ? "sucesso" : "erro",
+      erro: c.ok ? null : c.erro ?? "falhou",
+    }).then(({ error }) => { if (error) console.error("log cancelamentos:", error.message); });
+  }
+  // ocorrências de atendimento (10/10/2026): suporte, cobrança, pedidos de
+  // cancelamento — base do risco de cancelamento. Últimos 3 dias pela data de
+  // cadastro (pega também o status/encerramento das recentes), a cada 3h
+  ocorrencias: {
+    if (restante() < 45_000) break ocorrencias;
+    const admin = criarClienteAdmin();
+    const { data: ultima } = await admin
+      .from("sync_runs")
+      .select("finalizado_em")
+      .eq("entidade", "ocorrencias")
+      .eq("status", "sucesso")
+      .order("finalizado_em", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (ultima && Date.now() - Date.parse(ultima.finalizado_em as string) < 3 * 3600_000) break ocorrencias;
+    const hojeO = new Date(Date.now() - 3 * 3600_000);
+    const { atualizarOcorrencias } = await import("@/lib/sgp/ocorrencias");
+    const o = await atualizarOcorrencias(
+      new Date(hojeO.getTime() - 3 * 86_400_000).toISOString().slice(0, 10),
+      hojeO.toISOString().slice(0, 10)
+    );
+    await admin.from("sync_runs").insert({
+      entidade: "ocorrencias",
+      finalizado_em: new Date().toISOString(),
+      registros: o.lidas,
+      status: o.ok ? "sucesso" : "erro",
+      erro: o.ok ? null : o.erro ?? "falhou",
+    }).then(({ error }) => { if (error) console.error("log ocorrências:", error.message); });
+  }
   // fidelidade da base (01/10/2026): relatório pesado no SGP (~70s para as
   // três unidades) — roda fora do expediente, 1x/dia, continuando de onde parou
   fidelidade: {

@@ -121,6 +121,84 @@ export class PainelSgp {
     });
   }
 
+  /**
+   * Relatórios → Contratos → Cancelados, por período (dd/mm/aaaa). Pagina de
+   * 100 em 100. A 6ª coluna (sem título no SGP) é a situação do contrato
+   * ANTES do cancelamento: Ativo, Suspenso, Inativo ou Novo.
+   */
+  async linhasRelatorioCancelados(
+    de: string,
+    ate: string
+  ): Promise<{ contrato: string; cliente: string; data: string; motivo: string; usuario: string; anterior: string }[]> {
+    if (!this.logado) await this.login();
+    const limpa = (h: string) =>
+      h.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+    const todas: { contrato: string; cliente: string; data: string; motivo: string; usuario: string; anterior: string }[] = [];
+    const vistas = new Set<string>();
+    for (let pagina = 1; pagina <= 40; pagina++) {
+      const q = new URLSearchParams({ data_cancelamento_ini: de, data_cancelamento_fim: ate, page: String(pagina) });
+      const res = await this.pegar(`/admin/relatorios/contrato/cancelados/?${q}`, { signal: AbortSignal.timeout(90_000) });
+      if (res.status !== 200) throw new Error(`relatório de cancelados respondeu ${res.status}`);
+      const tbody = (await res.text()).match(/<tbody[\s\S]*?<\/tbody>/i)?.[0] ?? "";
+      const linhas = [...tbody.matchAll(/<tr[\s\S]*?<\/tr>/gi)].map((r) =>
+        [...r[0].matchAll(/<td[^>]*>([\s\S]*?)(?:<\/td>|$)/gi)].map((c) => limpa(c[1]))
+      );
+      let novas = 0;
+      for (const [contrato, cliente, data, motivo, usuario, anterior] of linhas) {
+        const chave = `${contrato}|${data}`;
+        if (!/^\d+$/.test(contrato ?? "") || !/^\d{2}\/\d{2}\/\d{4}$/.test(data ?? "") || vistas.has(chave)) continue;
+        vistas.add(chave);
+        novas++;
+        todas.push({ contrato, cliente, data, motivo: motivo ?? "", usuario: usuario ?? "", anterior: anterior ?? "" });
+      }
+      // a última página vem incompleta; página repetida = o SGP ignorou o page
+      if (linhas.length < 100 || novas === 0) break;
+    }
+    return todas;
+  }
+
+  /**
+   * Relatórios → Atendimento → Ocorrências, pela data de CADASTRO
+   * (dd/mm/aaaa). Até 5000 por página; um mês tem ~3.700 (~50s no SGP).
+   * As colunas são lidas pelo cabeçalho — a ordem muda com "exibir colunas".
+   */
+  async linhasRelatorioOcorrencias(de: string, ate: string): Promise<Record<string, string>[]> {
+    if (!this.logado) await this.login();
+    const limpa = (h: string) =>
+      h.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+    const todas: Record<string, string>[] = [];
+    const vistas = new Set<string>();
+    for (let pagina = 1; pagina <= 20; pagina++) {
+      const q = new URLSearchParams({ data_cadastro_inicial: de, data_cadastro_final: ate, paginate_by: "5000", page: String(pagina) });
+      for (const c of ["id", "clientecontrato", "tipo", "metodo", "status", "criada", "encerrada", "usuario", "pop", "os"]) {
+        q.append("exibir_colunas", c);
+      }
+      const res = await this.pegar(`/admin/atendimento/relatorios/ocorrencia/?${q}`, { signal: AbortSignal.timeout(150_000) });
+      if (res.status !== 200) throw new Error(`relatório de ocorrências respondeu ${res.status}`);
+      const html = await res.text();
+      const cab = [...(html.match(/<thead[\s\S]*?<\/thead>/i)?.[0] ?? html).matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)].map((x) => limpa(x[1]));
+      const tbody = html.match(/<tbody[\s\S]*?<\/tbody>/i)?.[0] ?? "";
+      const linhas = [...tbody.matchAll(/<tr[\s\S]*?<\/tr>/gi)];
+      let novas = 0;
+      for (const l of linhas) {
+        const tds = [...l[0].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((c) => c[1]);
+        const reg: Record<string, string> = {};
+        cab.forEach((nome, i) => {
+          if (!nome || tds[i] === undefined) return;
+          // datas trazem um <span class="sort">aaaammddhhmmss</span> antes do texto
+          reg[nome] = limpa(tds[i].replace(/<span class="sort">[^<]*<\/span>/g, ""));
+          if (nome === "Cliente/Contrato") reg.sgp_cliente_id = tds[i].match(/\/admin\/cliente\/(\d+)\//)?.[1] ?? "";
+        });
+        if (!/^\d+$/.test(reg.ID ?? "") || vistas.has(reg.ID)) continue;
+        vistas.add(reg.ID);
+        novas++;
+        todas.push(reg);
+      }
+      if (linhas.length < 5000 || novas === 0) break;
+    }
+    return todas;
+  }
+
   private async servicoDoContrato(
     sgpClienteId: string,
     sgpContratoId: string
