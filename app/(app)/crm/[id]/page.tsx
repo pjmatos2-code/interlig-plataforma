@@ -7,9 +7,7 @@ import { aplicarLinkSgp } from "@/lib/sgp/links";
 import { podeReabrir } from "@/lib/indicadores/crm";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
-import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatarData, formatarDataHora } from "@/lib/format";
 import { ROTULO_ETAPA, ROTULO_ORIGEM, ehAgenteCrm } from "@/lib/tipos";
 import { FollowupIa } from "@/components/crm/followup-ia";
@@ -23,14 +21,21 @@ import {
   BarraEtapas,
   BotaoReabrir,
   BotaoExcluir,
-  BotaoAtualizarSgp,
   FormularioFechamento,
   FormularioTratativa,
   FormularioFollowup,
-  FormularioNota,
   FormularioProposta,
   FormularioReatribuir,
 } from "./painel-acoes";
+import { cn } from "@/lib/utils";
+import { AbasTicket } from "@/components/crm/abas-ticket";
+import { MaisAcoes, MenuOpcoes } from "@/components/crm/menu-ticket";
+import { BotaoEditarDados, ModoEdicaoProvider } from "@/components/crm/modo-edicao";
+import {
+  ArrowLeft, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink,
+  FileText, Gauge, Headset, IdCard, Mail, MapPin, MessageCircle, MessageSquare, Package, Paperclip,
+  Phone, Plus, Settings, Trophy, User, UserCheck, UserCog, XCircle,
+} from "lucide-react";
 import { formatarMoeda } from "@/lib/format";
 import { FollowupFeito } from "@/components/crm/followup-feito";
 import { AcoesAgendadas, type AcaoAgendada } from "@/components/crm/acoes-agendadas";
@@ -170,58 +175,323 @@ export default async function TicketPage({ params }: { params: { id: string } })
     usuario.perfil !== "direcao" &&
     (!fechado || t.desfecho === "convertido");
 
-  return (
-    <>
-      <div className="mb-1 text-sm">
-        <Link href="/crm" className="text-muted-foreground hover:text-foreground">
-          ← CRM
-        </Link>
+  // vizinhos na lista (mesma situação: abertos com abertos, fechados com fechados)
+  const vizinho = (dir: "anterior" | "proximo") => {
+    let q = supabase.from("tickets").select("id").limit(1);
+    q = fechado ? q.eq("etapa", "fechado") : q.neq("etapa", "fechado");
+    return dir === "anterior"
+      ? q.gt("criado_em", t.criado_em).order("criado_em", { ascending: true })
+      : q.lt("criado_em", t.criado_em).order("criado_em", { ascending: false });
+  };
+  const [{ data: ant }, { data: prox }] = await Promise.all([vizinho("anterior"), vizinho("proximo")]);
+  const idAnterior = (ant?.[0]?.id as string | undefined) ?? null;
+  const idProximo = (prox?.[0]?.id as string | undefined) ?? null;
+
+  const digitos = (t.telefone ?? "").replace(/\D/g, "");
+  const whatsapp = digitos.length >= 10 ? `https://wa.me/${(digitos.length <= 11 ? "55" : "") + digitos}` : null;
+  const iniciais =
+    t.cliente_nome
+      .split(/\s+/)
+      .filter((p) => p.length > 1)
+      .slice(0, 2)
+      .map((p) => p[0])
+      .join("")
+      .toUpperCase() || "?";
+  const ultimaAtualizacao = t.eventos[0]?.criado_em ?? t.criado_em;
+  const fonte =
+    t.origem_criacao === "sz_auto" ? "WhatsApp / SZ Chat" : t.origem_criacao === "site" ? "Site (Contratar Online)" : "Cadastro manual";
+  const status = fechado
+    ? t.desfecho === "convertido"
+      ? { rotulo: "Convertido", cor: "bg-farol-verde" }
+      : { rotulo: t.fechado_por === "auto_inatividade" ? "Não convertido · inatividade" : "Não convertido", cor: "bg-farol-vermelho" }
+    : { rotulo: "Em atendimento", cor: "bg-farol-verde" };
+
+  const tabelaPropostas = (completa: boolean) =>
+    t.propostas.length === 0 ? (
+      <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+        <Package className="h-8 w-8 text-muted-foreground/70" strokeWidth={1.5} />
+        <p className="text-sm font-semibold">Nenhuma proposta registrada.</p>
+        {!fechado && (
+          <p className="max-w-sm text-xs text-muted-foreground">
+            Escolha o plano abaixo — o valor de tabela é sugerido automaticamente e pode ser ajustado para o valor negociado.
+          </p>
+        )}
       </div>
-      <div className="mb-5 flex flex-wrap items-center gap-3">
-        <CabecalhoPagina titulo={t.cliente_nome} />
-        <Badge variant={fechado ? (t.desfecho === "convertido" ? "verde" : "vermelho") : "secondary"}>
-          {fechado
-            ? t.desfecho === "convertido"
-              ? "Convertido"
-              : t.fechado_por === "auto_inatividade"
-                ? "Não convertido · fechado por inatividade"
-                : "Não convertido"
-            : ROTULO_ETAPA[t.etapa]}
-        </Badge>
-        {t.origem_criacao === "sz_auto" && <Badge variant="outline">via SZ Chat</Badge>}
-        {t.origem_criacao === "site" && <Badge variant="outline">via Site</Badge>}
+    ) : (
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <tbody>
+            {t.propostas.map((p, i) => (
+              <tr key={p.id} className={cn("border-b last:border-0", i === 0 ? "font-medium" : "text-muted-foreground")}>
+                <td className="px-3 py-2">
+                  {p.plano ?? p.descricao ?? "—"}
+                  {p.velocidade && <span className="ml-1 text-xs text-muted-foreground">· {p.velocidade}</span>}
+                  {i === 0 && (
+                    <Badge variant="outline" className="ml-2 text-[10px]">
+                      atual
+                    </Badge>
+                  )}
+                  {completa && (
+                    <span className="block text-[11px] font-normal text-muted-foreground">
+                      {formatarData(p.criado_em.slice(0, 10))}
+                      {p.usuario ? ` · ${p.usuario}` : ""}
+                    </span>
+                  )}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 tabular-nums">{formatarMoeda(p.valor)}</td>
+                <td className="px-3 py-2 text-muted-foreground">{p.observacao ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  const cabecalhoPropostas = (
+    <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)_minmax(0,1fr)] bg-muted/50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <span>Plano / produto</span>
+      <span>Valor (R$)</span>
+      <span>Observação</span>
+    </div>
+  );
+
+  const historico = (
+    <ol className="relative">
+      {t.eventos.map((e, i) => (
+        <li key={e.id} className="grid grid-cols-[18px_minmax(0,1fr)] gap-x-3 sm:grid-cols-[130px_18px_minmax(0,1fr)]">
+          <span className="hidden pt-0.5 text-xs tabular-nums text-muted-foreground sm:block">{formatarDataHora(e.criado_em)}</span>
+          <span className="relative flex justify-center">
+            <span
+              className={cn(
+                "relative z-10 mt-1 h-3 w-3 rounded-full border-2",
+                i === 0 ? "border-interlig-azul bg-interlig-azul ring-4 ring-sky-100" : "border-slate-300 bg-card"
+              )}
+            />
+            {i < t.eventos.length - 1 && <span className="absolute bottom-0 top-4 w-px bg-border" />}
+          </span>
+          <div className="min-w-0 pb-4">
+            <p className="text-[11px] tabular-nums text-muted-foreground sm:hidden">{formatarDataHora(e.criado_em)}</p>
+            <p className="text-sm font-medium">
+              {ROTULO_EVENTO[e.tipo] ?? e.tipo}
+              {e.usuario && <span className="font-normal text-muted-foreground"> · {e.usuario}</span>}
+            </p>
+            {typeof e.dados.texto === "string" && <p className="text-sm text-muted-foreground">{e.dados.texto}</p>}
+            {typeof e.dados.de === "string" && typeof e.dados.para === "string" && (
+              <p className="text-xs text-muted-foreground">
+                {ROTULO_ETAPA[e.dados.de as keyof typeof ROTULO_ETAPA] ?? e.dados.de} →{" "}
+                {ROTULO_ETAPA[e.dados.para as keyof typeof ROTULO_ETAPA] ?? e.dados.para}
+              </p>
+            )}
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+
+  const preCadastro = (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold">{visita ? "Visita externa 🚶" : "Pré-cadastro 📎"}</p>
+          {visita ? (
+            <p className="text-sm text-muted-foreground">
+              Registrada em {formatarDataHora(visita.criado_em)}
+              {visita.lat && visita.lng && (
+                <>
+                  {" · "}
+                  <a
+                    href={`https://www.google.com/maps?q=${visita.lat},${visita.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-interlig-ceu hover:underline"
+                  >
+                    📍 abrir no mapa (±{Math.round(visita.precisao_m ?? 0)} m)
+                  </a>
+                </>
+              )}
+              {visita.endereco_manual && (
+                <>
+                  {" · "}
+                  <a
+                    href={`https://www.google.com/maps?q=${encodeURIComponent(visita.endereco_manual)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-interlig-ceu hover:underline"
+                  >
+                    🏠 {visita.endereco_manual}
+                  </a>
+                </>
+              )}
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Prospecção sem visita registrada — inclua as fotos e o endereço fornecidos pelo cliente.
+            </p>
+          )}
+        </div>
+        {(visita || !fechado) && <AnexosVisita ticketId={t.id} />}
+      </div>
+      {visita && (
+        <div className="flex flex-wrap gap-4">
+          {fotoCasaUrl && (
+            <a href={fotoCasaUrl} target="_blank" rel="noopener noreferrer" className="block">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">Frente da casa</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={fotoCasaUrl} alt="Frente da casa" className="h-44 w-64 max-w-full rounded-lg border object-cover" />
+            </a>
+          )}
+          {fotoDocUrl ? (
+            <a href={fotoDocUrl} target="_blank" rel="noopener noreferrer" className="block">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">Documento (pré-cadastro)</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={fotoDocUrl} alt="Documento do cliente" className="h-44 w-64 max-w-full rounded-lg border object-cover" />
+            </a>
+          ) : (
+            <div className="flex h-44 w-64 max-w-full flex-col items-center justify-center gap-1 self-end rounded-lg border border-dashed text-muted-foreground">
+              <span className="text-xl">🪪</span>
+              <p className="text-xs">Documento não anexado</p>
+            </div>
+          )}
+          {fotoVersoUrl && (
+            <a href={fotoVersoUrl} target="_blank" rel="noopener noreferrer" className="block">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">Documento (verso)</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={fotoVersoUrl} alt="Verso do documento" className="h-44 w-64 max-w-full rounded-lg border object-cover" />
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  const atendimento = fechado ? (
+    <div className="space-y-3 text-sm text-muted-foreground">
+      <p>Ticket fechado é imutável — e não pode ser excluído por ninguém (PRD 3.9).</p>
+      {reabrivel ? (
+        <BotaoReabrir ticketId={t.id} />
+      ) : (
+        t.desfecho === "nao_convertido" && <p className="text-xs">Janela de reabertura (30 dias) expirada.</p>
+      )}
+    </div>
+  ) : (
+    <div className="space-y-5">
+      <div className="space-y-3">
+        <h3 className="flex items-center gap-2 text-base font-semibold">
+          <Phone className="h-5 w-5 text-interlig-azul" /> Registrar tratativa
+        </h3>
+        <div>
+          <p className="mb-1.5 text-xs font-medium">Etapa do atendimento</p>
+          <BarraEtapas ticketId={t.id} etapaAtual={t.etapa} />
+        </div>
+        <FormularioTratativa ticketId={t.id} />
+      </div>
+      <div className="grid gap-5 border-t pt-4 md:grid-cols-2 md:gap-0">
+        <div className="md:pr-5">
+          <p className="mb-2 flex items-center gap-2 text-sm font-semibold">
+            <CalendarDays className="h-4 w-4 text-interlig-azul" /> Follow-up
+          </p>
+          <FormularioFollowup ticketId={t.id} atual={t.followup_em} />
+          {t.followup_em && (
+            <p className="mt-1.5 text-xs text-muted-foreground">Retorno combinado: {formatarData(t.followup_em.slice(0, 10))}</p>
+          )}
+        </div>
+        <div className="md:border-l md:pl-5">
+          <p className="mb-2 text-sm font-semibold">Ações agendadas ⏰</p>
+          <AcoesAgendadas ticketId={t.id} acoes={(acoesAgendadas ?? []) as AcaoAgendada[]} />
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      {/* migalha + navegação */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground" aria-label="Caminho">
+          <Link href="/crm" className="inline-flex items-center gap-1 hover:text-foreground">
+            <ChevronLeft className="h-4 w-4" /> CRM
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5" />
+          <span>Ticket #{t.id.slice(0, 8)}</span>
+        </nav>
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
+          <Link href="/crm" className="inline-flex h-9 items-center gap-1.5 rounded-md border bg-card px-3 text-sm font-medium hover:bg-muted">
+            <ArrowLeft className="h-4 w-4" /> Voltar
+          </Link>
+          <div className="flex">
+            {idAnterior ? (
+              <Link href={`/crm/${idAnterior}`} title="Ticket anterior" className="inline-flex h-9 w-9 items-center justify-center rounded-l-md border bg-card hover:bg-muted">
+                <ChevronLeft className="h-4 w-4" />
+              </Link>
+            ) : (
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-l-md border bg-card text-muted-foreground/40">
+                <ChevronLeft className="h-4 w-4" />
+              </span>
+            )}
+            {idProximo ? (
+              <Link href={`/crm/${idProximo}`} title="Próximo ticket" className="-ml-px inline-flex h-9 w-9 items-center justify-center rounded-r-md border bg-card hover:bg-muted">
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <span className="-ml-px inline-flex h-9 w-9 items-center justify-center rounded-r-md border bg-card text-muted-foreground/40">
+                <ChevronRight className="h-4 w-4" />
+              </span>
+            )}
+          </div>
+          <MenuOpcoes protocolo={t.sz_conversa_id} />
+          <MaisAcoes ticketId={t.id} linkSgp={t.contrato_sgp_id ? linkSgp : null} whatsapp={whatsapp} reabrivel={fechado && reabrivel} />
+        </div>
+      </div>
+
+      {/* identificação */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-interlig-azul text-xl font-bold text-white sm:h-16 sm:w-16 sm:text-2xl">
+            {iniciais}
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="break-words text-2xl font-extrabold tracking-tight sm:text-3xl">{t.cliente_nome}</h1>
+              {!fechado && (
+                <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-interlig-azul">{ROTULO_ETAPA[t.etapa]}</span>
+              )}
+              {t.origem_criacao === "sz_auto" && <span className="rounded-full border px-3 py-1 text-xs font-medium">via SZ Chat</span>}
+              {t.origem_criacao === "site" && <span className="rounded-full border px-3 py-1 text-xs font-medium">via Site</span>}
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Ticket aberto em {formatarDataHora(t.criado_em)}
+              {t.sz_conversa_id && <> <span className="mx-1">•</span> Protocolo SZ: {t.sz_conversa_id}</>}
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-start gap-2.5 rounded-xl border bg-card px-4 py-3 shadow-sm">
+          <span className={cn("mt-1.5 h-2.5 w-2.5 rounded-full", status.cor)} />
+          <div>
+            <p className="text-sm font-semibold">{status.rotulo}</p>
+            <p className="text-[11px] text-muted-foreground">Última atualização: {formatarDataHora(ultimaAtualizacao)}</p>
+          </div>
+        </div>
       </div>
 
       {t.resumo_tratativa && (
         <div
-          className={
-            "mb-4 rounded-xl border p-4 " +
-            (t.urgencia === "alta"
-              ? "border-rose-300 bg-rose-50/60"
-              : t.urgencia === "media"
-                ? "border-amber-300 bg-amber-50/60"
-                : "border-emerald-300 bg-emerald-50/60")
-          }
+          className={cn(
+            "rounded-xl border p-4",
+            t.urgencia === "alta" ? "border-rose-300 bg-rose-50/60" : t.urgencia === "media" ? "border-amber-300 bg-amber-50/60" : "border-emerald-300 bg-emerald-50/60"
+          )}
         >
           <p className="mb-1 flex items-center gap-2 text-sm font-bold">
             🔔 Follow-up pendente
             <span
-              className={
-                "rounded-full px-2 py-0.5 text-[11px] font-black uppercase " +
-                (t.urgencia === "alta"
-                  ? "bg-rose-500 text-white"
-                  : t.urgencia === "media"
-                    ? "bg-amber-400 text-amber-950"
-                    : "bg-emerald-500 text-white")
-              }
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[11px] font-black uppercase",
+                t.urgencia === "alta" ? "bg-rose-500 text-white" : t.urgencia === "media" ? "bg-amber-400 text-amber-950" : "bg-emerald-500 text-white"
+              )}
             >
               {t.urgencia === "alta" ? "Alta" : t.urgencia === "media" ? "Média" : "Baixa"}
             </span>
           </p>
           <p className="text-sm text-muted-foreground">{t.resumo_tratativa}</p>
-          {t.proxima_abordagem && (
-            <p className="mt-2 text-sm font-medium">➜ {t.proxima_abordagem}</p>
-          )}
+          {t.proxima_abordagem && <p className="mt-2 text-sm font-medium">➜ {t.proxima_abordagem}</p>}
           {t.urgencia !== null && (
             <div className="mt-3">
               <FollowupFeito ticketId={t.id} />
@@ -230,116 +500,135 @@ export default async function TicketPage({ params }: { params: { id: string } })
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        {/* Coluna 1: dados */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Dados</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p className="flex items-center gap-2">
-              <span className="text-muted-foreground">Telefone:</span>
-              {t.telefone ? (
-                <>
-                  {t.telefone}
-                  <a
-                    href={`https://wa.me/${(t.telefone.replace(/\D/g, "").length <= 11 ? "55" : "") + t.telefone.replace(/\D/g, "")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded bg-farol-verde/15 px-1.5 py-0.5 text-xs font-medium text-farol-verde hover:underline"
-                    title="Abrir conversa no WhatsApp"
-                  >
-                    WhatsApp ↗
-                  </a>
-                  <TelefoneTicket ticketId={t.id} telefone={t.telefone} />
-                </>
-              ) : (
-                <>
-                  — <TelefoneTicket ticketId={t.id} telefone={t.telefone} />
-                </>
-              )}
-            </p>
-            <p>
-              <span className="text-muted-foreground">Fonte:</span>{" "}
-              {t.origem_criacao === "sz_auto" ? "WhatsApp / SZ Chat" : t.origem_criacao === "site" ? "Site (Contratar Online)" : "Cadastro manual"}
-            </p>
-            {t.cliente_sgp_nome && (
-              <p>
-                <span className="text-muted-foreground">Titular no SGP:</span>{" "}
-                <span className="font-medium">{t.cliente_sgp_nome}</span>
-              </p>
-            )}
-            <p><span className="text-muted-foreground">CPF:</span> <CpfTicket ticketId={t.id} cpf={t.cpf} /></p>
-            <div className="flex items-start gap-2">
-              <span className="text-muted-foreground">Score:</span>
-              <ScoreTicket
-                ticketId={t.id}
-                score={t.score}
-                faixa={t.score_faixa}
-                adiantamentoValor={t.adiantamento_valor}
-                recebidoEm={t.adiantamento_recebido_em}
-                podeEditar={false} // 01/10/2026: score manual desativado — só o PDF
-              />
-            </div>
-            <ConsultaCredito
-              ticketId={t.id}
-              atual={consultasCredito[0] ?? null}
-              historico={consultasCredito}
-              adiantamentoRecebidoEm={t.adiantamento_recebido_em}
-              podeEditar={podeOperarCredito}
+      {/* colunas: no celular viram uma lista só, na ordem de uso */}
+      <div className="flex flex-col gap-4 xl:grid xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:items-start">
+        <div className="contents xl:flex xl:flex-col xl:gap-4">
+          {/* Dados do cliente */}
+          <ModoEdicaoProvider>
+            <Cartao className="order-1 xl:order-none" titulo="Dados do cliente" icone={<FileText className="h-5 w-5" />} acao={<BotaoEditarDados />}>
+              <div className="grid gap-x-8 gap-y-3 text-sm md:grid-cols-2">
+                <dl className="space-y-3">
+                  <Campo icone={<Phone className="h-4 w-4" />}>
+                    <span className="inline-flex flex-wrap items-center gap-2">
+                      <span className="font-semibold">{t.telefone ?? "—"}</span>
+                      {whatsapp && (
+                        <a
+                          href={whatsapp}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Abrir conversa no WhatsApp"
+                          className="inline-flex items-center gap-1 rounded-full bg-farol-verde/15 px-2 py-0.5 text-[11px] font-medium text-farol-verde hover:underline"
+                        >
+                          <MessageCircle className="h-3 w-3" /> WhatsApp
+                        </a>
+                      )}
+                      {t.contrato_sgp_id && linkSgp && (
+                        <a href={linkSgp} target="_blank" rel="noopener noreferrer" title="Abrir no SGP" className="text-interlig-azul">
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      )}
+                      <TelefoneTicket ticketId={t.id} telefone={t.telefone} />
+                    </span>
+                  </Campo>
+                  <Campo icone={<Headset className="h-4 w-4" />} rotulo="Fonte">{fonte}</Campo>
+                  <Campo icone={<IdCard className="h-4 w-4" />} rotulo="CPF"><CpfTicket ticketId={t.id} cpf={t.cpf} /></Campo>
+                  <Campo icone={<Mail className="h-4 w-4" />} rotulo="E-mail"><EmailTicket ticketId={t.id} email={t.email ?? null} /></Campo>
+                  {t.cliente_sgp_nome && (
+                    <Campo icone={<UserCheck className="h-4 w-4" />} rotulo="Titular SGP">
+                      <span className="font-medium">{t.cliente_sgp_nome}</span>
+                    </Campo>
+                  )}
+                </dl>
+                <dl className="space-y-3">
+                  <Campo icone={<Gauge className="h-4 w-4" />} rotulo="Score">
+                    <ScoreTicket
+                      ticketId={t.id}
+                      score={t.score}
+                      faixa={t.score_faixa}
+                      adiantamentoValor={t.adiantamento_valor}
+                      recebidoEm={t.adiantamento_recebido_em}
+                      podeEditar={false} // 01/10/2026: score manual desativado — só o PDF
+                    />
+                  </Campo>
+                  <Campo icone={<User className="h-4 w-4" />} rotulo="Vendedora">{t.vendedora ?? "Não atribuído"}</Campo>
+                  <Campo icone={<MapPin className="h-4 w-4" />} rotulo="POP">{t.pop ?? "—"}</Campo>
+                  <Campo icone={<CalendarClock className="h-4 w-4" />} rotulo="Criado em">{formatarDataHora(t.criado_em)}</Campo>
+                  <Campo icone={<Clock3 className="h-4 w-4" />} rotulo="1ª tratativa">
+                    {t.primeira_tratativa_em ? formatarDataHora(t.primeira_tratativa_em) : "ainda não houve"}
+                  </Campo>
+                </dl>
+              </div>
+              <div className="mt-5 space-y-3">
+                <ConsultaCredito
+                  ticketId={t.id}
+                  atual={consultasCredito[0] ?? null}
+                  historico={consultasCredito}
+                  adiantamentoRecebidoEm={t.adiantamento_recebido_em}
+                  podeEditar={podeOperarCredito}
+                />
+                <FollowupIa
+                  ticketId={t.id}
+                  analise={t.analise_followup as never}
+                  analisadoEm={t.followup_analisado_em}
+                  temConversa={Boolean(t.sz_conversa_id)}
+                />
+              </div>
+            </Cartao>
+          </ModoEdicaoProvider>
+
+          {/* trabalho do dia */}
+          <section className="order-3 rounded-xl border bg-card shadow-sm xl:order-none">
+            <AbasTicket
+              abas={[
+                { chave: "atendimento", rotulo: "Atendimento", icone: <MessageSquare className="h-4 w-4" />, conteudo: atendimento },
+                { chave: "pre", rotulo: "Pré-cadastro", icone: <Paperclip className="h-4 w-4" />, conteudo: preCadastro },
+                {
+                  chave: "propostas",
+                  rotulo: "Propostas / Produtos",
+                  icone: <Package className="h-4 w-4" />,
+                  conteudo: (
+                    <div className="overflow-hidden rounded-lg border">
+                      {cabecalhoPropostas}
+                      {tabelaPropostas(true)}
+                    </div>
+                  ),
+                },
+                { chave: "historico", rotulo: "Histórico", icone: <Clock3 className="h-4 w-4" />, conteudo: historico },
+              ]}
             />
-            <p><span className="text-muted-foreground">E-mail:</span> <EmailTicket ticketId={t.id} email={t.email ?? null} /></p>
-            <p><span className="text-muted-foreground">Vendedora:</span> {t.vendedora ?? "Não atribuído"}</p>
-            <p><span className="text-muted-foreground">POP:</span> {t.pop ?? "—"}</p>
-            <p><span className="text-muted-foreground">Criado em:</span> {formatarDataHora(t.criado_em)}</p>
-            <div className="pt-1">
-              <BotaoAtualizarSgp ticketId={t.id} />
-            </div>
-            <p>
-              <span className="text-muted-foreground">1ª tratativa:</span>{" "}
-              {t.primeira_tratativa_em ? formatarDataHora(t.primeira_tratativa_em) : "ainda não houve"}
-            </p>
-            {t.followup_em && (
-              <p>
-                <span className="text-muted-foreground">Retorno combinado:</span>{" "}
-                {formatarData(t.followup_em.slice(0, 10))}
-              </p>
-            )}
-            {t.sz_conversa_id && (
-              <p>
-                <span className="text-muted-foreground">Conversa SZ:</span> {t.sz_conversa_id}
-              </p>
-            )}
-            <div className="pt-2">
-              <FollowupIa
-                ticketId={t.id}
-                analise={t.analise_followup as never}
-                analisadoEm={t.followup_analisado_em}
-                temConversa={Boolean(t.sz_conversa_id)}
-              />
-            </div>
-            {fechado && (
-              <>
-                <hr className="my-2" />
-                <p><span className="text-muted-foreground">Fechado em:</span> {formatarDataHora(t.fechado_em)}</p>
+          </section>
+        </div>
+
+        <div className="contents xl:flex xl:flex-col xl:gap-4">
+          {/* desfecho */}
+          <Cartao className="order-2 xl:order-none" titulo={fechado ? "Ticket fechado" : "Desfecho do ticket"} icone={<Trophy className="h-5 w-5" />}>
+            {fechado ? (
+              <div className="space-y-2 text-sm">
+                <div
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg border-2 px-4 py-3",
+                    t.desfecho === "convertido" ? "border-farol-verde/40 bg-farol-verde/10" : "border-farol-vermelho/40 bg-farol-vermelho/10"
+                  )}
+                >
+                  {t.desfecho === "convertido" ? (
+                    <CheckCircle2 className="h-9 w-9 shrink-0 fill-farol-verde text-white" />
+                  ) : (
+                    <XCircle className="h-9 w-9 shrink-0 fill-farol-vermelho text-white" />
+                  )}
+                  <div>
+                    <p className={cn("font-semibold", t.desfecho === "convertido" ? "text-farol-verde" : "text-farol-vermelho")}>{status.rotulo}</p>
+                    <p className="text-xs text-muted-foreground">Fechado em {formatarDataHora(t.fechado_em)}</p>
+                  </div>
+                </div>
                 {t.desfecho === "convertido" ? (
-                  <>
+                  <dl className="space-y-1.5 pt-1">
                     <p><span className="text-muted-foreground">Plano vendido:</span> {t.plano ?? "—"}</p>
-                    <p>
-                      <span className="text-muted-foreground">Origem:</span>{" "}
-                      {t.origem_cadastro ? ROTULO_ORIGEM[t.origem_cadastro] : "—"}
-                    </p>
+                    <p><span className="text-muted-foreground">Origem:</span> {t.origem_cadastro ? ROTULO_ORIGEM[t.origem_cadastro] : "—"}</p>
                     <p>
                       <span className="text-muted-foreground">Contrato SGP:</span>{" "}
                       {t.contrato_id ? (
                         t.contrato_sgp_id && linkSgp ? (
-                          <a
-                            href={linkSgp}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-mono text-interlig-ceu hover:underline"
-                            title="Abrir contrato no SGP"
-                          >
+                          <a href={linkSgp} target="_blank" rel="noopener noreferrer" className="font-mono text-interlig-ceu hover:underline" title="Abrir contrato no SGP">
                             #{t.contrato_sgp_id} ↗
                           </a>
                         ) : (
@@ -349,97 +638,12 @@ export default async function TicketPage({ params }: { params: { id: string } })
                         <Badge variant="amarelo">aguardando reconciliação</Badge>
                       )}
                     </p>
-                  </>
+                  </dl>
                 ) : (
-                  <p><span className="text-muted-foreground">Motivo:</span> {t.motivo ?? "—"}</p>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Coluna 2: ações */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>{fechado ? "Ticket fechado" : "Tratativa"}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!fechado && (
-              <>
-                <div>
-                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">Etapa</p>
-                  <BarraEtapas ticketId={t.id} etapaAtual={t.etapa} />
-                </div>
-                <div>
-                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                    Registrar tratativa 📞
-                  </p>
-                  <FormularioTratativa ticketId={t.id} />
-                </div>
-                <div>
-                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">Nota rápida</p>
-                  <FormularioNota ticketId={t.id} />
-                </div>
-                <div>
-                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">Follow-up</p>
-                  <FormularioFollowup ticketId={t.id} atual={t.followup_em} />
-                </div>
-                <div>
-                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                    Ações agendadas ⏰
-                  </p>
-                  <AcoesAgendadas
-                    ticketId={t.id}
-                    acoes={(acoesAgendadas ?? []) as AcaoAgendada[]}
-                  />
-                </div>
-                {podeReatribuir && (
-                  <div>
-                    <p className="mb-1.5 text-xs font-medium text-muted-foreground">Reatribuir</p>
-                    <FormularioReatribuir
-                      ticketId={t.id}
-                      vendedoras={vendedoras ?? []}
-                      atualId={t.vendedor_id}
-                    />
-                  </div>
-                )}
-              </>
-            )}
-
-            {fechado && (
-              <div className="space-y-3 text-sm text-muted-foreground">
-                <p>
-                  Ticket fechado é imutável — e não pode ser excluído por ninguém (PRD 3.9).
-                </p>
-                {reabrivel ? (
-                  <BotaoReabrir ticketId={t.id} />
-                ) : (
-                  t.desfecho === "nao_convertido" && (
-                    <p className="text-xs">Janela de reabertura (30 dias) expirada.</p>
-                  )
+                  <p className="pt-1"><span className="text-muted-foreground">Motivo:</span> {t.motivo ?? "—"}</p>
                 )}
               </div>
-            )}
-
-            {/* Exclusão administrativa — só o Administrador (limpeza/testes) */}
-            {usuario.perfil === "gestor" && (
-              <div className="mt-4 border-t pt-3">
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                  Administração
-                </p>
-                <BotaoExcluir ticketId={t.id} cliente={t.cliente_nome} />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Coluna 3: fechamento */}
-        {!fechado && (
-          <Card className="border-primary/30">
-            <CardHeader className="pb-2">
-              <CardTitle>Fechar com desfecho</CardTitle>
-            </CardHeader>
-            <CardContent>
+            ) : (
               <FormularioFechamento
                 ticketId={t.id}
                 telefone={t.telefone}
@@ -451,195 +655,96 @@ export default async function TicketPage({ params }: { params: { id: string } })
                 adiantamentoRecebido={Boolean(t.adiantamento_recebido_em)}
                 modoCredito={modoCredito}
               />
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </Cartao>
 
-        {/* Visita externa (PAP) / pré-cadastro manual */}
-        {(visita || !fechado) && (
-          <Card className="xl:col-span-3">
-            <CardHeader className="pb-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle>{visita ? "Visita externa 🚶" : "Pré-cadastro 📎"}</CardTitle>
-                <AnexosVisita ticketId={t.id} />
-              </div>
-              {visita ? (
-              <p className="text-sm text-muted-foreground">
-                Registrada em {formatarDataHora(visita.criado_em)}
-                {visita.lat && visita.lng && (
-                  <>
-                    {" · "}
-                    <a
-                      href={`https://www.google.com/maps?q=${visita.lat},${visita.lng}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-interlig-ceu hover:underline"
-                    >
-                      📍 abrir no mapa (±{Math.round(visita.precisao_m ?? 0)} m)
-                    </a>
-                  </>
-                )}
-                {visita.endereco_manual && (
-                  <>
-                    {" · "}
-                    <a
-                      href={`https://www.google.com/maps?q=${encodeURIComponent(visita.endereco_manual)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-interlig-ceu hover:underline"
-                    >
-                      🏠 {visita.endereco_manual}
-                    </a>
-                  </>
-                )}
-              </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Prospecção sem visita registrada — inclua as fotos e o endereço fornecidos pelo cliente.
-                </p>
-              )}
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-4">
-              {visita && fotoCasaUrl && (
-                <a href={fotoCasaUrl} target="_blank" rel="noopener noreferrer" className="block">
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">Frente da casa</p>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={fotoCasaUrl}
-                    alt="Frente da casa"
-                    className="h-44 w-64 rounded-lg border object-cover"
-                  />
-                </a>
-              )}
-              {visita && fotoDocUrl ? (
-                <a href={fotoDocUrl} target="_blank" rel="noopener noreferrer" className="block">
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">
-                    Documento (pré-cadastro)
-                  </p>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={fotoDocUrl}
-                    alt="Documento do cliente"
-                    className="h-44 w-64 rounded-lg border object-cover"
-                  />
-                </a>
-              ) : visita ? (
-                <div className="flex h-44 w-64 flex-col items-center justify-center gap-1 self-end rounded-lg border border-dashed text-muted-foreground">
-                  <span className="text-xl">🪪</span>
-                  <p className="text-xs">Documento não anexado</p>
-                </div>
-              ) : null}
-              {visita && fotoVersoUrl && (
-                <a href={fotoVersoUrl} target="_blank" rel="noopener noreferrer" className="block">
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">Documento (verso)</p>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={fotoVersoUrl} alt="Verso do documento" className="h-44 w-64 rounded-lg border object-cover" />
-                </a>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Propostas / Produtos */}
-        <Card className="xl:col-span-3">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-            <CardTitle>Propostas / Produtos</CardTitle>
-            {t.propostas.length > 0 && (
-              <span className="text-sm text-muted-foreground">
-                Valor da negociação:{" "}
-                <span className="font-semibold text-interlig-azul">
-                  {formatarMoeda(t.valor_estimado ?? t.propostas[0].valor)}
+          {/* propostas */}
+          <Cartao
+            className="order-4 xl:order-none"
+            titulo="Propostas / Produtos"
+            icone={<Package className="h-5 w-5" />}
+            acao={
+              !fechado ? (
+                <label
+                  htmlFor="proposta_plano_id"
+                  className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-md border border-interlig-azul/40 px-3 text-xs font-semibold text-interlig-azul hover:bg-sky-50"
+                >
+                  <Plus className="h-4 w-4" /> Nova proposta
+                </label>
+              ) : t.propostas.length > 0 ? (
+                <span className="text-xs text-muted-foreground">
+                  Negociação: <strong className="text-interlig-azul">{formatarMoeda(t.valor_estimado ?? t.propostas[0].valor)}</strong>
                 </span>
-              </span>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {t.propostas.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Nenhuma proposta registrada. Escolha o plano abaixo — o valor de tabela é sugerido
-                automaticamente e pode ser ajustado para o valor negociado.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs text-muted-foreground">
-                      <th className="pb-1.5 pr-3 font-medium">Plano / produto</th>
-                      <th className="pb-1.5 pr-3 font-medium">Valor mensal</th>
-                      <th className="pb-1.5 pr-3 font-medium">Observação</th>
-                      <th className="pb-1.5 pr-3 font-medium">Registrada</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {t.propostas.map((p, i) => (
-                      <tr key={p.id} className={i === 0 ? "font-medium" : "text-muted-foreground"}>
-                        <td className="py-1.5 pr-3">
-                          {p.plano ?? p.descricao ?? "—"}
-                          {p.velocidade && (
-                            <span className="ml-1 text-xs text-muted-foreground">· {p.velocidade}</span>
-                          )}
-                          {i === 0 && (
-                            <Badge variant="outline" className="ml-2 text-[10px]">
-                              atual
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="py-1.5 pr-3 tabular-nums">{formatarMoeda(p.valor)}</td>
-                        <td className="py-1.5 pr-3 text-muted-foreground">{p.observacao ?? "—"}</td>
-                        <td className="py-1.5 pr-3 text-xs text-muted-foreground">
-                          {formatarData(p.criado_em.slice(0, 10))}
-                          {p.usuario ? ` · ${p.usuario}` : ""}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
+              ) : null
+            }
+          >
+            <div className="overflow-hidden rounded-lg border">
+              {cabecalhoPropostas}
+              {tabelaPropostas(false)}
+            </div>
             {!fechado && (
-              <div className="rounded-md border bg-muted/30 p-3">
+              <div className="mt-4 rounded-lg border p-4">
                 <FormularioProposta ticketId={t.id} planos={planosPermitidos} />
               </div>
             )}
-          </CardContent>
-        </Card>
+          </Cartao>
 
-        {/* Timeline */}
-        <Card className={fechado ? "xl:col-span-1" : "xl:col-span-3"}>
-          <CardHeader className="pb-2">
-            <CardTitle>Histórico ({t.eventos.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-2.5 text-sm">
-              {t.eventos.map((e) => (
-                <li key={e.id} className="flex gap-3">
-                  <span className="w-32 shrink-0 text-xs tabular-nums text-muted-foreground">
-                    {formatarDataHora(e.criado_em)}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-medium">
-                      {ROTULO_EVENTO[e.tipo] ?? e.tipo}
-                      {e.usuario && (
-                        <span className="font-normal text-muted-foreground"> · {e.usuario}</span>
-                      )}
-                    </p>
-                    {typeof e.dados.texto === "string" && (
-                      <p className="text-muted-foreground">{e.dados.texto}</p>
-                    )}
-                    {typeof e.dados.de === "string" && typeof e.dados.para === "string" && (
-                      <p className="text-xs text-muted-foreground">
-                        {ROTULO_ETAPA[e.dados.de as keyof typeof ROTULO_ETAPA] ?? e.dados.de} →{" "}
-                        {ROTULO_ETAPA[e.dados.para as keyof typeof ROTULO_ETAPA] ?? e.dados.para}
-                      </p>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
+          {!fechado && podeReatribuir && (
+            <Cartao className="order-5 xl:order-none" titulo="Reatribuir ticket" icone={<UserCog className="h-5 w-5" />}>
+              <FormularioReatribuir ticketId={t.id} vendedoras={vendedoras ?? []} atualId={t.vendedor_id} />
+            </Cartao>
+          )}
+
+          {/* Exclusão administrativa — só o Administrador (limpeza/testes) */}
+          {usuario.perfil === "gestor" && (
+            <Cartao className="order-6 xl:order-none" titulo="Administração" icone={<Settings className="h-5 w-5" />}>
+              <BotaoExcluir ticketId={t.id} cliente={t.cliente_nome} />
+            </Cartao>
+          )}
+        </div>
       </div>
-    </>
+
+      {/* histórico completo */}
+      <Cartao titulo={`Histórico (${t.eventos.length})`} icone={<Clock3 className="h-5 w-5" />}>
+        {historico}
+      </Cartao>
+    </div>
+  );
+}
+
+function Cartao({
+  titulo,
+  icone,
+  acao,
+  className,
+  children,
+}: {
+  titulo: string;
+  icone: React.ReactNode;
+  acao?: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={cn("rounded-xl border bg-card p-4 shadow-sm sm:p-5", className)}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2.5 text-base font-semibold sm:text-lg">
+          <span className="text-interlig-azul">{icone}</span>
+          {titulo}
+        </h2>
+        {acao}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Campo({ icone, rotulo, children }: { icone: React.ReactNode; rotulo?: string; children: React.ReactNode }) {
+  return (
+    <div className={cn("grid items-start gap-x-3", rotulo ? "grid-cols-[18px_88px_minmax(0,1fr)]" : "grid-cols-[18px_minmax(0,1fr)]")}>
+      <span className="mt-0.5 text-muted-foreground">{icone}</span>
+      {rotulo && <dt className="text-muted-foreground">{rotulo}</dt>}
+      <dd className="min-w-0">{children}</dd>
+    </div>
   );
 }

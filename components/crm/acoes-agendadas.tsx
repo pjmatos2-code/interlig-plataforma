@@ -65,20 +65,20 @@ export function AcoesAgendadas({ ticketId, acoes }: { ticketId: string; acoes: A
           onChange={(e) => setDescricao(e.target.value)}
           placeholder="Ação (ex.: ligar para o cliente)"
         />
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <input
             type="date"
             value={data}
             onChange={(e) => setData(e.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            className="h-10 min-w-0 rounded-md border border-input bg-background px-3 text-sm"
           />
           <input
             type="time"
             value={hora}
             onChange={(e) => setHora(e.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            className="h-10 min-w-0 rounded-md border border-input bg-background px-3 text-sm"
           />
-          <Button size="sm" onClick={agendar} disabled={aguardando}>
+          <Button onClick={agendar} disabled={aguardando} className="col-span-2 bg-sky-100 text-interlig-azul hover:bg-sky-200">
             {aguardando ? "Agendando…" : "⏰ Agendar"}
           </Button>
         </div>
@@ -133,7 +133,7 @@ export function AcoesAgendadas({ ticketId, acoes }: { ticketId: string; acoes: A
         </ul>
       )}
       {acoes.length === 0 && (
-        <p className="text-xs text-muted-foreground">Nenhuma ação agendada ainda.</p>
+        <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Nenhuma ação agendada ainda.</p>
       )}
     </div>
   );

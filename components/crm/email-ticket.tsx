@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { salvarEmailTicket } from "@/app/(app)/crm/acoes";
+import { useModoEdicao } from "@/components/crm/modo-edicao";
 
 /** E-mail do cliente no ticket — opcional, editável inline. */
 export function EmailTicket({ ticketId, email }: { ticketId: string; email: string | null }) {
@@ -12,21 +13,25 @@ export function EmailTicket({ ticketId, email }: { ticketId: string; email: stri
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, comecar] = useTransition();
 
+  const modo = useModoEdicao();
+
   if (!editando)
     return (
-      <span>
+      <span className="inline-flex min-w-0 flex-wrap items-center gap-2">
         {email ? (
-          <a href={`mailto:${email}`} className="text-interlig-ceu hover:underline">{email}</a>
+          <a href={`mailto:${email}`} className="truncate text-interlig-ceu hover:underline">{email}</a>
         ) : (
           <span className="text-muted-foreground">—</span>
-        )}{" "}
-        <button
-          type="button"
-          onClick={() => setEditando(true)}
-          className="text-[11px] font-medium text-primary hover:underline"
-        >
-          {email ? "editar" : "incluir"}
-        </button>
+        )}
+        {(!email || modo) && (
+          <button
+            type="button"
+            onClick={() => setEditando(true)}
+            className="text-xs font-medium text-interlig-azul hover:underline"
+          >
+            {email ? "Editar" : "Incluir"}
+          </button>
+        )}
       </span>
     );
 

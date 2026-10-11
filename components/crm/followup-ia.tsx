@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Sparkles } from "lucide-react";
 import { analisarFollowup } from "@/app/(app)/crm/acoes";
 
 const COR: Record<string, string> = {
@@ -50,22 +51,25 @@ export function FollowupIa({
   if (!temConversa && !analise) return null;
 
   return (
-    <div className="rounded-lg border">
-      <div className="flex items-center justify-between border-b bg-sky-50/60 px-4 py-2.5">
-        <p className="text-sm font-semibold text-sky-900">🧠 Follow-up sugerido</p>
+    <div className="rounded-xl border border-indigo-200 bg-indigo-50/40">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3">
+        <p className="flex items-center gap-2 text-sm font-semibold text-indigo-950">
+          <Sparkles className="h-5 w-5 text-interlig-azul" /> Follow-up sugerido (IA)
+        </p>
         {temConversa && (
           <button
             type="button"
             disabled={ocupado}
             onClick={rodar}
-            className="rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md border border-indigo-300 bg-card px-3 py-1.5 text-xs font-medium text-interlig-azul hover:bg-indigo-50 disabled:opacity-50"
             title="Lê a conversa do SZ e atualiza a sugestão"
           >
+            <Sparkles className="h-3.5 w-3.5" />
             {ocupado ? "Analisando…" : analise ? "Reanalisar" : "Analisar conversa"}
           </button>
         )}
       </div>
-      <div className="space-y-2 px-4 py-3 text-sm">
+      <div className="space-y-2 px-4 pb-3 pt-2 text-sm">
         {erro && <p className="text-xs text-farol-vermelho">{erro}</p>}
         {analise ? (
           <>

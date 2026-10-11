@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { FileText, Upload } from "lucide-react";
 import {
   confirmarAdiantamentoTicket,
   urlConsultaCredito,
@@ -138,9 +139,22 @@ export function ConsultaCredito({
           : "Aguardando pagamento";
 
   return (
-    <div className="space-y-3 rounded-lg border p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Consulta de crédito</h3>
+    <div className="space-y-3 rounded-xl border border-sky-200 bg-sky-50/60 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-interlig-azul text-white">
+            <FileText className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold">Consulta de crédito</h3>
+            {!atual && (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Anexe o relatório completo em PDF da Consult Center — a plataforma extrai o score,
+                confere o titular e enquadra na faixa automaticamente.
+              </p>
+            )}
+          </div>
+        </div>
         {podeEditar && (
           <>
             <input
@@ -157,9 +171,10 @@ export function ConsultaCredito({
               type="button"
               disabled={enviando}
               onClick={() => inputRef.current?.click()}
-              className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-60"
+              className="inline-flex shrink-0 items-center gap-2 self-start rounded-md bg-interlig-azul px-3 py-2 text-xs font-semibold text-white hover:bg-interlig-azul/90 disabled:opacity-60"
             >
-              {atual ? "Anexar nova consulta" : "Anexar consulta Consult Center"}
+              <Upload className="h-4 w-4" />
+              {enviando ? "Enviando…" : atual ? "Anexar nova consulta" : "Anexar consulta Consult Center"}
             </button>
           </>
         )}
@@ -168,12 +183,6 @@ export function ConsultaCredito({
       {msg && <p className="text-xs font-medium text-emerald-700">{msg}</p>}
       {erro && <p className="text-xs text-destructive">{erro}</p>}
 
-      {!atual && (
-        <p className="text-xs text-muted-foreground">
-          Anexe o relatório completo em PDF da Consult Center — a plataforma extrai o score,
-          confere o titular e enquadra na faixa automaticamente.
-        </p>
-      )}
 
       {atual && (
         <>

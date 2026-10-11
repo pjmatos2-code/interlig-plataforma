@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { salvarTelefoneTicket } from "@/app/(app)/crm/acoes";
+import { useModoEdicao } from "@/components/crm/modo-edicao";
 
 /**
  * Telefone do cliente editável inline — mesmo padrão do CPF/e-mail. Necessário
@@ -15,17 +16,20 @@ export function TelefoneTicket({ ticketId, telefone }: { ticketId: string; telef
   const [valor, setValor] = useState(telefone ?? "");
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, comecar] = useTransition();
+  const modo = useModoEdicao();
 
-  if (!editando)
+  if (!editando) {
+    if (telefone && !modo) return null;
     return (
       <button
         type="button"
         onClick={() => setEditando(true)}
-        className="text-[11px] font-medium text-primary hover:underline"
+        className="text-xs font-medium text-interlig-azul hover:underline"
       >
-        {telefone ? "editar" : "incluir"}
+        {telefone ? "Editar" : "Incluir"}
       </button>
     );
+  }
 
   return (
     <span className="inline-flex flex-wrap items-center gap-1">

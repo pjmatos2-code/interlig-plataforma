@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { salvarCpfTicket } from "@/app/(app)/crm/acoes";
+import { useModoEdicao } from "@/components/crm/modo-edicao";
 
 /**
  * CPF/CNPJ do cliente no ticket — editável inline depois do cadastro.
@@ -15,18 +16,21 @@ export function CpfTicket({ ticketId, cpf }: { ticketId: string; cpf: string | n
   const [valor, setValor] = useState(cpf ?? "");
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, comecar] = useTransition();
+  const modo = useModoEdicao();
 
   if (!editando)
     return (
-      <span>
-        {cpf ?? <span className="text-muted-foreground">—</span>}{" "}
-        <button
-          type="button"
-          onClick={() => setEditando(true)}
-          className="text-[11px] font-medium text-primary hover:underline"
-        >
-          {cpf ? "editar" : "incluir"}
-        </button>
+      <span className="inline-flex flex-wrap items-center gap-2">
+        {cpf ?? <span className="text-muted-foreground">—</span>}
+        {(!cpf || modo) && (
+          <button
+            type="button"
+            onClick={() => setEditando(true)}
+            className="text-xs font-medium text-interlig-azul hover:underline"
+          >
+            {cpf ? "Editar" : "Incluir"}
+          </button>
+        )}
       </span>
     );
 

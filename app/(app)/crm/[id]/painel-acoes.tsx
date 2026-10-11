@@ -22,15 +22,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { CheckCircle2, PlusCircle, Trash2, XCircle } from "lucide-react";
 import { ROTULO_ETAPA, ROTULO_ORIGEM, type CategoriaOrigem, type EtapaTicket } from "@/lib/tipos";
 
 const inicial: EstadoAcao = {};
 const ETAPAS: EtapaTicket[] = ["novo", "em_atendimento", "aguardando"];
 
-function BotaoEnviar({ rotulo, variante }: { rotulo: string; variante?: "default" | "destructive" }) {
+function BotaoEnviar({
+  rotulo,
+  variante,
+  className,
+  icone,
+}: {
+  rotulo: string;
+  variante?: "default" | "destructive";
+  className?: string;
+  icone?: React.ReactNode;
+}) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant={variante} disabled={pending}>
+    <Button type="submit" variant={variante} disabled={pending} className={cn("gap-2", className)}>
+      {!pending && icone}
       {pending ? "Enviando…" : rotulo}
     </Button>
   );
@@ -50,30 +62,49 @@ export function BarraEtapas({ ticketId, etapaAtual }: { ticketId: string; etapaA
 
   if (etapaAtual === "fechado") return null;
 
+  // etapas em seta (modelo de 10/10/2026); clicar muda a etapa
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {ETAPAS.map((etapa) => (
-        <button
-          key={etapa}
-          type="button"
-          disabled={etapa === etapaAtual || aguardando !== null}
-          onClick={async () => {
-            setAguardando(etapa);
-            await mudarEtapa(ticketId, etapa);
-            setAguardando(null);
-            router.refresh();
-          }}
-          className={cn(
-            "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-            etapa === etapaAtual
-              ? "border-primary bg-primary text-primary-foreground"
-              : "hover:border-interlig-ceu",
-            aguardando === etapa && "opacity-50"
-          )}
-        >
-          {ROTULO_ETAPA[etapa]}
-        </button>
-      ))}
+    <div className="grid grid-cols-3">
+      {ETAPAS.map((etapa, i) => {
+        const atual = etapa === etapaAtual;
+        return (
+          <button
+            key={etapa}
+            type="button"
+            disabled={atual || aguardando !== null}
+            onClick={async () => {
+              setAguardando(etapa);
+              await mudarEtapa(ticketId, etapa);
+              setAguardando(null);
+              router.refresh();
+            }}
+            style={{
+              clipPath:
+                i === 0
+                  ? "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%)"
+                  : i === ETAPAS.length - 1
+                    ? "polygon(0 0, 100% 0, 100% 100%, 0 100%, 14px 50%)"
+                    : "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%)",
+            }}
+            className={cn(
+              "-mr-2 flex min-h-[44px] items-center justify-center gap-1.5 py-2 pl-2 pr-4 text-[11px] font-medium transition-colors last:mr-0 last:pr-2 sm:gap-2 sm:px-4 sm:text-sm",
+              i > 0 && "pl-5 sm:pl-6",
+              atual ? "bg-interlig-azul text-white" : "bg-slate-100 text-foreground hover:bg-sky-100",
+              aguardando === etapa && "opacity-50"
+            )}
+          >
+            <span
+              className={cn(
+                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold sm:h-6 sm:w-6 sm:text-xs",
+                atual ? "bg-white text-interlig-azul" : "bg-card text-foreground shadow-sm"
+              )}
+            >
+              {i + 1}
+            </span>
+            <span className="text-left leading-tight">{ROTULO_ETAPA[etapa]}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -174,30 +205,40 @@ export function FormularioFechamento({
         </div>
       )}
 
-      <div className="flex gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <button
           type="button"
           onClick={() => setDesfecho("convertido")}
+          aria-pressed={desfecho === "convertido"}
           className={cn(
-            "flex-1 rounded-md border px-3 py-2 text-sm font-medium",
+            "flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition-colors",
             desfecho === "convertido"
-              ? "border-farol-verde bg-farol-verde/10 text-farol-verde"
-              : "hover:border-farol-verde/60"
+              ? "border-farol-verde bg-farol-verde/15 ring-2 ring-farol-verde/30"
+              : "border-farol-verde/30 bg-farol-verde/5 hover:border-farol-verde/60"
           )}
         >
-          ✓ Convertido
+          <CheckCircle2 className="h-9 w-9 shrink-0 fill-farol-verde text-white" />
+          <span>
+            <span className="block text-sm font-semibold text-farol-verde">Convertido</span>
+            <span className="block text-xs text-muted-foreground">Cliente virou contrato</span>
+          </span>
         </button>
         <button
           type="button"
           onClick={() => setDesfecho("nao_convertido")}
+          aria-pressed={desfecho === "nao_convertido"}
           className={cn(
-            "flex-1 rounded-md border px-3 py-2 text-sm font-medium",
+            "flex items-center gap-3 rounded-lg border-2 px-4 py-3 text-left transition-colors",
             desfecho === "nao_convertido"
-              ? "border-farol-vermelho bg-farol-vermelho/10 text-farol-vermelho"
-              : "hover:border-farol-vermelho/60"
+              ? "border-farol-vermelho bg-farol-vermelho/15 ring-2 ring-farol-vermelho/30"
+              : "border-farol-vermelho/30 bg-farol-vermelho/5 hover:border-farol-vermelho/60"
           )}
         >
-          ✗ Não convertido
+          <XCircle className="h-9 w-9 shrink-0 fill-farol-vermelho text-white" />
+          <span>
+            <span className="block text-sm font-semibold text-farol-vermelho">Não convertido</span>
+            <span className="block text-xs text-muted-foreground">Prospect não avançou</span>
+          </span>
         </button>
       </div>
       <input type="hidden" name="desfecho" value={desfecho} />
@@ -296,7 +337,7 @@ export function FormularioFechamento({
       <Erro estado={estado} />
       {desfecho !== "" && <BotaoEnviar rotulo="Fechar ticket" />}
       {desfecho === "" && (
-        <p className="text-xs text-muted-foreground">
+        <p className="rounded-md bg-sky-50 px-3 py-2.5 text-xs text-sky-900">
           Selecione o desfecho — não existe fechar sem desfecho (PRD 3.9).
         </p>
       )}
@@ -326,10 +367,11 @@ export function FormularioProposta({ ticketId, planos }: { ticketId: string; pla
       key={estado.ok ? Date.now() : "proposta"} // limpa após salvar
     >
       <input type="hidden" name="ticket_id" value={ticketId} />
+      <p className="text-sm font-semibold">Adicionar proposta</p>
       <div className="space-y-1.5">
-        <Label htmlFor="plano_id">Plano / produto</Label>
+        <Label htmlFor="proposta_plano_id" className="sr-only">Plano / produto</Label>
         <select
-          id="plano_id"
+          id="proposta_plano_id"
           name="plano_id"
           value={planoId}
           onChange={(e) => aoTrocarPlano(e.target.value)}
@@ -347,9 +389,9 @@ export function FormularioProposta({ ticketId, planos }: { ticketId: string; pla
       </div>
       <div className="grid gap-2.5 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="valor">Valor mensal (R$) *</Label>
+          <Label htmlFor="proposta_valor">Valor mensal (R$) *</Label>
           <Input
-            id="valor"
+            id="proposta_valor"
             name="valor"
             type="number"
             step="0.01"
@@ -360,13 +402,13 @@ export function FormularioProposta({ ticketId, planos }: { ticketId: string; pla
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="observacao">Observação</Label>
-          <Input id="observacao" name="observacao" placeholder="condição, desconto…" />
+          <Label htmlFor="proposta_observacao">Observação</Label>
+          <Input id="proposta_observacao" name="observacao" placeholder="condição, desconto…" />
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <BotaoEnviar rotulo="Registrar proposta" />
-        <span className="text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-3">
+        <BotaoEnviar rotulo="Registrar proposta" icone={<PlusCircle className="h-4 w-4" />} />
+        <span className="max-w-[16rem] text-xs text-muted-foreground">
           O valor da última proposta aparece no card do funil.
         </span>
       </div>
@@ -403,7 +445,7 @@ export function FormularioFollowup({ ticketId, atual }: { ticketId: string; atua
         defaultValue={atual ? atual.slice(0, 10) : ""}
         className="w-40"
       />
-      <BotaoEnviar rotulo="Agendar retorno" />
+      <BotaoEnviar rotulo="Agendar retorno" className="bg-interlig-azul hover:bg-interlig-azul/90" />
       <Erro estado={estado} />
     </form>
   );
@@ -434,7 +476,7 @@ export function FormularioReatribuir({
           </option>
         ))}
       </select>
-      <BotaoEnviar rotulo="Reatribuir" />
+      <BotaoEnviar rotulo="Reatribuir" className="bg-sky-100 text-interlig-azul hover:bg-sky-200" />
       <Erro estado={estado} />
     </form>
   );
@@ -472,7 +514,7 @@ export function BotaoExcluir({ ticketId, cliente }: { ticketId: string; cliente:
     <div className="space-y-2">
       <Button
         variant="outline"
-        className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        className="gap-2 border-2 border-destructive/70 px-5 font-semibold text-destructive hover:bg-destructive/10 hover:text-destructive"
         disabled={aguardando}
         onClick={async () => {
           if (
@@ -488,7 +530,8 @@ export function BotaoExcluir({ ticketId, cliente }: { ticketId: string; cliente:
           setAguardando(false);
         }}
       >
-        {aguardando ? "Excluindo…" : "🗑 Excluir ticket (admin)"}
+        {!aguardando && <Trash2 className="h-4 w-4" />}
+        {aguardando ? "Excluindo…" : "Excluir ticket (admin)"}
       </Button>
       {erro && <p className="text-sm text-destructive">{erro}</p>}
     </div>
@@ -537,18 +580,26 @@ export function FormularioTratativa({ ticketId }: { ticketId: string }) {
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
         placeholder="O que foi conversado? (ex.: liguei, cliente pediu retorno na sexta · reunião feita, vai avaliar a proposta)"
-        rows={2}
+        rows={3}
         className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
       />
-      <label className="flex items-center gap-2 text-sm text-muted-foreground">
-        <input
-          type="checkbox"
-          checked={comRetorno}
-          onChange={(e) => setComRetorno(e.target.checked)}
-          className="h-4 w-4 rounded border-input"
-        />
-        Combinar retorno (agenda lembrete 🔔)
-      </label>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={comRetorno}
+            onChange={(e) => setComRetorno(e.target.checked)}
+            className="h-4 w-4 rounded border-input"
+          />
+          Combinar retorno (agenda lembrete 🔔)
+        </label>
+        <div className="flex items-center gap-2">
+          {ok && <span className="text-xs font-medium text-farol-verde">registrada ✓</span>}
+          <Button onClick={salvar} disabled={aguardando} className="bg-interlig-azul hover:bg-interlig-azul/90">
+            {aguardando ? "Registrando…" : "Registrar tratativa"}
+          </Button>
+        </div>
+      </div>
       {comRetorno && (
         <div className="flex flex-wrap items-center gap-2">
           <input type="date" value={data} onChange={(e) => setData(e.target.value)}
@@ -557,13 +608,7 @@ export function FormularioTratativa({ ticketId }: { ticketId: string }) {
             className="h-9 rounded-md border border-input bg-background px-2.5 text-sm" />
         </div>
       )}
-      <div className="flex items-center gap-2">
-        <Button size="sm" onClick={salvar} disabled={aguardando}>
-          {aguardando ? "Registrando…" : "📞 Registrar tratativa"}
-        </Button>
-        {ok && <span className="text-xs font-medium text-farol-verde">registrada ✓</span>}
-        {erro && <span className="text-xs text-destructive">{erro}</span>}
-      </div>
+      {erro && <p className="text-xs text-destructive">{erro}</p>}
     </div>
   );
 }
