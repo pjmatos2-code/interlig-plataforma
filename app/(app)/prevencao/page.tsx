@@ -19,6 +19,7 @@ import {
 } from "@/lib/prevencao/dados";
 import { PERFIS_OPERAM, ROTULO_RESULTADO } from "@/lib/prevencao/resultados";
 import { RegistrarContato } from "./registrar-contato";
+import { ExportarPlanilha } from "./exportar";
 
 export const dynamic = "force-dynamic";
 
@@ -99,7 +100,7 @@ export default async function PrevencaoPage({ searchParams }: { searchParams: Bu
             ))}
           </div>
         )}
-        <div className="flex flex-wrap gap-1.5 sm:ml-auto">
+        <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
           <a
             href={href({ segmento: undefined, faixa: searchParams.faixa, ver: searchParams.ver, mes: searchParams.mes })}
             className={cn("rounded-full border px-3 py-1 text-xs font-medium", !corporativo ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted")}
@@ -115,6 +116,11 @@ export default async function PrevencaoPage({ searchParams }: { searchParams: Bu
           >
             <Building2 className="h-3.5 w-3.5" /> CNPJ e corporativos
           </a>
+          <ExportarPlanilha
+            unidade={unidade}
+            corporativo={corporativo}
+            mesAtual={new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 7)}
+          />
         </div>
       </div>
 
@@ -187,7 +193,7 @@ function Kpi({ rotulo, valor, detalhe, tom }: { rotulo: string; valor: string; d
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{rotulo}</p>
       <p
         className={cn(
-          "break-words text-2xl font-bold tabular-nums xl:text-3xl",
+          "break-words text-xl font-bold tabular-nums sm:text-2xl xl:text-3xl",
           tom === "vermelho" && "text-farol-vermelho",
           tom === "amarelo" && "text-amber-600",
           tom === "verde" && "text-farol-verde"
@@ -520,7 +526,8 @@ async function AbaPedidos({
         86% dos clientes que pedem cancelamento estando ativos são cancelados <strong>no mesmo dia</strong>. Não sobra tempo
         para ligar depois: todo pedido precisa passar pela retenção antes de ser executado. Aqui está cada pedido aberto no
         SGP (ocorrência &quot;Cancelamento Contrato&quot;) e se ele passou pela retenção — caso aberto na Retenção da plataforma
-        ou ocorrência &quot;Retenção de Cancelamento&quot; no SGP.
+        ou ocorrência &quot;Retenção de Cancelamento&quot; no SGP. Clientes suspensos cancelados por débito (os lotes de
+        inadimplência) não entram aqui — estão nas abas Débito e Motivos.
       </Nota>
       <div className="mb-4 flex items-center gap-2 text-sm">
         <a href={href({ mes: mesAnt })} className="rounded-md border px-2.5 py-1 hover:bg-muted">‹</a>

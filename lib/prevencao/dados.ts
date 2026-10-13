@@ -174,13 +174,14 @@ export async function efeitoContatos(fila: "debito" | "insatisfacao"): Promise<{
 // ---------------------------------------------------------------------------
 
 /** rede neutra, permutas, contratos internos/cortesia e órgãos públicos */
-const FORA_DA_BASE =
+export const FORA_DA_BASE =
   /REDE NEUTRA|PERMUTA|CONTROLE INTERNO|CORTESIA|PREFEITURA|FUNDO MUNICIPAL|SECRETARIA|MUNIC[IÍ]PIO|C[AÂ]MARA MUNICIPAL|SEMED|SESPA|CENTRO REGIONAL DE SA[UÚ]DE|GOVERNO|ESTADO DO PAR|FUNDA[CÇ][AÃ]O NACIONAL|FUNDA[CÇ][AÃ]O INSTITUTO BRASILEIRO|AG[EÊ]NCIA BRASILEIRA|CONSELHO ESCOLAR|CONS[OÓ]RCIO POLICL|POL[IÍ]CIA MILITAR|MINIST[EÉ]RIO P[UÚ]BLICO|TRIBUNAL|DEFENSORIA|INSTITUTO FEDERAL|UNIVERSIDADE FEDERAL/i;
 
 export type PedidoCancelamento = {
   sgpContratoId: string;
   sgpClienteId: string | null;
   cliente: string;
+  telefone: string | null;
   pop: string | null;
   plano: string | null;
   valor: number;
@@ -195,10 +196,11 @@ export type PedidoCancelamento = {
   situacao: "cancelado" | "ficou" | "aguardando";
 };
 
-export async function pedidosCancelamento(mesIso: string): Promise<PedidoCancelamento[]> {
+export async function pedidosCancelamento(mesIso: string, ateMesIso?: string): Promise<PedidoCancelamento[]> {
   const admin = criarClienteAdmin();
   const ini = `${mesIso.slice(0, 7)}-01`;
-  const [a, m] = ini.split("-").map(Number);
+  // período de vários meses (exportação): do 1º dia de mesIso ao fim de ateMesIso
+  const [a, m] = (ateMesIso ?? ini).slice(0, 7).split("-").map(Number);
   const fim = new Date(Date.UTC(a, m, 1)).toISOString().slice(0, 10);
   const { data: ocs } = await admin
     .from("ocorrencias_sgp")
@@ -228,9 +230,9 @@ export async function pedidosCancelamento(mesIso: string): Promise<PedidoCancela
     }
   }
   const ids = [...pedidos.keys()];
-  const contratos = new Map<string, { cliente: string; cpf: string | null; fone: string; pop: string | null; plano: string | null; valor: number }>();
+  const contratos = new Map<string, { cliente: string; cpf: string | null; telefone: string | null; fone: string; pop: string | null; plano: string | null; valor: number }>();
   const casos = new Map<string, { criado: string; desfecho: string | null }[]>();
-  const cancelamentos = new Map<string, { data: string; motivo: string | null }[]>();
+  const cancelamentos = new Map<string, { data: string; motivo: string | null; anterior: string | null }[]>();
   for (let i = 0; i < ids.length; i += 300) {
     const lote = ids.slice(i, i + 300);
     const [{ data: cts }, { data: cr }, { data: cs }] = await Promise.all([
@@ -241,7 +243,7 @@ export async function pedidosCancelamento(mesIso: string): Promise<PedidoCancela
       admin.from("casos_retencao").select("sgp_contrato_id, criado_em, desfecho").in("sgp_contrato_id", lote),
       admin
         .from("cancelamentos_sgp")
-        .select("sgp_contrato_id, data_cancelamento, motivo")
+        .select("sgp_contrato_id, data_cancelamento, motivo, status_anterior")
         .in("sgp_contrato_id", lote)
         .gte("data_cancelamento", ini),
     ]);
@@ -250,6 +252,7 @@ export async function pedidosCancelamento(mesIso: string): Promise<PedidoCancela
       contratos.set(c.sgp_contrato_id as string, {
         cliente: cl?.nome ?? "—",
         cpf: cl?.cpf ?? null,
+        telefone: cl?.telefone ?? null,
         fone: (cl?.telefone ?? "").replace(/\D/g, "").slice(-8),
         plano: (c.planos as unknown as { nome: string } | null)?.nome ?? null,
         pop: (c.pops as unknown as { nome: string } | null)?.nome ?? null,
@@ -263,7 +266,7 @@ export async function pedidosCancelamento(mesIso: string): Promise<PedidoCancela
     }
     for (const c of cs ?? []) {
       const l = cancelamentos.get(c.sgp_contrato_id as string) ?? [];
-      l.push({ data: c.data_cancelamento as string, motivo: (c.motivo as string | null) ?? null });
+      l.push({ data: c.data_cancelamento as string, motivo: (c.motivo as string | null) ?? null, anterior: (c.status_anterior as string | null) ?? null });
       cancelamentos.set(c.sgp_contrato_id as string, l);
     }
   }
@@ -298,12 +301,17 @@ export async function pedidosCancelamento(mesIso: string): Promise<PedidoCancela
     const canc = (cancelamentos.get(id) ?? [])
       .filter((c) => c.data >= p.em.slice(0, 10) || Date.parse(c.data) >= t - dia)
       .sort((x, y) => (x.data < y.data ? -1 : 1))[0];
+    // cliente que estava SUSPENSO foi cancelado por débito (os lotes de
+    // inadimplência também abrem "Cancelamento Contrato" no SGP) — não é pedido
+    // do cliente; aparece em Débito/Motivos (13/10/2026)
+    if (canc?.anterior === "Suspenso") continue;
     const diasDesde = (Date.parse(hoje) - t) / dia;
     const cpf = (ct?.cpf ?? "").replace(/\D/g, "");
     saida.push({
       sgpContratoId: id,
       sgpClienteId: p.clienteSgp,
       cliente: ct?.cliente ?? "—",
+      telefone: ct?.telefone ?? null,
       pop: ct?.pop ?? null,
       plano: ct?.plano ?? null,
       valor: ct?.valor ?? 0,
