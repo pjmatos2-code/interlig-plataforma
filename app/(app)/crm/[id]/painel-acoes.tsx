@@ -328,8 +328,18 @@ export function FormularioFechamento({
             </div>
           )}
           <div className="space-y-1.5">
-            <Label htmlFor="observacao">Observação (opcional)</Label>
-            <Input id="observacao" name="observacao" placeholder="detalhe do motivo" />
+            {/* 14/10/2026: o gestor exigiu o motivo descrito — "Sem resposta" sozinho não diz o que foi tentado */}
+            <Label htmlFor="observacao">Descreva o motivo *</Label>
+            <textarea
+              id="observacao"
+              name="observacao"
+              required
+              minLength={10}
+              rows={2}
+              placeholder="Ex.: liguei 3 vezes e mandei WhatsApp, sem retorno · achou caro, ficou com a operadora atual"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+            <p className="text-xs text-muted-foreground">Obrigatório: o que aconteceu e o que foi tentado (mínimo 10 caracteres).</p>
           </div>
         </div>
       )}

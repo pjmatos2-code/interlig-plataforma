@@ -198,6 +198,12 @@ export default async function TicketPage({ params }: { params: { id: string } })
       .join("")
       .toUpperCase() || "?";
   const ultimaAtualizacao = t.eventos[0]?.criado_em ?? t.criado_em;
+  // descrição do motivo gravada no fechamento (nota "Observação do fechamento: …")
+  const detalheFechamento =
+    t.eventos
+      .map((e) => (typeof e.dados.texto === "string" ? e.dados.texto : ""))
+      .find((x) => x.startsWith("Observação do fechamento:"))
+      ?.replace(/^Observação do fechamento:\s*/, "") ?? null;
   const fonte =
     t.origem_criacao === "sz_auto" ? "WhatsApp / SZ Chat" : t.origem_criacao === "site" ? "Site (Contratar Online)" : "Cadastro manual";
   const status = fechado
@@ -640,7 +646,12 @@ export default async function TicketPage({ params }: { params: { id: string } })
                     </p>
                   </dl>
                 ) : (
-                  <p className="pt-1"><span className="text-muted-foreground">Motivo:</span> {t.motivo ?? "—"}</p>
+                  <>
+                    <p className="pt-1"><span className="text-muted-foreground">Motivo:</span> {t.motivo ?? "—"}</p>
+                    {detalheFechamento && (
+                      <p><span className="text-muted-foreground">Descrição:</span> {detalheFechamento}</p>
+                    )}
+                  </>
                 )}
               </div>
             ) : (

@@ -252,7 +252,17 @@ export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<Est
     const motivoId = String(dados.get("motivo_id") ?? "");
     const observacao = String(dados.get("observacao") ?? "").trim();
     if (!motivoId) return { erro: "Não convertido exige o motivo." };
-    const { data: motivo } = await supabase.from("motivos_nao_conversao").select("nome").eq("id", motivoId).maybeSingle();
+    // 14/10/2026: a descrição do motivo também é obrigatória
+    if (observacao.replace(/\s+/g, " ").length < 10)
+      return { erro: "Descreva o motivo do não convertido (mínimo 10 caracteres): o que aconteceu e o que foi tentado." };
+    const { data: motivo } = await supabase
+      .from("motivos_nao_conversao")
+      .select("nome, ativo, ordem")
+      .eq("id", motivoId)
+      .maybeSingle();
+    // motivo desativado (ex.: "Sem resposta", 14/10/2026) ou só da rotina automática
+    if (!motivo || !motivo.ativo || Number(motivo.ordem) >= 90)
+      return { erro: "Este motivo não está mais disponível. Recarregue a página e escolha outro." };
     // "Outra cidade" (03/10/2026): a cidade é obrigatória — demanda por expansão
     const cidadeBruta = String(dados.get("cidade_fora_area") ?? "").trim().replace(/\s+/g, " ");
     const cidade = cidadeBruta
