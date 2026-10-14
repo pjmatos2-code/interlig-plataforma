@@ -29,11 +29,12 @@ import {
 } from "./painel-acoes";
 import { cn } from "@/lib/utils";
 import { AbasTicket } from "@/components/crm/abas-ticket";
+import { ContatoSz } from "@/components/crm/contato-sz";
 import { MaisAcoes, MenuOpcoes } from "@/components/crm/menu-ticket";
 import { BotaoEditarDados, ModoEdicaoProvider } from "@/components/crm/modo-edicao";
 import {
   ArrowLeft, CalendarClock, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ExternalLink,
-  FileText, Gauge, Headset, IdCard, Mail, MapPin, MessageCircle, MessageSquare, Package, Paperclip,
+  FileText, Gauge, Headset, IdCard, Mail, MapPin, MessageSquare, Package, Paperclip,
   Phone, Plus, Settings, Trophy, User, UserCheck, UserCog, XCircle,
 } from "lucide-react";
 import { formatarMoeda } from "@/lib/format";
@@ -187,8 +188,9 @@ export default async function TicketPage({ params }: { params: { id: string } })
   const idAnterior = (ant?.[0]?.id as string | undefined) ?? null;
   const idProximo = (prox?.[0]?.id as string | undefined) ?? null;
 
-  const digitos = (t.telefone ?? "").replace(/\D/g, "");
-  const whatsapp = digitos.length >= 10 ? `https://wa.me/${(digitos.length <= 11 ? "55" : "") + digitos}` : null;
+  // contato com o cliente só pelo SZ Chat (14/10/2026) — o link do WhatsApp Web saiu
+  const { data: cfgSz } = await criarClienteAdmin().from("integracoes_config").select("config").eq("sistema", "szchat").maybeSingle();
+  const linkSz = String((cfgSz?.config as Record<string, unknown> | null)?.base_url ?? "https://interlig.sz.chat").replace(/\/+$/, "");
   const iniciais =
     t.cliente_nome
       .split(/\s+/)
@@ -444,7 +446,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
             )}
           </div>
           <MenuOpcoes protocolo={t.sz_conversa_id} />
-          <MaisAcoes ticketId={t.id} linkSgp={t.contrato_sgp_id ? linkSgp : null} whatsapp={whatsapp} reabrivel={fechado && reabrivel} />
+          <MaisAcoes ticketId={t.id} linkSgp={t.contrato_sgp_id ? linkSgp : null} linkSz={linkSz} reabrivel={fechado && reabrivel} />
         </div>
       </div>
 
@@ -517,17 +519,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
                   <Campo icone={<Phone className="h-4 w-4" />}>
                     <span className="inline-flex flex-wrap items-center gap-2">
                       <span className="font-semibold">{t.telefone ?? "—"}</span>
-                      {whatsapp && (
-                        <a
-                          href={whatsapp}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Abrir conversa no WhatsApp"
-                          className="inline-flex items-center gap-1 rounded-full bg-farol-verde/15 px-2 py-0.5 text-[11px] font-medium text-farol-verde hover:underline"
-                        >
-                          <MessageCircle className="h-3 w-3" /> WhatsApp
-                        </a>
-                      )}
+                      <ContatoSz telefone={t.telefone} linkSz={linkSz} />
                       {t.contrato_sgp_id && linkSgp && (
                         <a href={linkSgp} target="_blank" rel="noopener noreferrer" title="Abrir no SGP" className="text-interlig-azul">
                           <ExternalLink className="h-4 w-4" />

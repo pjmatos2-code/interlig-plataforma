@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Copy, ExternalLink, MessageCircle, MoreHorizontal, Printer, RefreshCw, RotateCcw } from "lucide-react";
+import { ChevronDown, Copy, ExternalLink, MessagesSquare, MoreHorizontal, Printer, RefreshCw, RotateCcw } from "lucide-react";
 import { atualizarTicketDoSgp, reabrirTicket, type ResumoSgp } from "@/app/(app)/crm/acoes";
 import { cn } from "@/lib/utils";
 
@@ -21,16 +21,16 @@ function useFora(aberto: boolean, fechar: () => void) {
 
 const ITEM = "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm hover:bg-muted disabled:opacity-50";
 
-/** "Mais ações" do cabeçalho do ticket: SGP, WhatsApp e reabertura. */
+/** "Mais ações" do cabeçalho do ticket: SGP, SZ Chat e reabertura. */
 export function MaisAcoes({
   ticketId,
   linkSgp,
-  whatsapp,
+  linkSz,
   reabrivel,
 }: {
   ticketId: string;
   linkSgp: string | null;
-  whatsapp: string | null;
+  linkSz: string;
   reabrivel: boolean;
 }) {
   const router = useRouter();
@@ -73,11 +73,9 @@ export function MaisAcoes({
               <ExternalLink className="h-4 w-4 text-interlig-azul" /> Abrir contrato no SGP
             </a>
           )}
-          {whatsapp && (
-            <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={ITEM} onClick={() => setAberto(false)}>
-              <MessageCircle className="h-4 w-4 text-farol-verde" /> Conversar no WhatsApp
-            </a>
-          )}
+          <a href={linkSz} target="_blank" rel="noopener noreferrer" className={ITEM} onClick={() => setAberto(false)}>
+            <MessagesSquare className="h-4 w-4 text-interlig-azul" /> Abrir o SZ Chat
+          </a>
           {reabrivel && (
             <button
               type="button"
