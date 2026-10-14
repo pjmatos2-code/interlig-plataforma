@@ -34,6 +34,7 @@ export const ITENS_NAV: ItemNav[] = [
   { href: "/historico",     rotulo: "Histórico",   icone: "History",         perfis: ["gestor", "financeiro", "direcao"] },
   { href: "/qualidade",     rotulo: "Qualidade",   icone: "ShieldCheck",     perfis: ["gestor", "supervisor", "direcao"] },
   { href: "/mapa",          rotulo: "Mapa",        icone: "Map",             perfis: ["gestor", "supervisor", "direcao"] },
+  { href: "/avisos",        rotulo: "Avisos",      icone: "Megaphone",       perfis: ["gestor"] },
   { href: "/admin",         rotulo: "Administração", icone: "Settings",      perfis: ["gestor"] },
 ];
 

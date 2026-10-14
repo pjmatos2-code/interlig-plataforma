@@ -4,6 +4,8 @@ import { AppShell } from "@/components/layout/app-shell";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { haQuantoTempo } from "@/lib/format";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
+import { avisosPendentes } from "@/lib/avisos/dados";
+import { PopupAvisos } from "@/components/avisos/popup-avisos";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +41,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       atualizadoEm={`SGP atualizado ${haQuantoTempo(sync?.finalizado_em ?? null)}`}
     >
       {children}
+      <PopupAvisos iniciais={await avisosPendentes(usuario.id).catch(() => [])} />
     </AppShell>
   );
 }
