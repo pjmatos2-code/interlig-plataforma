@@ -139,7 +139,7 @@ const CAMPOS = `id, cliente_nome, telefone, cpf, email, vendedor_id, pop_id, eta
   primeira_tratativa_em, followup_em, fechado_em, desfecho, fechado_por, origem_criacao,
   motivo_id, contrato_id, reconciliado_em, atualizado_em, valor_estimado, etapa_encerramento,
   score, score_origem, score_faixa, adiantamento_valor, adiantamento_recebido_em,
-  contratos(sgp_contrato_id, data_venda, clientes(sgp_cliente_id, nome)),
+  contratos!tickets_contrato_id_fkey(sgp_contrato_id, data_venda, clientes(sgp_cliente_id, nome)),
   vendedores(nome), pops(nome), planos(nome), motivos_nao_conversao(nome)`;
 
 /**
@@ -184,14 +184,14 @@ export async function carregarCrm(
       .limit(1000),
     supabase
       .from("tickets")
-      .select("desfecho, fechado_em, contratos(data_venda)")
+      .select("desfecho, fechado_em, contratos!tickets_contrato_id_fkey(data_venda)")
       .eq("etapa", "fechado")
       .gte("fechado_em", `${comFolga(periodo.deAnterior, -10)}T00:00:00`)
       .lte("fechado_em", `${comFolga(periodo.ateAnterior, 10)}T23:59:59.999`)
       .limit(1000),
     supabase
       .from("tickets")
-      .select("id, cliente_nome, valor_estimado, fechado_em, desfecho, contratos(data_venda)")
+      .select("id, cliente_nome, valor_estimado, fechado_em, desfecho, contratos!tickets_contrato_id_fkey(data_venda)")
       .eq("etapa", "fechado")
       .eq("desfecho", "convertido")
       .gte("fechado_em", `${comFolga(inicioMes, -10)}T00:00:00`)
@@ -643,7 +643,7 @@ export async function carregarTicket(id: string): Promise<DetalheTicket | null> 
          score, score_faixa, adiantamento_valor, adiantamento_recebido_em, score_origem,
          analise_followup, followup_analisado_em,
          vendedores(nome), pops(nome), motivos_nao_conversao(nome), planos(nome),
-         contratos(sgp_contrato_id, clientes(sgp_cliente_id, nome))`
+         contratos!tickets_contrato_id_fkey(sgp_contrato_id, clientes(sgp_cliente_id, nome))`
       )
       .eq("id", id)
       .maybeSingle(),
