@@ -12,6 +12,8 @@ export type ItemNav = {
  * Fonte única: mudou a matriz, muda aqui — e a RLS acompanha em 0002_rls.sql.
  */
 export const ITENS_NAV: ItemNav[] = [
+  { href: "/meu-dia/equipe", rotulo: "Meu Dia da equipe", icone: "Sunrise",     perfis: ["gestor"] },
+  { href: "/meu-dia",       rotulo: "Meu dia",     icone: "Sunrise",         perfis: ["vendedora", "gestor"] },
   { href: "/meu-painel",    rotulo: "Meu painel",  icone: "LayoutDashboard", perfis: ["vendedora", "vendedora_externa", "agente_corporativo", "agente_atendimento", "supervisor"] },
   { href: "/dashboard",     rotulo: "Dashboard",   icone: "LayoutDashboard", perfis: ["gestor", "supervisor", "direcao"] },
   { href: "/vendedoras",    rotulo: "Vendedoras",  icone: "Users",           perfis: ["gestor", "supervisor", "direcao"] },

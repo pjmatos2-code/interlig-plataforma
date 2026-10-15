@@ -302,7 +302,9 @@ export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<Est
     return { erro: "Não existe fechar sem desfecho (PRD 3.9)." };
   }
 
-  if (tratativa) {
+  // no Perdido a tratativa costuma ser a própria descrição do motivo: não repete a nota
+  const observacaoFechamento = String(dados.get("observacao") ?? "").trim();
+  if (tratativa && tratativa !== observacaoFechamento) {
     await supabase.from("ticket_eventos").insert({
       ticket_id: ticketId,
       tipo: "nota",

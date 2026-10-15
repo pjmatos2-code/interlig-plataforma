@@ -6,6 +6,8 @@ import { haQuantoTempo } from "@/lib/format";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { avisosPendentes } from "@/lib/avisos/dados";
 import { PopupAvisos } from "@/components/avisos/popup-avisos";
+import { vendedorDoMeuDia } from "@/lib/meu-dia/dados";
+import { AbrirMeuDia } from "@/components/meu-dia/abrir-meu-dia";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +36,10 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
     }
   }
 
+  // Meu Dia: só para quem está no piloto; o gestor usa a visão da equipe
+  const noMeuDia = usuario.perfil === "gestor" ? null : await vendedorDoMeuDia(usuario.id).catch(() => null);
+  itens = itens.filter((i) => i.href !== "/meu-dia" || Boolean(noMeuDia));
+
   return (
     <AppShell
       usuario={usuario}
@@ -42,6 +48,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
     >
       {children}
       <PopupAvisos iniciais={await avisosPendentes(usuario.id).catch(() => [])} />
+      {noMeuDia && <AbrirMeuDia />}
     </AppShell>
   );
 }
