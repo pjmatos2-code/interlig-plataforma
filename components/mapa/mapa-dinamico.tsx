@@ -1,18 +1,18 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { PontoBairro } from "@/lib/mapa/dados";
+import type { MapaComercial as Dados } from "@/lib/mapa/comercial";
 
 // Leaflet depende de window — só carrega no navegador.
-const MapaCalor = dynamic(() => import("./mapa-calor").then((m) => m.MapaCalor), {
+const MapaComercial = dynamic(() => import("./mapa-comercial").then((m) => m.MapaComercial), {
   ssr: false,
   loading: () => (
-    <div className="flex h-96 items-center justify-center rounded-lg border text-sm text-muted-foreground">
+    <div className="flex h-[460px] items-center justify-center rounded-xl border text-sm text-muted-foreground sm:h-[600px]">
       Carregando o mapa…
     </div>
   ),
 });
 
-export function MapaDinamico(props: { pontos: PontoBairro[]; centro: [number, number] }) {
-  return <MapaCalor {...props} />;
+export function MapaDinamico(props: { dados: Dados; rotuloPeriodo: string }) {
+  return <MapaComercial {...props} />;
 }

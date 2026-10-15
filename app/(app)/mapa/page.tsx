@@ -1,6 +1,6 @@
 import { exigirPerfil } from "@/lib/auth";
 import { resolverPeriodo } from "@/lib/datas";
-import { carregarMapa } from "@/lib/mapa/dados";
+import { carregarMapaComercial } from "@/lib/mapa/comercial";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
@@ -22,7 +22,8 @@ export default async function MapaPage({
 
   const supabase = criarClienteServidor();
   const { data: pops } = await supabase.from("pops").select("id, nome").order("nome");
-  const { pontos, centro } = await carregarMapa(periodo, popFiltro);
+  const dados = await carregarMapaComercial(periodo, popFiltro);
+  const rotuloPeriodo = `${formatarData(periodo.de).slice(0, 5)} a ${formatarData(periodo.ate).slice(0, 5)}`;
 
   // procura em cidades onde ainda não atendemos: tickets "Outra cidade" (03/10/2026)
   const { data: foraArea } = await criarClienteAdmin()
@@ -45,8 +46,8 @@ export default async function MapaPage({
   return (
     <>
       <CabecalhoPagina
-        titulo="Mapa de calor por bairro"
-        descricao={`Círculos proporcionais por centroide de bairro · ${formatarData(periodo.de)} a ${formatarData(periodo.ate)}`}
+        titulo="Mapa comercial"
+        descricao="Entenda onde vendemos e onde podemos crescer — cada ponto é a casa do cliente no cadastro do SGP."
       />
 
       <FiltrosDashboard
@@ -56,48 +57,7 @@ export default async function MapaPage({
         ate={periodo.ate}
       />
 
-      <MapaDinamico pontos={pontos} centro={centro} />
-
-      <Card className="mt-4">
-        <CardHeader className="pb-2">
-          <CardTitle>Top bairros do período</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
-                  <th className="px-4 py-2 font-medium">Bairro</th>
-                  <th className="px-3 py-2 font-medium">Cidade</th>
-                  <th className="px-3 py-2 text-right font-medium">Vendas no período</th>
-                  <th className="px-3 py-2 text-right font-medium">Clientes ativos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pontos.slice(0, 12).map((p) => (
-                  <tr key={`${p.cidade}-${p.bairro}`} className="border-b last:border-0">
-                    <td className="px-4 py-2 font-medium">{p.bairro}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{p.cidade}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {formatarNumero(p.vendasPeriodo)}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {formatarNumero(p.clientesAtivos)}
-                    </td>
-                  </tr>
-                ))}
-                {pontos.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
-                      Nenhum bairro com dados no período.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      <MapaDinamico dados={dados} rotuloPeriodo={rotuloPeriodo} />
 
       <Card className="mt-4">
         <CardHeader className="pb-2">
@@ -138,8 +98,8 @@ export default async function MapaPage({
       </Card>
 
       <p className="mt-3 text-xs text-muted-foreground">
-        Fonte: bairro do contrato no SGP + centroides de bairros_geo (nunca geocodifica em tempo
-        de renderização — PRD 3.6). Camada de cancelamentos entra na fase 2 do mapa.
+        Fonte: coordenada do endereço no cadastro do cliente no SGP (atualizada pela sincronização). Potencial do
+        bairro e oportunidades entram na fase 2.
       </p>
     </>
   );
