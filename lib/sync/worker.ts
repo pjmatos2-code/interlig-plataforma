@@ -186,6 +186,8 @@ export async function executarSync(): Promise<ResultadoSync> {
         bairro: c.bairro,
         cidade: c.cidade,
         origem_cadastro: origem(c.origem_cadastro_sgp),
+        // o SGP é a fonte da coordenada (15/10/2026: antes só a carga inicial trazia)
+        ...(c.lat !== undefined ? { lat: c.lat, lng: c.lng ?? null } : {}),
         sync_updated_at: new Date().toISOString(),
       }));
       for (let i = 0; i < linhasClientes.length; i += 500) {

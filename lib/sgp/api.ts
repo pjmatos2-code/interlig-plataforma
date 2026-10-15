@@ -73,6 +73,19 @@ const num = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
+/**
+ * Coordenada do endereço (mapa de calor, 15/10/2026). Só vale dentro da
+ * região atendida (Altamira, Vitória do Xingu, Brasil Novo e arredores) —
+ * fora disso é erro de digitação no cadastro e vira null.
+ */
+export function coordenada(lat?: string | number | null, lng?: string | number | null): { lat: number | null; lng: number | null } {
+  const la = typeof lat === "number" ? lat : parseFloat(String(lat ?? "").replace(",", "."));
+  const lo = typeof lng === "number" ? lng : parseFloat(String(lng ?? "").replace(",", "."));
+  if (!Number.isFinite(la) || !Number.isFinite(lo)) return { lat: null, lng: null };
+  if (la < -4.5 || la > -2.5 || lo < -53.5 || lo > -51.5) return { lat: null, lng: null };
+  return { lat: la, lng: lo };
+}
+
 const dataBr = (s: string | undefined | null): string | null => {
   if (!s) return null;
   const br = String(s).match(/(\d{2})\/(\d{2})\/(\d{4})/);
@@ -225,6 +238,7 @@ export class SgpApiClient implements SgpClient {
       bairro: c.endereco?.bairro ?? null,
       cidade: cidadeEscopo(c.endereco?.cidade),
       origem_cadastro_sgp: null, // não exposto pela URA (D3)
+      ...coordenada(c.endereco?.latitude, c.endereco?.longitude),
     }));
   }
 

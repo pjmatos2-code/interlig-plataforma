@@ -22,6 +22,9 @@ export type SgpCliente = {
   cidade: string | null;
   /** valor cru do SGP; vira categoria via origem_map */
   origem_cadastro_sgp: string | null;
+  /** coordenada do endereço no cadastro do SGP (mapa de calor) */
+  lat?: number | null;
+  lng?: number | null;
 };
 
 export type SgpContrato = {
