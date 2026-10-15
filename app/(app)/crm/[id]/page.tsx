@@ -599,7 +599,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
 
         <div className="contents xl:flex xl:flex-col xl:gap-4">
           {/* desfecho */}
-          <Cartao className="order-2 xl:order-none" titulo={fechado ? "Ticket fechado" : "Desfecho do ticket"} icone={<Trophy className="h-5 w-5" />}>
+          <Cartao id="desfecho-ticket" className="order-2 scroll-mt-20 xl:order-none" titulo={fechado ? "Ticket fechado" : "Desfecho do ticket"} icone={<Trophy className="h-5 w-5" />}>
             {fechado ? (
               <div className="space-y-2 text-sm">
                 <div
@@ -716,12 +716,14 @@ export default async function TicketPage({ params }: { params: { id: string } })
 }
 
 function Cartao({
+  id,
   titulo,
   icone,
   acao,
   className,
   children,
 }: {
+  id?: string;
   titulo: string;
   icone: React.ReactNode;
   acao?: React.ReactNode;
@@ -729,7 +731,7 @@ function Cartao({
   children: React.ReactNode;
 }) {
   return (
-    <section className={cn("rounded-xl border bg-card p-4 shadow-sm sm:p-5", className)}>
+    <section id={id} className={cn("rounded-xl border bg-card p-4 shadow-sm sm:p-5", className)}>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2.5 text-base font-semibold sm:text-lg">
           <span className="text-interlig-azul">{icone}</span>

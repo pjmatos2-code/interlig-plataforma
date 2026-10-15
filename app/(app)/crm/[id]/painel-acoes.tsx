@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
@@ -134,6 +134,19 @@ export function FormularioFechamento({
 }) {
   const [estado, acao] = useFormState(fecharTicket, inicial);
   const [desfecho, setDesfecho] = useState<"convertido" | "nao_convertido" | "">("");
+  // tratativa que veio do "Registrar tratativa" (Vendido/Perdido) — gravada junto
+  const [tratativa, setTratativa] = useState("");
+  const [obs, setObs] = useState("");
+  useEffect(() => {
+    const ouvir = (e: Event) => {
+      const d = (e as CustomEvent<{ desfecho: "convertido" | "nao_convertido"; texto: string }>).detail;
+      setDesfecho(d.desfecho);
+      setTratativa(d.texto);
+      if (d.desfecho === "nao_convertido") setObs((atual) => atual || d.texto);
+    };
+    window.addEventListener("tratativa-desfecho", ouvir);
+    return () => window.removeEventListener("tratativa-desfecho", ouvir);
+  }, []);
   const [motivoSel, setMotivoSel] = useState("");
   // "Outra cidade": a cidade é obrigatória — mede a demanda por expansão da rede
   const ehOutraCidade = motivos.find((m) => m.id === motivoSel)?.nome === "Outra cidade";
@@ -242,6 +255,12 @@ export function FormularioFechamento({
         </button>
       </div>
       <input type="hidden" name="desfecho" value={desfecho} />
+      <input type="hidden" name="tratativa" value={tratativa} />
+      {tratativa && (
+        <p className="rounded-md bg-sky-50 px-3 py-2 text-xs text-sky-900">
+          Tratativa que será registrada: “{tratativa}”
+        </p>
+      )}
 
       {desfecho === "convertido" && (
         <div className="space-y-3 rounded-md border bg-muted/30 p-3">
@@ -336,6 +355,8 @@ export function FormularioFechamento({
               required
               minLength={10}
               rows={2}
+              value={obs}
+              onChange={(e) => setObs(e.target.value)}
               placeholder="Ex.: liguei 3 vezes e mandei WhatsApp, sem retorno · achou caro, ficou com a operadora atual"
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
@@ -557,7 +578,8 @@ export function BotaoExcluir({ ticketId, cliente }: { ticketId: string; cliente:
 export function FormularioTratativa({ ticketId }: { ticketId: string }) {
   const router = useRouter();
   const [texto, setTexto] = useState("");
-  const [comRetorno, setComRetorno] = useState(false);
+  // Meu Dia (14/10/2026): toda tratativa termina em Vendido, Perdido ou Reagendado
+  const [desfecho, setDesfecho] = useState<"" | "reagendado" | "vendido" | "perdido">("");
   const [data, setData] = useState("");
   const [hora, setHora] = useState("");
   const [aguardando, setAguardando] = useState(false);
@@ -565,24 +587,50 @@ export function FormularioTratativa({ ticketId }: { ticketId: string }) {
   const [ok, setOk] = useState(false);
 
   async function salvar() {
+    setErro(null);
+    if (!texto.trim()) return setErro("Descreva a tratativa (o que foi conversado).");
+    if (!desfecho) return setErro("Escolha o desfecho: Vendido, Perdido ou Reagendado.");
+    if (desfecho !== "reagendado") {
+      // Vendido/Perdido: segue para o cartão de desfecho, que grava a tratativa junto
+      window.dispatchEvent(
+        new CustomEvent("tratativa-desfecho", {
+          detail: { desfecho: desfecho === "vendido" ? "convertido" : "nao_convertido", texto: texto.trim() },
+        })
+      );
+      document.getElementById("desfecho-ticket")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     setAguardando(true);
     setOk(false);
     const fd = new FormData();
     fd.set("ticket_id", ticketId);
     fd.set("texto", texto);
-    if (comRetorno) {
-      fd.set("retorno_data", data);
-      fd.set("retorno_hora", hora);
-    }
+    fd.set("desfecho", "reagendado");
+    fd.set("retorno_data", data);
+    fd.set("retorno_hora", hora);
     const r = await registrarTratativa({}, fd);
     setErro(r.erro ?? null);
     setAguardando(false);
     if (!r.erro) {
-      setTexto(""); setData(""); setHora(""); setComRetorno(false); setOk(true);
+      setTexto(""); setData(""); setHora(""); setDesfecho(""); setOk(true);
       setTimeout(() => setOk(false), 4000);
       router.refresh();
     }
   }
+
+  const opcao = (valor: "reagendado" | "vendido" | "perdido", rotulo: string, cor: string) => (
+    <button
+      type="button"
+      onClick={() => setDesfecho(valor)}
+      aria-pressed={desfecho === valor}
+      className={cn(
+        "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+        desfecho === valor ? cor : "bg-card text-muted-foreground hover:bg-muted"
+      )}
+    >
+      {rotulo}
+    </button>
+  );
 
   return (
     <div className="space-y-2">
@@ -593,31 +641,32 @@ export function FormularioTratativa({ ticketId }: { ticketId: string }) {
         rows={3}
         className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
       />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={comRetorno}
-            onChange={(e) => setComRetorno(e.target.checked)}
-            className="h-4 w-4 rounded border-input"
-          />
-          Combinar retorno (agenda lembrete 🔔)
-        </label>
-        <div className="flex items-center gap-2">
-          {ok && <span className="text-xs font-medium text-farol-verde">registrada ✓</span>}
-          <Button onClick={salvar} disabled={aguardando} className="bg-interlig-azul hover:bg-interlig-azul/90">
-            {aguardando ? "Registrando…" : "Registrar tratativa"}
-          </Button>
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium">Desfecho *</span>
+        {opcao("reagendado", "Reagendado", "border-interlig-azul bg-interlig-azul text-white")}
+        {opcao("vendido", "Vendido", "border-farol-verde bg-farol-verde text-white")}
+        {opcao("perdido", "Perdido", "border-farol-vermelho bg-farol-vermelho text-white")}
       </div>
-      {comRetorno && (
+      {desfecho === "reagendado" && (
         <div className="flex flex-wrap items-center gap-2">
-          <input type="date" value={data} onChange={(e) => setData(e.target.value)}
+          <span className="text-xs text-muted-foreground">Novo retorno:</span>
+          <input type="date" value={data} onChange={(e) => setData(e.target.value)} required
             className="h-9 rounded-md border border-input bg-background px-2.5 text-sm" />
-          <input type="time" value={hora} onChange={(e) => setHora(e.target.value)}
+          <input type="time" value={hora} onChange={(e) => setHora(e.target.value)} required
             className="h-9 rounded-md border border-input bg-background px-2.5 text-sm" />
         </div>
       )}
+      {(desfecho === "vendido" || desfecho === "perdido") && (
+        <p className="text-xs text-muted-foreground">
+          {desfecho === "vendido" ? "Você vai completar o fechamento como Convertido (plano e origem)." : "Você vai escolher o motivo da perda."} A tratativa é gravada junto.
+        </p>
+      )}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {ok && <span className="text-xs font-medium text-farol-verde">registrada ✓</span>}
+        <Button onClick={salvar} disabled={aguardando} className="bg-interlig-azul hover:bg-interlig-azul/90">
+          {aguardando ? "Registrando…" : desfecho === "vendido" || desfecho === "perdido" ? "Continuar no desfecho" : "Registrar tratativa"}
+        </Button>
+      </div>
       {erro && <p className="text-xs text-destructive">{erro}</p>}
     </div>
   );

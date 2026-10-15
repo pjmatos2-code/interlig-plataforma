@@ -149,6 +149,32 @@ async function cicloCompleto() {
     }).then(({ error }) => { if (error) console.error("log robô retenção:", error.message); });
     if (!r.ok) console.error("robô retenção falhou:", r.erro);
   }
+  // Meu Dia (14/10/2026): pós-venda dos ativados ontem e pendentes 90+ —
+  // uma vez por dia, a partir das 00h05 de Santarém
+  meuDia: {
+    if (restante() < 30_000) break meuDia;
+    const agoraStm = new Date(Date.now() - 3 * 3600_000);
+    if (agoraStm.getUTCHours() === 0 && agoraStm.getUTCMinutes() < 5) break meuDia;
+    const hojeStm = agoraStm.toISOString().slice(0, 10);
+    const admin = criarClienteAdmin();
+    const { data: ja } = await admin
+      .from("sync_runs")
+      .select("finalizado_em")
+      .eq("entidade", "meu_dia")
+      .eq("status", "sucesso")
+      .gte("finalizado_em", `${hojeStm}T00:00:00-03:00`)
+      .limit(1);
+    if (ja?.length) break meuDia;
+    const { rodarJobMeuDia } = await import("@/lib/meu-dia/job");
+    const r = await rodarJobMeuDia({ hoje: hojeStm }).catch((e) => ({ erro: String(e) }));
+    await admin.from("sync_runs").insert({
+      entidade: "meu_dia",
+      finalizado_em: new Date().toISOString(),
+      registros: "posvenda" in r ? r.posvenda : 0,
+      status: "erro" in r ? "erro" : "sucesso",
+      erro: "erro" in r ? r.erro : null,
+    }).then(({ error }) => { if (error) console.error("log meu dia:", error.message); });
+  }
   // cancelamentos oficiais (10/10/2026): relatório "Cancelados" do SGP do mês
   // anterior até hoje — corrige data e motivo que a URA não informa. Leve
   // (~2s por página de 100), 1x a cada 6h para o dia de hoje não ficar errado

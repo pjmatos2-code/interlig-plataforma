@@ -5,6 +5,7 @@ import { ehAgenteCrm } from "@/lib/tipos";
 import { redirect } from "next/navigation";
 import { exigirUsuario, exigirPerfil } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { registrarLogMeuDia } from "@/lib/meu-dia/log";
 import {
   normalizarCpf,
   normalizarTelefone,
@@ -137,7 +138,7 @@ export async function adicionarNota(_e: EstadoAcao, dados: FormData): Promise<Es
 }
 
 export async function agendarFollowup(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
-  await exigirUsuario();
+  const usuario = await exigirUsuario();
   const ticketId = String(dados.get("ticket_id") ?? "");
   const quando = String(dados.get("followup_em") ?? "");
   if (!quando) return { erro: "Informe a data de retorno." };
@@ -148,7 +149,9 @@ export async function agendarFollowup(_e: EstadoAcao, dados: FormData): Promise<
     .update({ followup_em: `${quando}T12:00:00` })
     .eq("id", ticketId);
   if (error) return { erro: error.message };
+  await registrarLogMeuDia({ usuarioId: usuario.id, ticketId, acao: "retorno_agendado", resultado: quando });
   revalidatePath(`/crm/${ticketId}`);
+  revalidatePath("/meu-dia");
   revalidar();
   return { ok: true };
 }
@@ -176,9 +179,11 @@ export async function reatribuirTicket(_e: EstadoAcao, dados: FormData): Promise
 // Fechamento obrigatório com desfecho (regra central do módulo)
 // ---------------------------------------------------------------------------
 export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<EstadoAcao> {
-  await exigirUsuario();
+  const usuarioFechamento = await exigirUsuario();
   const ticketId = String(dados.get("ticket_id") ?? "");
   const desfecho = String(dados.get("desfecho") ?? "");
+  // tratativa que levou ao desfecho (Meu Dia: Vendido/Perdido saem da tratativa)
+  const tratativa = String(dados.get("tratativa") ?? "").trim();
 
   const supabase = criarClienteServidor();
 
@@ -297,6 +302,23 @@ export async function fecharTicket(_e: EstadoAcao, dados: FormData): Promise<Est
     return { erro: "Não existe fechar sem desfecho (PRD 3.9)." };
   }
 
+  if (tratativa) {
+    await supabase.from("ticket_eventos").insert({
+      ticket_id: ticketId,
+      tipo: "nota",
+      dados: { texto: `📞 Tratativa: ${tratativa} · ${desfecho === "convertido" ? "Vendido" : "Perdido"}`, desfecho: desfecho === "convertido" ? "vendido" : "perdido" },
+      usuario_id: usuarioFechamento.id,
+    });
+  }
+  await registrarLogMeuDia({
+    usuarioId: usuarioFechamento.id,
+    ticketId,
+    acao: "fechamento",
+    resultado: desfecho === "convertido" ? "vendido" : "perdido",
+    motivo: desfecho === "nao_convertido" ? String(dados.get("observacao") ?? "").trim() || null : null,
+    dados: { motivo_id: dados.get("motivo_id") ?? null, plano_id: dados.get("plano_id") ?? null },
+  });
+  revalidatePath("/meu-dia");
   revalidatePath(`/crm/${ticketId}`);
   revalidar();
   return { ok: true };
@@ -334,39 +356,54 @@ export async function registrarTratativa(_e: EstadoAcao, dados: FormData): Promi
   const usuario = await exigirUsuario();
   const ticketId = String(dados.get("ticket_id") ?? "");
   const texto = String(dados.get("texto") ?? "").trim();
+  const desfecho = String(dados.get("desfecho") ?? "");
   const retornoData = String(dados.get("retorno_data") ?? "");
   const retornoHora = String(dados.get("retorno_hora") ?? "");
   if (!texto) return { erro: "Descreva a tratativa (o que foi conversado)." };
-  if ((retornoData && !retornoHora) || (!retornoData && retornoHora))
-    return { erro: "Para combinar retorno, informe data E hora." };
+  // Meu Dia (14/10/2026): toda tratativa termina em Vendido, Perdido ou
+  // Reagendado. Vendido e Perdido seguem pelo fechamento do ticket (que grava
+  // a tratativa junto); aqui chega só o Reagendado, que cria o novo retorno.
+  if (desfecho !== "reagendado")
+    return { erro: "Escolha o desfecho da tratativa: Vendido, Perdido ou Reagendado." };
+  if (!retornoData || !retornoHora) return { erro: "Reagendado exige a data e a hora do novo retorno." };
+  const quando = `${retornoData}T${retornoHora}:00-03:00`;
+  if (Number.isNaN(Date.parse(quando)) || Date.parse(quando) < Date.now() - 5 * 60_000)
+    return { erro: "O novo retorno precisa ser numa data e hora futuras." };
 
   const supabase = criarClienteServidor();
+  const { data: t } = await supabase.from("tickets").select("etapa, urgencia").eq("id", ticketId).maybeSingle();
+  if (!t) return { erro: "Ticket não encontrado." };
+  if (t.etapa === "fechado") return { erro: "Ticket fechado não recebe tratativa — reabra antes." };
+
   const { error } = await supabase.from("ticket_eventos").insert({
     ticket_id: ticketId,
     tipo: "nota",
     dados: {
-      texto: `📞 Tratativa: ${texto}${
-        retornoData ? ` · retorno combinado para ${retornoData.split("-").reverse().join("/")} às ${retornoHora}` : ""
-      }`,
+      texto: `📞 Tratativa: ${texto} · Reagendado para ${retornoData.split("-").reverse().join("/")} às ${retornoHora}`,
+      desfecho: "reagendado",
     },
     usuario_id: usuario.id,
   });
   if (error) return { erro: error.message };
 
-  if (retornoData && retornoHora) {
-    await supabase.from("ticket_acoes").insert({
-      ticket_id: ticketId,
-      descricao: "Retornar para o cliente (combinado na tratativa)",
-      quando: `${retornoData}T${retornoHora}:00-03:00`,
-      criado_por: usuario.id,
-    });
-  }
-  // tratativa conta como interação: renova o relógio de inatividade
-  await supabase
-    .from("tickets")
-    .update({ atualizado_em: new Date().toISOString() })
-    .eq("id", ticketId);
+  const agora = new Date().toISOString();
+  const campos: Record<string, unknown> = { followup_em: quando, atualizado_em: agora };
+  // 1ª tratativa tira o ticket de "Sem contato" (o gatilho carimba a 1ª tratativa)
+  if (t.etapa === "novo") campos.etapa = "em_atendimento";
+  // a tratativa também resolve o follow-up sugerido pela IA
+  if (t.urgencia) Object.assign(campos, { urgencia: null, followup_feito_em: agora });
+  const { error: e2 } = await supabase.from("tickets").update(campos).eq("id", ticketId);
+  if (e2) return { erro: e2.message };
+
+  await registrarLogMeuDia({
+    usuarioId: usuario.id,
+    ticketId,
+    acao: "tratativa",
+    resultado: "reagendado",
+    dados: { retorno: quando, primeira: t.etapa === "novo" },
+  });
   revalidatePath(`/crm/${ticketId}`);
+  revalidatePath("/meu-dia");
   revalidar();
   return { ok: true };
 }
@@ -398,6 +435,8 @@ export async function concluirFollowupIa(_e: EstadoAcao, dados: FormData): Promi
     },
     usuario_id: usuario.id,
   });
+  await registrarLogMeuDia({ usuarioId: usuario.id, ticketId, acao: "followup_ia_feito", resultado: retorno || null });
+  revalidatePath("/meu-dia");
   revalidatePath(`/crm/${ticketId}`);
   revalidar();
   return { ok: true };
@@ -428,13 +467,15 @@ export async function criarAcaoTicket(_e: EstadoAcao, dados: FormData): Promise<
 }
 
 export async function concluirAcaoTicket(acaoId: string, ticketId: string): Promise<EstadoAcao> {
-  await exigirUsuario();
+  const usuario = await exigirUsuario();
   const supabase = criarClienteServidor();
   const { error } = await supabase
     .from("ticket_acoes")
     .update({ concluida_em: new Date().toISOString() })
     .eq("id", acaoId);
   if (error) return { erro: error.message };
+  await registrarLogMeuDia({ usuarioId: usuario.id, ticketId, acao: "lembrete_feito", dados: { acao_id: acaoId } });
+  revalidatePath("/meu-dia");
   revalidatePath(`/crm/${ticketId}`);
   return { ok: true };
 }
@@ -570,12 +611,15 @@ export async function concluirFollowup(ticketId: string): Promise<EstadoAcao> {
     dados: { texto: "Retorno realizado (fechar o dia)." },
     usuario_id: usuario.id,
   });
+  // o retorno some do ticket, mas fica registrado quem fez e quando
+  await registrarLogMeuDia({ usuarioId: usuario.id, ticketId, acao: "retorno_feito" });
+  revalidatePath("/meu-dia");
   revalidar();
   return { ok: true };
 }
 
 export async function adiarFollowup(ticketId: string, dias: number): Promise<EstadoAcao> {
-  await exigirUsuario();
+  const usuario = await exigirUsuario();
   const quando = new Date(Date.now() + dias * 86_400_000).toISOString().slice(0, 10);
   const supabase = criarClienteServidor();
   const { error } = await supabase
@@ -583,6 +627,8 @@ export async function adiarFollowup(ticketId: string, dias: number): Promise<Est
     .update({ followup_em: `${quando}T12:00:00` })
     .eq("id", ticketId);
   if (error) return { erro: error.message };
+  await registrarLogMeuDia({ usuarioId: usuario.id, ticketId, acao: "retorno_adiado", resultado: quando });
+  revalidatePath("/meu-dia");
   revalidar();
   return { ok: true };
 }
