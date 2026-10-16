@@ -9,6 +9,7 @@ import { carregarMeuDia, vendedorDoMeuDia, type CardTicket } from "@/lib/meu-dia
 import { ROTULO_PENDENCIA, ROTULO_SUBFILA, type SubFila } from "@/lib/meu-dia/regras";
 import { cn } from "@/lib/utils";
 import { AtualizarSozinho, CartaoPosVenda } from "./posvenda";
+import { CopiarMensagemGoogle, IconeGoogle } from "./lembrete-google";
 
 export const dynamic = "force-dynamic";
 
@@ -255,6 +256,14 @@ export default async function MeuDiaPage({ searchParams }: { searchParams: { ven
             <PartyPopper className="h-4 w-4" /> Meta do mês batida!
           </p>
         )}
+      </Bloco>
+
+      {/* 7 — Lembrete: avaliação no Google (sem regra nem controle) */}
+      <Bloco id="google" numero={7} titulo="Avaliação no Google" icone={<IconeGoogle />} total={null} vazio="">
+        <p className="text-sm">
+          Em todo atendimento, capriche e, ao final, <strong>convide o cliente a avaliar a Interlig no Google</strong> — mande o link pelo SZ Chat.
+        </p>
+        <CopiarMensagemGoogle agente={primeiroNome} />
       </Bloco>
     </div>
   );
