@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useInterChat } from "@/components/interchat/provedor";
 import { ListaConversas } from "@/components/interchat/lista";
 import { Conversa } from "@/components/interchat/conversa";
+import { MinhaFoto } from "@/components/interchat/minha-foto";
 
 export function PaginaInterChat() {
   const busca = useSearchParams();
@@ -23,7 +24,7 @@ export function PaginaInterChat() {
     <div className="-mx-4 -my-4 flex h-[calc(100dvh-56px)] overflow-hidden border-t bg-card sm:mx-0 sm:my-0 sm:h-[calc(100dvh-120px)] sm:rounded-xl sm:border lg:-mt-2">
       <aside className={cn("flex w-full min-w-0 flex-col border-r md:w-[340px] md:shrink-0", ativa && "hidden md:flex")}>
         <div className="flex items-center gap-2 border-b px-4 py-3">
-          <MessagesSquare className="h-5 w-5 text-interlig-azul" />
+          <MinhaFoto />
           <h1 className="flex-1 text-lg font-bold">InterChat</h1>
           {avisos === "ativo" ? (
             <button type="button" onClick={() => desativarAvisos()} title="Desativar avisos neste dispositivo" className="rounded-md p-1.5 text-farol-verde hover:bg-muted">

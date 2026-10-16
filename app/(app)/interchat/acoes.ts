@@ -1,6 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import { revalidatePath } from "next/cache";
 import { exigirUsuario } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
@@ -131,4 +132,29 @@ export async function alterarMembrosGrupo(conversaId: string, adicionar: string[
     p_remover: remover,
   });
   return error ? { erro: error.message } : {};
+}
+
+/**
+ * Cada pessoa troca a própria foto (16/10/2026). O navegador já manda a
+ * imagem cortada em quadrado e reduzida. Vendedora grava no cadastro dela
+ * (a mesma foto do ranking e da TV); os demais, no próprio usuário.
+ */
+export async function trocarMinhaFoto(dados: FormData): Promise<Resposta<{ url: string }>> {
+  const eu = await exigirUsuario();
+  const arquivo = dados.get("foto");
+  if (!(arquivo instanceof File) || arquivo.size === 0) return { erro: "Escolha uma imagem." };
+  if (!/^image\/(jpeg|png|webp)$/.test(arquivo.type)) return { erro: "Use JPG, PNG ou WebP." };
+  if (arquivo.size > 2 * 1024 * 1024) return { erro: "Imagem grande demais." };
+
+  const admin = criarClienteAdmin();
+  const caminho = eu.vendedor_id ? `vendedoras/${eu.vendedor_id}.jpg` : `usuarios/${eu.id}.jpg`;
+  const { error: eUp } = await admin.storage.from("avatars").upload(caminho, arquivo, { upsert: true, contentType: arquivo.type });
+  if (eUp) return { erro: eUp.message };
+  const url = `${admin.storage.from("avatars").getPublicUrl(caminho).data.publicUrl}?v=${Date.now()}`;
+  const { error } = eu.vendedor_id
+    ? await admin.from("vendedores").update({ foto_url: url }).eq("id", eu.vendedor_id)
+    : await admin.from("usuarios").update({ foto_url: url }).eq("id", eu.id);
+  if (error) return { erro: error.message };
+  revalidatePath("/", "layout");
+  return { dados: { url } };
 }

@@ -43,11 +43,11 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   const noMeuDia = usuario.perfil === "gestor" ? null : await vendedorDoMeuDia(usuario.id).catch(() => null);
   itens = itens.filter((i) => i.href !== "/meu-dia" || Boolean(noMeuDia));
 
-  // InterChat: foto da pessoa (cadastro de vendedoras) e chave dos avisos
+  // InterChat: foto da pessoa (cadastro de vendedoras ou do próprio usuário) e chave dos avisos
   const [{ data: vendFoto }, chavePush] = await Promise.all([
     usuario.vendedor_id
       ? criarClienteAdmin().from("vendedores").select("foto_url").eq("id", usuario.vendedor_id).maybeSingle()
-      : Promise.resolve({ data: null }),
+      : criarClienteAdmin().from("usuarios").select("foto_url").eq("id", usuario.id).maybeSingle(),
     chavePublicaPush().catch(() => null),
   ]);
   const euChat = { id: usuario.id, nome: usuario.nome, perfil: usuario.perfil, foto: (vendFoto?.foto_url as string | null) ?? null };
