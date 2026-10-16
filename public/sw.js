@@ -23,3 +23,53 @@ self.addEventListener("fetch", (e) => {
   if (e.request.mode !== "navigate") return;
   e.respondWith(fetch(e.request).catch(() => caches.match(OFFLINE)));
 });
+
+/*
+ * InterChat (16/10/2026): aviso de mensagem nova em todos os dispositivos.
+ * Com a plataforma aberta e em foco o próprio chat avisa na tela — exceto no
+ * Safari (Mac/iPhone), que exige mostrar a notificação a cada push.
+ */
+self.addEventListener("push", (e) => {
+  let d = {};
+  try {
+    d = e.data ? e.data.json() : {};
+  } catch (_) {
+    d = { titulo: "InterChat", corpo: e.data ? e.data.text() : "" };
+  }
+  e.waitUntil(
+    (async () => {
+      const ua = self.navigator.userAgent || "";
+      const safari = /Safari/.test(ua) && !/Chrome|Chromium|Android|Edg/.test(ua);
+      const janelas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const emFoco = janelas.some((c) => c.focused && c.visibilityState === "visible");
+      if (self.navigator.setAppBadge) self.navigator.setAppBadge().catch(() => {});
+      if (emFoco && !safari) return;
+      await self.registration.showNotification(d.titulo || "InterChat", {
+        body: d.corpo || "Nova mensagem",
+        tag: d.tag || "interchat",
+        renotify: true,
+        icon: "/pwa/icone-192.png",
+        badge: "/pwa/icone-192.png",
+        data: { url: d.url || "/interchat" },
+      });
+    })()
+  );
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "/interchat";
+  e.waitUntil(
+    (async () => {
+      const janelas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const c of janelas) {
+        if ("focus" in c) {
+          await c.focus();
+          if ("navigate" in c) await c.navigate(url).catch(() => {});
+          return;
+        }
+      }
+      await self.clients.openWindow(url);
+    })()
+  );
+});

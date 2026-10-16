@@ -8,6 +8,9 @@ import { avisosPendentes } from "@/lib/avisos/dados";
 import { PopupAvisos } from "@/components/avisos/popup-avisos";
 import { vendedorDoMeuDia } from "@/lib/meu-dia/dados";
 import { AbrirMeuDia } from "@/components/meu-dia/abrir-meu-dia";
+import { ProvedorInterChat } from "@/components/interchat/provedor";
+import { DockInterChat } from "@/components/interchat/dock";
+import { chavePublicaPush } from "@/lib/interchat/push";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +43,17 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   const noMeuDia = usuario.perfil === "gestor" ? null : await vendedorDoMeuDia(usuario.id).catch(() => null);
   itens = itens.filter((i) => i.href !== "/meu-dia" || Boolean(noMeuDia));
 
+  // InterChat: foto da pessoa (cadastro de vendedoras) e chave dos avisos
+  const [{ data: vendFoto }, chavePush] = await Promise.all([
+    usuario.vendedor_id
+      ? criarClienteAdmin().from("vendedores").select("foto_url").eq("id", usuario.vendedor_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    chavePublicaPush().catch(() => null),
+  ]);
+  const euChat = { id: usuario.id, nome: usuario.nome, perfil: usuario.perfil, foto: (vendFoto?.foto_url as string | null) ?? null };
+
   return (
+    <ProvedorInterChat eu={euChat} ehGestor={usuario.perfil === "gestor"} chavePush={chavePush}>
     <AppShell
       usuario={usuario}
       itens={itens}
@@ -49,6 +62,8 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       {children}
       <PopupAvisos iniciais={await avisosPendentes(usuario.id).catch(() => [])} />
       {noMeuDia && <AbrirMeuDia />}
+      <DockInterChat />
     </AppShell>
+    </ProvedorInterChat>
   );
 }
