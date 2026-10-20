@@ -68,7 +68,7 @@ export type DadosDashboard = {
 export async function carregarDashboard(
   periodo: Periodo,
   popId: string | null,
-  /** coordenador de TIME: metas destas vendedoras (a RLS já limita as vendas) */
+  /** coordenador de TIME: metas e vendas só destas vendedoras */
   timeIds: string[] | null = null
 ): Promise<DadosDashboard> {
   const supabase = criarClienteServidor();
@@ -87,6 +87,8 @@ export async function carregarDashboard(
     .gte("data_venda", menorData)
     .limit(5000);
   if (popId) consulta = consulta.eq("pop_id", popId);
+  // coordenador de TIME: só as vendas das vendedoras do time que valem no mês
+  if (timeIds) consulta = consulta.in("vendedor_id", timeIds);
 
   // pendências (5.7/5.8): busca o estoque inteiro e separa depois entre o que
   // foi vendido dentro do período filtrado e o passivo antigo (foraDoPeriodo)
@@ -99,6 +101,7 @@ export async function carregarDashboard(
     .neq("status", "cancelado")
     .limit(5000);
   if (popId) consultaPendencias = consultaPendencias.eq("pop_id", popId);
+  if (timeIds) consultaPendencias = consultaPendencias.in("vendedor_id", timeIds);
 
   // D9: aguardando instalação = OS de instalação ABERTA no SGP (mesma régua
   // da Esteira — a aproximação D3 zera o critério antigo por data_ativacao)
@@ -108,6 +111,7 @@ export async function carregarDashboard(
     .eq("situacao", "aberta")
     .limit(1000);
   if (popId) consultaOsAbertas = consultaOsAbertas.eq("contratos.pop_id", popId);
+  if (timeIds) consultaOsAbertas = consultaOsAbertas.in("contratos.vendedor_id", timeIds);
 
   const [
     { data: contratosBrutos },

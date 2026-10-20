@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { exigirPerfil } from "@/lib/auth";
 import { EvolucaoVendas } from "@/components/dashboard/evolucao-vendas";
-import { resolverPeriodo } from "@/lib/datas";
+import { hojeIso, primeiroDiaDoMes, resolverPeriodo } from "@/lib/datas";
 import { carregarDashboard } from "@/lib/dashboard/dados";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
@@ -180,7 +180,12 @@ export default async function DashboardPage({
   const popFiltro = popSupervisor ?? (usuario.perfil === "supervisor" ? null : searchParams.pop || null);
   const ehGestor = usuario.perfil === "gestor";
 
-  const d = await carregarDashboard(periodo, popFiltro, timeIds);
+  // meta e resultado do coordenador de TIME: só quem tem meta no mês atual
+  // (férias/desligadas fora); o gráfico de 6 meses segue com o time inteiro
+  const { timeComMetaNoMes } = await import("@/lib/coordenacao");
+  const timeDoMes = timeIds ? await timeComMetaNoMes(timeIds, primeiroDiaDoMes(hojeIso())) : null;
+
+  const d = await carregarDashboard(periodo, popFiltro, timeDoMes);
 
   // trilho de alertas: POPs abaixo de 70% da meta e vendas aguardando decisão
   const admin = criarClienteAdmin();
@@ -286,9 +291,9 @@ export default async function DashboardPage({
   const metaUnidade = (pid: string) =>
     Number((metasPopMes ?? []).find((m) => m.referencia_id === pid)?.quantidade_vendas ?? 0) ||
     somaAgentesDoPop(pid);
-  const metaMensalTotal = timeIds
+  const metaMensalTotal = timeDoMes
     ? (metasMesRows ?? [])
-        .filter((m) => timeIds.includes(m.referencia_id as string))
+        .filter((m) => timeDoMes.includes(m.referencia_id as string))
         .reduce((t, m) => t + Number(m.quantidade_vendas ?? 0), 0)
     : popSupervisor
       ? metaUnidade(popSupervisor)

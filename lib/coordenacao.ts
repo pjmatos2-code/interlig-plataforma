@@ -24,3 +24,20 @@ export async function timeDoCoordenador(usuarioId: string): Promise<string[] | n
   ]);
   return ids.size > 0 ? [...ids] : null;
 }
+
+/**
+ * Time que vale no mês (20/10/2026): só quem tem meta de vendedora
+ * cadastrada naquele mês — férias e desligamentos ficam sem meta e saem da
+ * meta E do resultado do coordenador (ex.: out/2026, Marcelo = só Jessica).
+ * Se ninguém do time tiver meta no mês, vale o time inteiro.
+ */
+export async function timeComMetaNoMes(ids: string[], mesIso: string): Promise<string[]> {
+  const { data } = await criarClienteAdmin()
+    .from("metas")
+    .select("referencia_id")
+    .eq("escopo", "vendedora")
+    .eq("mes_ano", mesIso)
+    .in("referencia_id", ids);
+  const comMeta = new Set((data ?? []).map((m) => m.referencia_id as string));
+  return comMeta.size > 0 ? ids.filter((id) => comMeta.has(id)) : ids;
+}
