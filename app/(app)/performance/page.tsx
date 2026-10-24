@@ -74,7 +74,8 @@ export default async function VisaoGeral({ searchParams }: { searchParams: Searc
         <Kpi
           rotulo="Meta de vendas"
           valor={t.metaPeriodo ? `${fmtNum(t.vendasComMeta)}/${fmtNum(t.metaPeriodo)}` : "Sem meta"}
-          contexto={t.metaPct !== null ? `${fmtPct(t.metaPct)} da meta proporcional${t.vendas > t.vendasComMeta ? ` · ${fmtNum(t.vendas - t.vendasComMeta)} venda(s) de quem está sem meta fora` : ""}` : undefined}
+          contexto={t.metaPct !== null ? `${fmtPct(t.metaPct)} da meta proporcional${t.vendas > t.vendasComMeta ? " · só quem tem meta" : ""}` : undefined}
+          titulo={t.vendas > t.vendasComMeta ? `${fmtNum(t.vendas - t.vendasComMeta)} venda(s) de quem está sem meta no mês ficam fora do cumprimento (mesma regra do dashboard).` : undefined}
           rodape={<BarraProgresso fracao={t.metaPct} />}
         />
       </div>
