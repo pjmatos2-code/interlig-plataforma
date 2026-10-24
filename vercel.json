@@ -5,6 +5,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/performance/rotina",
+      "schedule": "*/10 * * * *"
+    },
+    {
       "path": "/api/sync/rotinas",
       "schedule": "*/5 * * * *"
     }

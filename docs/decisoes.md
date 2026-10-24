@@ -650,3 +650,24 @@ Total: 73 pendentes de 314 vendas de maio (23%).
   `/tv` redireciona para `/tv/comercial`; `/tv/ranking` (totem vertical)
   segue separado. Botão "Ver no modo TV" no dashboard principal.
 - Mês sem metas cadastradas: a TV usa as metas do último mês cadastrado.
+
+## Performance Comercial — regras de apuração (24/10/2026)
+
+- Módulo novo em `/performance` (docs em `docs/performance-comercial/`).
+  Indicadores são apoio à gestão: não usar isoladamente para decisão
+  trabalhista ou disciplinar.
+- **Leads** excluem os tickets criados a partir de venda lançada direto no SGP
+  (`sgp_auto`) — não houve trabalho comercial antes da venda.
+- **Retornos automáticos do robô** entram na fila de follow-ups (são compromisso
+  com o cliente), mas ficam fora da taxa de execução por padrão (configurável).
+- **Coordenador:** a meta no registro de vendedor dele é a da coordenação; fica
+  fora das metas individuais, das somas por unidade e do ranking. Total da
+  equipe = quem tem meta no mês (mesma regra do dashboard, decisão de 20/10).
+- **Comparabilidade do ranking:** mesma função, ativo, fora da rampa (30 dias),
+  disponível ≥ 50% do período, com meta quando a função tem metas e cobertura
+  do esforço ≥ 40%. Os demais aparecem com o motivo, sem posição.
+- **Esforço** vai para quem agiu; **resultado** para o vendedor do contrato.
+- **Projeção** de meta é sempre rotulada como estimativa.
+- Rotina com cron próprio (`/api/performance/rotina`, 10 min), fora do
+  `/api/sync`; nunca grava status "executando" em `sync_runs`.
+- IA desligada por padrão; ligar é decisão do gestor nas Configurações.
