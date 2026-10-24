@@ -103,6 +103,8 @@ export async function recalcularConversas(opts: { todas?: boolean; prazoMs?: num
         })
         .eq("id", c.id);
       if (eUp) throw new Error(`recalcular ${c.id}: ${eUp.message}`);
+      // a análise da IA acompanha o vínculo novo (atendente mapeado depois, lead criado depois)
+      await admin.from("analises_conversa").update({ vendedor_id: calc.vendedor_principal_id, ticket_id: ticketId }).eq("conversa_id", c.id);
       // vínculo dos agentes nas mensagens também pode ter mudado: uma
       // atualização por agente da conversa, não por mensagem
       const nomes = new Set(mensagens.filter((x) => x.autor === "agente" && x.agenteNome).map((x) => x.agenteNome!));

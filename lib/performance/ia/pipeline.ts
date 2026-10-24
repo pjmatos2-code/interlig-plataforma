@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { carregarConfig, carregarDiasUteis } from "../config-servidor";
+import { todas } from "../dados/paginar";
 import { somarSegundosUteis } from "../expediente";
 import { nomesInformadosNaConversa } from "../mascara";
 import { custoEstimadoUsd } from "./custos";
@@ -81,17 +82,20 @@ export async function processarFila(opts: { limite?: number; prazoMs?: number; m
 
   // tetos: análises do dia e custo do mês
   const hoje = new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10);
-  const [{ count: hojeFeitas }, { data: doMes }] = await Promise.all([
+  const [{ count: hojeFeitas }, { usd: custoMes }] = await Promise.all([
     admin.from("analises_conversa").select("id", { count: "exact", head: true }).eq("status", "concluida").gte("concluido_em", `${hoje}T00:00:00-03:00`),
-    admin.from("analises_conversa").select("custo_estimado").gte("concluido_em", `${hoje.slice(0, 7)}-01T00:00:00-03:00`).not("custo_estimado", "is", null).limit(20_000),
+    custoIaDoMes(hoje),
   ]);
-  const custoMes = (doMes ?? []).reduce((s, a) => s + Number(a.custo_estimado ?? 0), 0);
   if (custoMes >= cfg.ia.custo_max_mensal_usd) return { ...resumo, parado: `teto mensal de custo atingido (US$ ${custoMes.toFixed(2)})` };
   const restantesHoje = Math.max(0, cfg.ia.limite_diario - (hojeFeitas ?? 0));
   if (restantesHoje === 0) return { ...resumo, parado: "limite diário de análises atingido" };
 
   const limite = Math.min(opts.limite ?? 10, restantesHoje);
   const prazo = opts.prazoMs ? Date.now() + opts.prazoMs : null;
+  // função cortada no meio deixa a linha "processando": depois de 10 min volta para a fila
+  const presas = new Date(Date.now() - 10 * 60_000).toISOString();
+  await admin.from("analises_conversa").update({ status: "pendente", erro: "interrompida (tempo da função); volta para a fila" }).eq("status", "processando").lt("iniciado_em", presas).lt("tentativas", 3);
+  await admin.from("analises_conversa").update({ status: "erro", erro: "interrompida 3 vezes pelo tempo da função" }).eq("status", "processando").lt("iniciado_em", presas).gte("tentativas", 3);
   const { data: run } = await admin.from("analise_runs").insert({ data_referencia: hoje, status: "rodando" }).select("id").single();
   const [{ data: planosBrutos }, { data: argumentos }, ehDiaUtil, { data: bairros }] = await Promise.all([
     admin.from("planos").select("nome, velocidade, valor_referencia").eq("ativo", true).gt("valor_referencia", 0).order("valor_referencia"),
@@ -106,7 +110,8 @@ export async function processarFila(opts: { limite?: number; prazoMs?: number; m
 
   try {
     for (let i = 0; i < limite; i++) {
-      if (prazo && Date.now() > prazo) break;
+      // só começa outra análise se der tempo de terminar dentro do prazo
+      if (prazo && prazo - Date.now() < 20_000) break;
       if (resumo.custo + custoMes >= cfg.ia.custo_max_mensal_usd) {
         resumo.parado = "teto mensal de custo atingido";
         break;
@@ -114,7 +119,7 @@ export async function processarFila(opts: { limite?: number; prazoMs?: number; m
       // pega 1 pendente e marca "processando" (evita duas execuções pegarem a mesma)
       const { data: candidatas } = await admin
         .from("analises_conversa")
-        .select("id, conversa_id, ticket_id, vendedor_id, tentativas")
+        .select("id, conversa_id, ticket_id, vendedor_id, tentativas, custo_estimado")
         .eq("status", "pendente")
         .or(`proxima_tentativa_em.is.null,proxima_tentativa_em.lte.${new Date().toISOString()}`)
         .order("prioridade")
@@ -149,9 +154,11 @@ export async function processarFila(opts: { limite?: number; prazoMs?: number; m
         continue;
       }
       const prompt = montarPrompt({ mensagens, planos, equipe: (conv?.equipe as string | null) ?? null, argumentos: argumentosTexto });
-      const r = await provedor.analisar({ system: prompt.system, user: prompt.user });
+      const r = await provedor.analisar({ system: prompt.system, user: prompt.user }, prazo ? { timeoutMs: Math.max(15_000, Math.min(60_000, prazo - Date.now() - 5_000)) } : undefined);
       const custo = custoEstimadoUsd(provedor.modelo, r.tokensEntrada, r.tokensSaida);
       resumo.custo += custo;
+      // acumula as tentativas da mesma conversa (falha também custa)
+      const custoAcumulado = Math.round((Number(alvo.custo_estimado ?? 0) + custo) * 100_000) / 100_000;
       if (!r.ok) {
         resumo.erros++;
         const definitivo = !r.tentarDeNovo || Number(alvo.tentativas) + 1 >= 3;
@@ -163,7 +170,7 @@ export async function processarFila(opts: { limite?: number; prazoMs?: number; m
             proxima_tentativa_em: definitivo ? null : new Date(Date.now() + 15 * 60_000 * (Number(alvo.tentativas) + 1)).toISOString(),
             tokens_entrada: r.tokensEntrada || null,
             tokens_saida: r.tokensSaida || null,
-            custo_estimado: custo || null,
+            custo_estimado: custoAcumulado || null,
             provedor: provedor.nome,
             modelo: provedor.modelo,
           })
@@ -183,7 +190,7 @@ export async function processarFila(opts: { limite?: number; prazoMs?: number; m
       });
       if (!a) {
         resumo.erros++;
-        await admin.from("analises_conversa").update({ status: "erro", erro: "saída reprovada na validação", provedor: provedor.nome, modelo: r.modelo, tokens_entrada: r.tokensEntrada, tokens_saida: r.tokensSaida, custo_estimado: custo }).eq("id", alvo.id);
+        await admin.from("analises_conversa").update({ status: "erro", erro: "saída reprovada na validação", provedor: provedor.nome, modelo: r.modelo, tokens_entrada: r.tokensEntrada, tokens_saida: r.tokensSaida, custo_estimado: custoAcumulado }).eq("id", alvo.id);
         continue;
       }
       // evidência: número da mensagem → id, para destacar na tela
@@ -204,7 +211,7 @@ export async function processarFila(opts: { limite?: number; prazoMs?: number; m
           modelo: r.modelo,
           tokens_entrada: r.tokensEntrada,
           tokens_saida: r.tokensSaida,
-          custo_estimado: custo,
+          custo_estimado: custoAcumulado,
           erro: null,
           concluido_em: new Date().toISOString(),
         })
@@ -258,12 +265,61 @@ export async function processarFila(opts: { limite?: number; prazoMs?: number; m
   return resumo;
 }
 
-/** apaga o TEXTO das mensagens além da retenção (metadados e tempos ficam) */
+/**
+ * Retenção (LGPD): além da retenção apaga o TEXTO das mensagens e o texto
+ * livre das análises da IA (resumo, justificativas, sinais, evidências).
+ * Ficam tempos, contagens e as classificações estruturadas (temperatura,
+ * objeções, situação, notas) — o que alimenta os indicadores.
+ */
 export async function purgarTextosExpirados() {
   const cfg = await carregarConfig();
+  const admin = criarClienteAdmin();
   // piso de 7 dias: uma configuração errada (0) não apaga o texto de tudo de uma vez
   const corte = new Date(Date.now() - Math.max(7, cfg.ia.retencao_texto_dias) * 86_400_000).toISOString();
-  const { data, error } = await criarClienteAdmin().from("conversas_mensagens").update({ texto: null }).lt("enviada_em", corte).not("texto", "is", null).select("id");
+  const { data, error } = await admin.from("conversas_mensagens").update({ texto: null }).lt("enviada_em", corte).not("texto", "is", null).select("id");
   if (error) throw new Error(`retenção: ${error.message}`);
-  return { apagados: data?.length ?? 0 };
+  // análises: até 500 por rodada (a rotina diária dá conta do acumulado)
+  const { data: velhas, error: e2 } = await admin
+    .from("analises_conversa")
+    .select("id, resultado")
+    .lt("concluido_em", corte)
+    .not("resultado", "is", null)
+    .is("resultado->expurgado", null)
+    .order("concluido_em")
+    .limit(500);
+  if (e2) throw new Error(`retenção das análises: ${e2.message}`);
+  for (const a of velhas ?? []) {
+    const r = (a.resultado ?? {}) as Record<string, unknown>;
+    const enxuto = {
+      expurgado: new Date().toISOString(),
+      temperatura: r.temperatura ?? null,
+      intencao_compra: r.intencao_compra ?? null,
+      objecoes: r.objecoes ?? [],
+      status_lead: r.status_lead ?? null,
+      onde_parou: r.onde_parou ?? null,
+      estagio_estimado: r.estagio_estimado ?? null,
+      prioridade: r.prioridade ?? null,
+      probabilidade_fechamento: r.probabilidade_fechamento ?? null,
+      plano_interesse: r.plano_interesse ?? null,
+      confianca: r.confianca ?? null,
+      qualidade_atendimento: Array.isArray(r.qualidade_atendimento) ? (r.qualidade_atendimento as { criterio: string; nota: number | null }[]).map((q) => ({ criterio: q.criterio, nota: q.nota, justificativa: "" })) : [],
+      oportunidade_esquecida: r.oportunidade_esquecida && typeof r.oportunidade_esquecida === "object" ? { tipo: (r.oportunidade_esquecida as { tipo?: string }).tipo ?? null, descricao: "" } : null,
+      resumo: "",
+      proximo_passo: "",
+      sinais_intencao: [],
+      evidencias: [],
+    };
+    const { error: e3 } = await admin.from("analises_conversa").update({ resultado: enxuto }).eq("id", a.id);
+    if (e3) throw new Error(`retenção da análise ${a.id}: ${e3.message}`);
+  }
+  return { apagados: data?.length ?? 0, analisesEnxutas: velhas?.length ?? 0 };
+}
+
+/** custo estimado do mês: todas as tentativas (inclusive as que falharam), paginado */
+export async function custoIaDoMes(hoje: string): Promise<{ usd: number; analises: number }> {
+  const admin = criarClienteAdmin();
+  const linhas = await todas<{ custo_estimado: number | string | null }>((de, ate) =>
+    admin.from("analises_conversa").select("id, custo_estimado").gte("iniciado_em", `${hoje.slice(0, 7)}-01T00:00:00-03:00`).not("custo_estimado", "is", null).order("id").range(de, ate)
+  );
+  return { usd: Math.round(linhas.reduce((s, a) => s + Number(a.custo_estimado ?? 0), 0) * 1000) / 1000, analises: linhas.length };
 }

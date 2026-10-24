@@ -43,6 +43,34 @@ async function historico(followupId: string, evento: string, usuarioId: string, 
 }
 
 const dataValida = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) && Number.isFinite(Date.parse(`${d}T12:00:00Z`));
+const diaStm = (iso: string) => new Date(Date.parse(iso) - 3 * 3_600_000).toISOString().slice(0, 10);
+const hojeStm = () => diaStm(new Date().toISOString());
+const gestao = (e: EscopoPerformance) => e.papel === "admin" || e.papel === "supervisor" || e.papel === "gerente_unidade";
+
+/** o retorno que o CRM guarda no ticket (um só por ticket) */
+async function retornoDoCrm(ticketId: string): Promise<string | null> {
+  const { data } = await criarClienteAdmin().from("tickets").select("followup_em").eq("id", ticketId).maybeSingle();
+  return (data?.followup_em as string | null) ?? null;
+}
+
+/**
+ * O CRM só recebe a data nova se o ticket não tiver OUTRO retorno futuro —
+ * senão a ação sobre um follow-up antigo apagaria o retorno vigente (o
+ * ticket guarda uma data só). Devolve a data mantida, quando for o caso.
+ */
+async function outroRetornoFuturo(ticketId: string, diaDoFollowup: string | null): Promise<string | null> {
+  const atual = await retornoDoCrm(ticketId);
+  if (!atual) return null;
+  const dia = diaStm(atual);
+  return dia >= hojeStm() && dia !== diaDoFollowup ? dia : null;
+}
+
+/** a RLS do CRM bloqueia em silêncio: confere com o service role se gravou */
+async function crmGravouRetorno(ticketId: string, dia: string | null): Promise<boolean> {
+  const atual = await retornoDoCrm(ticketId);
+  return dia === null ? atual === null : atual !== null && diaStm(atual) === dia;
+}
+const SEM_PERMISSAO_CRM = "O CRM não aceitou a alteração neste lead (sem permissão no CRM para ele). Nada foi mudado.";
 
 // ---------------------------------------------------------------------------
 // Follow-ups
@@ -52,14 +80,24 @@ export async function concluirFollowupPerf(id: string, resultado: string | null)
   if (!podeAgir(escopo)) return { erro: "Seu perfil só consulta este módulo." };
   const f = await followupDoEscopo(escopo, id);
   if (!f) return { erro: "Follow-up fora do seu escopo." };
+  if (!["programado", "pendente", "vencido"].includes(f.status as string)) return { erro: "Este follow-up não está em aberto." };
   const res = ["avancou", "assinou", "sem_resposta", "perdido"].includes(resultado ?? "") ? resultado : null;
   // conclui no CRM também: lembrete ⏰ fecha o próprio lembrete; retorno tira
-  // a data do ticket — sempre registrando quem fez e quando
+  // a data do ticket SÓ se for este retorno (outro retorno vigente fica)
   const chave = String(f.chave ?? "");
-  const r = chave.startsWith("acao:")
-    ? await concluirAcaoTicket(chave.slice(5), f.ticket_id as string)
-    : await concluirNoCrm(f.ticket_id as string);
-  if (r.erro) return { erro: `CRM: ${r.erro}` };
+  if (chave.startsWith("acao:")) {
+    const r = await concluirAcaoTicket(chave.slice(5), f.ticket_id as string);
+    if (r.erro) return { erro: `CRM: ${r.erro}` };
+    const { data: acao } = await criarClienteAdmin().from("ticket_acoes").select("concluida_em").eq("id", chave.slice(5)).maybeSingle();
+    if (acao && !acao.concluida_em) return { erro: SEM_PERMISSAO_CRM };
+  } else {
+    const atual = await retornoDoCrm(f.ticket_id as string);
+    if (atual && diaStm(atual) === diaStm(f.prazo as string)) {
+      const r = await concluirNoCrm(f.ticket_id as string);
+      if (r.erro) return { erro: `CRM: ${r.erro}` };
+      if (!(await crmGravouRetorno(f.ticket_id as string, null))) return { erro: SEM_PERMISSAO_CRM };
+    }
+  }
   const quando = agora();
   const limite = Date.parse(`${new Date(Date.parse(f.prazo as string) - 3 * 3_600_000).toISOString().slice(0, 10)}T23:59:59.999-03:00`);
   await criarClienteAdmin()
@@ -77,14 +115,20 @@ export async function reprogramarFollowupPerf(id: string, novaData: string): Pro
   if (!dataValida(novaData) || novaData < new Date(Date.now() - 3 * 3_600_000).toISOString().slice(0, 10)) return { erro: "Escolha uma data de hoje em diante." };
   const f = await followupDoEscopo(escopo, id);
   if (!f) return { erro: "Follow-up fora do seu escopo." };
-  const fd = new FormData();
-  fd.set("ticket_id", f.ticket_id as string);
-  fd.set("followup_em", novaData);
-  const r = await agendarNoCrm({}, fd);
-  if (r.erro) return { erro: `CRM: ${r.erro}` };
+  if (!["programado", "pendente", "vencido"].includes(f.status as string)) return { erro: "Só follow-up em aberto pode ser reprogramado." };
+  const mantido = await outroRetornoFuturo(f.ticket_id as string, diaStm(f.prazo as string));
+  if (!mantido) {
+    const fd = new FormData();
+    fd.set("ticket_id", f.ticket_id as string);
+    fd.set("followup_em", novaData);
+    const r = await agendarNoCrm({}, fd);
+    if (r.erro) return { erro: `CRM: ${r.erro}` };
+    if (!(await crmGravouRetorno(f.ticket_id as string, novaData))) return { erro: SEM_PERMISSAO_CRM };
+  }
   const admin = criarClienteAdmin();
-  await admin.from("followups").update({ status: "cancelado", cancelado_em: agora(), motivo_cancelamento: "reprogramado", atualizado_em: agora() }).eq("id", id);
-  await historico(id, "reprogramado", escopo.usuario.id, { para: novaData });
+  // vencido continua vencido (conta na taxa de execução); em aberto vira o novo prazo
+  if (f.status !== "vencido") await admin.from("followups").update({ status: "cancelado", cancelado_em: agora(), motivo_cancelamento: "reprogramado", atualizado_em: agora() }).eq("id", id);
+  await historico(id, "reprogramado", escopo.usuario.id, { para: novaData, ...(mantido ? { crm_mantido: mantido } : {}) });
   const prazo = `${novaData}T12:00:00.000Z`;
   const { data: novo } = await admin
     .from("followups")
@@ -95,7 +139,7 @@ export async function reprogramarFollowupPerf(id: string, novaData: string): Pro
     .select("id");
   if (novo?.[0]) await historico(novo[0].id as string, "criado", escopo.usuario.id, { de_followup: id });
   revalidar();
-  return { ok: "Retorno reprogramado no CRM." };
+  return { ok: mantido ? `Retorno reprogramado. O CRM segue com o retorno de ${mantido.split("-").reverse().join("/")}, que já estava marcado.` : "Retorno reprogramado no CRM." };
 }
 
 export async function cancelarFollowupPerf(id: string, motivo: string): Promise<Resposta> {
@@ -104,6 +148,9 @@ export async function cancelarFollowupPerf(id: string, motivo: string): Promise<
   if (motivo.trim().length < 5) return { erro: "Explique em poucas palavras por que cancelar." };
   const f = await followupDoEscopo(escopo, id);
   if (!f) return { erro: "Follow-up fora do seu escopo." };
+  if (!["programado", "pendente", "vencido"].includes(f.status as string)) return { erro: "Este follow-up não está em aberto." };
+  // vencido conta na taxa de execução: só a coordenação tira (ex.: lead fechou por outro caminho)
+  if (f.status === "vencido" && !gestao(escopo)) return { erro: "Retorno vencido só é cancelado pela coordenação — ele conta na taxa de execução." };
   await criarClienteAdmin().from("followups").update({ status: "cancelado", cancelado_em: agora(), motivo_cancelamento: motivo.trim().slice(0, 300), atualizado_em: agora() }).eq("id", id);
   await historico(id, "cancelado", escopo.usuario.id, { motivo: motivo.trim().slice(0, 300) });
   revalidar();
@@ -116,15 +163,26 @@ export async function aceitarSugestaoPerf(id: string, data: string): Promise<Res
   if (!dataValida(data)) return { erro: "Data inválida." };
   const f = await followupDoEscopo(escopo, id);
   if (!f || f.status !== "sugerido") return { erro: "Sugestão não encontrada no seu escopo." };
-  const fd = new FormData();
-  fd.set("ticket_id", f.ticket_id as string);
-  fd.set("followup_em", data);
-  const r = await agendarNoCrm({}, fd);
-  if (r.erro) return { erro: `CRM: ${r.erro}` };
-  await criarClienteAdmin().from("followups").update({ status: "programado", prazo: `${data}T12:00:00.000Z`, data_referencia: data, atualizado_em: agora() }).eq("id", id);
-  await historico(id, "aceito", escopo.usuario.id, { prazo: data });
+  if (data < hojeStm()) return { erro: "Escolha uma data de hoje em diante." };
+  const mantido = await outroRetornoFuturo(f.ticket_id as string, null);
+  if (!mantido) {
+    const fd = new FormData();
+    fd.set("ticket_id", f.ticket_id as string);
+    fd.set("followup_em", data);
+    const r = await agendarNoCrm({}, fd);
+    if (r.erro) return { erro: `CRM: ${r.erro}` };
+    if (!(await crmGravouRetorno(f.ticket_id as string, data))) return { erro: SEM_PERMISSAO_CRM };
+  }
+  // mesma chave que a importação do CRM usa: o retorno agendado não vira duas linhas
+  const admin = criarClienteAdmin();
+  const prazo = `${data}T12:00:00.000Z`;
+  const chaveCrm = `crm:${f.ticket_id}:${prazo}`;
+  const { data: ja } = await admin.from("followups").select("id").eq("chave", chaveCrm).maybeSingle();
+  if (ja) await admin.from("followups").update({ status: "cancelado", cancelado_em: agora(), motivo_cancelamento: "sugestão aceita — o retorno já estava registrado", atualizado_em: agora() }).eq("id", id);
+  else await admin.from("followups").update({ status: "programado", prazo, chave: chaveCrm, data_referencia: data, atualizado_em: agora() }).eq("id", id);
+  await historico(id, "aceito", escopo.usuario.id, { prazo: data, ...(mantido ? { crm_mantido: mantido } : {}) });
   revalidar();
-  return { ok: "Sugestão aceita: retorno agendado no CRM." };
+  return { ok: mantido ? `Sugestão aceita. O CRM segue com o retorno de ${mantido.split("-").reverse().join("/")}, que já estava marcado.` : "Sugestão aceita: retorno agendado no CRM." };
 }
 
 export async function rejeitarSugestaoPerf(id: string, motivo: string): Promise<Resposta> {
@@ -146,11 +204,14 @@ export async function agendarRetornoPerf(ticketId: string, data: string): Promis
   const { data: t } = await criarClienteAdmin().from("tickets").select("id, vendedor_id, etapa").eq("id", ticketId).maybeSingle();
   if (!t || !alcanca(escopo, t.vendedor_id as string | null)) return { erro: "Lead fora do seu escopo." };
   if (t.etapa === "fechado") return { erro: "Lead fechado não recebe retorno — reabra no CRM." };
+  const mantido = await outroRetornoFuturo(ticketId, data);
+  if (mantido) return { erro: `O lead já tem retorno marcado para ${mantido.split("-").reverse().join("/")} no CRM.` };
   const fd = new FormData();
   fd.set("ticket_id", ticketId);
   fd.set("followup_em", data);
   const r = await agendarNoCrm({}, fd);
   if (r.erro) return { erro: `CRM: ${r.erro}` };
+  if (!(await crmGravouRetorno(ticketId, data))) return { erro: SEM_PERMISSAO_CRM };
   const prazo = `${data}T12:00:00.000Z`;
   const { data: novo } = await criarClienteAdmin()
     .from("followups")

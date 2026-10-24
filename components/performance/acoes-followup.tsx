@@ -31,7 +31,7 @@ function Mensagem({ msg }: { msg: Resposta | null }) {
 const botao = "inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs font-medium hover:bg-muted disabled:opacity-50";
 
 /** concluir (com resultado), reprogramar e cancelar um follow-up aberto */
-export function AcoesFollowup({ id }: { id: string }) {
+export function AcoesFollowup({ id, podeCancelar = true }: { id: string; /** vencido só a coordenação cancela (conta na taxa de execução) */ podeCancelar?: boolean }) {
   const { pendente, msg, rodar } = useAcao();
   const [modo, setModo] = useState<"nada" | "concluir" | "reprogramar" | "cancelar">("nada");
   const [data, setData] = useState(amanha());
@@ -46,9 +46,11 @@ export function AcoesFollowup({ id }: { id: string }) {
           <button type="button" className={botao} onClick={() => setModo("reprogramar")} disabled={pendente}>
             <CalendarClock className="h-3.5 w-3.5" aria-hidden /> Reprogramar
           </button>
-          <button type="button" className={cn(botao, "text-muted-foreground")} onClick={() => setModo("cancelar")} disabled={pendente} aria-label="Cancelar follow-up">
-            <X className="h-3.5 w-3.5" aria-hidden />
-          </button>
+          {podeCancelar && (
+            <button type="button" className={cn(botao, "text-muted-foreground")} onClick={() => setModo("cancelar")} disabled={pendente} aria-label="Cancelar follow-up">
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          )}
         </div>
       )}
       {modo === "concluir" && (

@@ -262,7 +262,8 @@ export function calcularLinha(base: BaseDados, idx: Indices, v: VendedorBase, de
     realizados: meusFu.filter((f) => f.concluido_em && noPeriodo(Date.parse(f.concluido_em)) && f.status.startsWith("concluido")).length,
     vencidos: devidos.filter((f) => f.status === "vencido").length,
   };
-  const fuAbertos = meusFu.filter((f) => ["programado", "pendente", "vencido"].includes(f.status));
+  // fila operacional: todas as origens (o retorno do robô também é compromisso com o cliente)
+  const fuAbertos = base.followups.filter((f) => f.vendedor_id === v.id && ["programado", "pendente", "vencido"].includes(f.status));
 
   // ---------- leads abertos agora: sem retorno e disciplina
   const abertos = leads.filter((t) => t.vendedor_id === v.id && t.etapa !== "fechado");

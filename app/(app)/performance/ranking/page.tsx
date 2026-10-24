@@ -141,7 +141,8 @@ export default async function RankingPage({ searchParams }: { searchParams: Sear
                             )}
                             <span className="block text-xs text-muted-foreground">
                               {l.vendedor.pop_nome ?? "—"}
-                              {l.flags.motivoNaoComparavel && <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[11px]">{l.flags.motivoNaoComparavel}</span>}
+                              {/* o motivo (afastamento, rampa, desligamento) é da gestão: a colega vê só "fora da comparação" */}
+                              {l.flags.motivoNaoComparavel && <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[11px]">{ver ? l.flags.motivoNaoComparavel : "fora da comparação"}</span>}
                             </span>
                           </td>
                           <td className="py-2.5 text-right tabular-nums">{ver ? fmtNum(l.numeros.leadsRecebidos) : oculto}</td>

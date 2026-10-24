@@ -38,6 +38,12 @@ export type Apuracao = {
   totaisAnteriores: TotaisPerformance;
   cobertura: CoberturaDados;
   base: BaseDados;
+  /**
+   * Item (lead, conversa, análise) dentro do escopo e dos filtros. Sem dono
+   * (sem vendedor) só no escopo total e sem filtro de pessoa — senão um
+   * vendedor ou supervisor veria conversas/leads de outros.
+   */
+  noEscopo: (vendedorId: string | null | undefined, popId?: string | null) => boolean;
 };
 
 // cache em memória (60 s) da base carregada: trocar de aba não refaz a leitura.
@@ -83,6 +89,9 @@ export const apurarPerformance = cache(async (escopo: EscopoPerformance, periodo
   const anteriores = new Map(anterioresLista.map((l) => [l.vendedor.id, l]));
 
   const incluirSemDono = escopo.vendedorIds === null && !filtros.vendedorId && !filtros.coordenadorId && !filtros.setor;
+  const idsLinhas = new Set(linhas.map((l) => l.vendedor.id));
+  const noEscopo = (vendedorId: string | null | undefined, popId?: string | null) =>
+    vendedorId ? idsLinhas.has(vendedorId) : incluirSemDono && (!filtros.popId || popId === filtros.popId);
   const totais = calcularTotais(base, idx, linhas, periodo.de, periodo.ate, { incluirSemDono, popId: filtros.popId });
   const totaisAnteriores = calcularTotais(base, idx, anterioresLista.filter(temAtividade), periodo.deAnterior, periodo.ateAnterior, { incluirSemDono, popId: filtros.popId });
 
@@ -128,5 +137,6 @@ export const apurarPerformance = cache(async (escopo: EscopoPerformance, periodo
       primeiroFollowup: fuOrdenados[0]?.criado_em ?? null,
     },
     base,
+    noEscopo,
   };
 });

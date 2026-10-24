@@ -224,7 +224,7 @@ export default async function RelatoriosMetasPage({ searchParams }: { searchPara
                     </td>
                     <td className="py-2.5">
                       {m.aplicaA}
-                      {m.parcial && <span className="block text-[11px] text-muted-foreground">parcial: só {m.membros} do filtro atual</span>}
+                      {m.parcial && <span className="block text-[11px] text-muted-foreground">você vê {m.membros} de {m.alvo} vendedores do alvo — o realizado é só dessa parte</span>}
                     </td>
                     <td className="py-2.5 text-xs tabular-nums text-muted-foreground">
                       {m.janela.de === m.janela.ate ? fmtData(m.janela.de) : `${fmtData(m.janela.de)} a ${fmtData(m.janela.ate)}`}

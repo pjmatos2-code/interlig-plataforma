@@ -164,7 +164,7 @@ export default async function FollowupsPage({ searchParams }: { searchParams: Se
                         <td className="py-2.5 text-xs text-muted-foreground">{ROTULO_ORIGEM[f.origem] ?? f.origem}</td>
                         {podeAgir && (
                           <td className="py-2.5">
-                            <AcoesFollowup id={f.id} />
+                            <AcoesFollowup id={f.id} podeCancelar={f.status !== "vencido" || ["admin", "supervisor", "gerente_unidade"].includes(ctx.escopo.papel)} />
                           </td>
                         )}
                       </tr>

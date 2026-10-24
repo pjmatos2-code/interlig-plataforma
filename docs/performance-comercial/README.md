@@ -132,6 +132,32 @@ da apuração no log) e `PAUSA_MS` (ritmo do script de carga histórica).
 - Carga histórica do chat desde 01/08/2026 (parada e retomada a cada
   instabilidade do SZ, sem insistir com a conta do robô).
 
+## 9.1 Revisão crítica independente (seção 28)
+
+Um revisor separado leu o código sem as conclusões da implementação. Todos os
+14 achados foram conferidos no código e tratados:
+
+| Achado | Correção |
+|---|---|
+| Resumos da IA de conversas sem vendedor vinculado apareciam para vendedor/supervisor | regra única `noEscopo` na apuração: item sem dono só no escopo total e sem filtro de pessoa (conversas, visão geral, funil, relatórios); análise acompanha o vínculo novo no recálculo |
+| Avaliação de follow-ups lia no máximo 1000 linhas (limite do PostgREST) | leitura paginada (`dados/paginar.ts`) e só atividade depois do agendamento |
+| Teto de custo da IA somava até 1000 linhas e ignorava tentativas com falha | custo acumulado por conversa (inclui falhas) e soma paginada do mês |
+| Vendedor cancelava/reprogramava retorno vencido e melhorava a própria taxa | só retorno em aberto; vencido continua contando; cancelar vencido só a coordenação |
+| Aceitar sugestão da IA duplicava o retorno | a sugestão aceita assume a chave do retorno do CRM |
+| Ação num follow-up antigo apagava o retorno vigente do CRM | o CRM só muda quando o follow-up é o retorno atual do ticket (ou não há outro futuro) |
+| Bloqueio silencioso da permissão do CRM aparecia como sucesso | conferência da gravação; sem permissão, nada muda e a tela avisa |
+| Fila por vendedor ignorava retornos do robô | contagens operacionais com todas as origens (a taxa segue sem o robô) |
+| Retenção não apagava o texto livre das análises | rotina diária enxuga resumo/justificativas após a retenção |
+| Meta global vista por supervisor parecia completa | meta apurada no alvo inteiro; visão parcial marcada, sem percentual |
+| Análise podia ficar presa em "processando" | volta para a fila após 10 min; tempo da chamada cabe no prazo da rotina |
+| Exportação de canais/perdas diferente da tela | mesma regra de escopo da tela |
+| Injeção de fórmula no CSV | texto que começa com `= + - @` vira texto |
+| Ranking mostrava o motivo de afastamento de colegas ao vendedor | colega vê só "fora da comparação" |
+
+Conferido no navegador depois das correções: todas as telas em 1440 e 390 px e,
+com um usuário vendedor temporário, só a própria análise visível, conversa de
+outra vendedora em 404, relatórios e configurações bloqueados, exportação 403.
+
 ## 10. Limitações
 
 - **Ligações, UTM/campanha, custo de mídia (CAC), SVA e upsell:** sem fonte de
@@ -142,6 +168,9 @@ da apuração no log) e `PAUSA_MS` (ritmo do script de carga histórica).
   histórico para calibrar.
 - **Atendentes do chat sem vendedor vinculado** não somam esforço a ninguém
   (lista na tela de Configurações; vincular em Administração).
+- **O CRM guarda um retorno por ticket:** reprogramar ou aceitar sugestão quando
+  o ticket já tem outro retorno futuro mantém o do CRM e registra o novo só no
+  módulo (a tela avisa).
 - Agosto/2026 tem dias com coleta parcial do SZ (instabilidade); a tela avisa
   quando a comparação entre períodos é afetada.
 

@@ -1,6 +1,7 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { carregarConfig, carregarDiasUteis } from "../config-servidor";
+import { todas } from "./paginar";
 import type { EscopoPerformance } from "../escopo";
 import type { PeriodoPerf } from "../periodo";
 import type { Reatribuicao } from "../regras/atribuicao";
@@ -26,24 +27,6 @@ import type {
  * os vendedores; tickets e conversas vêm inteiros porque um lead pode ter
  * passado por mais de um vendedor (atribuição exige o histórico todo).
  */
-
-const PAGINA = 1000;
-/** todas as páginas: a 1ª sozinha; se vier cheia, as seguintes em lotes de 4 em paralelo */
-async function todas<T>(montar: (de: number, ate: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>): Promise<T[]> {
-  const pagina = async (n: number) => {
-    const { data, error } = await montar(n * PAGINA, n * PAGINA + PAGINA - 1);
-    if (error) throw new Error(error.message);
-    return (data ?? []) as T[];
-  };
-  const saida: T[] = await pagina(0);
-  if (saida.length < PAGINA) return saida;
-  for (let n = 1; n < 200; n += 4) {
-    const lote = await Promise.all([n, n + 1, n + 2, n + 3].map(pagina));
-    for (const l of lote) saida.push(...l);
-    if (lote.some((l) => l.length < PAGINA)) break;
-  }
-  return saida;
-}
 
 const somaDias = (iso: string, d: number) => new Date(Date.parse(`${iso}T12:00:00Z`) + d * 86_400_000).toISOString().slice(0, 10);
 const inicioDoDia = (iso: string) => `${iso}T00:00:00-03:00`;

@@ -108,7 +108,7 @@ export function projetarFechamento(p: { realizado: number; realizadoEncerrado: n
   return Math.round((p.realizado + ritmo * p.diasRestantesDepois) * 10) / 10;
 }
 
-export type SituacaoMeta = "atingida" | "no_ritmo" | "abaixo_do_ritmo" | "nao_atingida" | "sem_projecao" | "abaixo" | "futura" | "sem_dados";
+export type SituacaoMeta = "atingida" | "no_ritmo" | "abaixo_do_ritmo" | "nao_atingida" | "sem_projecao" | "abaixo" | "futura" | "sem_dados" | "parcial";
 
 export const ROTULO_SITUACAO_META: Record<SituacaoMeta, string> = {
   atingida: "Atingida",
@@ -119,6 +119,7 @@ export const ROTULO_SITUACAO_META: Record<SituacaoMeta, string> = {
   abaixo: "Abaixo da meta",
   futura: "Ainda não começou",
   sem_dados: "Sem dados",
+  parcial: "Alvo maior que o seu escopo",
 };
 
 /**

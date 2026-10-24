@@ -51,9 +51,11 @@ export async function GET(req: NextRequest) {
 
   const arquivo = `performance-${chave}-${periodo.de}_a_${periodo.ate}`;
   if (formato === "csv") {
-    // Excel em português: vírgula decimal (o separador de colunas é ;)
+    // Excel em português: vírgula decimal (o separador de colunas é ;). Texto
+    // que começa com = + - @ vira texto (nome de perfil do WhatsApp não executa fórmula)
     const esc = (v: unknown) => {
-      const s = v === null || v === undefined ? "" : typeof v === "number" ? String(v).replace(".", ",") : String(v);
+      const bruto = v === null || v === undefined ? "" : typeof v === "number" ? String(v).replace(".", ",") : String(v);
+      const s = typeof v === "string" && /^[=+\-@\t\r]/.test(bruto) ? `'${bruto}` : bruto;
       return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const corpo = ["sep=;", `# ${rel.titulo} — documento interno restrito (LGPD)`, rel.colunas.map(esc).join(";"), ...rel.linhas.map((l) => l.map(esc).join(";"))].join("\r\n");

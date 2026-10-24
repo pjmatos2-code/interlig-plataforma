@@ -47,13 +47,17 @@ export default async function AlertasPage({ searchParams }: { searchParams: Sear
   });
   const todosVivos = await listarAlertas(ctx.escopo, { status: ["aberto", "reconhecido"] });
   const admin = criarClienteAdmin();
-  const [{ data: vendedores }, { data: eventos }] = await Promise.all([
+  // eventos em lotes de 100 ids: lista grande no .in() estoura a URL e volta vazio calado
+  const lotes: string[][] = [];
+  for (let i = 0; i < alertas.length; i += 100) lotes.push(alertas.slice(i, i + 100).map((a) => a.id));
+  const [{ data: vendedores }, eventosLotes] = await Promise.all([
     admin.from("vendedores").select("id, nome"),
-    alertas.length ? admin.from("alertas_comerciais_eventos").select("alerta_id, evento, criado_em, usuario_id").in("alerta_id", alertas.map((a) => a.id)).order("criado_em", { ascending: false }) : Promise.resolve({ data: [] as { alerta_id: string; evento: string; criado_em: string; usuario_id: string | null }[] }),
+    Promise.all(lotes.map((l) => admin.from("alertas_comerciais_eventos").select("alerta_id, evento, criado_em, usuario_id").in("alerta_id", l).order("criado_em", { ascending: false }))),
   ]);
+  const eventos = eventosLotes.flatMap((r) => (r.data ?? []) as { alerta_id: string; evento: string; criado_em: string; usuario_id: string | null }[]);
   const nome = new Map((vendedores ?? []).map((v) => [v.id as string, v.nome as string]));
   const eventosPorAlerta = new Map<string, { evento: string; criado_em: string }[]>();
-  for (const e of eventos ?? []) eventosPorAlerta.set(e.alerta_id as string, [...(eventosPorAlerta.get(e.alerta_id as string) ?? []), { evento: e.evento as string, criado_em: e.criado_em as string }]);
+  for (const e of eventos) eventosPorAlerta.set(e.alerta_id as string, [...(eventosPorAlerta.get(e.alerta_id as string) ?? []), { evento: e.evento as string, criado_em: e.criado_em as string }]);
   const qs = (m: Record<string, string | null>) => {
     const n = new URLSearchParams(Object.entries(searchParams).filter(([, v]) => typeof v === "string") as [string, string][]);
     for (const [k, v] of Object.entries(m)) (v === null || v === "" ? n.delete(k) : n.set(k, v));

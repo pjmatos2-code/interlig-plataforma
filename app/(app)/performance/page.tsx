@@ -26,8 +26,7 @@ export default async function VisaoGeral({ searchParams }: { searchParams: Searc
   const { totais: t, totaisAnteriores: ta, linhas } = ap;
   const idx = indexar(ap.base);
   const ids = new Set(linhas.map((l) => l.vendedor.id));
-  const semDono = ctx.escopo.vendedorIds === null && !ctx.filtros.vendedorId && !ctx.filtros.coordenadorId && !ctx.filtros.setor;
-  const funil = calcularFunil(ap.base, idx, ctx.periodo.de, ctx.periodo.ate, (tk) => (tk.vendedor_id ? ids.has(tk.vendedor_id) : semDono && (!ctx.filtros.popId || tk.pop_id === ctx.filtros.popId)), "entrada");
+  const funil = calcularFunil(ap.base, idx, ctx.periodo.de, ctx.periodo.ate, (tk) => ap.noEscopo(tk.vendedor_id, tk.pop_id), "entrada");
   const alertas = await listarAlertas(ctx.escopo, { limite: 30 });
   const acoes = acoesPrioritarias(ap.base, linhas, t);
 
@@ -44,7 +43,8 @@ export default async function VisaoGeral({ searchParams }: { searchParams: Searc
 
   // inteligência das conversas no período
   const [deMs, ateMs] = [Date.parse(`${ctx.periodo.de}T00:00:00-03:00`), Date.parse(`${ctx.periodo.ate}T23:59:59.999-03:00`)];
-  const analises = ap.base.analises.filter((a) => (!a.vendedor_id || ids.has(a.vendedor_id)) && Date.parse(a.concluido_em) >= deMs && Date.parse(a.concluido_em) <= ateMs);
+  const popDaConversa = new Map(ap.base.conversas.map((c) => [c.id, c.pop_id]));
+  const analises = ap.base.analises.filter((a) => ap.noEscopo(a.vendedor_id, popDaConversa.get(a.conversa_id)) && Date.parse(a.concluido_em) >= deMs && Date.parse(a.concluido_em) <= ateMs);
 
   const ranking = linhas.filter((l) => l.posicao !== null);
   const setores = [...new Set(ranking.map((l) => l.vendedor.setor ?? ""))];

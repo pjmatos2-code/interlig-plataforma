@@ -29,8 +29,12 @@ cliente; para colaboradores, gestão do contrato de trabalho.
 - Para a **IA** vai só a conversa já mascarada, sem dados de cadastro. A saída
   passa por regra de privacidade no prompt e por filtro que apaga bairros e
   nomes do cliente (`apagarTermos`).
-- Texto das mensagens apagado depois da retenção (padrão **180 dias**, mínimo
-  técnico de 7); ficam só tempos e contagens.
+- Depois da retenção (padrão **180 dias**, mínimo técnico de 7) a rotina diária
+  apaga o texto das mensagens e o texto livre das análises da IA (resumo,
+  justificativas, sinais, evidências); ficam tempos, contagens e as
+  classificações estruturadas (temperatura, objeções, situação, notas). As
+  tarefas de follow-up sugeridas pela IA são registro operacional, como as do
+  CRM, e não entram nessa limpeza.
 
 ## Quem acessa
 

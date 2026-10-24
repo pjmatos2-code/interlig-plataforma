@@ -1,6 +1,7 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { carregarConfig } from "../config-servidor";
+import { todas } from "../dados/paginar";
 import { avaliarFollowup, prazoDaNota, type AtividadeHumana, type StatusFollowup } from "../regras/followups";
 
 /**
@@ -24,15 +25,17 @@ export async function rodarFollowups(opts: { desdeDias?: number } = {}) {
   const admin = criarClienteAdmin();
   const cfg = await carregarConfig();
   const desde = new Date(Date.now() - (opts.desdeDias ?? 60) * 86_400_000).toISOString();
-  const [{ data: usuarios }, { data: logs }, { data: notas }, { data: acoes }, { data: ticketsFu }] = await Promise.all([
+  // paginado: o PostgREST devolve no máximo 1000 linhas por pedido
+  type Linha = Record<string, unknown> & { id: string };
+  const [{ data: usuarios }, logs, notas, acoes, ticketsFu] = await Promise.all([
     admin.from("usuarios").select("id, vendedor_id"),
-    admin.from("meu_dia_log").select("id, usuario_id, vendedor_id, ticket_id, acao, resultado, dados, criado_em").in("acao", ["tratativa", "retorno_agendado", "retorno_adiado"]).gte("criado_em", desde).limit(5000),
-    admin.from("ticket_eventos").select("id, ticket_id, usuario_id, dados, criado_em").eq("tipo", "nota").eq("dados->>desfecho", "reagendado").gte("criado_em", desde).limit(5000),
-    admin.from("ticket_acoes").select("id, ticket_id, descricao, quando, criado_por, criado_em, concluida_em").gte("criado_em", desde).limit(5000),
-    admin.from("tickets").select("id, vendedor_id, followup_em, etapa, atualizado_em, resumo_em").neq("etapa", "fechado").not("followup_em", "is", null).gte("followup_em", desde).limit(5000),
+    todas<Linha>((de, ate) => admin.from("meu_dia_log").select("id, usuario_id, vendedor_id, ticket_id, acao, resultado, dados, criado_em").in("acao", ["tratativa", "retorno_agendado", "retorno_adiado"]).gte("criado_em", desde).order("id").range(de, ate)),
+    todas<Linha>((de, ate) => admin.from("ticket_eventos").select("id, ticket_id, usuario_id, dados, criado_em").eq("tipo", "nota").eq("dados->>desfecho", "reagendado").gte("criado_em", desde).order("id").range(de, ate)),
+    todas<Linha>((de, ate) => admin.from("ticket_acoes").select("id, ticket_id, descricao, quando, criado_por, criado_em, concluida_em").gte("criado_em", desde).order("id").range(de, ate)),
+    todas<Linha>((de, ate) => admin.from("tickets").select("id, vendedor_id, followup_em, etapa, atualizado_em, resumo_em").neq("etapa", "fechado").not("followup_em", "is", null).gte("followup_em", desde).order("id").range(de, ate)),
   ]);
   const vendedorDoUsuario = new Map((usuarios ?? []).filter((u) => u.vendedor_id).map((u) => [u.id as string, u.vendedor_id as string]));
-  const idsTickets = [...new Set([...(logs ?? []), ...(notas ?? []), ...(acoes ?? []), ...(ticketsFu ?? [])].map((x) => (x as { ticket_id?: string; id: string }).ticket_id ?? (x as { id: string }).id).filter(Boolean))];
+  const idsTickets = [...new Set([...logs, ...notas, ...acoes, ...ticketsFu].map((x) => (x as { ticket_id?: string; id: string }).ticket_id ?? (x as { id: string }).id).filter(Boolean))];
   const donoTicket = new Map<string, string | null>();
   for (let i = 0; i < idsTickets.length; i += 200) {
     const { data } = await admin.from("tickets").select("id, vendedor_id").in("id", idsTickets.slice(i, i + 200));
@@ -43,7 +46,7 @@ export async function rodarFollowups(opts: { desdeDias?: number } = {}) {
   type Novo = { chave: string; ticket_id: string; vendedor_id: string | null; prazo: string; origem: string; tipo: string; motivo: string | null; criado_em: string; criado_por: string | null; concluido_em?: string | null };
   const novos = new Map<string, Novo>();
   const chavesHumanas = new Set<string>();
-  for (const l of logs ?? []) {
+  for (const l of logs) {
     if (!l.ticket_id) continue;
     // tratativa reagendada guarda o horário; agendar/adiar retorno do CRM guarda
     // só a data, gravada no ticket como 12:00 UTC (09:00 em Santarém)
@@ -65,7 +68,7 @@ export async function rodarFollowups(opts: { desdeDias?: number } = {}) {
       criado_em: l.criado_em as string, criado_por: (l.usuario_id as string | null) ?? null,
     });
   }
-  for (const n of notas ?? []) {
+  for (const n of notas) {
     const prazo = prazoDaNota(String((n.dados as { texto?: string } | null)?.texto ?? ""));
     if (!prazo || !n.usuario_id) continue;
     const chave = `crm:${n.ticket_id}:${minuto(prazo)}`;
@@ -77,7 +80,7 @@ export async function rodarFollowups(opts: { desdeDias?: number } = {}) {
         criado_em: n.criado_em as string, criado_por: n.usuario_id as string,
       });
   }
-  for (const a of acoes ?? []) {
+  for (const a of acoes) {
     if (!a.quando) continue;
     const chave = `acao:${a.id}`;
     novos.set(chave, {
@@ -86,7 +89,7 @@ export async function rodarFollowups(opts: { desdeDias?: number } = {}) {
       criado_em: a.criado_em as string, criado_por: (a.criado_por as string | null) ?? null, concluido_em: (a.concluida_em as string | null) ?? null,
     });
   }
-  for (const t of ticketsFu ?? []) {
+  for (const t of ticketsFu) {
     const chaveHumana = `crm:${t.id}:${minuto(t.followup_em as string)}`;
     if (chavesHumanas.has(chaveHumana)) continue; // foi gente que agendou
     const chave = `robo:${t.id}:${minuto(t.followup_em as string)}`;
@@ -107,50 +110,52 @@ export async function rodarFollowups(opts: { desdeDias?: number } = {}) {
   }
 
   // ---------- 2) avaliação dos abertos
-  const { data: abertos } = await admin
-    .from("followups")
-    .select("id, ticket_id, status, prazo, criado_em, concluido_em, cancelado_em, chave, origem")
-    .in("status", ["programado", "pendente", "vencido"])
-    .limit(5000);
-  const tickets = [...new Set((abertos ?? []).map((f) => f.ticket_id as string))];
+  const abertos = await todas<Linha>((de, ate) =>
+    admin.from("followups").select("id, ticket_id, status, prazo, criado_em, concluido_em, cancelado_em, chave, origem").in("status", ["programado", "pendente", "vencido"]).order("id").range(de, ate)
+  );
+  const tickets = [...new Set(abertos.map((f) => f.ticket_id as string))];
+  // só importa ação humana DEPOIS do agendamento mais antigo de cada ticket
+  const desdeTicket = new Map<string, string>();
+  for (const f of abertos) {
+    const t = f.ticket_id as string;
+    const c = f.criado_em as string;
+    if (!desdeTicket.has(t) || c < desdeTicket.get(t)!) desdeTicket.set(t, c);
+  }
   const atividades = new Map<string, AtividadeHumana[]>();
   const fechadoEm = new Map<string, string | null>();
   const add = (t: string, a: AtividadeHumana) => atividades.set(t, [...(atividades.get(t) ?? []), a]);
   for (let i = 0; i < tickets.length; i += 150) {
     const lote = tickets.slice(i, i + 150);
-    const [{ data: conv }, { data: evs }, { data: props }, { data: vis }, { data: md }, { data: tks }, { data: acs }] = await Promise.all([
-      admin.from("conversas_atendimento").select("id, ticket_id").in("ticket_id", lote),
-      admin.from("ticket_eventos").select("ticket_id, criado_em, tipo").in("ticket_id", lote).not("usuario_id", "is", null).in("tipo", ["nota", "mudanca_etapa", "fechamento"]),
-      admin.from("ticket_propostas").select("ticket_id, criado_em").in("ticket_id", lote),
-      admin.from("visitas_externas").select("ticket_id, criado_em").in("ticket_id", lote),
-      admin.from("meu_dia_log").select("ticket_id, criado_em, acao").in("ticket_id", lote).in("acao", ["retorno_feito", "followup_ia_feito", "lembrete_feito", "tratativa", "fechamento"]),
-      admin.from("tickets").select("id, fechado_em, etapa").in("id", lote),
-      admin.from("ticket_acoes").select("id, ticket_id, concluida_em").in("ticket_id", lote).not("concluida_em", "is", null),
+    const desde = lote.reduce((m, t) => (desdeTicket.get(t)! < m ? desdeTicket.get(t)! : m), desdeTicket.get(lote[0])!);
+    const [conv, evs, props, vis, md, tks, acs] = await Promise.all([
+      todas<Linha>((de, ate) => admin.from("conversas_atendimento").select("id, ticket_id").in("ticket_id", lote).gte("finalizada_em", desde).order("id").range(de, ate)),
+      todas<Linha>((de, ate) => admin.from("ticket_eventos").select("id, ticket_id, criado_em, tipo").in("ticket_id", lote).not("usuario_id", "is", null).in("tipo", ["nota", "mudanca_etapa", "fechamento"]).gte("criado_em", desde).order("id").range(de, ate)),
+      todas<Linha>((de, ate) => admin.from("ticket_propostas").select("id, ticket_id, criado_em").in("ticket_id", lote).gte("criado_em", desde).order("id").range(de, ate)),
+      todas<Linha>((de, ate) => admin.from("visitas_externas").select("id, ticket_id, criado_em").in("ticket_id", lote).gte("criado_em", desde).order("id").range(de, ate)),
+      todas<Linha>((de, ate) => admin.from("meu_dia_log").select("id, ticket_id, criado_em, acao").in("ticket_id", lote).in("acao", ["retorno_feito", "followup_ia_feito", "lembrete_feito", "tratativa", "fechamento"]).gte("criado_em", desde).order("id").range(de, ate)),
+      todas<Linha>((de, ate) => admin.from("tickets").select("id, fechado_em, etapa").in("id", lote).order("id").range(de, ate)),
+      todas<Linha>((de, ate) => admin.from("ticket_acoes").select("id, ticket_id, concluida_em").in("ticket_id", lote).gte("concluida_em", desde).order("id").range(de, ate)),
     ]);
     const convPorTicket = new Map<string, string>();
-    for (const c of conv ?? []) convPorTicket.set(c.id as string, c.ticket_id as string);
+    for (const c of conv) convPorTicket.set(c.id as string, c.ticket_id as string);
     const idsConv = [...convPorTicket.keys()];
     for (let j = 0; j < idsConv.length; j += 150) {
-      const { data: msgs } = await admin
-        .from("conversas_mensagens")
-        .select("conversa_id, enviada_em")
-        .in("conversa_id", idsConv.slice(j, j + 150))
-        .eq("autor", "agente")
-        .order("enviada_em")
-        .limit(20_000);
-      for (const m of msgs ?? []) add(convPorTicket.get(m.conversa_id as string)!, { em: m.enviada_em as string, fonte: "mensagem do vendedor no chat" });
+      const msgs = await todas<Record<string, unknown>>((de, ate) =>
+        admin.from("conversas_mensagens").select("id, conversa_id, enviada_em").in("conversa_id", idsConv.slice(j, j + 150)).eq("autor", "agente").gte("enviada_em", desde).order("id").range(de, ate)
+      );
+      for (const m of msgs) add(convPorTicket.get(m.conversa_id as string)!, { em: m.enviada_em as string, fonte: "mensagem do vendedor no chat" });
     }
-    for (const e of evs ?? []) add(e.ticket_id as string, { em: e.criado_em as string, fonte: e.tipo === "fechamento" ? "fechamento do ticket" : "registro no CRM" });
-    for (const p of props ?? []) add(p.ticket_id as string, { em: p.criado_em as string, fonte: "proposta registrada" });
-    for (const v of vis ?? []) add(v.ticket_id as string, { em: v.criado_em as string, fonte: "visita externa" });
-    for (const d of md ?? []) add(d.ticket_id as string, { em: d.criado_em as string, fonte: "ação no Meu Dia" });
-    for (const t of tks ?? []) fechadoEm.set(t.id as string, t.etapa === "fechado" ? ((t.fechado_em as string | null) ?? null) : null);
-    for (const a of acs ?? []) add(a.ticket_id as string, { em: a.concluida_em as string, fonte: `lembrete concluído:${a.id}` });
+    for (const e of evs) add(e.ticket_id as string, { em: e.criado_em as string, fonte: e.tipo === "fechamento" ? "fechamento do ticket" : "registro no CRM" });
+    for (const p of props) add(p.ticket_id as string, { em: p.criado_em as string, fonte: "proposta registrada" });
+    for (const v of vis) add(v.ticket_id as string, { em: v.criado_em as string, fonte: "visita externa" });
+    for (const d of md) add(d.ticket_id as string, { em: d.criado_em as string, fonte: "ação no Meu Dia" });
+    for (const t of tks) fechadoEm.set(t.id as string, t.etapa === "fechado" ? ((t.fechado_em as string | null) ?? null) : null);
+    for (const a of acs) add(a.ticket_id as string, { em: a.concluida_em as string, fonte: `lembrete concluído:${a.id}` });
   }
 
   const agora = new Date().toISOString();
   let atualizados = 0;
-  for (const f of abertos ?? []) {
+  for (const f of abertos) {
     const ativ = (atividades.get(f.ticket_id as string) ?? []).filter((a) => !a.fonte.startsWith("lembrete concluído:") || a.fonte === `lembrete concluído:${String(f.chave).replace("acao:", "")}`);
     const r = avaliarFollowup(
       { status: f.status as StatusFollowup, prazo: f.prazo as string, criadoEm: f.criado_em as string, canceladoEm: (f.cancelado_em as string | null) ?? null },
@@ -175,5 +180,5 @@ export async function rodarFollowups(opts: { desdeDias?: number } = {}) {
     await admin.from("followups_historico").insert({ followup_id: f.id, evento: r.status, dados: { de: f.status, evidencia: r.evidencia, concluido_em: r.concluidoEm } });
     atualizados++;
   }
-  return { importados, avaliados: abertos?.length ?? 0, atualizados };
+  return { importados, avaliados: abertos.length, atualizados };
 }

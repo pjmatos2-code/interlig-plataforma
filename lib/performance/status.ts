@@ -1,6 +1,7 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { lerEstado } from "./config-servidor";
+import { custoIaDoMes } from "./ia/pipeline";
 
 /**
  * Saúde das integrações do módulo (Configurações, 24/10/2026): coleta do
@@ -53,7 +54,7 @@ export async function statusIntegracoes(): Promise<StatusIntegracoes> {
       )
     ),
     contar(admin.from("analises_conversa").select("id", { count: "exact", head: true }).eq("status", "concluida").gte("concluido_em", `${hoje}T00:00:00-03:00`)),
-    admin.from("analises_conversa").select("custo_estimado").gte("concluido_em", `${hoje.slice(0, 7)}-01T00:00:00-03:00`).not("custo_estimado", "is", null).limit(20_000),
+    custoIaDoMes(hoje),
     admin.from("analises_conversa").select("erro, criado_em, iniciado_em").eq("status", "erro").order("criado_em", { ascending: false }).limit(5),
     admin.from("analise_runs").select("iniciado_em, status, conversas_analisadas, custo_estimado, erro").order("iniciado_em", { ascending: false }).limit(1),
     admin.from("sync_runs").select("entidade, iniciado_em, status, erro").like("entidade", "performance%").order("iniciado_em", { ascending: false }).limit(12),
@@ -80,8 +81,8 @@ export async function statusIntegracoes(): Promise<StatusIntegracoes> {
       modeloIntegracao: cfgIa.modelo ?? null,
       fila: Object.fromEntries(filaRows),
       concluidasHoje,
-      custoMesUsd: Math.round((doMes.data ?? []).reduce((s, a) => s + Number(a.custo_estimado ?? 0), 0) * 1000) / 1000,
-      analisesMes: (doMes.data ?? []).length,
+      custoMesUsd: doMes.usd,
+      analisesMes: doMes.analises,
       ultimosErros: (erros.data ?? []).map((e) => ({ quando: (e.iniciado_em ?? e.criado_em) as string, erro: String(e.erro ?? "").slice(0, 200) })),
       ultimaExecucao: r
         ? { iniciado_em: r.iniciado_em as string, status: r.status as string, conversas: Number(r.conversas_analisadas ?? 0), custo: Number(r.custo_estimado ?? 0), erro: (r.erro as string | null) ?? null }

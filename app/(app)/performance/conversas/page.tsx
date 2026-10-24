@@ -9,9 +9,12 @@ import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { apurarPerformance } from "@/lib/performance/dados/apurar";
 import { mediana } from "@/lib/performance/regras/normalizacao";
 import { contextoPagina, type SearchParams } from "@/lib/performance/pagina";
+import { custoIaDoMes } from "@/lib/performance/ia/pipeline";
 import { CRITERIOS, ROTULO_CRITERIO, ROTULO_OBJECAO, ROTULO_OPORTUNIDADE } from "@/lib/performance/ia/schema";
 
 export const dynamic = "force-dynamic";
+// a amostra manual da IA (botão do gestor) roda por até ~50 s
+export const maxDuration = 60;
 
 const COR_TEMP: Record<string, string> = { quente: "#eb6834", morno: "#eda100", frio: "#2a78d6", indeterminado: "#94a3b8" };
 const ROTULO_STATUS_LEAD: Record<string, string> = { a_fazer: "A fazer", assinou: "Assinou", perdido: "Perdido", sem_cobertura: "Sem cobertura", em_espera: "Em espera", atencao: "Atenção", encerrado: "Encerrado" };
@@ -39,20 +42,19 @@ export default async function ConversasPage({ searchParams }: { searchParams: Se
   const [deMs, ateMs] = [Date.parse(`${ctx.periodo.de}T00:00:00-03:00`), Date.parse(`${ctx.periodo.ate}T23:59:59.999-03:00`)];
   const conversaPorId = new Map(ap.base.conversas.map((c) => [c.id, c]));
   const quando = (a: { conversa_id: string; concluido_em: string }) => conversaPorId.get(a.conversa_id)?.finalizada_em ?? a.concluido_em;
-  const analises = ap.base.analises.filter((a) => (!a.vendedor_id || ids.has(a.vendedor_id)) && Date.parse(quando(a)) >= deMs && Date.parse(quando(a)) <= ateMs);
-  const conversas = ap.base.conversas.filter((c) => c.finalizada_em && Date.parse(c.finalizada_em) >= deMs && Date.parse(c.finalizada_em) <= ateMs && (!c.vendedor_id || ids.has(c.vendedor_id)));
+  // sem vendedor (só robô, fila abandonada, atendente sem vínculo) só no escopo total
+  const analises = ap.base.analises.filter((a) => ap.noEscopo(a.vendedor_id, conversaPorId.get(a.conversa_id)?.pop_id) && Date.parse(quando(a)) >= deMs && Date.parse(quando(a)) <= ateMs);
+  const conversas = ap.base.conversas.filter((c) => c.finalizada_em && Date.parse(c.finalizada_em) >= deMs && Date.parse(c.finalizada_em) <= ateMs && ap.noEscopo(c.vendedor_id, c.pop_id));
 
   // estado da IA (só administrador vê custo e fila)
   const admin = criarClienteAdmin();
-  const mesIni = `${ap.base.hoje.slice(0, 7)}-01T00:00:00-03:00`;
-  const [{ data: integ }, { count: fila }, { data: custos }] = await Promise.all([
+  const [{ data: integ }, { count: fila }, { usd: custoMes }] = await Promise.all([
     admin.from("integracoes_config").select("config").eq("sistema", "anthropic").maybeSingle(),
     admin.from("analises_conversa").select("id", { count: "exact", head: true }).eq("status", "pendente"),
-    admin.from("analises_conversa").select("custo_estimado").gte("concluido_em", mesIni).not("custo_estimado", "is", null).limit(20_000),
+    custoIaDoMes(ap.base.hoje),
   ]);
   const temChave = Boolean((integ?.config as { api_key?: string } | null)?.api_key);
   const modelo = cfg.ia.modelo || ((integ?.config as { modelo?: string } | null)?.modelo ?? "—");
-  const custoMes = (custos ?? []).reduce((s, x) => s + Number(x.custo_estimado ?? 0), 0);
 
   const conta = <T,>(lista: T[], chave: (x: T) => string | null) => {
     const m = new Map<string, number>();
@@ -197,7 +199,7 @@ export default async function ConversasPage({ searchParams }: { searchParams: Se
                   <li key={a.conversa_id} className="flex flex-wrap items-start gap-3 py-2.5 text-sm">
                     <span className="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: COR_TEMP[a.temperatura ?? "indeterminado"] }} title={a.temperatura ?? ""} />
                     <div className="min-w-0 flex-1">
-                      <p className="line-clamp-2">{(a.resultado as Resultado | null)?.resumo ?? "—"}</p>
+                      <p className="line-clamp-2">{(a.resultado as Resultado | null)?.resumo || <span className="italic text-muted-foreground">resumo apagado pela retenção de dados</span>}</p>
                       <p className="text-xs text-muted-foreground">
                         {nome.get(a.vendedor_id ?? "") ?? "sem vendedor"} · {fmtDataHora(quando(a))} · {ROTULO_STATUS_LEAD[a.status_lead ?? ""] ?? "—"}
                         {a.revisada && " · revisada por pessoa"}

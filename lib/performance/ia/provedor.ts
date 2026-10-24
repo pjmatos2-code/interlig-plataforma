@@ -16,7 +16,8 @@ export type { ResultadoProvedor } from "./erros";
 export interface ProvedorIA {
   nome: string;
   modelo: string;
-  analisar(p: { system: string; user: string }): Promise<ResultadoProvedor>;
+  /** timeoutMs: o que sobra do orçamento da rotina — a chamada nunca passa do limite da função */
+  analisar(p: { system: string; user: string }, opts?: { timeoutMs?: number }): Promise<ResultadoProvedor>;
 }
 
 export async function provedorConfigurado(modeloPreferido?: string | null): Promise<ProvedorIA | null> {
@@ -24,19 +25,23 @@ export async function provedorConfigurado(modeloPreferido?: string | null): Prom
   const cfg = (data?.config ?? {}) as { api_key?: string; modelo?: string };
   if (!cfg.api_key) return null;
   const modelo = modeloPreferido || cfg.modelo || "claude-haiku-5-5";
-  const client = new Anthropic({ apiKey: cfg.api_key, maxRetries: 2, timeout: 90_000 });
+  const client = new Anthropic({ apiKey: cfg.api_key, maxRetries: 1, timeout: 60_000 });
   return {
     nome: "anthropic",
     modelo,
-    async analisar({ system, user }) {
+    async analisar({ system, user }, opts) {
       try {
-        const r = await client.messages.parse({
-          model: modelo,
-          max_tokens: 4000,
-          system,
-          messages: [{ role: "user", content: user }],
-          output_config: { format: zodOutputFormat(SchemaAnalise) },
-        });
+        const r = await client.messages.parse(
+          {
+            model: modelo,
+            max_tokens: 4000,
+            system,
+            messages: [{ role: "user", content: user }],
+            output_config: { format: zodOutputFormat(SchemaAnalise) },
+          },
+          // com prazo curto não há retentativa dentro da chamada (a fila tenta de novo depois)
+          opts?.timeoutMs ? { timeout: opts.timeoutMs, maxRetries: 0 } : undefined
+        );
         const tokensEntrada = r.usage.input_tokens;
         const tokensSaida = r.usage.output_tokens;
         if (r.stop_reason === "refusal")

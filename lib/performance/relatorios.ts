@@ -4,6 +4,7 @@ import type { Apuracao } from "./dados/apurar";
 import { indexar, rotuloSetor } from "./dados/calcular";
 import { ROTULO_TIPO_ALERTA } from "./alertas/regras";
 import { calcularFunil } from "./dados/funil";
+import { todas } from "./dados/paginar";
 import type { EscopoPerformance } from "./escopo";
 import { CRITERIOS, ROTULO_CRITERIO, ROTULO_OBJECAO } from "./ia/schema";
 import { ROTULO_MOTIVO, type Indicador } from "./tipos";
@@ -114,8 +115,8 @@ export async function montarRelatorio(chave: string, ap: Apuracao, escopo: Escop
     }
     case "canais":
     case "perdas": {
-      const semDono = escopo.vendedorIds === null;
-      const f = calcularFunil(base, idx, ap.periodo.de, ap.periodo.ate, (t) => (t.vendedor_id ? ids.has(t.vendedor_id) : semDono), "entrada");
+      // mesma regra da tela do funil (sem dono só no escopo total e sem filtro de pessoa)
+      const f = calcularFunil(base, idx, ap.periodo.de, ap.periodo.ate, (t) => ap.noEscopo(t.vendedor_id, t.pop_id), "entrada");
       if (chave === "canais")
         return { titulo, colunas: ["Origem", "Leads", "Vendas", "Conversão %", "Receita nova (R$)", "Ticket médio (R$)"], linhas: f.porOrigem.map((o) => [o.origem, o.leads, o.vendas, o.conversao === null ? null : Math.round(o.conversao * 1000) / 10, o.receita, o.ticketMedio]) };
       return {
@@ -182,14 +183,19 @@ export async function montarRelatorio(chave: string, ap: Apuracao, escopo: Escop
         ]),
       };
     case "oportunidades": {
-      let q = criarClienteAdmin().from("alertas_comerciais").select("categoria, tipo, titulo, detalhe, status, primeira_em, ultima_em, ocorrencias, vendedor_id").gte("ultima_em", new Date(deMs).toISOString()).lte("primeira_em", new Date(ateMs).toISOString()).order("ultima_em", { ascending: false }).limit(2000);
-      if (escopo.vendedorIds !== null) q = q.in("vendedor_id", escopo.vendedorIds.length ? escopo.vendedorIds : ["00000000-0000-0000-0000-000000000000"]);
-      const { data } = await q;
+      const admin = criarClienteAdmin();
+      const todosAlertas = await todas<Record<string, unknown>>((de, ate) => {
+        let q = admin.from("alertas_comerciais").select("id, categoria, tipo, titulo, detalhe, status, primeira_em, ultima_em, ocorrencias, vendedor_id, pop_id").gte("ultima_em", new Date(deMs).toISOString()).lte("primeira_em", new Date(ateMs).toISOString());
+        if (escopo.vendedorIds !== null) q = q.in("vendedor_id", escopo.vendedorIds.length ? escopo.vendedorIds : ["00000000-0000-0000-0000-000000000000"]);
+        return q.order("id").range(de, ate);
+      });
+      // mesmos filtros da tela (sem dono só no escopo total sem filtro de pessoa)
+      const data = todosAlertas.filter((a) => ap.noEscopo(a.vendedor_id as string | null, a.pop_id as string | null)).sort((a, b) => String(b.ultima_em).localeCompare(String(a.ultima_em)));
       const nome = new Map(base.vendedores.map((v) => [v.id, v.nome]));
       return {
         titulo,
         colunas: ["Categoria", "Tipo", "Título", "Detalhe", "Situação", "Vendedor", "Desde", "Última ocorrência", "Ocorrências"],
-        linhas: (data ?? []).map((a) => [
+        linhas: data.map((a) => [
           ROTULO_CATEGORIA[a.categoria as string] ?? (a.categoria as string),
           ROTULO_TIPO_ALERTA[a.tipo as string] ?? (a.tipo as string),
           a.titulo as string,
@@ -230,7 +236,8 @@ export async function montarRelatorio(chave: string, ap: Apuracao, escopo: Escop
       };
     }
     case "tendencias_ia": {
-      const an = base.analises.filter((a) => (!a.vendedor_id || ids.has(a.vendedor_id)) && Date.parse(a.concluido_em) >= deMs && Date.parse(a.concluido_em) <= ateMs);
+      const popDaConversa = new Map(base.conversas.map((c) => [c.id, c.pop_id]));
+      const an = base.analises.filter((a) => ap.noEscopo(a.vendedor_id, popDaConversa.get(a.conversa_id)) && Date.parse(a.concluido_em) >= deMs && Date.parse(a.concluido_em) <= ateMs);
       const contar = (f: (a: (typeof an)[number]) => string[]) => {
         const m = new Map<string, number>();
         for (const a of an) for (const k of f(a)) m.set(k, (m.get(k) ?? 0) + 1);

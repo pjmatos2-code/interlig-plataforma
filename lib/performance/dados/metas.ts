@@ -60,6 +60,8 @@ export type MetaExtra = {
   diasRestantes: number;
   parcial: boolean;
   membros: number;
+  /** tamanho do alvo inteiro da meta (parcial = membros < alvo) */
+  alvo: number;
 };
 
 export type HistoricoMeta = { meses: string[]; linhas: { vendedor: string; porMes: ({ meta: number; realizado: number } | null)[] }[] };
@@ -94,12 +96,14 @@ export async function apurarMetas(ap: Apuracao, hoje: string): Promise<ApuracaoM
     const d = new Date(Date.UTC(a, m - 1 - 6, 1));
     return d.toISOString().slice(0, 10);
   })();
-  const [{ data: afast }, { data: metasHist }, { data: extrasBrutas }, { data: usuarios }, { data: pops }] = await Promise.all([
+  const [{ data: afast }, { data: metasHist }, { data: extrasBrutas }, { data: usuarios }, { data: pops }, { data: todosVendedores }] = await Promise.all([
     admin.from("indisponibilidades_vendedor").select("vendedor_id, inicio, fim").lte("inicio", mesFim).gte("fim", mesIni).limit(2000),
     admin.from("metas").select("referencia_id, mes_ano, quantidade_vendas").eq("escopo", "vendedora").gte("mes_ano", inicioHist).lte("mes_ano", mesIni).limit(5000),
     admin.from("metas_performance").select("id, tipo, escopo, referencia, periodicidade, inicio, fim, valor").eq("ativo", true).gte("fim", soma(ref, -62)).order("inicio", { ascending: false }).limit(300),
     admin.from("usuarios").select("id, nome"),
     admin.from("pops").select("id, nome"),
+    // alvo COMPLETO de cada meta (a base só tem o escopo de quem consulta)
+    admin.from("vendedores").select("id, pop_id, coordenador_id, setor, ativo"),
   ]);
   const afastPorV = new Map<string, { inicio: string; fim: string }[]>();
   for (const a of afast ?? []) afastPorV.set(a.vendedor_id as string, [...(afastPorV.get(a.vendedor_id as string) ?? []), { inicio: a.inicio as string, fim: a.fim as string }]);
@@ -218,9 +222,15 @@ export async function apurarMetas(ap: Apuracao, hoje: string): Promise<ApuracaoM
     const esc = m.escopo as EscopoMeta;
     const referencia = (m.referencia as string | null) ?? null;
     // só os vendedores do escopo/filtro de quem consulta; alvo fora dele não aparece
-    const todosDoAlvo = base.vendedores.filter((v) => (v.ativo || ids.has(v.id)) && membroDaMeta({ escopo: esc, referencia }, v) && base.cfg.setores.includes(v.setor ?? ""));
-    const membros = todosDoAlvo.filter((v) => ids.has(v.id));
-    if (esc !== "global" && !membros.length) continue;
+    // meta vale para o alvo inteiro (não muda com filtro de tela); quem consulta
+    // vendo só parte do alvo recebe "parcial", sem percentual nem situação
+    const alvoCompleto = (todosVendedores ?? []).filter(
+      (v) => (Boolean(v.ativo) || ids.has(v.id as string)) && base.cfg.setores.includes(String(v.setor ?? "")) && membroDaMeta({ escopo: esc, referencia }, { id: v.id as string, pop_id: (v.pop_id as string | null) ?? null, coordenador_id: (v.coordenador_id as string | null) ?? null, setor: (v.setor as string | null) ?? null })
+    );
+    const noAlvo = new Set(alvoCompleto.map((v) => v.id as string));
+    const membros = base.vendedores.filter((v) => noAlvo.has(v.id));
+    if (!membros.some((v) => ids.has(v.id))) continue; // alvo fora do filtro atual
+    const parcial = membros.length < alvoCompleto.length;
     const janela = janelaDaMeta({ periodicidade: m.periodicidade as Periodicidade, inicio: m.inicio as string, fim: m.fim as string }, ref);
     const valorMeta = valorMetaParaComparar(tipo, Number(m.valor));
     const futura = janela.situacao === "futura";
@@ -237,16 +247,19 @@ export async function apurarMetas(ap: Apuracao, hoje: string): Promise<ApuracaoM
       diasRestantes = diasRestantesDepois + (emAndamento && janela.ate === ref && util(ref) ? 1 : 0);
       projecao = m.periodicidade === "dia" ? null : projetarFechamento({ realizado, realizadoEncerrado, diasEncerrados, diasRestantesDepois });
     }
-    const av = avaliarMeta({
-      meta: valorMeta,
-      realizado,
-      projecao,
-      aditiva: info.aditiva,
-      menorEhMelhor: info.menorEhMelhor,
-      cicloEncerrado: !emCurso && !futura,
-      futura,
-      diasRestantes,
-    });
+    if (parcial) projecao = null; // projeção de uma parte do alvo não diz nada sobre a meta
+    const av = parcial
+      ? { pct: null, situacao: "parcial" as SituacaoMeta, necessarioPorDia: null }
+      : avaliarMeta({
+          meta: valorMeta,
+          realizado,
+          projecao,
+          aditiva: info.aditiva,
+          menorEhMelhor: info.menorEhMelhor,
+          cicloEncerrado: !emCurso && !futura,
+          futura,
+          diasRestantes,
+        });
     const aplicaA =
       esc === "global" ? "Todos" : esc === "unidade" ? (nomePop.get(referencia ?? "") ?? "Unidade") : esc === "equipe" ? `Equipe de ${nomeUsuario.get(referencia ?? "") ?? "coordenador"}` : esc === "funcao" ? (referencia === "comercial_externo" ? "Venda externa" : referencia === "comercial_interno" ? "Venda interna" : (referencia ?? "")) : (nomeVend.get(referencia ?? "") ?? "Vendedor");
     extras.push({
@@ -264,8 +277,9 @@ export async function apurarMetas(ap: Apuracao, hoje: string): Promise<ApuracaoM
       pct: av.pct,
       situacao: av.situacao,
       diasRestantes,
-      parcial: membros.length < todosDoAlvo.length,
+      parcial,
       membros: membros.length,
+      alvo: alvoCompleto.length,
     });
   }
 

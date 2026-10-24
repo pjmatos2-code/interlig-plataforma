@@ -15,6 +15,8 @@ export const dynamic = "force-dynamic";
 const ROTULO_AUTOR = { cliente: "Cliente", agente: "Vendedor", automacao: "Automação", sistema: "Sistema" } as const;
 
 type Analise = {
+  /** texto livre apagado pela retenção (ficam só as classificações) */
+  expurgado?: string;
   resumo: string;
   temperatura: string;
   intencao_compra: boolean;
@@ -127,7 +129,7 @@ export default async function DetalheConversa({ params }: { params: { id: string
               descricao={`Inferência automática (${an!.modelo ?? "IA"}, versão ${an!.versao}, ${fmtDataHora(an!.concluido_em as string)}). Confiança ${Math.round(r.confianca * 100)}%. Apoio à gestão — confirme antes de agir.`}
               acao={<Bot className="h-4 w-4 text-muted-foreground" aria-label="Inferência da IA" />}
             >
-              <p className="text-sm">{r.resumo}</p>
+              {r.expurgado ? <p className="text-sm italic text-muted-foreground">Resumo e justificativas apagados pela retenção de dados em {fmtDataHora(r.expurgado)}; ficam só as classificações.</p> : <p className="text-sm">{r.resumo}</p>}
               <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
                 {[
                   ["Temperatura", r.temperatura],
@@ -147,7 +149,7 @@ export default async function DetalheConversa({ params }: { params: { id: string
               </dl>
               {r.objecoes.length > 0 && <p className="mt-3 text-xs"><span className="text-muted-foreground">Objeções: </span>{r.objecoes.map((o) => ROTULO_OBJECAO[o as keyof typeof ROTULO_OBJECAO] ?? o).join(", ")}</p>}
               {r.sinais_intencao.length > 0 && <p className="mt-1 text-xs"><span className="text-muted-foreground">Sinais de intenção: </span>{r.sinais_intencao.join(" · ")}</p>}
-              <p className="mt-3 rounded-md border border-interlig-ceu/30 bg-interlig-ceu/5 p-2 text-sm"><span className="font-medium">Próximo passo recomendado: </span>{r.proximo_passo}</p>
+              {!r.expurgado && <p className="mt-3 rounded-md border border-interlig-ceu/30 bg-interlig-ceu/5 p-2 text-sm"><span className="font-medium">Próximo passo recomendado: </span>{r.proximo_passo}</p>}
               {r.oportunidade_esquecida && (
                 <p className="mt-2 rounded-md border border-farol-amarelo/40 bg-farol-amarelo/10 p-2 text-sm">
                   <span className="font-medium">{ROTULO_OPORTUNIDADE[r.oportunidade_esquecida.tipo as keyof typeof ROTULO_OPORTUNIDADE] ?? "Oportunidade"}: </span>

@@ -152,7 +152,7 @@ export async function rodarRotinaPerformance(
           const { purgarTextosExpirados } = await import("./ia/pipeline");
           const s = await gravarSnapshots(ontem);
           const p = await purgarTextosExpirados();
-          resumo.diaria = { fotografias: s.linhas, textosApagados: p.apagados };
+          resumo.diaria = { fotografias: s.linhas, textosApagados: p.apagados, analisesEnxutas: p.analisesEnxutas };
           await registrar("performance_diaria", ini, { ok: true, registros: s.linhas });
         } catch (e) {
           await registrar("performance_diaria", ini, { ok: false, erro: msg(e) });

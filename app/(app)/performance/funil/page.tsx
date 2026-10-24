@@ -18,9 +18,7 @@ export default async function FunilPage({ searchParams }: { searchParams: Search
   const ap = await apurarPerformance(ctx.escopo, ctx.periodo, ctx.filtros);
   const idx = indexar(ap.base);
   const ids = new Set(ap.linhas.map((l) => l.vendedor.id));
-  const semDono = ctx.escopo.vendedorIds === null && !ctx.filtros.vendedorId && !ctx.filtros.coordenadorId && !ctx.filtros.setor;
-  const noEscopo = (t: { vendedor_id: string | null; pop_id: string | null; origem_criacao: string }) =>
-    (!origem || t.origem_criacao === origem) && (t.vendedor_id ? ids.has(t.vendedor_id) : semDono && (!ctx.filtros.popId || t.pop_id === ctx.filtros.popId));
+  const noEscopo = (t: { vendedor_id: string | null; pop_id: string | null; origem_criacao: string }) => (!origem || t.origem_criacao === origem) && ap.noEscopo(t.vendedor_id, t.pop_id);
   const f = calcularFunil(ap.base, idx, ctx.periodo.de, ctx.periodo.ate, noEscopo, modo);
   const porVendedor = ap.linhas
     .filter((l) => l.vendedor.ativo)
