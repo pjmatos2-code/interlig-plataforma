@@ -4,6 +4,7 @@ import { exigirUsuario } from "@/lib/auth";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import type { Usuario } from "@/lib/tipos";
 import { carregarConfig } from "./config-servidor";
+import { montarEscopo, type EscopoPerformance } from "./escopo-regras";
 
 /**
  * Escopo de acesso da Performance Comercial (24/10/2026) — aplicado no
@@ -19,62 +20,27 @@ import { carregarConfig } from "./config-servidor";
  * Configurações (padrão: gestor) e para o próprio vendedor nas conversas dele.
  */
 
-export type PapelPerformance = "admin" | "diretoria" | "supervisor" | "gerente_unidade" | "vendedor";
-
-export type EscopoPerformance = {
-  usuario: Usuario;
-  papel: PapelPerformance;
-  /** null = todos os vendedores */
-  vendedorIds: string[] | null;
-  vendedorProprio: string | null;
-  podeVerConversas: boolean;
-  podeConfigurar: boolean;
-  podeGerirMetas: boolean;
-  podeTratarAlertas: boolean;
-  /** vendedor vê posições do ranking, sem os números das colegas (PRD 2) */
-  verValoresDeColegas: boolean;
-  podeExportar: boolean;
-};
-
-const PERFIS_VENDEDOR = ["vendedora", "vendedora_externa", "agente_atendimento", "agente_retencao", "agente_corporativo"];
+export type { EscopoPerformance, PapelPerformance } from "./escopo-regras";
+export { alcanca } from "./escopo-regras";
 
 export async function resolverEscopo(usuario: Usuario): Promise<EscopoPerformance | null> {
   const cfg = await carregarConfig();
-  const conversasLiberadas = cfg.acesso.conversas.includes(usuario.perfil);
-  const base = { usuario, vendedorProprio: null, podeConfigurar: false, podeGerirMetas: false, verValoresDeColegas: true, podeExportar: true };
-
-  if (usuario.perfil === "gestor")
-    return { ...base, papel: "admin", vendedorIds: null, podeVerConversas: true, podeConfigurar: true, podeGerirMetas: true, podeTratarAlertas: true };
-  if (usuario.perfil === "direcao")
-    return { ...base, papel: "diretoria", vendedorIds: null, podeVerConversas: conversasLiberadas, podeTratarAlertas: false };
-
-  const admin = criarClienteAdmin();
+  let time: string[] = [];
+  let daPop: string[] | null = null;
   if (usuario.perfil === "supervisor") {
+    const admin = criarClienteAdmin();
     // time (direto + co-coordenação), incluindo inativos para o histórico
     const [{ data: diretos }, { data: extras }] = await Promise.all([
       admin.from("vendedores").select("id").eq("coordenador_id", usuario.id),
       admin.from("coordenadores_extras").select("vendedor_id").eq("usuario_id", usuario.id),
     ]);
-    const time = [...new Set([...(diretos ?? []).map((d) => d.id as string), ...(extras ?? []).map((e) => e.vendedor_id as string)])];
-    if (time.length)
-      return { ...base, papel: "supervisor", vendedorIds: time, podeVerConversas: conversasLiberadas, podeTratarAlertas: true };
-    if (!usuario.pop_id) return null;
-    const { data: daPop } = await admin.from("vendedores").select("id").eq("pop_id", usuario.pop_id);
-    return { ...base, papel: "gerente_unidade", vendedorIds: (daPop ?? []).map((v) => v.id as string), podeVerConversas: conversasLiberadas, podeTratarAlertas: true };
+    time = [...new Set([...(diretos ?? []).map((d) => d.id as string), ...(extras ?? []).map((e) => e.vendedor_id as string)])];
+    if (!time.length && usuario.pop_id) {
+      const { data } = await admin.from("vendedores").select("id").eq("pop_id", usuario.pop_id);
+      daPop = (data ?? []).map((v) => v.id as string);
+    }
   }
-  if (PERFIS_VENDEDOR.includes(usuario.perfil) && usuario.vendedor_id) {
-    return {
-      ...base,
-      papel: "vendedor",
-      vendedorIds: [usuario.vendedor_id],
-      vendedorProprio: usuario.vendedor_id,
-      podeVerConversas: true, // só as próprias: as consultas já filtram por vendedorIds
-      podeTratarAlertas: false,
-      verValoresDeColegas: false,
-      podeExportar: false,
-    };
-  }
-  return null;
+  return montarEscopo(usuario, { conversasLiberadas: cfg.acesso.conversas.includes(usuario.perfil), time, daPop });
 }
 
 /** página do módulo: exige papel com acesso (senão volta para o início) */
@@ -83,10 +49,4 @@ export async function exigirEscopo(): Promise<EscopoPerformance> {
   const escopo = await resolverEscopo(usuario);
   if (!escopo) redirect("/");
   return escopo;
-}
-
-/** o escopo alcança este vendedor? */
-export function alcanca(escopo: EscopoPerformance, vendedorId: string | null | undefined): boolean {
-  if (!vendedorId) return escopo.vendedorIds === null;
-  return escopo.vendedorIds === null || escopo.vendedorIds.includes(vendedorId);
 }

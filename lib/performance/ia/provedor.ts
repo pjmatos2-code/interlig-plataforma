@@ -2,6 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
+import { classificarErroIa, type ResultadoProvedor } from "./erros";
 import { SchemaAnalise } from "./schema";
 
 /**
@@ -10,9 +11,7 @@ import { SchemaAnalise } from "./schema";
  * Hoje: Anthropic, com a chave e o modelo já configurados em Integrações
  * (nada de chave em variável de ambiente, como no resto da plataforma).
  */
-export type ResultadoProvedor =
-  | { ok: true; json: unknown; modelo: string; tokensEntrada: number; tokensSaida: number }
-  | { ok: false; motivo: "recusa" | "truncado" | "formato" | "limite" | "credencial" | "requisicao" | "indisponivel"; detalhe: string; tokensEntrada: number; tokensSaida: number; tentarDeNovo: boolean };
+export type { ResultadoProvedor } from "./erros";
 
 export interface ProvedorIA {
   nome: string;
@@ -47,15 +46,7 @@ export async function provedorConfigurado(modeloPreferido?: string | null): Prom
           return { ok: false, motivo: "formato", detalhe: "resposta fora do formato esperado", tokensEntrada, tokensSaida, tentarDeNovo: true };
         return { ok: true, json: r.parsed_output, modelo: r.model, tokensEntrada, tokensSaida };
       } catch (e) {
-        // do mais específico para o mais geral (classes tipadas do SDK)
-        if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError)
-          return { ok: false, motivo: "credencial", detalhe: "chave da Anthropic inválida ou sem permissão", tokensEntrada: 0, tokensSaida: 0, tentarDeNovo: false };
-        if (e instanceof Anthropic.RateLimitError) return { ok: false, motivo: "limite", detalhe: "limite de uso da API atingido", tokensEntrada: 0, tokensSaida: 0, tentarDeNovo: true };
-        if (e instanceof Anthropic.NotFoundError) return { ok: false, motivo: "requisicao", detalhe: `modelo "${modelo}" não encontrado`, tokensEntrada: 0, tokensSaida: 0, tentarDeNovo: false };
-        if (e instanceof Anthropic.BadRequestError) return { ok: false, motivo: "requisicao", detalhe: e.message.slice(0, 300), tokensEntrada: 0, tokensSaida: 0, tentarDeNovo: false };
-        if (e instanceof Anthropic.APIConnectionError) return { ok: false, motivo: "indisponivel", detalhe: "sem conexão com a API", tokensEntrada: 0, tokensSaida: 0, tentarDeNovo: true };
-        if (e instanceof Anthropic.APIError) return { ok: false, motivo: "indisponivel", detalhe: `API respondeu ${e.status}`, tokensEntrada: 0, tokensSaida: 0, tentarDeNovo: true };
-        return { ok: false, motivo: "formato", detalhe: e instanceof Error ? e.message.slice(0, 300) : "falha desconhecida", tokensEntrada: 0, tokensSaida: 0, tentarDeNovo: true };
+        return classificarErroIa(e, modelo);
       }
     },
   };

@@ -114,10 +114,15 @@ da apuração no log) e `PAUSA_MS` (ritmo do script de carga histórica).
 
 ## 9. Testes e verificação
 
-- `npm test`: **230 testes passando** (16 arquivos), dos quais **133** do módulo
-  (12 arquivos): configuração, expediente, máscara e ocultação, cálculo das
-  conversas, vínculo com lead, scores, follow-ups, atribuição, período, apuração,
-  metas/projeção e IA (schema, saneamento, prompt injection, privacidade).
+- `npm test`: **244 testes passando** (19 arquivos), dos quais **147** do módulo
+  (15 arquivos): configuração, expediente, máscara e ocultação, cálculo das
+  conversas (automação × humano, transferências, duplicadas e fora de ordem),
+  vínculo com lead, scores (normalização, redistribuição, IPC, sem dados),
+  follow-ups, atribuição (troca de vendedor), período, apuração, metas/projeção,
+  permissões por papel e unidade, falhas e retomada da coleta do SZ, falhas do
+  provedor de IA e IA (schema, saneamento, prompt injection, privacidade).
+- Sem teste automatizado (conferidos à mão): fila da IA de ponta a ponta contra o
+  banco, recálculo histórico em lote e responsividade (telas abertas em 390 px).
 - `npm run build` sem erro; ESLint sem avisos no módulo.
 - Todas as telas abertas no navegador com usuário gestor temporário, em 1440 px
   e 390 px: HTTP 200, sem erro de console, sem rolagem lateral.
