@@ -163,7 +163,7 @@ create table if not exists public.followups (
   chave text,                                     -- deduplicação (origem + ticket + prazo)
   atualizado_em timestamptz not null default now()
 );
-create unique index if not exists followups_chave_idx on public.followups (chave) where chave is not null;
+-- chave única: ver 0125 (constraint followups_chave_uk)
 create index if not exists followups_ticket_idx on public.followups (ticket_id, status);
 create index if not exists followups_vend_idx on public.followups (vendedor_id, prazo);
 create index if not exists followups_status_idx on public.followups (status, prazo);

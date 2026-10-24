@@ -53,7 +53,11 @@ export type ConfigPerformance = {
     sem_retorno_horas: number;
   };
   expediente: Expediente;
-  volume_minimo: { leads: number; conversas: number; fechados: number; vendas_maduras: number; analises_ia: number; propostas_equipe: number; followups: number; recuperacao: number };
+  volume_minimo: { leads: number; conversas: number; fechados: number; vendas_maduras: number; analises_ia: number; propostas_equipe: number; followups: number; recuperacao: number; abertos: number };
+  /** cobertura mínima do score de esforço para entrar na comparação do ranking */
+  cobertura_minima_ranking: number;
+  /** setores (funções) avaliados pelo módulo */
+  setores: string[];
   /** dias após a admissão em que o vendedor fica "em rampa" (fora da comparação) */
   rampa_dias: number;
   /** recém-contratado em rampa entra no ranking? */
@@ -74,6 +78,8 @@ export type ConfigPerformance = {
   };
   qualidade: {
     maturidade_dias: number;
+    /** tamanho da coorte avaliada (dias de vendas/ativações antes da maturidade) */
+    janela_dias: number;
     cancel_antes_instalacao: { alvo: number; maximo: number };
     cancel_30: { alvo: number; maximo: number };
     churn_90: { alvo: number; maximo: number };
@@ -98,8 +104,12 @@ export type ConfigPerformance = {
     custo_max_mensal_usd: number;
     retencao_texto_dias: number;
     min_msgs_cliente: number;
+    /** pesos da rubrica de qualidade do atendimento (0 desliga o critério) */
+    rubrica: Record<string, number>;
   };
   coleta: { habilitada: boolean; dias_retroativos: number };
+  /** quem pode ler o CONTEÚDO das conversas (resumos e mensagens) além do próprio vendedor */
+  acesso: { conversas: string[] };
 };
 
 export const VERSAO_REGRAS = "pc-1.0";
@@ -144,13 +154,16 @@ export const CONFIG_PADRAO: ConfigPerformance = {
     "5": [["08:00", "18:00"]],
     "6": [["08:00", "12:00"]],
   },
-  volume_minimo: { leads: 5, conversas: 5, fechados: 5, vendas_maduras: 8, analises_ia: 5, propostas_equipe: 10, followups: 3, recuperacao: 3 },
+  volume_minimo: { leads: 5, conversas: 5, fechados: 5, vendas_maduras: 8, analises_ia: 5, propostas_equipe: 10, followups: 3, recuperacao: 3, abertos: 3 },
+  cobertura_minima_ranking: 0.4,
+  setores: ["comercial_interno", "comercial_externo"],
   rampa_dias: 30,
   rampa_no_ranking: false,
   followup: { tolerancia: "fim_do_dia", incluir_automaticos: false, carencia_min: 5 },
   lead_quente: { usar_ia: true, usar_urgencia_alta: true, minutos_sem_resposta: 30 },
   qualidade: {
     maturidade_dias: 30,
+    janela_dias: 90,
     cancel_antes_instalacao: { alvo: 0.05, maximo: 0.25 },
     cancel_30: { alvo: 0.03, maximo: 0.15 },
     churn_90: { alvo: 0.03, maximo: 0.15 },
@@ -172,9 +185,25 @@ export const CONFIG_PADRAO: ConfigPerformance = {
     custo_max_mensal_usd: 20,
     retencao_texto_dias: 180,
     min_msgs_cliente: 2,
+    rubrica: {
+      clareza: 10,
+      cordialidade: 10,
+      identificacao_necessidade: 10,
+      explicacao_planos: 10,
+      conducao_negociacao: 10,
+      tratamento_objecoes: 10,
+      proatividade: 10,
+      proximos_passos: 10,
+      tentativa_fechamento: 10,
+      conformidade_comercial: 10,
+    },
   },
   coleta: { habilitada: true, dias_retroativos: 2 },
+  acesso: { conversas: ["gestor"] },
 };
+
+/** perfis que podem receber acesso ao conteúdo das conversas */
+export const PERFIS_CONVERSAS = ["gestor", "direcao", "supervisor"];
 
 const ehObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -197,7 +226,7 @@ export function mesclarConfig(salvo: unknown, padrao: ConfigPerformance = CONFIG
       if (aqui === "expediente" || aqui === "pesos_por_setor") continue; // tratados à parte
       if (typeof vPadrao === "number") {
         if (typeof v !== "number" || !Number.isFinite(v) || v < 0) continue;
-        if (aqui.startsWith("pesos.")) alvo[k] = Math.min(100, v);
+        if (aqui.startsWith("pesos.") || aqui.startsWith("ia.rubrica.")) alvo[k] = Math.min(100, v);
         else if (aqui.startsWith("faixas.") || /\.(alvo|maximo|piso)$/.test(aqui) || aqui.startsWith("alertas.conversao_abaixo") || aqui.startsWith("alertas.queda_produtividade") || aqui.startsWith("alertas.disciplina_minima"))
           alvo[k] = Math.min(1, v);
         else alvo[k] = v;
@@ -236,6 +265,19 @@ export function mesclarConfig(salvo: unknown, padrao: ConfigPerformance = CONFIG
       );
       if (turnos.length === v.length) exp[dia] = turnos.slice(0, 3);
     }
+  }
+
+  if (Array.isArray(salvo.setores)) {
+    const setores = (salvo.setores as unknown[]).filter((x): x is string => typeof x === "string" && /^[a-z_]{2,40}$/.test(x));
+    if (setores.length) saida.setores = [...new Set(setores)];
+  }
+
+  // acesso ao conteúdo das conversas: só perfis de gestão conhecidos; gestor sempre
+  if (ehObj(salvo.acesso) && Array.isArray((salvo.acesso as Record<string, unknown>).conversas)) {
+    const lista = ((salvo.acesso as Record<string, unknown>).conversas as unknown[]).filter(
+      (p): p is string => typeof p === "string" && PERFIS_CONVERSAS.includes(p)
+    );
+    (saida.acesso as { conversas: string[] }).conversas = [...new Set(["gestor", ...lista])];
   }
 
   // pesos por setor: só chaves de peso conhecidas, números válidos

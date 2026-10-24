@@ -17,6 +17,10 @@ describe("mascararTexto — minimização antes de gravar e antes da IA", () => 
     expect(mascararTexto("cep 68370-000")).toBe("cep [CEP]");
     expect(mascararTexto("boleto 2379 0000 1234 5678 9012")).toBe("boleto [NÚMERO]");
   });
+  it("mascara coordenadas e links de mapa enviados pelo cliente", () => {
+    expect(mascararTexto("minha localização -3.1798077, -52.189879 ok")).toBe("minha localização [LOCALIZAÇÃO] ok");
+    expect(mascararTexto("https://maps.google.com/?q=-3.17,-52.18")).toBe("[LOCALIZAÇÃO]");
+  });
   it("não mexe em preço, velocidade e número da casa", () => {
     const t = "plano de 800 Mb por R$ 99,90, rua 7 nº 123, 1 Giga";
     expect(mascararTexto(t)).toBe(t);

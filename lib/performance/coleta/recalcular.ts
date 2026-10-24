@@ -13,13 +13,13 @@ import { vincularTicketPuro } from "./vinculo";
  * agentes, ou para revincular conversas a tickets criados depois.
  * Mensagens com texto já expirado pela retenção usam só o tamanho original.
  */
-export async function recalcularConversas(opts: { todas?: boolean; prazoMs?: number; ids?: string[] } = {}) {
+export async function recalcularConversas(opts: { todas?: boolean; prazoMs?: number; ids?: string[]; /** retoma o modo "todas" de onde parou */ desdeId?: string } = {}) {
   const admin = criarClienteAdmin();
   const ctx = await montarContextoColeta();
   const limite = opts.prazoMs ? Date.now() + opts.prazoMs : null;
   let feitas = 0;
   let restantes = false;
-  let ultimoId = "00000000-0000-0000-0000-000000000000";
+  let ultimoId = opts.desdeId ?? "00000000-0000-0000-0000-000000000000";
   for (let rodada = 0; rodada < 200; rodada++) {
     if (limite && Date.now() > limite) {
       restantes = true;
@@ -36,6 +36,11 @@ export async function recalcularConversas(opts: { todas?: boolean; prazoMs?: num
     const { data: lote } = await q;
     if (!lote?.length) break;
     for (const c of lote) {
+      // prazo conferido a cada conversa: uma rodada inteira passaria do limite da função
+      if (limite && Date.now() > limite) {
+        restantes = true;
+        break;
+      }
       const { data: msgs } = await admin
         .from("conversas_mensagens")
         .select("externo_id, autor, agente_nome, enviada_em, tipo, categoria, texto, tamanho")
@@ -111,7 +116,7 @@ export async function recalcularConversas(opts: { todas?: boolean; prazoMs?: num
       feitas++;
       ultimoId = c.id as string;
     }
-    if (opts.ids?.length) break;
+    if (opts.ids?.length || restantes) break;
   }
-  return { feitas, restantes };
+  return { feitas, restantes, ultimoId };
 }

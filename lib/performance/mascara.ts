@@ -11,6 +11,10 @@ const semAcento = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 const PADROES: [RegExp, string][] = [
   [/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, "[EMAIL]"],
+  // coordenadas de localização enviadas pelo cliente (lat, lng)
+  [/-?\b\d{1,2}\.\d{4,}\s*,\s*-?\d{1,3}\.\d{4,}\b/g, "[LOCALIZAÇÃO]"],
+  // links de mapa
+  [/https?:\/\/(maps\.google|goo\.gl\/maps|maps\.app\.goo\.gl|www\.google\.com\/maps)\S*/gi, "[LOCALIZAÇÃO]"],
   // CNPJ antes do CPF (o CPF casaria um pedaço dele)
   [/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g, "[CNPJ]"],
   [/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g, "[CPF]"],

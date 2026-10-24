@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { avaliarFollowup, fimDoDiaSantarem, pontuarPrioridade, type FollowupAvaliavel } from "./followups";
+import { avaliarFollowup, fimDoDiaSantarem, pontuarPrioridade, prazoDaNota, type FollowupAvaliavel } from "./followups";
 
 const OPTS = { tolerancia: "fim_do_dia" as const, carenciaMin: 5 };
 // retorno agendado na terça 20/10 às 10h para quarta 21/10 às 15h (Santarém)
@@ -55,5 +55,14 @@ describe("pontuarPrioridade — fila inteligente", () => {
   });
   it("vencido pesa mais que programado", () => {
     expect(pontuarPrioridade({ ...base, vencidoHoras: 5 })).toBeGreaterThan(pontuarPrioridade(base));
+  });
+});
+
+describe("prazoDaNota — retorno agendado na tratativa do CRM", () => {
+  it("lê data e hora do texto da nota (horário de Santarém)", () => {
+    expect(prazoDaNota("📞 Tratativa: cliente pediu para ligar · Reagendado para 25/10/2026 às 14:30")).toBe("2026-10-25T17:30:00.000Z");
+  });
+  it("texto sem reagendamento não vira prazo", () => {
+    expect(prazoDaNota("Proposta registrada: R$ 99,90")).toBeNull();
   });
 });

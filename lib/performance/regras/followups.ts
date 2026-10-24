@@ -114,3 +114,12 @@ export function pontuarPrioridade(x: {
   p += x.prioridadeDeclarada === "alta" ? 10 : x.prioridadeDeclarada === "media" ? 4 : 0;
   return Math.round(p * 10) / 10;
 }
+
+/** "Reagendado para 25/10/2026 às 14:30" → ISO (Santarém) */
+export function prazoDaNota(texto: string): string | null {
+  const m = texto.match(/Reagendado para (\d{2})\/(\d{2})\/(\d{4}) às (\d{2}):(\d{2})/);
+  if (!m) return null;
+  const iso = `${m[3]}-${m[2]}-${m[1]}T${m[4]}:${m[5]}:00-03:00`;
+  return Number.isFinite(Date.parse(iso)) ? new Date(iso).toISOString() : null;
+}
+

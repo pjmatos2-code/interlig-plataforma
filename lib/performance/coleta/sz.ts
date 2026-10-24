@@ -15,6 +15,14 @@ import { EQUIPES_CRM } from "@/lib/sz/conversas";
 
 export const EQUIPES_COMERCIAIS = EQUIPES_CRM;
 
+/** resposta precisa ser JSON: HTML aqui = sessão perdida ou instabilidade do SZ */
+async function lerJson(r: Response, onde: string): Promise<unknown> {
+  const tipo = r.headers.get("content-type") ?? "";
+  if (!r.ok) throw new Error(`${onde}: SZ respondeu ${r.status}`);
+  if (!tipo.includes("json")) throw new Error(`${onde}: SZ não devolveu JSON (sessão perdida ou instabilidade)`);
+  return r.json();
+}
+
 export async function abrirSessaoSz(): Promise<SessaoSz | null> {
   const cred = await lerCredenciaisSz();
   if (!cred) return null;
@@ -46,8 +54,7 @@ export async function listarEncerradasDoDia(
     if (limite && Date.now() > limite) return { itens, proximaPagina: pagina, paginasLidas: lidas };
     const rota = `/reports/messages/filter?page=${pagina}&channel=&contact=&protocol=&agent=&contactName=&attendance=&platform_id=&options_conversations=all&view_conversation=default&data_privacy=hidden&typeStatus=all&copilot_score=&attendance_classification=&closing_reason=&finalCampaign=&finalAgent=&date=${dateParam}`;
     const r = await sz.api(rota);
-    if (!r.ok) throw new Error(`relatório do SZ respondeu ${r.status} na página ${pagina}`);
-    const j = (await r.json()) as { data?: Record<string, unknown>[]; has_next?: boolean };
+    const j = (await lerJson(r, `relatório, página ${pagina}`)) as { data?: Record<string, unknown>[]; has_next?: boolean };
     lidas++;
     for (const c of j.data ?? []) if (EQUIPES_COMERCIAIS[String(c.campaign_id ?? "")]) itens.push(c);
     if (!j.has_next) return { itens, proximaPagina: null, paginasLidas: lidas };
@@ -73,7 +80,6 @@ export async function baixarMensagensSz(sz: SessaoSz, externoId: string, dia: st
       closing_reason: "",
     },
   });
-  if (!r.ok) throw new Error(`transcript do SZ respondeu ${r.status}`);
-  const j = await r.json();
+  const j = await lerJson(r, "transcript");
   return Array.isArray(j) ? j : [];
 }

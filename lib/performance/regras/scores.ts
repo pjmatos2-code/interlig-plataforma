@@ -25,6 +25,8 @@ const nd = (motivo: MotivoIndisponivel) => ({ nota: null, disponivel: false, mot
 export type EntradasEsforco = {
   /** o vendedor atende pelo chatbot (tem agente vinculado com conversas) */
   temCanalChat: boolean;
+  /** os leads dele nascem no chat, mas nenhum agente do chat está vinculado a ele */
+  chatSemVinculo?: boolean;
   leadsRecebidos: number;
   /** dos recebidos no período, quantos já tiveram ação humana */
   leadsRecebidosAtendidos: number;
@@ -68,7 +70,12 @@ export function calcularEsforco(e: EntradasEsforco, cfg: ConfigPerformance, peso
     chave: "leads_atendidos", rotulo: "Leads atendidos", unidade: "pct", valor: taxaAtend,
     numerador: e.leadsRecebidosAtendidos, denominador: e.leadsRecebidos,
     formula: "Leads recebidos no período que já tiveram ação humana ÷ leads recebidos.",
-    ...(e.leadsRecebidos < v.leads ? nd("volume_insuficiente") : { nota: notaLinear(taxaAtend ?? 0, f.leads_atendidos), disponivel: true }),
+    ...(e.chatSemVinculo
+      ? nd("sem_integracao")
+      : e.leadsRecebidos < v.leads
+        ? nd("volume_insuficiente")
+        : { nota: notaLinear(taxaAtend ?? 0, f.leads_atendidos), disponivel: true }),
+    detalhe: e.chatSemVinculo ? "Os leads deste vendedor nascem no chat, mas nenhum agente do chat está vinculado a ele (Administração → vínculo de atendentes). Sem isso o atendimento dele no chat não aparece." : undefined,
   };
 
   const pr = e.primeiraResposta.util;
@@ -133,8 +140,8 @@ export function calcularEsforco(e: EntradasEsforco, cfg: ConfigPerformance, peso
     chave: "sem_atraso", rotulo: "Ausência de leads atrasados", unidade: "nota", valor: fracAtraso,
     numerador: e.leadsSemRetorno, denominador: e.leadsAbertos,
     formula: `100 quando nenhum lead aberto está sem retorno; cai linearmente até 0 quando ${Math.round(f.sem_atraso_limite * 100)}% ou mais dos leads abertos estão sem retorno.`,
-    ...(e.leadsAbertos === 0
-      ? nd("sem_dados")
+    ...(e.leadsAbertos < v.abertos
+      ? nd(e.leadsAbertos === 0 ? "sem_dados" : "volume_insuficiente")
       : { nota: Math.round(Math.max(0, 1 - Math.min(1, (fracAtraso ?? 0) / f.sem_atraso_limite)) * 1000) / 10, disponivel: true }),
   };
 

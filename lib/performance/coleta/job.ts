@@ -26,6 +26,8 @@ export type ResultadoColetaDia = {
   /** null = dia lido até o fim */
   proximaPagina: number | null;
   ultimoErro?: string;
+  /** a listagem do relatório falhou (o dia fica para a próxima execução) */
+  falhouListagem?: boolean;
 };
 
 export async function montarContextoColeta(desdeIso = "2026-07-01T00:00:00-03:00"): Promise<ContextoColeta> {
@@ -48,9 +50,11 @@ export async function montarContextoColeta(desdeIso = "2026-07-01T00:00:00-03:00
   };
 }
 
+const pausa = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export async function coletarDia(
   dia: string,
-  opts: { sz: SessaoSz; ctx: ContextoColeta; prazoMs?: number; paginaInicial?: number; forcar?: boolean }
+  opts: { sz: SessaoSz; ctx: ContextoColeta; prazoMs?: number; paginaInicial?: number; forcar?: boolean; pausaMs?: number }
 ): Promise<ResultadoColetaDia> {
   const admin = criarClienteAdmin();
   const limite = opts.prazoMs ? Date.now() + opts.prazoMs : null;
@@ -61,7 +65,18 @@ export async function coletarDia(
       res.proximaPagina = pagina;
       return res;
     }
-    const lote = await listarEncerradasDoDia(opts.sz, dia, { paginaInicial: pagina, maxPaginas: 1 });
+    let lote: Awaited<ReturnType<typeof listarEncerradasDoDia>>;
+    try {
+      lote = await listarEncerradasDoDia(opts.sz, dia, { paginaInicial: pagina, maxPaginas: 1 });
+    } catch (e) {
+      // falha do SZ na listagem: para aqui e retoma desta página na próxima vez
+      res.erros++;
+      res.ultimoErro = e instanceof Error ? e.message : String(e);
+      res.proximaPagina = pagina;
+      res.falhouListagem = true;
+      return res;
+    }
+    if (opts.pausaMs) await pausa(opts.pausaMs);
     res.paginas += lote.paginasLidas;
     res.listadas += lote.itens.length;
     if (lote.itens.length) {
@@ -73,6 +88,12 @@ export async function coletarDia(
         .in("externo_id", ids);
       const ja = new Map((existentes ?? []).map((e) => [String(e.externo_id), e]));
       for (const item of lote.itens) {
+        // prazo também a cada conversa: parar no meio da página é seguro
+        // (na retomada a página é relida e o que já foi gravado é pulado)
+        if (limite && Date.now() > limite) {
+          res.proximaPagina = pagina;
+          return res;
+        }
         const id = String(item._id);
         const anterior = ja.get(id);
         if (!opts.forcar && anterior && anterior.versao_calculo === VERSAO_CALCULO && anterior.finalizada_em) {
@@ -80,6 +101,7 @@ export async function coletarDia(
           continue;
         }
         try {
+          if (opts.pausaMs) await pausa(opts.pausaMs);
           const brutas = await baixarMensagensSz(opts.sz, id, dia);
           const conversa = normalizarConversaSz(item, brutas, EQUIPES_COMERCIAIS);
           const calc = calcularConversa(conversa, opts.ctx.resolverVendedor, opts.ctx.cfg.expediente, opts.ctx.ehDiaUtil);
