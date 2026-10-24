@@ -21,17 +21,17 @@ export default async function LayoutPerformance({ children }: { children: React.
       : [
           { href: "/performance", rotulo: "Visão geral" },
           { href: "/performance/ranking", rotulo: "Ranking" },
-          { href: "/performance/esforco", rotulo: "Esforço comercial" },
-          { href: "/performance/funil", rotulo: "Funil e conversão" },
+          { href: "/performance/esforco", rotulo: "Esforço" },
+          { href: "/performance/funil", rotulo: "Funil" },
           { href: "/performance/followups", rotulo: "Follow-ups" },
-          { href: "/performance/qualidade", rotulo: "Qualidade das vendas" },
-          { href: "/performance/conversas", rotulo: "Inteligência das conversas" },
-          { href: "/performance/alertas", rotulo: "Alertas e oportunidades" },
+          { href: "/performance/qualidade", rotulo: "Qualidade" },
+          { href: "/performance/conversas", rotulo: "Conversas (IA)" },
+          { href: "/performance/alertas", rotulo: "Alertas" },
           { href: "/performance/relatorios", rotulo: "Relatórios e metas" },
           ...(escopo.podeConfigurar ? [{ href: "/performance/configuracoes", rotulo: "Configurações" }] : []),
         ];
   return (
-    <div className="mx-auto max-w-[1400px]">
+    <div className="perf-raiz w-full">
       <div className="mb-3 flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-interlig-azul text-white">
           <BarChart3 className="h-5 w-5" aria-hidden />

@@ -17,8 +17,8 @@ export function AbasPerformance({ abas }: { abas: Aba[] }) {
   }
   const qs = manter.toString();
   return (
-    <nav aria-label="Telas da Performance Comercial" className="-mx-4 mb-4 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0 lg:overflow-visible">
-      <ul className="flex min-w-max gap-1 lg:min-w-0 lg:flex-wrap">
+    <nav aria-label="Telas da Performance Comercial" className="-mx-4 mb-4 overflow-x-auto border-b px-4 sm:mx-0 sm:px-0">
+      <ul className="flex min-w-max gap-1">
         {abas.map((a) => {
           const ativa = a.href === "/performance" ? caminho === "/performance" : caminho.startsWith(a.href);
           return (

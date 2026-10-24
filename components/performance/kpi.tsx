@@ -44,7 +44,11 @@ export function Kpi({
       <p className={cn("mt-1 font-semibold leading-tight tracking-tight", valor.length <= 8 ? "text-2xl" : valor.length <= 12 ? "text-xl" : "text-lg")}>{valor}</p>
       <div className="mt-0.5 flex min-h-[1rem] flex-wrap items-baseline gap-x-2 text-xs">
         {atual !== undefined && anterior !== undefined && <Variacao atual={atual ?? null} anterior={anterior ?? null} tipo={tipoVariacao} menorEhMelhor={menorEhMelhor} />}
-        {contexto && <span className="text-muted-foreground">{contexto}</span>}
+        {contexto && (
+          <span className="line-clamp-2 text-muted-foreground" title={contexto}>
+            {contexto}
+          </span>
+        )}
       </div>
       {rodape && <div className="mt-2">{rodape}</div>}
     </div>

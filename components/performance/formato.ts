@@ -8,6 +8,9 @@ const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" 
 export const fmtNum = (n: number | null | undefined) => (n === null || n === undefined ? "—" : nf0.format(n));
 export const fmtNum1 = (n: number | null | undefined) => (n === null || n === undefined ? "—" : nf1.format(n));
 export const fmtBrl = (n: number | null | undefined) => (n === null || n === undefined ? "—" : brl.format(n));
+/** cartão de indicador: a partir de R$ 10 mil em forma curta ("R$ 21,2 mil"); o valor cheio vai no título */
+const brlCurto = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", notation: "compact", maximumFractionDigits: 1 });
+export const fmtBrlCurto = (n: number | null | undefined) => (n === null || n === undefined ? "—" : Math.abs(n) >= 10_000 ? brlCurto.format(n) : brl.format(n));
 export const fmtPct = (f: number | null | undefined, casas = 0) =>
   f === null || f === undefined ? "—" : `${(f * 100).toLocaleString("pt-BR", { maximumFractionDigits: casas, minimumFractionDigits: casas })}%`;
 

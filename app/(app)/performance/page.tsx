@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { AlertTriangle, ArrowRight, Bot, Flame, Sparkles, Trophy } from "lucide-react";
 import { BarraComposicao, FunilHorizontal } from "@/components/performance/barras";
 import { FiltrosPerformance } from "@/components/performance/filtros";
-import { fmtBrl, fmtDuracao, fmtNum, fmtPct } from "@/components/performance/formato";
+import { fmtBrl, fmtBrlCurto, fmtDuracao, fmtNum, fmtPct } from "@/components/performance/formato";
 import { GraficoEvolucao } from "@/components/performance/graficos";
 import { Kpi } from "@/components/performance/kpi";
 import { AvisoComparacao, BarraProgresso, NotaScore, Painel, Vazio } from "@/components/performance/ui";
@@ -55,7 +55,7 @@ export default async function VisaoGeral({ searchParams }: { searchParams: Searc
       <FiltrosPerformance de={ctx.periodo.de} ate={ctx.periodo.ate} rotulo={`${ctx.periodo.rotulo} · comparado a ${ctx.periodo.deAnterior.split("-").reverse().join("/")}–${ctx.periodo.ateAnterior.split("-").reverse().join("/")}`} pops={ctx.opcoes.pops} setores={ctx.opcoes.setores} coordenadores={ctx.opcoes.coordenadores} />
 
       <AvisoComparacao texto={ap.avisoComparacao} />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
+      <div className="perf-kpis">
         <Kpi rotulo="Leads recebidos" valor={fmtNum(t.leadsRecebidos)} atual={t.leadsRecebidos} anterior={ta.leadsRecebidos} contexto="vs. anterior" titulo="Leads criados no período (fora vendas lançadas direto no SGP)" />
         <Kpi rotulo="Leads atendidos" valor={fmtNum(t.leadsAtendidos)} contexto={t.leadsRecebidos ? `${fmtPct(t.leadsAtendidos / t.leadsRecebidos)} dos recebidos` : undefined} rodape={<BarraProgresso fracao={t.leadsRecebidos ? t.leadsAtendidos / t.leadsRecebidos : null} tom="azul" />} />
         <Kpi rotulo="Aguardando atendimento" valor={fmtNum(t.leadsAguardando)} contexto="abertos, sem ação humana" tom={t.leadsAguardando > 0 ? "amarelo" : undefined} />
@@ -63,7 +63,7 @@ export default async function VisaoGeral({ searchParams }: { searchParams: Searc
         <Kpi rotulo="Vendas fechadas" valor={fmtNum(t.vendas)} atual={t.vendas} anterior={ta.vendas} contexto="vs. anterior" />
         <Kpi rotulo="Conversão real" valor={fmtPct(t.conversao)} atual={t.conversao} anterior={ta.conversao} tipoVariacao="pontos" contexto={`${fmtNum(t.fechados)} fechados`} titulo="Tickets convertidos ÷ tickets fechados no período (PRD 5.14)" />
         <Kpi rotulo="Contratos ativados" valor={fmtNum(t.ativacoes)} atual={t.ativacoes} anterior={ta.ativacoes} contexto="vs. anterior" />
-        <Kpi rotulo="Receita mensal nova" valor={fmtBrl(t.receitaNova)} atual={t.receitaNova} anterior={ta.receitaNova} contexto={t.ticketMedio ? `ticket ${fmtBrl(t.ticketMedio)}` : undefined} />
+        <Kpi rotulo="Receita mensal nova" valor={fmtBrlCurto(t.receitaNova)} titulo={`Receita mensal nova: ${fmtBrl(t.receitaNova)}`} atual={t.receitaNova} anterior={ta.receitaNova} contexto={t.ticketMedio ? `ticket ${fmtBrl(t.ticketMedio)}` : undefined} />
         <Kpi rotulo="Ticket médio" valor={fmtBrl(t.ticketMedio)} atual={t.ticketMedio} anterior={ta.ticketMedio} contexto="vs. anterior" />
         <Kpi rotulo="Follow-ups pendentes" valor={fmtNum(t.followupsPendentes)} contexto="programados e de hoje" />
         <Kpi rotulo="Follow-ups vencidos" valor={fmtNum(t.followupsVencidos)} tom={t.followupsVencidos ? "vermelho" : undefined} contexto={!t.followupsVencidos ? "nenhum" : t.followupsVencidosRobo ? `${fmtNum(t.followupsVencidosRobo)} automáticos do robô` : "precisam de ação"} />
@@ -80,7 +80,7 @@ export default async function VisaoGeral({ searchParams }: { searchParams: Searc
         />
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
+      <div className="perf-graficos mt-4">
         <Painel titulo="Evolução de resultados" descricao="Por dia: leads pela data de criação, vendas pela data da venda, ativações pela data de ativação.">
           <GraficoEvolucao dados={t.serie} />
         </Painel>
@@ -107,7 +107,7 @@ export default async function VisaoGeral({ searchParams }: { searchParams: Searc
         </Painel>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <div className="perf-duas mt-4">
         <Painel
           titulo="Ranking de Performance Comercial (IPC)"
           descricao="IPC = 35% esforço + 40% resultado + 25% qualidade. Só compara quem tem a mesma função; * = provisório."
@@ -193,7 +193,7 @@ export default async function VisaoGeral({ searchParams }: { searchParams: Searc
         </Painel>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      <div className="perf-tres mt-4">
         <Painel titulo="Qualidade das vendas" descricao="Coortes maduras do time (sinal de investigação, não culpa automática)." acao={<Link href="/performance/qualidade" className="text-xs font-medium text-interlig-azul hover:underline">Detalhar</Link>}>
           <ul className="space-y-2.5">
             {quali.map((q) => (

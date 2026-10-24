@@ -45,3 +45,58 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/*
+ * Performance Comercial (24/10/2026): as grades seguem a LARGURA DO CONTEÚDO
+ * (container query), não a da janela — com o menu lateral aberto, uma tela
+ * de 1440 px deixa ~1150 px úteis e os cartões não podem ficar espremidos.
+ */
+.perf-raiz {
+  container: perf / inline-size;
+}
+.perf-kpis {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.perf-graficos,
+.perf-duas,
+.perf-tres {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+@container perf (min-width: 560px) {
+  .perf-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@container perf (min-width: 760px) {
+  .perf-graficos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .perf-graficos > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+@container perf (min-width: 900px) {
+  .perf-tres {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@container perf (min-width: 1100px) {
+  .perf-duas {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  }
+}
+@container perf (min-width: 1280px) {
+  .perf-kpis {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+  .perf-graficos {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.1fr) minmax(0, 0.9fr);
+  }
+  .perf-graficos > :first-child {
+    grid-column: auto;
+  }
+}

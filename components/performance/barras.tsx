@@ -9,22 +9,31 @@ import { fmtNum, fmtPct } from "./formato";
 export function FunilHorizontal({ etapas }: { etapas: { rotulo: string; valor: number; detalhe?: string }[] }) {
   const topo = etapas[0]?.valor ?? 0;
   return (
-    <ol className="space-y-1.5" aria-label="Funil de vendas">
+    <ol className="space-y-1" aria-label="Funil de vendas">
+      <li className="grid grid-cols-[minmax(0,9rem)_minmax(2rem,1fr)_auto_3.25rem] gap-2 text-[11px] text-muted-foreground" aria-hidden>
+        <span>Etapa</span>
+        <span />
+        <span className="text-right">volume · % do total</span>
+        <span className="text-right">passou</span>
+      </li>
       {etapas.map((e, i) => {
         const frac = topo ? e.valor / topo : 0;
         const passagem = i > 0 && etapas[i - 1].valor ? e.valor / etapas[i - 1].valor : null;
         return (
-          <li key={e.rotulo} className="grid grid-cols-[minmax(0,9.5rem)_1fr_auto] items-center gap-2 text-sm">
+          <li key={e.rotulo} className="grid grid-cols-[minmax(0,9rem)_minmax(2rem,1fr)_auto_3.25rem] items-center gap-2 text-sm">
             <span className="truncate text-xs text-muted-foreground" title={e.detalhe ?? e.rotulo}>
               {e.rotulo}
             </span>
-            <span className="block h-5 min-w-0 rounded-[4px] bg-muted/60">
+            <span className="block h-4 min-w-0 rounded-[4px] bg-muted/60">
               <span className="block h-full rounded-[4px] bg-interlig-ceu/85" style={{ width: `${Math.max(frac * 100, e.valor ? 1.5 : 0)}%` }} />
             </span>
-            <span className="w-24 text-right text-xs tabular-nums">
+            <span className="text-right text-xs tabular-nums">
               <span className="font-semibold text-foreground">{fmtNum(e.valor)}</span>{" "}
               <span className="text-muted-foreground">{i === 0 ? "100%" : fmtPct(frac)}</span>
-              {passagem !== null && <span className="block text-[11px] text-muted-foreground">passagem {fmtPct(passagem)}</span>}
+            </span>
+            {/* passagem da etapa anterior, na mesma linha (o funil não fica mais alto que os vizinhos) */}
+            <span className="whitespace-nowrap text-right text-[11px] tabular-nums text-muted-foreground" title={passagem !== null ? `${fmtPct(passagem)} passaram da etapa anterior` : undefined}>
+              {passagem !== null ? `→ ${fmtPct(passagem)}` : ""}
             </span>
           </li>
         );
