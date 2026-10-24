@@ -424,12 +424,30 @@ export function FormConfiguracoes({
         </div>
       </Secao>
 
-      <Secao titulo="Coleta do chat e acesso" descricao="Coleta só leitura do SZ (conta robô). O conteúdo das conversas é dado pessoal: libere só para quem precisa.">
+      <Secao titulo="Coleta do chat e acesso" descricao="Coleta só leitura do SZ (conta robô). Quem não abre o módulo não vê o menu nem recebe os avisos de alerta. O conteúdo das conversas é dado pessoal: libere só para quem precisa.">
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="flex items-end pb-2">
             <Liga caminho="coleta.habilitada" rotulo="Coleta automática ligada" />
           </div>
           <Numero caminho="coleta.dias_retroativos" rotulo="Dias que a rotina revisa para trás" />
+        </div>
+        <p className="mb-1 mt-3 text-xs text-muted-foreground">Quem abre o módulo Performance Comercial (o administrador sempre abre)</p>
+        <div className="flex flex-wrap gap-x-6 gap-y-2">
+          {[
+            ["diretoria", "Diretoria"],
+            ["supervisor", "Supervisores e coordenadores (só o próprio time ou unidade)"],
+            ["vendedor", "Vendedores (só os próprios números)"],
+          ].map(([k, r]) => (
+            <label key={k} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={cfg.acesso.papeis_modulo.includes(k)}
+                onChange={(e) => definir("acesso.papeis_modulo", e.target.checked ? [...new Set([...cfg.acesso.papeis_modulo, k])] : cfg.acesso.papeis_modulo.filter((x) => x !== k))}
+                className="h-4 w-4 accent-[hsl(var(--primary))]"
+              />
+              {r}
+            </label>
+          ))}
         </div>
         <p className="mb-1 mt-3 text-xs text-muted-foreground">Quem lê o conteúdo das conversas (resumos e mensagens), além do próprio vendedor</p>
         <div className="flex flex-wrap gap-x-6 gap-y-2">

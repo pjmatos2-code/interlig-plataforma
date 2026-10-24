@@ -3,6 +3,7 @@ import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { carregarBase } from "../dados/carregar";
 import { calcularLinha, calcularTotais, indexar, ordenarRanking } from "../dados/calcular";
 import { resolverPeriodoPerf } from "../periodo";
+import { perfilAbreModulo } from "../escopo-regras";
 import { ESCOPO_SISTEMA } from "../sistema";
 import { gerarAlertas, type AlertaCandidato } from "./regras";
 
@@ -90,18 +91,22 @@ export async function rodarAlertas(opts: { notificar?: boolean } = {}) {
     resolvidos++;
   }
 
-  // aviso no sino: só críticos novos, para vendedor + coordenação, com teto diário
+  // aviso no sino: só críticos novos, para vendedor + coordenação (se abrem o módulo), com teto diário
   let notificados = 0;
   if (opts.notificar !== false && base.cfg.alertas.notificar_criticos && novosCriticos.length) {
     const inicioDia = `${hoje}T00:00:00-03:00`;
     const { count } = await admin.from("notificacoes").select("id", { count: "exact", head: true }).eq("tipo", "alerta_comercial").gte("criado_em", inicioDia);
     let restante = Math.max(0, base.cfg.alertas.max_notificacoes_dia - (count ?? 0));
-    const { data: usuarios } = await admin.from("usuarios").select("id, vendedor_id, ativo").eq("ativo", true);
+    const { data: usuarios } = await admin.from("usuarios").select("id, vendedor_id, ativo, perfil").eq("ativo", true);
     const usuarioDoVendedor = new Map((usuarios ?? []).filter((u) => u.vendedor_id).map((u) => [u.vendedor_id as string, u.id as string]));
+    // só avisa quem abre o módulo (o aviso leva para dentro dele); enquanto for só o
+    // administrador, vendedor e coordenação não recebem nada
+    const perfilDe = new Map((usuarios ?? []).map((u) => [u.id as string, u.perfil as string]));
+    const abre = (usuarioId: string) => perfilAbreModulo(perfilDe.get(usuarioId) ?? "", base.cfg.acesso.papeis_modulo);
     for (const c of novosCriticos) {
       if (restante <= 0) break;
       const v = base.vendedores.find((x) => x.id === c.vendedor_id);
-      const destinos = [...new Set([c.vendedor_id ? usuarioDoVendedor.get(c.vendedor_id) : undefined, v?.coordenador_id ?? undefined].filter((x): x is string => Boolean(x)))];
+      const destinos = [...new Set([c.vendedor_id ? usuarioDoVendedor.get(c.vendedor_id) : undefined, v?.coordenador_id ?? undefined].filter((x): x is string => Boolean(x) && abre(x as string)))];
       for (const d of destinos) {
         if (restante <= 0) break;
         await admin.from("notificacoes").insert({
@@ -114,7 +119,7 @@ export async function rodarAlertas(opts: { notificar?: boolean } = {}) {
         restante--;
         notificados++;
       }
-      await admin.from("alertas_comerciais").update({ notificado_em: agora }).eq("chave", c.chave).eq("status", "aberto");
+      if (destinos.length) await admin.from("alertas_comerciais").update({ notificado_em: agora }).eq("chave", c.chave).eq("status", "aberto");
     }
   }
   return { candidatos: candidatos.length, criados, atualizados, resolvidos, notificados };

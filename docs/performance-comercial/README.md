@@ -25,6 +25,11 @@ para funcionar por completo · ⛔ não implementado (sem fonte de dados).
 
 ## 2. Telas
 
+> **Acesso (24/10/2026):** por enquanto só o **administrador** abre o módulo.
+> Em Configurações → "Quem abre o módulo" o gestor libera diretoria,
+> supervisores/coordenadores e vendedores, sem nova publicação. Quem não abre
+> não vê o menu nem recebe os avisos de alerta.
+
 | Tela | Status | Observação |
 |---|---|---|
 | Visão geral (16 KPIs, evolução, funil, origem, ranking, ações) | ✅ | comparação com o período anterior equivalente e aviso de lacuna de coleta |

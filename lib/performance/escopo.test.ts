@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Usuario } from "@/lib/tipos";
-import { alcanca, montarEscopo } from "./escopo-regras";
+import { alcanca, montarEscopo, perfilAbreModulo } from "./escopo-regras";
 
 const u = (perfil: string, extra: Partial<Usuario> = {}): Usuario => ({ id: "u1", nome: "Teste", email: "t@x", perfil: perfil as Usuario["perfil"], pop_id: null, vendedor_id: null, ativo: true, ...extra });
-const semDados = { conversasLiberadas: false, time: [], daPop: null };
+// papéis liberados: os testes de escopo partem do módulo aberto a todos
+const semDados = { conversasLiberadas: false, time: [], daPop: null, papeisLiberados: ["diretoria", "supervisor", "vendedor"] };
 
 describe("montarEscopo — permissões por papel (autorização no servidor)", () => {
   it("gestor vê tudo, configura, gere metas e lê conversas", () => {
@@ -48,5 +49,30 @@ describe("alcanca", () => {
     expect(alcanca(sup, "v2")).toBe(false);
     expect(alcanca(sup, null)).toBe(false);
     expect(alcanca(montarEscopo(u("gestor"), semDados)!, null)).toBe(true);
+  });
+});
+
+describe("acesso ao módulo por papel (Configurações → quem abre o módulo)", () => {
+  const soAdmin = { ...semDados, papeisLiberados: [] as string[] };
+  it("padrão de 24/10/2026: só o administrador abre", () => {
+    expect(montarEscopo(u("gestor"), soAdmin)?.papel).toBe("admin");
+    expect(montarEscopo(u("direcao"), soAdmin)).toBeNull();
+    expect(montarEscopo(u("supervisor"), { ...soAdmin, time: ["v1"] })).toBeNull();
+    expect(montarEscopo(u("supervisor", { pop_id: "p1" }), { ...soAdmin, daPop: ["v7"] })).toBeNull();
+    expect(montarEscopo(u("vendedora", { vendedor_id: "v9" }), soAdmin)).toBeNull();
+  });
+  it("liberar 'supervisor' abre para coordenador de time e de unidade, e só eles", () => {
+    const d = { ...semDados, papeisLiberados: ["supervisor"] };
+    expect(montarEscopo(u("supervisor"), { ...d, time: ["v1"] })?.papel).toBe("supervisor");
+    expect(montarEscopo(u("supervisor", { pop_id: "p1" }), { ...d, daPop: ["v7"] })?.papel).toBe("gerente_unidade");
+    expect(montarEscopo(u("direcao"), d)).toBeNull();
+    expect(montarEscopo(u("vendedora", { vendedor_id: "v9" }), d)).toBeNull();
+  });
+  it("menu segue a mesma regra sem consultar o banco", () => {
+    expect(perfilAbreModulo("gestor", [])).toBe(true);
+    expect(perfilAbreModulo("direcao", [])).toBe(false);
+    expect(perfilAbreModulo("direcao", ["diretoria"])).toBe(true);
+    expect(perfilAbreModulo("vendedora_externa", ["vendedor"])).toBe(true);
+    expect(perfilAbreModulo("financeiro", ["diretoria", "supervisor", "vendedor"])).toBe(false);
   });
 });

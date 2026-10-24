@@ -671,3 +671,14 @@ Total: 73 pendentes de 314 vendas de maio (23%).
 - Rotina com cron próprio (`/api/performance/rotina`, 10 min), fora do
   `/api/sync`; nunca grava status "executando" em `sync_runs`.
 - IA desligada por padrão; ligar é decisão do gestor nas Configurações.
+
+## Performance Comercial só para o administrador, por enquanto (24/10/2026)
+
+- Decisão do Paulo logo após a publicação: o módulo fica visível e acessível
+  só para o perfil gestor (administrador) até ele liberar a equipe.
+- Configurável em Performance → Configurações → "Quem abre o módulo"
+  (diretoria, supervisores/coordenadores, vendedores), sem nova publicação.
+- Enquanto um papel não abre o módulo, ele não vê o menu, as telas e a
+  exportação recusam (escopo no servidor) e os avisos de alerta crítico não
+  são enviados para ele.
+

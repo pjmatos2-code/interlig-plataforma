@@ -31,9 +31,30 @@ export type DadosEscopo = {
   time: string[];
   /** vendedores da POP do coordenador de unidade; null = sem POP */
   daPop: string[] | null;
+  /** papéis liberados nas Configurações além do administrador (diretoria, supervisor, vendedor) */
+  papeisLiberados: string[];
 };
 
+/** menu: o perfil abre o módulo? (sem consultar o banco — o escopo completo é conferido na tela) */
+export function perfilAbreModulo(perfil: string, liberados: string[]): boolean {
+  if (perfil === "gestor") return true;
+  if (perfil === "direcao") return liberados.includes("diretoria");
+  if (perfil === "supervisor") return liberados.includes("supervisor");
+  return PERFIS_VENDEDOR.includes(perfil) && liberados.includes("vendedor");
+}
+
+/** o papel abre o módulo? administrador sempre; os outros só se o gestor liberou */
+export function papelLiberado(papel: PapelPerformance, liberados: string[]): boolean {
+  if (papel === "admin") return true;
+  return liberados.includes(papel === "gerente_unidade" ? "supervisor" : papel);
+}
+
 export function montarEscopo(usuario: Usuario, d: DadosEscopo): EscopoPerformance | null {
+  const e = escopoDoPapel(usuario, d);
+  return e && papelLiberado(e.papel, d.papeisLiberados) ? e : null;
+}
+
+function escopoDoPapel(usuario: Usuario, d: DadosEscopo): EscopoPerformance | null {
   const base = { usuario, vendedorProprio: null, podeConfigurar: false, podeGerirMetas: false, verValoresDeColegas: true, podeExportar: true };
   if (usuario.perfil === "gestor")
     return { ...base, papel: "admin", vendedorIds: null, podeVerConversas: true, podeConfigurar: true, podeGerirMetas: true, podeTratarAlertas: true };

@@ -108,8 +108,12 @@ export type ConfigPerformance = {
     rubrica: Record<string, number>;
   };
   coleta: { habilitada: boolean; dias_retroativos: number };
-  /** quem pode ler o CONTEÚDO das conversas (resumos e mensagens) além do próprio vendedor */
-  acesso: { conversas: string[] };
+  acesso: {
+    /** quem pode ler o CONTEÚDO das conversas (resumos e mensagens) além do próprio vendedor */
+    conversas: string[];
+    /** além do administrador (sempre), quais papéis abrem o módulo: diretoria, supervisor, vendedor */
+    papeis_modulo: string[];
+  };
 };
 
 export const VERSAO_REGRAS = "pc-1.0";
@@ -199,8 +203,12 @@ export const CONFIG_PADRAO: ConfigPerformance = {
     },
   },
   coleta: { habilitada: true, dias_retroativos: 2 },
-  acesso: { conversas: ["gestor"] },
+  // 24/10/2026: por enquanto só o administrador abre o módulo (decisão do Paulo)
+  acesso: { conversas: ["gestor"], papeis_modulo: [] },
 };
+
+/** papéis que o gestor pode liberar para abrir o módulo (o administrador sempre abre) */
+export const PAPEIS_MODULO = ["diretoria", "supervisor", "vendedor"];
 
 /** perfis que podem receber acesso ao conteúdo das conversas */
 export const PERFIS_CONVERSAS = ["gestor", "direcao", "supervisor"];
@@ -278,6 +286,12 @@ export function mesclarConfig(salvo: unknown, padrao: ConfigPerformance = CONFIG
       (p): p is string => typeof p === "string" && PERFIS_CONVERSAS.includes(p)
     );
     (saida.acesso as { conversas: string[] }).conversas = [...new Set(["gestor", ...lista])];
+  }
+  // papéis com acesso ao módulo: só os conhecidos (administrador fica fora da lista: sempre abre)
+  if (ehObj(salvo.acesso) && Array.isArray((salvo.acesso as Record<string, unknown>).papeis_modulo)) {
+    (saida.acesso as { papeis_modulo: string[] }).papeis_modulo = [
+      ...new Set(((salvo.acesso as Record<string, unknown>).papeis_modulo as unknown[]).filter((p): p is string => typeof p === "string" && PAPEIS_MODULO.includes(p))),
+    ];
   }
 
   // pesos por setor: só chaves de peso conhecidas, números válidos
