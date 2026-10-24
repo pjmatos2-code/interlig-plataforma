@@ -68,13 +68,20 @@ export default async function ConfiguracoesPage() {
               </p>
             )}
             {st.coleta.agentesSemVinculo.length > 0 && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">Atendentes do chat sem vendedor vinculado:</span> {st.coleta.agentesSemVinculo.join(", ")}.{" "}
-                <Link href="/admin" className="font-medium text-interlig-azul hover:underline">
-                  Vincular em Administração
-                </Link>
-                {" "}e depois recalcular as conversas.
-              </p>
+              <details className="mt-2 text-xs text-muted-foreground">
+                <summary className="cursor-pointer">
+                  {st.coleta.agentesSemVinculo.length} atendente(s) de outros setores em conversas comerciais
+                </summary>
+                <p className="mt-1">
+                  Normal quando o cliente chega na equipe errada ou é transferido para suporte, financeiro etc. As mensagens dessas pessoas não contam esforço para
+                  ninguém: {st.coleta.agentesSemVinculo.join(", ")}. Só se um <b className="font-medium text-foreground">vendedor</b> aparecer nesta lista (ex.: alguém
+                  novo, ou nome diferente no chat),{" "}
+                  <Link href="/admin" className="font-medium text-interlig-azul hover:underline">
+                    vincule em Administração
+                  </Link>{" "}
+                  e recalcule as conversas.
+                </p>
+              </details>
             )}
           </div>
 

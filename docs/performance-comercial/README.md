@@ -166,8 +166,10 @@ outra vendedora em 404, relatórios e configurações bloqueados, exportação 4
   histórico anterior era um campo solto.
 - **Probabilidade de fechamento** é qualitativa (baixa/média/alta) até haver
   histórico para calibrar.
-- **Atendentes do chat sem vendedor vinculado** não somam esforço a ninguém
-  (lista na tela de Configurações; vincular em Administração).
+- **Atendentes de outros setores** (suporte, financeiro…) aparecem nas conversas
+  comerciais quando o cliente é transferido; as mensagens deles não contam
+  esforço para ninguém. Só vendedor precisa de vínculo (Administração →
+  atendentes do SZ); a lista em Configurações serve para notar um vendedor novo.
 - **O CRM guarda um retorno por ticket:** reprogramar ou aceitar sugestão quando
   o ticket já tem outro retorno futuro mantém o do CRM e registra o novo só no
   módulo (a tela avisa).
