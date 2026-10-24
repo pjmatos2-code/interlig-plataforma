@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { alcanca, exigirEscopo } from "@/lib/performance/escopo";
 import { ROTULO_CRITERIO, ROTULO_OBJECAO, ROTULO_OPORTUNIDADE, type Criterio } from "@/lib/performance/ia/schema";
+import { criarOcultador, nomesInformadosNaConversa } from "@/lib/performance/mascara";
 
 export const dynamic = "force-dynamic";
 
@@ -47,9 +48,17 @@ export default async function DetalheConversa({ params }: { params: { id: string
   // acesso a conteúdo sensível fica registrado (LGPD)
   await admin.from("auditoria_performance").insert({ usuario_id: escopo.usuario.id, acao: "ver_conversa", alvo: c.id });
 
-  const [{ data: msgs }, { data: analises }] = await Promise.all([
+  const [{ data: msgs }, { data: analises }, { data: tk }, { data: bairros }] = await Promise.all([
     admin.from("conversas_mensagens").select("externo_id, autor, agente_nome, enviada_em, texto, tipo, tamanho").eq("conversa_id", c.id).order("ordem").limit(2000),
     admin.from("analises_conversa").select("id, versao, modelo, concluido_em, resultado, score_atendimento, temperatura, status_lead, revisao, revisado_em").eq("conversa_id", c.id).eq("status", "concluida").order("concluido_em", { ascending: false }).limit(1),
+    c.ticket_id ? admin.from("tickets").select("cliente_nome").eq("id", c.ticket_id).maybeSingle() : Promise.resolve({ data: null }),
+    admin.from("bairros_geo").select("bairro"),
+  ]);
+  // o que escapou da máscara da coleta: nome do cliente do lead (palavra a palavra) e bairros
+  const ocultar = criarOcultador([
+    ...String((tk as { cliente_nome?: string } | null)?.cliente_nome ?? "").split(/\s+/),
+    ...nomesInformadosNaConversa((msgs ?? []).map((m) => ({ autor: m.autor as string, texto: (m.texto as string | null) ?? null }))),
+    ...(bairros ?? []).map((b) => String(b.bairro ?? "").replace(/^bairro\s+/i, "")),
   ]);
   const an = analises?.[0];
   const r = (an?.resultado ?? null) as Analise | null;
@@ -77,7 +86,7 @@ export default async function DetalheConversa({ params }: { params: { id: string
       </section>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-        <Painel titulo="Conversa (dados pessoais mascarados)" descricao="Mensagens marcadas em azul são as evidências usadas pela IA.">
+        <Painel titulo="Conversa (dados pessoais mascarados)" descricao="CPF, telefone, e-mail, CEP e localização são mascarados na coleta; nome do cliente e bairros aparecem como [omitido]. Mensagens em azul são as evidências usadas pela IA.">
           {!msgs?.length ? (
             <Vazio>Sem mensagens.</Vazio>
           ) : (
@@ -98,7 +107,7 @@ export default async function DetalheConversa({ params }: { params: { id: string
                     <p className="text-[11px] text-muted-foreground">
                       [{i + 1}] {ROTULO_AUTOR[autor]}{autor === "agente" && m.agente_nome ? ` · ${String(m.agente_nome).split(" ")[0]}` : ""} · {fmtDataHora(m.enviada_em as string)}
                     </p>
-                    <p className="whitespace-pre-wrap break-words">{(m.texto as string | null) ?? (m.tipo && m.tipo !== "text" ? `[${m.tipo}]` : <span className="italic text-muted-foreground">texto expirado pela retenção</span>)}</p>
+                    <p className="whitespace-pre-wrap break-words">{m.texto ? ocultar(m.texto as string) : m.tipo && m.tipo !== "text" ? `[${m.tipo}]` : <span className="italic text-muted-foreground">texto expirado pela retenção</span>}</p>
                     {motivo && <p className="mt-0.5 text-[11px] font-medium text-interlig-azul">evidência: {motivo}</p>}
                   </li>
                 );

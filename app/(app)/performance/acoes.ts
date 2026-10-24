@@ -310,7 +310,7 @@ export async function analisarAmostraPerf(n: number): Promise<Resposta> {
   await auditar(escopo.usuario.id, "ia_amostra_manual", null, null, r);
   revalidar();
   if (r.parado && r.processadas === 0) return { erro: r.parado };
-  return { ok: `${r.processadas} conversa(s) analisada(s) · ${r.sugestoes} sugestão(ões) · custo estimado US$ ${r.custo.toFixed(3)}${r.erros ? ` · ${r.erros} com erro` : ""}` };
+  return { ok: `${r.processadas} conversa(s) analisada(s) · ${r.sugestoes} sugestão(ões) · custo estimado US$ ${r.custo.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}${r.erros ? ` · ${r.erros} com erro` : ""}` };
 }
 
 /** revisão humana de uma classificação da IA (fica registrada ao lado da original) */

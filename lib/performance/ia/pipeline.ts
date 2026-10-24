@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { carregarConfig, carregarDiasUteis } from "../config-servidor";
 import { somarSegundosUteis } from "../expediente";
+import { nomesInformadosNaConversa } from "../mascara";
 import { custoEstimadoUsd } from "./custos";
 import { montarPrompt, type MensagemPrompt } from "./prompt";
 import { provedorConfigurado } from "./provedor";
@@ -178,7 +179,7 @@ export async function processarFila(opts: { limite?: number; prazoMs?: number; m
         planos: planos.map((p) => p.nome),
         houveAtendimentoHumano: mensagens.some((m) => m.autor === "agente"),
         pesos: cfg.ia.rubrica,
-        termosProibidos: [...nomesBairro, ...tokensCliente],
+        termosProibidos: [...nomesBairro, ...tokensCliente, ...nomesInformadosNaConversa(mensagens.map((m) => ({ autor: m.autor, texto: m.texto })))],
       });
       if (!a) {
         resumo.erros++;

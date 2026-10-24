@@ -94,7 +94,7 @@ export default async function ConversasPage({ searchParams }: { searchParams: Se
           {ctx.escopo.podeConfigurar && (
             <>
               <span>Fila: <strong>{fmtNum(fila ?? 0)}</strong></span>
-              <span>Custo no mês: <strong>US$ {custoMes.toFixed(2)}</strong> de US$ {cfg.ia.custo_max_mensal_usd.toFixed(0)}</span>
+              <span>Custo no mês: <strong>US$ {custoMes.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> de US$ {cfg.ia.custo_max_mensal_usd.toLocaleString("pt-BR")}</span>
             </>
           )}
         </div>

@@ -167,7 +167,7 @@ export function gerarAlertas(
       saida.push({ chave: `recuperado:${t.id}`, categoria: "informativo", tipo: "lead_recuperado", titulo: `Lead recuperado — ${primeiroNome(nomeVendedor.get(t.vendedor_id) ?? "")}`, detalhe: "Lead que tinha sido perdido voltou e virou venda.", vendedor_id: t.vendedor_id, ticket_id: t.id, pop_id: t.pop_id, evidencias: {}, origem: "regra" });
   }
   if (atual.totais.metaPct !== null && atual.totais.metaPct >= 1 && atual.de.slice(0, 7) === mes)
-    saida.push({ chave: `equipe_meta:${mes}`, categoria: "informativo", tipo: "equipe_meta", titulo: "Equipe no ritmo da meta", detalhe: `${atual.totais.vendas} vendas para a meta proporcional de ${atual.totais.metaPeriodo} até hoje.`, vendedor_id: null, ticket_id: null, pop_id: null, evidencias: {}, origem: "regra" });
+    saida.push({ chave: `equipe_meta:${mes}`, categoria: "informativo", tipo: "equipe_meta", titulo: "Equipe no ritmo da meta", detalhe: `${atual.totais.vendasComMeta} vendas (de quem tem meta) para a meta proporcional de ${atual.totais.metaPeriodo} até hoje.`, vendedor_id: null, ticket_id: null, pop_id: null, evidencias: {}, origem: "regra" });
 
   // uma ocorrência por chave
   const unicos = new Map<string, AlertaCandidato>();

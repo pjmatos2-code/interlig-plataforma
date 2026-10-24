@@ -66,12 +66,17 @@ export default async function VisaoGeral({ searchParams }: { searchParams: Searc
         <Kpi rotulo="Receita mensal nova" valor={fmtBrl(t.receitaNova)} atual={t.receitaNova} anterior={ta.receitaNova} contexto={t.ticketMedio ? `ticket ${fmtBrl(t.ticketMedio)}` : undefined} />
         <Kpi rotulo="Ticket médio" valor={fmtBrl(t.ticketMedio)} atual={t.ticketMedio} anterior={ta.ticketMedio} contexto="vs. anterior" />
         <Kpi rotulo="Follow-ups pendentes" valor={fmtNum(t.followupsPendentes)} contexto="programados e de hoje" />
-        <Kpi rotulo="Follow-ups vencidos" valor={fmtNum(t.followupsVencidos)} tom={t.followupsVencidos ? "vermelho" : undefined} contexto={t.followupsVencidos ? "precisam de ação" : "nenhum"} />
+        <Kpi rotulo="Follow-ups vencidos" valor={fmtNum(t.followupsVencidos)} tom={t.followupsVencidos ? "vermelho" : undefined} contexto={!t.followupsVencidos ? "nenhum" : t.followupsVencidosRobo ? `${fmtNum(t.followupsVencidosRobo)} automáticos do robô` : "precisam de ação"} />
         <Kpi rotulo="Leads quentes parados" valor={fmtNum(t.leadsQuentesParados)} tom={t.leadsQuentesParados ? "vermelho" : undefined} contexto={t.leadsQuentesParados ? "sem ação após o sinal" : "nenhum"} />
         <Kpi rotulo="1ª resposta humana" valor={fmtDuracao(t.primeiraRespostaMediana)} atual={t.primeiraRespostaMediana} anterior={ta.primeiraRespostaMediana} menorEhMelhor contexto={t.slaPct !== null ? `${fmtPct(t.slaPct)} no SLA` : "mediana no expediente"} />
         <Kpi rotulo="Esforço médio" valor={t.esforcoMedio === null ? "N/D" : `${fmtNum(t.esforcoMedio)}/100`} atual={t.esforcoMedio} anterior={ta.esforcoMedio} contexto="score do time" />
         <Kpi rotulo="Qualidade média" valor={t.qualidadeMedia === null ? "N/D" : `${fmtNum(t.qualidadeMedia)}/100`} contexto={t.qualidadeMedia === null ? "coortes em maturação" : "vendas maduras"} />
-        <Kpi rotulo="Meta de vendas" valor={t.metaPeriodo ? `${fmtNum(t.vendas)}/${fmtNum(t.metaPeriodo)}` : "Sem meta"} contexto={t.metaPct !== null ? `${fmtPct(t.metaPct)} da meta proporcional` : undefined} rodape={<BarraProgresso fracao={t.metaPct} />} />
+        <Kpi
+          rotulo="Meta de vendas"
+          valor={t.metaPeriodo ? `${fmtNum(t.vendasComMeta)}/${fmtNum(t.metaPeriodo)}` : "Sem meta"}
+          contexto={t.metaPct !== null ? `${fmtPct(t.metaPct)} da meta proporcional${t.vendas > t.vendasComMeta ? ` · ${fmtNum(t.vendas - t.vendasComMeta)} venda(s) de quem está sem meta fora` : ""}` : undefined}
+          rodape={<BarraProgresso fracao={t.metaPct} />}
+        />
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.9fr)]">

@@ -76,6 +76,8 @@ export type TotaisPerformance = {
   ticketMedio: number | null;
   followupsPendentes: number;
   followupsVencidos: number;
+  /** dos vencidos, quantos são retornos automáticos do robô do chat */
+  followupsVencidosRobo: number;
   leadsQuentesParados: number;
   primeiraRespostaMediana: number | null;
   slaPct: number | null;
@@ -83,6 +85,8 @@ export type TotaisPerformance = {
   qualidadeMedia: number | null;
   ipcMedio: number | null;
   metaPeriodo: number | null;
+  /** vendas só de quem tem meta no período (numerador do cumprimento) */
+  vendasComMeta: number;
   metaPct: number | null;
   serie: { dia: string; leads: number; vendas: number; ativacoes: number; receita: number }[];
 };
@@ -501,12 +505,14 @@ export function calcularTotais(
     if (ultima < sinal && segundosUteis(new Date(referencia).toISOString(), agoraIso, cfg.expediente, base.ehDiaUtil) > limiteQuente) quentesParados++;
   }
 
-  // mesmas origens dos indicadores individuais (retorno automático do robô fica fora por padrão)
-  const origensValidas = new Set(["crm", "manual", "ia", "regra", ...(cfg.followup.incluir_automaticos ? ["robo"] : [])]);
-  const fu = base.followups.filter((f) => f.vendedor_id && ids.has(f.vendedor_id) && origensValidas.has(f.origem));
+  // fila operacional: TODAS as origens (o retorno automático do robô também é
+  // compromisso com o cliente); só a TAXA de execução exclui o robô por padrão
+  const fu = base.followups.filter((f) => f.vendedor_id && ids.has(f.vendedor_id));
   const vendas = linhas.reduce((s, l) => s + l.numeros.vendas, 0);
   const receita = Math.round(linhas.reduce((s, l) => s + l.numeros.receitaNova, 0) * 100) / 100;
   const metaPeriodo = linhas.reduce<number | null>((s, l) => (l.numeros.metaPeriodo === null ? s : (s ?? 0) + l.numeros.metaPeriodo), null);
+  // cumprimento compara só quem tem meta (mesma regra do dashboard da coordenação)
+  const vendasComMeta = linhas.reduce((s, l) => s + (l.numeros.metaPeriodo === null ? 0 : l.numeros.vendas), 0);
   const pr = base.conversas
     .filter((c) => c.primeira_resposta_vendedor_id && ids.has(c.primeira_resposta_vendedor_id) && c.primeira_resposta_em && Date.parse(c.primeira_resposta_em) >= deMs && Date.parse(c.primeira_resposta_em) <= ateMs)
     .map((c) => c.primeira_resposta_util_seg)
@@ -548,6 +554,7 @@ export function calcularTotais(
     ticketMedio: vendas ? Math.round((receita / vendas) * 100) / 100 : null,
     followupsPendentes: fu.filter((f) => f.status === "programado" || f.status === "pendente").length,
     followupsVencidos: fu.filter((f) => f.status === "vencido").length,
+    followupsVencidosRobo: fu.filter((f) => f.status === "vencido" && f.origem === "robo").length,
     leadsQuentesParados: quentesParados,
     primeiraRespostaMediana: mediana(pr),
     slaPct: razao(pr.filter((s) => s <= cfg.sla.primeira_resposta_min * 60).length, pr.length),
@@ -555,7 +562,8 @@ export function calcularTotais(
     qualidadeMedia: media(comparaveis.map((l) => l.qualidade.score.valor)),
     ipcMedio: media(comparaveis.map((l) => l.ipc.valor)),
     metaPeriodo: metaPeriodo === null ? null : Math.round(metaPeriodo * 10) / 10,
-    metaPct: metaPeriodo ? vendas / metaPeriodo : null,
+    vendasComMeta,
+    metaPct: metaPeriodo ? vendasComMeta / metaPeriodo : null,
     serie,
   };
 }
