@@ -39,6 +39,16 @@ describe("mesclarConfig — o que o gestor salva por cima dos padrões", () => {
   });
 });
 
+describe("acesso ao módulo", () => {
+  it("padrão: só o administrador; config salva sem a chave continua só administrador", () => {
+    expect(CONFIG_PADRAO.acesso.papeis_modulo).toEqual([]);
+    expect(mesclarConfig({ acesso: { conversas: ["gestor"] } }).acesso.papeis_modulo).toEqual([]);
+  });
+  it("aceita só papéis conhecidos, sem repetir", () => {
+    expect(mesclarConfig({ acesso: { papeis_modulo: ["supervisor", "admin", "hacker", "supervisor", "vendedor"] } }).acesso.papeis_modulo).toEqual(["supervisor", "vendedor"]);
+  });
+});
+
 describe("pesosDoSetor — regras distintas por função", () => {
   it("sobrescreve só o que o setor define", () => {
     const c = mesclarConfig({ pesos_por_setor: { comercial_externo: { esforco: { sla_primeira_resposta: 0 }, lixo: { x: 1 } } } });

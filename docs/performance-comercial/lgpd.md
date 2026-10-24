@@ -38,6 +38,9 @@ cliente; para colaboradores, gestão do contrato de trabalho.
 
 ## Quem acessa
 
+Desde 24/10/2026 o módulo abre só para o **administrador**; os papéis abaixo
+valem quando o gestor liberar cada um em Configurações → "Quem abre o módulo".
+
 | Conteúdo | Quem vê |
 |---|---|
 | Indicadores e rankings | gestor, diretoria, supervisor (só o time), gerente de unidade (só a POP); vendedor vê os próprios números e só a posição no ranking |

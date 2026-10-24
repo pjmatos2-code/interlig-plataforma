@@ -27,7 +27,8 @@ export async function resolverEscopo(usuario: Usuario): Promise<EscopoPerformanc
   const cfg = await carregarConfig();
   let time: string[] = [];
   let daPop: string[] | null = null;
-  if (usuario.perfil === "supervisor") {
+  // coordenador só consulta o próprio time se o papel estiver liberado (senão nem lê o banco)
+  if (usuario.perfil === "supervisor" && cfg.acesso.papeis_modulo.includes("supervisor")) {
     const admin = criarClienteAdmin();
     // time (direto + co-coordenação), incluindo inativos para o histórico
     const [{ data: diretos }, { data: extras }] = await Promise.all([
@@ -40,7 +41,7 @@ export async function resolverEscopo(usuario: Usuario): Promise<EscopoPerformanc
       daPop = (data ?? []).map((v) => v.id as string);
     }
   }
-  return montarEscopo(usuario, { conversasLiberadas: cfg.acesso.conversas.includes(usuario.perfil), time, daPop });
+  return montarEscopo(usuario, { conversasLiberadas: cfg.acesso.conversas.includes(usuario.perfil), time, daPop, papeisLiberados: cfg.acesso.papeis_modulo });
 }
 
 /** página do módulo: exige papel com acesso (senão volta para o início) */

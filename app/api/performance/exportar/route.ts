@@ -19,7 +19,8 @@ export async function GET(req: NextRequest) {
   const usuario = await usuarioAtual();
   if (!usuario?.ativo) return NextResponse.json({ erro: "Faça login." }, { status: 401 });
   const escopo = await resolverEscopo(usuario);
-  if (!escopo?.podeExportar) return NextResponse.json({ erro: "Seu perfil não exporta relatórios." }, { status: 403 });
+  if (!escopo) return NextResponse.json({ erro: "Seu perfil não tem acesso à Performance Comercial." }, { status: 403 });
+  if (!escopo.podeExportar) return NextResponse.json({ erro: "Seu perfil não exporta relatórios." }, { status: 403 });
   const sp = req.nextUrl.searchParams;
   const chave = sp.get("relatorio") ?? "";
   if (!RELATORIOS[chave]) return NextResponse.json({ erro: "Relatório desconhecido." }, { status: 400 });
