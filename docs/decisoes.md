@@ -708,3 +708,18 @@ Total: 73 pendentes de 314 vendas de maio (23%).
 - **Dados:** os 36 casos de outubro foram vinculados e carimbados pela régua
   em 27/10; os repetidos de outubro foram juntados em 03/11 e as cópias,
   marcadas "(cópia — excluir)", ficam para o gestor excluir no painel.
+
+## Gerência: sem early churn — recebe pelo total vendido no mês (03/11/2026)
+
+- **Decisão do Paulo:** a comissão da gerência não tem early churn; a gestão
+  recebe pelo total vendido no mês. O débito de early churn continua só das
+  vendedoras (`lib/comissao/debito.ts`). A especificação v1.1 do override
+  previa o débito na gerência a partir de outubro — fica revogado.
+- **Por quê:** em outubro/2026 o pilar Vendas mostrava 200 / 190 contra 264
+  vendas no dashboard. A conta era 264 − 3 sem vendedora (Prefeitura, uma
+  permuta e uma venda sem vendedora no SGP) = 261, menos 61 do débito das
+  vendedoras (safra de julho: 34 suspensos e 27 cancelados). Sem o débito,
+  outubro sobe de N3 (2,5%, R$ 2.707,61) para N4 (3%, R$ 3.249,13).
+- **Dados:** migração 0127 — `gerencia_config.flag_early_churn` fica sem uso
+  (comentário na coluna); outubro registrado com a observação da decisão, que
+  vai para o snapshot do fechamento.
