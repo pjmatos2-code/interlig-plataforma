@@ -682,3 +682,29 @@ Total: 73 pendentes de 314 vendas de maio (23%).
   exportação recusam (escopo no servidor) e os avisos de alerta crítico não
   são enviados para ele.
 
+## Retenção: vínculo do caso ao contrato e casos repetidos (27/10 e 03/11/2026)
+
+- **Vínculo (27/10):** em outubro nenhum caso criado pelo robô ganhou contrato
+  e a auditoria, que só julga caso com contrato, deixou 36 em "novo". Causas:
+  o CPF da conversa era comparado só em dígitos (o cadastro grava
+  `000.000.000-00`); o telefone era procurado numa lista que o banco corta em
+  1.000 clientes (de 15,5 mil); e o contrato cancelado depois da conversa
+  ficava fora da escolha. Agora: CPF/CNPJ válido citado na conversa →
+  telefone (últimos 8 dígitos; LID do WhatsApp não conta) → nome completo,
+  quando um único cliente tem esse nome. Vale o contrato da época da conversa:
+  de preferência o cancelado a partir dela (é o desfecho); senão o mais
+  recente não cancelado (`lib/retencao/vinculo.ts`, `casar.ts`).
+- **Auditoria:** "cancelado antes do caso" é medido pelo dia da CONVERSA
+  (data do protocolo), com 1 dia de folga — não pelo dia em que o robô criou
+  o caso, que pode ser dias depois.
+- **Casos repetidos (03/11):** o mesmo cliente em até 15 dias é a MESMA
+  solicitação — reconhecido pelo contrato, pelo telefone (com ou sem 55) ou
+  pelo nome completo de 3+ palavras; contratos diferentes são casos
+  diferentes. Se a agente já abriu o caso à mão, a conversa do SZ completa
+  esse caso (protocolo, telefone, análise) em vez de abrir outro; o cadastro
+  manual recusa o segundo caso e aponta o existente; o botão trava enquanto
+  envia (clique duplo). Simulado nos 131 casos desde setembro: pegaria só os
+  5 repetidos conhecidos.
+- **Dados:** os 36 casos de outubro foram vinculados e carimbados pela régua
+  em 27/10; os repetidos de outubro foram juntados em 03/11 e as cópias,
+  marcadas "(cópia — excluir)", ficam para o gestor excluir no painel.

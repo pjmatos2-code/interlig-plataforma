@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { exigirPerfil, exigirUsuario } from "@/lib/auth";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
+import { formatarData } from "@/lib/format";
+import { casoDoMesmoCliente, type CasoRecente } from "@/lib/retencao/vinculo";
 
 export type Resultado = { erro?: string; ok?: string };
 
@@ -40,18 +42,22 @@ export async function criarCasoRetencao(
     vtv = ref > 0 ? ref : Number(c.valor_mensalidade ?? 0);
   }
 
-  // reincidência por telefone: apelido de WhatsApp não é confiável, número é
-  let reincidenteDe: string | null = null;
-  if (telefone) {
-    const { data: ant } = await admin
-      .from("casos_retencao")
-      .select("id")
-      .eq("telefone", telefone)
-      .order("criado_em", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    reincidenteDe = (ant?.id as string) ?? null;
-  }
+  // mesmo cliente em 15 dias = o MESMO caso: aponta o existente em vez de
+  // abrir outro (31/10/2026: clique duplo e caso já trazido pelo robô viravam
+  // casos repetidos). Depois dos 15 dias, é reincidência.
+  const { data: recentes } = await admin
+    .from("casos_retencao")
+    .select("id, criado_em, telefone, cliente_nome, sgp_contrato_id")
+    .order("criado_em", { ascending: false })
+    .limit(1000);
+  const casos = (recentes ?? []) as CasoRecente[];
+  const cliente = { sgpContratoId: contrato || null, telefone: telefone || null, nome };
+  const repetido = casoDoMesmoCliente(cliente, casos, { agoraMs: Date.now(), dias: 15 });
+  if (repetido)
+    return {
+      erro: `Já existe um caso de ${repetido.cliente_nome} aberto em ${formatarData(repetido.criado_em)} — continue nele.`,
+    };
+  const reincidenteDe = casoDoMesmoCliente(cliente, casos)?.id ?? null;
 
   const { data: v } = await admin
     .from("vendedores")
@@ -263,7 +269,7 @@ export async function buscarConversasCanal(): Promise<Resultado & { detalhe?: st
   revalidar();
   return {
     ok: "Canal varrido.",
-    detalhe: `${r.lidas} conversa(s) no canal · ${r.criados} caso(s) novo(s) · ${r.reincidentes} reincidente(s)`,
+    detalhe: `${r.lidas} conversa(s) no canal · ${r.criados} caso(s) novo(s) · ${r.reincidentes} reincidente(s)${r.completados ? ` · ${r.completados} caso(s) aberto(s) à mão completado(s) com a conversa` : ""}`,
   };
 }
 

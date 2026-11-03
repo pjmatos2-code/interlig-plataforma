@@ -2,14 +2,18 @@ import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { SessaoSz, lerCredenciaisSz } from "@/lib/sz/sessao";
 import { carregarDialogo, telefoneBr, type Conversa } from "@/lib/sz/conversas";
+import { casarContratoRetencao } from "./casar";
+import { casoDoMesmoCliente, dataDaConversa, documentosDaConversa, type CasoRecente } from "./vinculo";
 
 /**
  * Robô do canal de cancelamento (SZ → casos de retenção).
  *
  * Toda conversa que entra na campanha "Cancelamento Altamira" vira um caso —
  * é isso que torna o denominador da taxa auditável: a agente não escolhe o
- * que registra. Dedup por protocolo e por telefone (15 dias); reincidência
- * marcada por telefone; contrato casado por CPF/telefone na nossa base.
+ * que registra. Dedup por protocolo e pelo mesmo cliente em 15 dias
+ * (contrato, telefone ou nome completo — vinculo.ts): se a agente já abriu o
+ * caso à mão, a conversa completa esse caso. Reincidência depois dos 15 dias;
+ * contrato casado pelo CPF/CNPJ da conversa, telefone ou nome (casar.ts).
  *
  * O id da campanha fica em integracoes_config.szchat.campanha_retencao —
  * descoberto em 30/08 pelas conversas da Sandryne (65d4f9c6c8d5e2eb380ac588).
@@ -17,13 +21,13 @@ import { carregarDialogo, telefoneBr, type Conversa } from "@/lib/sz/conversas";
 
 const CAMPANHA_RETENCAO_PADRAO = "65d4f9c6c8d5e2eb380ac588";
 
-const soDigitos = (t: string | null | undefined) => (t ?? "").replace(/\D/g, "");
-
 export type ResultadoRoboRetencao = {
   ok: boolean;
   lidas: number;
   criados: number;
   reincidentes: number;
+  /** casos abertos à mão pela agente que ganharam a conversa do SZ */
+  completados?: number;
   /** false = orçamento de tempo esgotado antes do fim (o próximo ciclo continua) */
   completo?: boolean;
   erro?: string;
@@ -135,14 +139,55 @@ export async function rodarRoboRetencao(dia?: string, orcamentoMs = 60_000): Pro
 
     let criados = 0;
     let reincidentes = 0;
+    let completados = 0;
     let completo = !conversas.truncada;
+
+    // casos já registrados, para reconhecer o mesmo cliente: o caso manual da
+    // agente não tem protocolo e quase nunca tem telefone (repetidos de
+    // 31/10/2026), então valem também o contrato e o nome completo
+    const { data: recentes } = await admin
+      .from("casos_retencao")
+      .select("id, criado_em, telefone, cliente_nome, sgp_contrato_id, protocolo_sz, analisado_em, resumo")
+      .order("criado_em", { ascending: false })
+      .limit(1000);
+    const casos = (recentes ?? []) as (CasoRecente & {
+      protocolo_sz: string | null;
+      analisado_em: string | null;
+      resumo: string | null;
+    })[];
+
+    // análise automática da conversa (a IA já era do módulo, mas exigia
+    // colar o transcript à mão — o robô tem o diálogo em mãos e analisa:
+    // motivo real, trilha e resumo prontos para a agente)
+    const analisar = async (casoId: string, c: Conversa, comResumo: boolean) => {
+      if (c.dialogo.length === 0 || Date.now() > limite) return;
+      try {
+        const transcript = c.dialogo
+          .map((m) => `${m.quem === "CLIENTE" ? "CLI" : m.quem === "AGENTE" ? "AGE" : m.quem}: ${m.texto}`)
+          .join("\n");
+        if (transcript.length < 40) return;
+        const { analisarConversaRetencao } = await import("@/lib/ia/analista");
+        const analise = await analisarConversaRetencao(transcript, {});
+        if (!analise) return;
+        await admin
+          .from("casos_retencao")
+          .update({
+            analise,
+            analisado_em: new Date().toISOString(),
+            ...(comResumo ? { resumo: (analise as { resumo?: string }).resumo ?? null } : {}),
+          })
+          .eq("id", casoId);
+      } catch (e) {
+        console.error("análise automática de retenção falhou:", e);
+      }
+    };
 
     for (const c of conversas) {
       if (Date.now() > limite) {
         completo = false;
         break;
       }
-      // dedup por protocolo (índice único) e por telefone recente
+      // dedup por protocolo (índice único)
       if (c.protocolo) {
         const { data: jaExiste } = await admin
           .from("casos_retencao")
@@ -151,74 +196,49 @@ export async function rodarRoboRetencao(dia?: string, orcamentoMs = 60_000): Pro
           .maybeSingle();
         if (jaExiste) continue;
       }
-      const tel = soDigitos(c.telefone);
-      let casoAnterior: { id: string; criado_em: string } | null = null;
-      if (tel) {
-        const { data: ants } = await admin
-          .from("casos_retencao")
-          .select("id, criado_em, telefone")
-          .order("criado_em", { ascending: false })
-          .limit(1000);
-        casoAnterior =
-          ((ants ?? []).find((a) => soDigitos(a.telefone) === tel) as {
-            id: string;
-            criado_em: string;
-          }) ?? null;
-        // mesmo telefone nos últimos 15 dias = a MESMA solicitação continuando
-        if (
-          casoAnterior &&
-          Date.now() - Date.parse(casoAnterior.criado_em) < 15 * 86_400_000
-        )
-          continue;
-      }
+      // mesmo cliente nos últimos 15 dias = a MESMA solicitação continuando;
+      // se o caso já tem conversa própria, nem abre o diálogo
+      const janela = { agoraMs: Date.now(), dias: 15 };
+      let repetido = casoDoMesmoCliente({ sgpContratoId: null, telefone: c.telefone, nome: c.nome }, casos, janela);
+      if (repetido?.protocolo_sz) continue;
 
-      // transcript: tenta casar o contrato por CPF citado na conversa
-      await carregarDialogo(sz, c, { inicio: inicioJanela, fim: alvo });
+      // transcript: o CPF/CNPJ citado na conversa é o jeito mais seguro de
+      // achar o titular (o WhatsApp muitas vezes é de outra pessoa da casa).
+      // Diálogo que não carrega não derruba o ciclo: casa por telefone/nome.
+      await carregarDialogo(sz, c, { inicio: inicioJanela, fim: alvo }).catch((e) =>
+        console.error("diálogo da retenção não carregou:", c.protocolo, e)
+      );
       const texto = c.dialogo.map((m) => m.texto).join(" ");
-      const cpf = (texto.match(/\b(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b/) ?? [])[1]?.replace(/\D/g, "");
-
-      let contratoId: string | null = null;
-      let sgpContratoId: string | null = null;
-      let vtv = 0;
-      let clienteNome = c.nome;
-
-      const casar = async (col: string, valor: string) => {
-        const { data: cli } = await admin
-          .from("clientes")
-          .select("id, nome")
-          .eq(col, valor)
-          .maybeSingle();
-        if (!cli) return false;
-        clienteNome = (cli.nome as string) || clienteNome;
-        const { data: ct } = await admin
-          .from("contratos")
-          .select("id, sgp_contrato_id, valor_mensalidade, status, planos(valor_referencia)")
-          .eq("cliente_id", cli.id)
-          .neq("status", "cancelado")
-          .order("data_venda", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (!ct) return false;
-        contratoId = ct.id as string;
-        sgpContratoId = (ct.sgp_contrato_id as string) ?? null;
-        const ref = Number(
-          (ct.planos as unknown as { valor_referencia: number } | null)?.valor_referencia ?? 0
-        );
-        vtv = ref > 0 ? ref : Number(ct.valor_mensalidade ?? 0);
-        return true;
+      const vinculo = await casarContratoRetencao(admin, {
+        documentos: documentosDaConversa(texto),
+        telefone: c.telefone,
+        nome: c.nome,
+        dataConversa: dataDaConversa(c.protocolo, alvo),
+      });
+      const cliente = {
+        sgpContratoId: vinculo?.sgpContratoId ?? null,
+        telefone: c.telefone,
+        nome: vinculo?.clienteNome ?? c.nome,
       };
-      if (cpf) await casar("cpf", cpf);
-      // sem CPF: tenta pelo telefone do WhatsApp (últimos 8 dígitos)
-      if (!contratoId && tel.length >= 8) {
-        const { data: clis } = await admin
-          .from("clientes")
-          .select("id, nome, telefone")
-          .not("telefone", "is", null)
-          .limit(20000);
-        const suf = tel.slice(-8);
-        const cli = (clis ?? []).find((x) => soDigitos(x.telefone).endsWith(suf));
-        if (cli) await casar("id", cli.id as string);
+      repetido ??= casoDoMesmoCliente(cliente, casos, janela);
+      if (repetido?.protocolo_sz) continue;
+
+      if (repetido) {
+        // caso que a agente abriu à mão: a conversa completa esse caso em vez
+        // de abrir outro (protocolo, telefone e análise da IA)
+        await admin
+          .from("casos_retencao")
+          .update({ protocolo_sz: c.protocolo, ...(repetido.telefone ? {} : { telefone: c.telefone }) })
+          .eq("id", repetido.id);
+        repetido.protocolo_sz = c.protocolo;
+        repetido.telefone ??= c.telefone;
+        if (!repetido.analisado_em) await analisar(repetido.id, c, !repetido.resumo);
+        completados++;
+        continue;
       }
+
+      // reincidência: o mesmo cliente já teve caso antes dos 15 dias
+      const anterior = casoDoMesmoCliente(cliente, casos);
 
       const { data: novoCaso, error } = await admin
         .from("casos_retencao")
@@ -226,50 +246,35 @@ export async function rodarRoboRetencao(dia?: string, orcamentoMs = 60_000): Pro
           origem: "sz_auto",
           protocolo_sz: c.protocolo,
           telefone: c.telefone,
-          cliente_nome: clienteNome,
-          contrato_id: contratoId,
-          sgp_contrato_id: sgpContratoId,
-          valor_mensal: vtv,
+          cliente_nome: cliente.nome,
+          contrato_id: vinculo?.contratoId ?? null,
+          sgp_contrato_id: cliente.sgpContratoId,
+          valor_mensal: vinculo?.vtv ?? 0,
           agente_login: loginDe(c.agente),
           etapa: "novo",
-          reincidente_de: casoAnterior?.id ?? null,
+          reincidente_de: anterior?.id ?? null,
         })
-        .select("id")
+        .select("id, criado_em")
         .single();
       if (!error && novoCaso) {
         criados++;
-        if (casoAnterior) reincidentes++;
-
-        // análise automática da conversa (a IA já era do módulo, mas exigia
-        // colar o transcript à mão — o robô tem o diálogo em mãos e analisa
-        // na criação: motivo real, trilha e resumo prontos para a agente)
-        if (c.dialogo.length > 0 && Date.now() < limite) {
-          try {
-            const transcript = c.dialogo
-              .map((m) => `${m.quem === "CLIENTE" ? "CLI" : m.quem === "AGENTE" ? "AGE" : m.quem}: ${m.texto}`)
-              .join("\n");
-            if (transcript.length >= 40) {
-              const { analisarConversaRetencao } = await import("@/lib/ia/analista");
-              const analise = await analisarConversaRetencao(transcript, {});
-              if (analise) {
-                await admin
-                  .from("casos_retencao")
-                  .update({
-                    analise,
-                    analisado_em: new Date().toISOString(),
-                    resumo: (analise as { resumo?: string }).resumo ?? null,
-                  })
-                  .eq("id", novoCaso.id);
-              }
-            }
-          } catch (e) {
-            console.error("análise automática de retenção falhou:", e);
-          }
-        }
+        if (anterior) reincidentes++;
+        // a próxima conversa do mesmo cliente, neste ciclo, já o encontra
+        casos.unshift({
+          id: novoCaso.id as string,
+          criado_em: novoCaso.criado_em as string,
+          telefone: c.telefone,
+          cliente_nome: cliente.nome,
+          sgp_contrato_id: cliente.sgpContratoId,
+          protocolo_sz: c.protocolo,
+          analisado_em: null,
+          resumo: null,
+        });
+        await analisar(novoCaso.id as string, c, true);
       }
     }
 
-    return { ok: true, lidas: conversas.length, criados, reincidentes, completo };
+    return { ok: true, lidas: conversas.length, criados, reincidentes, completados, completo };
   } catch (e) {
     return { ok: false, lidas: 0, criados: 0, reincidentes: 0, erro: e instanceof Error ? e.message : String(e) };
   }
