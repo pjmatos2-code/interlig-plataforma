@@ -5,6 +5,8 @@ import { exigirPerfil } from "@/lib/auth";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { gerarRelatorio, reescreverTextos } from "@/lib/relatorio-semanal/gerar";
 import { semanaDe } from "@/lib/relatorio-semanal/periodo";
+import { salvarConfigEnvio } from "@/lib/relatorio-semanal/config";
+import { MAX_DESTINATARIOS, lerDestinatarios } from "@/lib/relatorio-semanal/email";
 
 /** quem gera, lê e preenche o relatório da diretoria */
 const PERFIS = ["gestor", "direcao"] as const;
@@ -45,4 +47,23 @@ export async function salvarCampoReuniao(id: string, campo: string, valor: strin
     p_usuario: usuario.id,
   });
   return error ? { erro: error.message } : {};
+}
+
+/** para quem vai o e-mail, o nome da abertura e o envio automático de segunda */
+export async function salvarEnvioRelatorio(entrada: { para: string; saudacao: string; automatico: boolean }): Promise<{ erro?: string; ok?: boolean }> {
+  const usuario = await exigirPerfil([...PERFIS]);
+  const { validos, invalidos } = lerDestinatarios(entrada.para);
+  if (invalidos.length) return { erro: `E-mail inválido: ${invalidos.join(", ")}` };
+  if (validos.length > MAX_DESTINATARIOS) return { erro: `No máximo ${MAX_DESTINATARIOS} destinatários.` };
+  if (entrada.automatico && !validos.length) return { erro: "Para ligar o envio de segunda, informe ao menos um destinatário." };
+  try {
+    await salvarConfigEnvio(
+      { para: validos, saudacao: String(entrada.saudacao ?? "").trim().slice(0, 40), automatico: Boolean(entrada.automatico) },
+      usuario.id
+    );
+  } catch (e) {
+    return { erro: e instanceof Error ? e.message : String(e) };
+  }
+  revalidatePath("/relatorios");
+  return { ok: true };
 }

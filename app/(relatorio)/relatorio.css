@@ -214,3 +214,35 @@
 .rcs .voltar { display: inline-block; margin-bottom: 14px; font-size: 13px; color: #CFE0FA; text-decoration: none; }
 .rcs .voltar:hover { color: #fff; text-decoration: underline; }
 .rcs .aviso { margin-bottom: 16px; padding: 12px 16px; border-radius: var(--radius); background: var(--warn-bg); color: var(--warn); font-size: 14px; }
+.rcs .top-links { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-bottom: 14px; }
+.rcs .top-links .voltar { margin-bottom: 0; }
+
+/* listas com marcador, como no modelo (o reset do Tailwind tira os marcadores) */
+.rcs .checks, .rcs .owner dd ul, .rcs .sugg ul { list-style: disc; }
+
+/* versão impressa (PDF do e-mail): perguntas sem campos */
+.rcs .q-t { margin: 0; font-weight: 600; }
+.rcs .q-t small { display: block; font-weight: 400; color: var(--fg-2); font-size: 13px; margin-top: 2px; }
+.rcs .resp { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); white-space: pre-wrap; }
+
+/* impressão: o Chromium do servidor imprime a página em A4 (escala 0,8) */
+@media print {
+  .rcs { min-height: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rcs .top { border-radius: var(--radius); padding-block: 22px 26px; }
+  .rcs .top > .in { padding-left: 26px; padding-right: 26px; }
+  .rcs main { padding-block: 22px 0; }
+  .rcs main > .in { max-width: none; padding-left: 0; padding-right: 0; }
+  .rcs section { margin-top: 34px; }
+  .rcs .sec-head, .rcs .group-title, .rcs h3 { break-after: avoid; }
+  .rcs .verdict, .rcs .sc-row, .rcs .panel, .rcs .stats, .rcs .owner, .rcs tr, .rcs .calc > div, .rcs .tri li, .rcs .q, .rcs .hrow, .rcs .checks li, .rcs .sugg { break-inside: avoid; }
+  .rcs .tscroll { overflow: visible; }
+  .rcs table { min-width: 0; }
+  .rcs .tri { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+  .rcs .voltar, .rcs .top-links, .rcs .btnrow, .rcs #save-status { display: none !important; }
+  .rcs .foot { margin-top: 32px; }
+  /* o total da tabela só no fim (o Chrome repete o tfoot em cada página) */
+  .rcs tfoot { display: table-row-group; }
+  /* título da seção não fica sozinho no pé da página: as seções de texto abrem página */
+  .rcs .sec-head { break-inside: avoid; }
+  .rcs #insights, .rcs #cobranca, .rcs #perguntas { break-before: page; margin-top: 0; }
+}

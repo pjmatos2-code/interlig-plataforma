@@ -20,7 +20,7 @@ export type ConfigSzchat = {
   webhook_secret: string | null;
 };
 
-async function lerBruto(sistema: "sgp" | "szchat"): Promise<Record<string, unknown>> {
+async function lerBruto(sistema: "sgp" | "szchat" | "email"): Promise<Record<string, unknown>> {
   const admin = criarClienteAdmin();
   const { data } = await admin
     .from("integracoes_config")
@@ -52,7 +52,7 @@ export async function lerConfigSzchat(): Promise<ConfigSzchat> {
 }
 
 export async function salvarConfig(
-  sistema: "sgp" | "szchat",
+  sistema: "sgp" | "szchat" | "email",
   parcial: Record<string, unknown>,
   usuarioId: string
 ) {

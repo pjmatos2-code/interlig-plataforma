@@ -27,6 +27,7 @@ export default async function PaginaRelatorioSemanal({ params }: { params: { id:
       combinadoAnterior={combinado.length ? combinado : null}
       podeEditar
       voltar="/relatorios"
+      pdf={`/api/relatorios/semanal/${r.id}/pdf`}
     />
   );
 }

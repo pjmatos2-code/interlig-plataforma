@@ -787,3 +787,45 @@ Total: 73 pendentes de 314 vendas de maio (23%).
   calculados; não pode inventar número nem contradizer o status. Modelo
   padrão `claude-opus-5-5` (ou `modelo_relatorio` em integracoes_config,
   sistema anthropic). Um ensaio de 26/10 a 01/11 levou 45 s.
+
+## Relatório da diretoria: PDF por e-mail e envio de segunda (04/11/2026)
+
+- **Pedido do Paulo:** o relatório vai em PDF, anexado a um e-mail com o
+  resumo no corpo (o formato do e-mail ao CEO que ele aprovou), saindo da
+  caixa corporativa dele por enquanto. Na hora, pelo botão, e toda segunda.
+- **Caixa que envia:** Administração → Integrações, card "E-mail de envio"
+  (integracoes_config, sistema `email`): endereço, senha da caixa, nome do
+  remetente, servidor e porta. O interlig.com fica na Locaweb (MX
+  mx.core.locaweb.com.br): SMTP `email-ssl.com.br`, porta 465 com SSL. O
+  botão "Enviar e-mail de teste" manda para a própria caixa. O remetente vai
+  em cópia oculta de cada envio: mandado por SMTP, o e-mail não aparece na
+  pasta Enviados.
+- **Para quem vai:** `/relatorios`, "Envio por e-mail" (sistema
+  `relatorio_semanal`): destinatários, o nome da abertura (padrão "Estevam")
+  e o envio automático de segunda, desligado até alguém ligar.
+- **PDF (`lib/relatorio-semanal/pdf.ts`):** o Chromium do servidor abre a
+  página de impressão `/relatorios/pdf/<id>` e imprime em A4 (escala 0,8,
+  rodapé com página). É o mesmo componente da tela em `modo="pdf"`: sem
+  campos nem botões, perguntas da reunião como texto, seções de texto
+  abrindo página. A página não usa sessão: abre só com link assinado
+  (HMAC com o CRON_SECRET) que vence em 10 minutos. Na Vercel,
+  `@sparticuz/chromium` 153 + `puppeteer-core` 25.11 (versões casadas),
+  fora do bundle e com `bin/` incluído à mão nas rotas `/api/relatorios/**`
+  (`outputFileTracingIncludes`); no computador, o Chrome instalado. A fonte
+  reserva do Chromium serverless é Open Sans (tem ≈, não tem seta): a
+  página de impressão troca "→" por "para". Ensaio local com os dados de
+  26/10: 7 páginas, 530 KB, 4 a 8 s.
+- **E-mail (`email.ts`, puro e testado):** assunto "Relatório Comercial
+  Semanal Interlig – semana de 26/10 a 01/11", abertura com o nome, as
+  cinco linhas que o Claude escreve (melhor e pior indicador, base,
+  críticos, o que decidir) e o fecho com o anexo e o link da plataforma
+  (que pede login). Sem os textos do Claude, o resumo sai dos números.
+- **Envio (`envio.ts`):** cada tentativa fica em `relatorios_envios`
+  (migração 0131). Pelo botão, se o PDF falhar, nada sai e quem clicou vê o
+  erro. No automático, o e-mail sai sem o PDF, com o link, e o aviso fica
+  registrado.
+- **Segunda-feira:** cron `/api/relatorios/rotina` às 11h UTC (8h de
+  Santarém): com o automático ligado, gera o relatório da semana que acabou
+  no domingo e manda uma vez (não repete se o cron rodar de novo).
+  `?pdf=<id>` com o CRON_SECRET devolve só o PDF, para conferir o gerador
+  em produção.

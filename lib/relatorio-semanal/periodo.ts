@@ -78,6 +78,9 @@ export const diaMes = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 export const dataBr = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 /** "26/10 a 01/11/2026" */
 export const rotuloSemana = (s: Semana) => `${diaMes(s.inicio)} a ${dataBr(s.fim)}`;
+/** "19 a 25/10" no mesmo mês, "26/10 a 01/11" na virada (assunto do e-mail, como no modelo) */
+export const rotuloSemanaCurto = (s: Semana) =>
+  s.inicio.slice(0, 7) === s.fim.slice(0, 7) ? `${s.inicio.slice(8, 10)} a ${diaMes(s.fim)}` : `${diaMes(s.inicio)} a ${diaMes(s.fim)}`;
 
 /** os 7 dias da semana com rótulo do gráfico: "Seg 26", …, "Dom 01/11" na virada do mês */
 export function diasDaSemana(s: Semana): { data: string; rotulo: string; diaSemana: number }[] {

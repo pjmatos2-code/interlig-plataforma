@@ -12,6 +12,8 @@ import {
   gerarSegredoWebhook,
   dispararEventoTeste,
   testarApiSzchat,
+  salvarEmail,
+  testarEmail,
   type EstadoIntegracao,
   type ResultadoRota,
 } from "./acoes";
@@ -338,6 +340,61 @@ export function PainelSzchat({
           <BotaoAcao rotulo="Testar API" rotuloAguardando="Testando…" acao={testarApiSzchat} />
         </div>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+export function PainelEmail({
+  configurado,
+}: {
+  configurado: { usuario: string | null; senha: string | null; nome: string | null; host: string; porta: number };
+}) {
+  const [estado, acao] = useFormState(salvarEmail, inicial);
+  return (
+    <div className="space-y-4">
+      <form action={acao} className="grid gap-3 lg:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="email_usuario">E-mail que envia</Label>
+          <Input
+            id="email_usuario"
+            name="usuario"
+            type="email"
+            autoComplete="off"
+            defaultValue={configurado.usuario ?? ""}
+            placeholder="seu.nome@interlig.com"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="email_senha">
+            Senha da caixa {configurado.senha && <Badge variant="verde">configurada {configurado.senha}</Badge>}
+          </Label>
+          <Input
+            id="email_senha"
+            name="senha"
+            type="password"
+            autoComplete="new-password"
+            placeholder={configurado.senha ? "manter a atual (deixe vazio)" : "a senha do webmail"}
+          />
+        </div>
+        <div className="space-y-1.5 lg:col-span-2">
+          <Label htmlFor="email_nome">Nome do remetente</Label>
+          <Input id="email_nome" name="nome" defaultValue={configurado.nome ?? ""} placeholder="ex.: Paulo Matos · Interlig" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="email_host">Servidor de saída (SMTP)</Label>
+          <Input id="email_host" name="host" defaultValue={configurado.host} placeholder="email-ssl.com.br" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="email_porta">Porta</Label>
+          <Input id="email_porta" name="porta" inputMode="numeric" defaultValue={String(configurado.porta)} placeholder="465" />
+        </div>
+        <div className="flex flex-wrap items-center gap-3 lg:col-span-2">
+          <BotaoSalvar />
+          <Mensagem estado={estado} />
+        </div>
+      </form>
+      <BotaoAcao rotulo="Enviar e-mail de teste" rotuloAguardando="Enviando…" acao={testarEmail} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { LIMITES, ROTULO_STATUS, contagemStatus } from "@/lib/relatorio-semanal/
 import { dataBr, diaMes, rotuloSemana } from "@/lib/relatorio-semanal/periodo";
 import { dec1, lista, num, pct, plural, reais, reais2, reaisMil, sinal, variacao } from "@/lib/relatorio-semanal/formato";
 import { CampoReuniao, PerguntasReuniao } from "./reuniao";
+import { PerguntasPdf } from "./perguntas-pdf";
 
 /**
  * Relatório Comercial Semanal — a página no formato do modelo aprovado pela
@@ -89,6 +90,8 @@ export function RelatorioSemanal({
   combinadoAnterior,
   podeEditar,
   voltar,
+  pdf,
+  modo = "tela",
 }: {
   id: string;
   dados: DadosRelatorio;
@@ -99,7 +102,12 @@ export function RelatorioSemanal({
   podeEditar: boolean;
   /** link de volta à plataforma (só para quem entrou logado) */
   voltar?: string;
+  /** link para baixar o PDF (na tela) */
+  pdf?: string;
+  /** "pdf": a página que o servidor imprime para o e-mail — sem campos nem botões */
+  modo?: "tela" | "pdf";
 }) {
+  const impressao = modo === "pdf";
   const { leitura: l, vendas: v } = d;
   const contagem = contagemStatus(d.placar);
   const mesRotulo = l.mes.fechado ? `${l.mes.nome[0].toUpperCase()}${l.mes.nome.slice(1)} fechado` : `${l.mes.nome[0].toUpperCase()}${l.mes.nome.slice(1)} até ${diaMes(l.semana.fim)}`;
@@ -128,13 +136,22 @@ export function RelatorioSemanal({
   const maxFaixa = Math.max(1, ...f.faixas.map((x) => x.valor));
 
   return (
-    <div className="rcs">
+    <div className={impressao ? "rcs pdf" : "rcs"} data-theme={impressao ? "light" : undefined}>
       <header className="top">
         <div className="in">
-          {voltar && (
-            <a href={voltar} className="voltar">
-              ← Relatórios da diretoria
-            </a>
+          {!impressao && (voltar || pdf) && (
+            <div className="top-links">
+              {voltar && (
+                <a href={voltar} className="voltar">
+                  ← Relatórios da diretoria
+                </a>
+              )}
+              {pdf && (
+                <a href={pdf} className="voltar" target="_blank" rel="noopener">
+                  Baixar PDF
+                </a>
+              )}
+            </div>
           )}
           <div className="brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -686,10 +703,19 @@ export function RelatorioSemanal({
                 <div key={chave} className="owner">
                   <div className="owner-top">
                     <h3>{titulo}</h3>
-                    <div className="who">
-                      <label htmlFor={`r-${chave}`}>Responsável</label>
-                      <CampoReuniao id={id} campo={`r-${chave}`} inicial={reuniao[`r-${chave}`] ?? ""} placeholder="Nome do responsável" podeEditar={podeEditar} />
-                    </div>
+                    {impressao ? (
+                      reuniao[`r-${chave}`] ? (
+                        <div className="who">
+                          <span className="small muted">Responsável</span>
+                          <b>{reuniao[`r-${chave}`]}</b>
+                        </div>
+                      ) : null
+                    ) : (
+                      <div className="who">
+                        <label htmlFor={`r-${chave}`}>Responsável</label>
+                        <CampoReuniao id={id} campo={`r-${chave}`} inicial={reuniao[`r-${chave}`] ?? ""} placeholder="Nome do responsável" podeEditar={podeEditar} />
+                      </div>
+                    )}
                   </div>
                   <dl>
                     <dt>Cobrar de</dt>
@@ -718,17 +744,32 @@ export function RelatorioSemanal({
           <section id="perguntas">
             <div className="sec-head">
               <h2>Perguntas para a reunião de segunda</h2>
-              <p>{podeEditar ? "Escreva as respostas direto nos campos. O que você digitar fica salvo no relatório." : "Respostas registradas na reunião."}</p>
+              <p>
+                {impressao
+                  ? "Perguntas para levar à reunião. As respostas e o checklist do Paulo se preenchem no relatório da plataforma."
+                  : podeEditar
+                    ? "Escreva as respostas direto nos campos. O que você digitar fica salvo no relatório."
+                    : "Respostas registradas na reunião."}
+              </p>
             </div>
-            <PerguntasReuniao
-              id={id}
-              semana={semanaTxt}
-              reuniao={reuniao}
-              combinadoAnterior={combinadoAnterior}
-              perguntas={t?.perguntasSemana ?? []}
-              sugestoes={t?.sugestoesChecklist ?? []}
-              podeEditar={podeEditar}
-            />
+            {impressao ? (
+              <PerguntasPdf
+                reuniao={reuniao}
+                combinadoAnterior={combinadoAnterior}
+                perguntas={t?.perguntasSemana ?? []}
+                sugestoes={t?.sugestoesChecklist ?? []}
+              />
+            ) : (
+              <PerguntasReuniao
+                id={id}
+                semana={semanaTxt}
+                reuniao={reuniao}
+                combinadoAnterior={combinadoAnterior}
+                perguntas={t?.perguntasSemana ?? []}
+                sugestoes={t?.sugestoesChecklist ?? []}
+                podeEditar={podeEditar}
+              />
+            )}
           </section>
 
           <div className="foot">

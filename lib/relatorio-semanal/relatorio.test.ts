@@ -2,10 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { diasDaSemana, mesDeReferencia, rotuloSemana, semanaDe, ultimaSemanaCompleta } from "./periodo";
+import { diasDaSemana, mesDeReferencia, rotuloSemana, rotuloSemanaCurto, semanaDe, ultimaSemanaCompleta } from "./periodo";
 import { contagemStatus, montarPlacar } from "./placar";
 import { foraDasVendas } from "./dados";
-import type { DadosRelatorio } from "./tipos";
+import { lerDestinatarios, montarEmailRelatorio } from "./email";
+import { VALIDADE_PDF_MS, assinarPdf, conferirAssinaturaPdf } from "./assinatura";
+import type { DadosRelatorio, TextosRelatorio } from "./tipos";
 
 describe("período do relatório", () => {
   it("a semana do relatório é a última completa, de segunda a domingo", () => {
@@ -144,5 +146,85 @@ describe("placar da semana", () => {
     for (const p of montarPlacar(semanaDoModelo())) {
       expect(JSON.stringify(p)).not.toMatch(/NaN|undefined|Infinity/);
     }
+  });
+});
+
+describe("e-mail do relatório", () => {
+  const dados = (): DadosRelatorio => {
+    const d = semanaDoModelo();
+    return { ...d, placar: montarPlacar(d) };
+  };
+  const textos = {
+    email: {
+      melhor: "Melhor indicador: vendas da semana, 86 (48% acima da anterior).",
+      pior: "Pior indicador: fila de débito, 592 clientes e R$ 74,8 mil/mês em risco, sem nenhum contato.",
+      base: "Base de ativos: 9.214 hoje, faltam 786 para 10.000.",
+      criticos: "Cinco dos dez indicadores estão críticos: consulta, assinatura, time, origem e fila de débito.",
+      decidir: "Para decidir com o Paulo: quem contata a fila e quando.",
+    },
+  } as TextosRelatorio;
+  const link = "https://interlig-plataforma.vercel.app/relatorios/semanal/abc";
+
+  it("rótulo curto da semana, como no assunto do modelo", () => {
+    expect(rotuloSemanaCurto(semanaDe("2026-10-19"))).toBe("19 a 25/10");
+    expect(rotuloSemanaCurto(semanaDe("2026-10-26"))).toBe("26/10 a 01/11");
+  });
+  it("assunto, abertura com o nome, as cinco linhas e o fecho com o PDF", () => {
+    const e = montarEmailRelatorio({ semana: semanaDe("2026-10-26"), dados: dados(), textos, saudacao: "Estevam", link, comPdf: true });
+    expect(e.assunto).toBe("Relatório Comercial Semanal Interlig – semana de 26/10 a 01/11");
+    const linhas = e.texto.split("\n");
+    expect(linhas[0]).toBe("Estevam, o relatório da semana de 26/10 a 01/11 está pronto.");
+    expect(linhas.slice(2, 7)).toEqual(Object.values(textos.email));
+    expect(e.texto).toContain("O relatório completo vai em PDF, em anexo.");
+    expect(e.texto).toContain(`checklist para o Paulo no relatório da plataforma: ${link}`);
+    expect(e.html).toContain(`href="${link}"`);
+    expect(e.arquivo).toBe("Relatório Comercial Semanal 26-10 a 01-11-2026.pdf");
+  });
+  it("sem PDF, o link vira o relatório completo; sem nome, a abertura fica sem vocativo", () => {
+    const e = montarEmailRelatorio({ semana: semanaDe("2026-10-26"), dados: dados(), textos, saudacao: "", link, comPdf: false });
+    expect(e.texto.startsWith("O relatório da semana de 26/10 a 01/11 está pronto.")).toBe(true);
+    expect(e.texto).toContain(`Relatório completo: ${link}`);
+    expect(e.texto).not.toContain("anexo");
+  });
+  it("sem os textos do Claude, o resumo sai dos números", () => {
+    const e = montarEmailRelatorio({ semana: semanaDe("2026-10-26"), dados: dados(), textos: null, saudacao: "Estevam", link, comPdf: true });
+    expect(e.texto).toContain("Vendas: 86 vendas novas na semana e 262 no mês, 116% da meta de 225.");
+    expect(e.texto).toContain("Cinco dos dez indicadores estão críticos:");
+    expect(e.texto).not.toMatch(/NaN|undefined|null/);
+  });
+  it("o HTML escapa o que vem do texto", () => {
+    const t = { email: { ...textos.email, melhor: "Melhor indicador: <b>vendas</b> & cia" } } as TextosRelatorio;
+    const e = montarEmailRelatorio({ semana: semanaDe("2026-10-26"), dados: dados(), textos: t, saudacao: "Estevam", link, comPdf: true });
+    expect(e.html).toContain("Melhor indicador: &lt;b&gt;vendas&lt;/b&gt; &amp; cia");
+    expect(e.html).not.toContain("<b>vendas</b>");
+  });
+  it("destinatários: separa por vírgula, ponto e vírgula ou espaço, tira repetidos e aponta os inválidos", () => {
+    expect(lerDestinatarios("Estevam@Interlig.com; paulo@interlig.com, estevam@interlig.com\nfulano@")).toEqual({
+      validos: ["estevam@interlig.com", "paulo@interlig.com"],
+      invalidos: ["fulano@"],
+    });
+    expect(lerDestinatarios("")).toEqual({ validos: [], invalidos: [] });
+  });
+});
+
+describe("link assinado da página de impressão", () => {
+  const segredo = "segredo-de-teste";
+  const id = "0f8c2a5e-1111-4222-8333-944455556666";
+  it("abre com a assinatura certa, dentro do prazo", () => {
+    const agora = 1_800_000_000_000;
+    const exp = agora + VALIDADE_PDF_MS;
+    expect(conferirAssinaturaPdf(id, String(exp), assinarPdf(id, exp, segredo), agora, segredo)).toBe(true);
+  });
+  it("recusa vencido, adulterado, de outro relatório, sem assinatura ou com prazo longo demais", () => {
+    const agora = 1_800_000_000_000;
+    const exp = agora + 60_000;
+    const sig = assinarPdf(id, exp, segredo);
+    expect(conferirAssinaturaPdf(id, String(exp), sig, exp + 1, segredo)).toBe(false);
+    expect(conferirAssinaturaPdf(id, String(exp + 1), sig, agora, segredo)).toBe(false);
+    expect(conferirAssinaturaPdf("0f8c2a5e-1111-4222-8333-944455550000", String(exp), sig, agora, segredo)).toBe(false);
+    expect(conferirAssinaturaPdf(id, undefined, sig, agora, segredo)).toBe(false);
+    expect(conferirAssinaturaPdf(id, String(exp), sig.replace(/^./, "0") === sig ? sig.replace(/^./, "1") : sig.replace(/^./, "0"), agora, segredo)).toBe(false);
+    const longe = agora + 24 * 3600_000;
+    expect(conferirAssinaturaPdf(id, String(longe), assinarPdf(id, longe, segredo), agora, segredo)).toBe(false);
   });
 });
