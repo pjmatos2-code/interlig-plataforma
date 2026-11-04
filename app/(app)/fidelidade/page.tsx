@@ -12,6 +12,7 @@ import { dataHora } from "@/components/comissao/cartao-resultado-agente";
 import { cn } from "@/lib/utils";
 import { redirect } from "next/navigation";
 import { BotaoAtualizarFidelidade } from "./botao";
+import { GraficoPlanos } from "./grafico-planos";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -26,9 +27,11 @@ const COR: Record<FaixaFidelidade, { barra: string; texto: string; fundo: string
 const num = (v: number) => v.toLocaleString("pt-BR");
 
 /**
- * Fidelidade da base (01/10/2026) — aba das agentes de refidelização. Cada
- * número abre o relatório Fidelidades do SGP já filtrado na unidade e faixa:
- * a lista nominal (com contrato e plano) mora lá.
+ * Fidelidade da base (01/10/2026) — aba das agentes de refidelização. Os
+ * números da tabela abrem o relatório Fidelidades do SGP já filtrado na
+ * unidade e faixa; os do gráfico de planos abrem a lista nominal da própria
+ * plataforma (/fidelidade/lista), porque o SGP não filtra pelo grupo de plano
+ * (04/11/2026).
  */
 export default async function FidelidadePage({
   searchParams,
@@ -60,7 +63,7 @@ export default async function FidelidadePage({
         <div className="min-w-0 md:flex-1">
           <CabecalhoPagina
           titulo={unidadeFixa ? `Fidelidade da base · ${unidadeFixa}` : "Fidelidade da base"}
-          descricao={`Clientes ativos sem fidelidade e os que perdem a fidelidade nos próximos 90 dias${unidadeFixa ? "" : ", por unidade"}. Clique num número para abrir a lista no SGP.`}
+          descricao={`Clientes ativos sem fidelidade e os que perdem a fidelidade nos próximos 90 dias${unidadeFixa ? "" : ", por unidade"}. Os números da tabela abrem a lista no SGP; os do gráfico de planos abrem os clientes aqui, com telefone e planilha.`}
           />
         </div>
         <div className="flex flex-col items-start gap-1 md:max-w-xs md:items-end md:text-right">
@@ -171,8 +174,9 @@ export default async function FidelidadePage({
           fidelidade — refidelizar agora evita que o cliente passe a pagar cheio e procure a concorrência.
         </p>
         <p className="rounded-lg border bg-card p-3">
-          <b className="text-foreground">Como abrir a lista:</b> os números abrem o relatório Fidelidades do SGP já
-          filtrado (unidade, contratos ativos e a faixa). É preciso estar logada no SGP no navegador.
+          <b className="text-foreground">Como abrir a lista:</b> no gráfico de planos, o número abre os clientes daquele
+          plano aqui mesmo, com telefone, WhatsApp e planilha. Os números da tabela abrem o relatório Fidelidades do
+          SGP já filtrado (unidade, contratos ativos e a faixa) — é preciso estar logada no SGP no navegador.
         </p>
         <p className="rounded-lg border bg-card p-3 md:col-span-2">
           <b className="text-foreground">Fora da contagem:</b> permutas, isentos (mensalidade zero, cortesia, controle
@@ -182,101 +186,5 @@ export default async function FidelidadePage({
         </p>
       </div>
     </>
-  );
-}
-
-/** grupos que não são internet residencial/corporativa ganham cor neutra */
-const ESPECIAIS = /Rede neutra|LigChip|Telefonia|Interlig Play|Desativado|não identificado|Lan To Lan/i;
-
-function GraficoPlanos({
-  unidades,
-  unidadeSel,
-  faixaSel,
-  podeTrocarUnidade,
-}: {
-  unidades: { pop: number; nome: string; planos: Record<FaixaFidelidade, Record<string, number>> }[];
-  unidadeSel: string | null;
-  faixaSel: FaixaFidelidade;
-  podeTrocarUnidade: boolean;
-}) {
-  const escopo = unidadeSel ? unidades.filter((u) => String(u.pop) === unidadeSel) : unidades;
-  const soma = new Map<string, number>();
-  for (const u of escopo) for (const [plano, n] of Object.entries(u.planos[faixaSel] ?? {})) soma.set(plano, (soma.get(plano) ?? 0) + n);
-  const ordenado = [...soma.entries()].sort((a, b) => b[1] - a[1]);
-  const LIMITE = 14;
-  const barras = ordenado.slice(0, LIMITE);
-  const resto = ordenado.slice(LIMITE);
-  if (resto.length) barras.push([`Outros ${resto.length} planos`, resto.reduce((t, [, n]) => t + n, 0)]);
-  const total = ordenado.reduce((t, [, n]) => t + n, 0);
-  const max = Math.max(1, ...barras.map(([, n]) => n));
-  const href = (u: string | null, f: string) => {
-    const q = new URLSearchParams();
-    if (u) q.set("unidade", u);
-    if (f !== "sem") q.set("faixa", f);
-    const qs = q.toString();
-    return `/fidelidade${qs ? `?${qs}` : ""}#planos`;
-  };
-  const chip = (ativo: boolean) =>
-    cn(
-      "rounded-full border px-3 py-1 text-xs font-medium",
-      ativo ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
-    );
-  const rotuloFaixa = FAIXAS_FIDELIDADE.find((f) => f.chave === faixaSel)?.rotulo ?? "";
-
-  return (
-    <section id="planos" className="mt-5 scroll-mt-20 rounded-xl border bg-card p-5 shadow-sm">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold">Planos dos clientes · {rotuloFaixa.toLowerCase()}</h2>
-          <p className="text-sm text-muted-foreground">
-            {num(total)} contratos ativos por plano (velocidade e residencial × corporativo){unidadeSel ? "" : podeTrocarUnidade ? " · todas as unidades" : ""}
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          {podeTrocarUnidade && (
-            <div className="flex flex-wrap justify-end gap-1.5">
-              <a href={href(null, faixaSel)} className={chip(!unidadeSel)}>Todas</a>
-              {unidades.map((u) => (
-                <a key={u.pop} href={href(String(u.pop), faixaSel)} className={chip(unidadeSel === String(u.pop))}>{u.nome}</a>
-              ))}
-            </div>
-          )}
-          <div className="flex flex-wrap justify-end gap-1.5">
-            {FAIXAS_FIDELIDADE.map((f) => (
-              <a key={f.chave} href={href(unidadeSel, f.chave)} className={chip(faixaSel === f.chave)}>{f.rotulo}</a>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {total === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">Nenhum contrato nesta seleção.</p>
-      ) : (
-        <div className="space-y-2">
-          {barras.map(([plano, n]) => {
-            const corp = /corporativo/i.test(plano);
-            const especial = ESPECIAIS.test(plano) || plano.startsWith("Outros ");
-            return (
-              <div key={plano} className="flex items-center gap-2 sm:gap-3">
-                <span className="w-28 shrink-0 truncate text-xs sm:w-44 sm:text-sm" title={plano}>{plano}</span>
-                <div className="h-6 min-w-[3rem] flex-1 rounded-md bg-muted/60">
-                  <div
-                    className={cn("flex h-full items-center rounded-md", corp ? "bg-violet-500" : especial ? "bg-slate-400" : "bg-sky-500")}
-                    style={{ width: `${Math.max(1.5, (n / max) * 100)}%` }}
-                  />
-                </div>
-                <span className="w-10 text-right text-sm font-bold tabular-nums sm:w-12">{num(n)}</span>
-                <span className="w-9 text-right text-xs tabular-nums text-muted-foreground sm:w-12">{Math.round((n / total) * 100)}%</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-sky-500" /> residencial</span>
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-violet-500" /> corporativo (corporate, PJ, dedicado)</span>
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-slate-400" /> outros serviços (rede neutra, LigChip, telefonia, Play)</span>
-      </div>
-    </section>
   );
 }

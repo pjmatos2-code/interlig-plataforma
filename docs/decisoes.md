@@ -723,3 +723,29 @@ Total: 73 pendentes de 314 vendas de maio (23%).
 - **Dados:** migração 0127 — `gerencia_config.flag_early_churn` fica sem uso
   (comentário na coluna); outubro registrado com a observação da decisão, que
   vai para o snapshot do fechamento.
+
+## Fidelidade da base: lista de clientes por plano (04/11/2026)
+
+- **Pedido do Paulo:** clicar no número de um plano do gráfico (ex.: "200 MB
+  corporativo") e saber exatamente quem são os clientes, para entrar em
+  contato — na plataforma ou em planilha.
+- **Por que não o SGP:** o relatório Fidelidades do SGP não filtra pelo grupo
+  de plano da plataforma (que junta vários planos do SGP, ex.: "FIBRA
+  CORPORATE 200MB" e "200MB | PJ") nem tira permutas, isentos e órgãos
+  públicos. O link do SGP mostraria outra lista e outro número.
+- **Como ficou:** a leitura diária do relatório (madrugada ou "Atualizar
+  agora") passa a guardar os contratos de cada unidade e faixa em
+  `fidelidade_contratos` (migração 0129), com o grupo do plano calculado na
+  mesma conta do gráfico (`montarLeituraFidelidade`). O número de cada plano
+  abre `/fidelidade/lista` — nome, telefone, plano, mensalidade e fim da
+  fidelidade, com WhatsApp e link para os contratos do cliente no SGP — e a
+  planilha sai em `/api/fidelidade/exportar`. "Outros N planos" abre
+  exatamente os planos que o gráfico juntou (`planosDoEscopo`).
+- **Dado pessoal:** a tabela só é lida pela service role; tela e planilha
+  checam o perfil (gestor, direção, agentes de atendimento e coordenação de
+  unidade, presa à própria unidade). Nome, telefone e mensalidade vêm do
+  cadastro na hora; o nome do relatório é o reserva.
+- **Conferido em 04/11:** ensaio sem gravar contra o SGP — a lista das 12
+  faixas bate com o gráfico (diferenças de 1 contrato onde a base mudou desde
+  a madrugada); "200 MB corporativo" sem fidelidade = 29, todos em Altamira;
+  97% dos contratos têm telefone no cadastro.

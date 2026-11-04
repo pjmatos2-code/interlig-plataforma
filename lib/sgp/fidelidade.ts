@@ -1,6 +1,7 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
-import { PainelSgp } from "@/lib/sgp/painel";
+import { PainelSgp, type LinhaFidelidadeSgp } from "@/lib/sgp/painel";
+import type { Usuario } from "@/lib/tipos";
 
 /**
  * Fidelidade da base (01/10/2026) — contratos ATIVOS sem fidelidade e os que
@@ -143,6 +144,42 @@ export async function lerResumoFidelidade(): Promise<ResumoFidelidade> {
 }
 
 /**
+ * Uma leitura do relatório (unidade e faixa) → o que conta, o grupo de plano
+ * de cada contrato e as contagens do gráfico. Função pura: a lista e o
+ * gráfico saem da mesma conta.
+ */
+export function montarLeituraFidelidade(
+  pop: number,
+  faixa: FaixaFidelidade,
+  linhas: LinhaFidelidadeSgp[],
+  cadastro: { zerados: Set<string>; planoDe: Map<string, string> },
+  lidaEm: string
+) {
+  const contam = linhas.filter((l) => !motivoExclusao(l.texto, cadastro.zerados.has(l.contrato)));
+  const planos: Record<string, number> = {};
+  const lista = contam.map((l) => {
+    // o plano de INTERNET do relatório vale mais que o do cadastro (no
+    // cadastro, o principal às vezes é o SVA "Interlig Play")
+    const plano = planoDoTexto(l.texto) ?? cadastro.planoDe.get(l.contrato) ?? null;
+    const familia = familiaPlano(plano);
+    planos[familia] = (planos[familia] ?? 0) + 1;
+    return {
+      pop_sgp_id: pop,
+      faixa,
+      sgp_contrato_id: l.contrato,
+      sgp_cliente_id: l.clienteId,
+      cliente: l.cliente,
+      plano,
+      familia,
+      fim_fidelidade: l.fim,
+      dias_restantes: l.dias,
+      atualizado_em: lidaEm,
+    };
+  });
+  return { lista, planos, excluidos: linhas.length - contam.length };
+}
+
+/**
  * Relê o relatório no SGP e grava as contagens. Cada unidade/faixa é gravada
  * assim que lida — se o orçamento acabar no meio, o que foi lido fica salvo.
  */
@@ -174,12 +211,17 @@ export async function atualizarResumoFidelidade(
         if (Date.now() - inicio > orcamentoMs - 20_000) {
           return { ok: false, lidas, erro: "orçamento esgotado — continua na próxima atualização" };
         }
-        const linhas = await painel.linhasRelatorioFidelidade(filtrosFidelidade(u.pop, f.chave));
+        // uma linha por contrato: linha sem número de contrato não é contrato
+        // (ex.: aviso de lista vazia) e a lista nominal não aceita repetido
+        const vistos = new Set<string>();
+        const linhas = (await painel.linhasRelatorioFidelidade(filtrosFidelidade(u.pop, f.chave))).filter(
+          (l) => l.contrato && !vistos.has(l.contrato) && vistos.add(l.contrato)
+        );
         // cadastro: mensalidade zero = isento (controle interno, teste,
         // cortesia) e o plano do contrato para o gráfico
         const zerados = new Set<string>();
         const planoDe = new Map<string, string>();
-        const ids = linhas.map((l) => l.contrato).filter(Boolean);
+        const ids = linhas.map((l) => l.contrato);
         for (let i = 0; i < ids.length; i += 300) {
           const { data: cts } = await admin
             .from("contratos")
@@ -191,15 +233,23 @@ export async function atualizarResumoFidelidade(
             if (nome) planoDe.set(c.sgp_contrato_id as string, nome);
           }
         }
-        const contam = linhas.filter((l) => !motivoExclusao(l.texto, zerados.has(l.contrato)));
-        const excluidos = linhas.length - contam.length;
-        const planos: Record<string, number> = {};
-        for (const l of contam) {
-          // o plano de INTERNET do relatório vale mais que o do cadastro (no
-          // cadastro, o principal às vezes é o SVA "Interlig Play")
-          const fam = familiaPlano(planoDoTexto(l.texto) ?? planoDe.get(l.contrato));
-          planos[fam] = (planos[fam] ?? 0) + 1;
+        const lidaEm = new Date().toISOString();
+        const { lista, planos, excluidos } = montarLeituraFidelidade(u.pop, f.chave, linhas, { zerados, planoDe }, lidaEm);
+        // lista nominal (04/11/2026): grava a leitura nova e só depois tira
+        // quem saiu da faixa — a lista nunca fica vazia no meio da troca
+        for (let i = 0; i < lista.length; i += 500) {
+          const { error: e1 } = await admin
+            .from("fidelidade_contratos")
+            .upsert(lista.slice(i, i + 500), { onConflict: "pop_sgp_id,faixa,sgp_contrato_id" });
+          if (e1) return { ok: false, lidas, erro: `lista de ${u.nome}: ${e1.message}` };
         }
+        const { error: e2 } = await admin
+          .from("fidelidade_contratos")
+          .delete()
+          .eq("pop_sgp_id", u.pop)
+          .eq("faixa", f.chave)
+          .lt("atualizado_em", lidaEm);
+        if (e2) return { ok: false, lidas, erro: `lista de ${u.nome}: ${e2.message}` };
         const { error } = await admin.from("fidelidade_resumo").upsert(
           {
             pop_sgp_id: u.pop,
@@ -208,7 +258,7 @@ export async function atualizarResumoFidelidade(
             quantidade: linhas.length - excluidos,
             excluidos,
             planos,
-            atualizado_em: new Date().toISOString(),
+            atualizado_em: lidaEm,
           },
           { onConflict: "pop_sgp_id,faixa" }
         );
@@ -220,4 +270,213 @@ export async function atualizarResumoFidelidade(
   } catch (e) {
     return { ok: false, lidas, erro: e instanceof Error ? e.message : String(e) };
   }
+}
+
+/** quantos planos o gráfico mostra antes de juntar o resto em "Outros N planos" */
+export const LIMITE_PLANOS_GRAFICO = 14;
+
+/**
+ * Planos de uma faixa, somados nas unidades do escopo (pop null = todas), do
+ * maior para o menor. O gráfico e a lista usam a mesma conta, para que
+ * "Outros N planos" abra exatamente os planos que o gráfico juntou.
+ */
+export function planosDoEscopo(
+  unidades: ResumoFidelidade["unidades"],
+  pop: number | null,
+  faixa: FaixaFidelidade
+): { principais: [string, number][]; resto: [string, number][]; total: number } {
+  const soma = new Map<string, number>();
+  for (const u of unidades) {
+    if (pop && u.pop !== pop) continue;
+    for (const [plano, n] of Object.entries(u.planos[faixa] ?? {})) soma.set(plano, (soma.get(plano) ?? 0) + n);
+  }
+  const ordenado = [...soma.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "pt-BR"));
+  return {
+    principais: ordenado.slice(0, LIMITE_PLANOS_GRAFICO),
+    resto: ordenado.slice(LIMITE_PLANOS_GRAFICO),
+    total: ordenado.reduce((t, [, n]) => t + n, 0),
+  };
+}
+
+/**
+ * Quem abre a fidelidade da base: gestor, direção e agentes de atendimento
+ * veem tudo; a coordenação de unidade (Brasil Novo, Vitória do Xingu) só a
+ * própria base. A coordenação de Altamira cuida de equipes e não acessa.
+ * null = sem acesso.
+ */
+export async function escopoFidelidade(
+  usuario: Pick<Usuario, "perfil" | "pop_id">
+): Promise<{ unidadeFixa: { pop: number; nome: string } | null } | null> {
+  if (["gestor", "direcao", "agente_atendimento"].includes(usuario.perfil)) return { unidadeFixa: null };
+  if (usuario.perfil !== "supervisor" || !usuario.pop_id) return null;
+  const { data } = await criarClienteAdmin().from("pops").select("nome").eq("id", usuario.pop_id).maybeSingle();
+  const nome = String(data?.nome ?? "");
+  const u = UNIDADES_FIDELIDADE.find((x) => x.nome === nome);
+  if (!u || !["Brasil Novo", "Vitória do Xingu"].includes(u.nome)) return null;
+  return { unidadeFixa: { pop: u.pop, nome: u.nome } };
+}
+
+export type ClienteFidelidade = {
+  pop: number;
+  unidade: string;
+  contrato: string;
+  clienteId: string | null;
+  cliente: string;
+  /** só dígitos, com DDD (10 ou 11) — null se o cadastro não tem */
+  telefone: string | null;
+  plano: string | null;
+  familia: string;
+  mensalidade: number | null;
+  fim: string | null;
+  dias: number | null;
+};
+
+/** telefone do cadastro → só dígitos com DDD, sem o 55 */
+export function telefoneLimpo(bruto: string | null | undefined): string | null {
+  let d = String(bruto ?? "").replace(/\D/g, "");
+  if (d.startsWith("55") && d.length >= 12) d = d.slice(2);
+  return d.length === 10 || d.length === 11 ? d : null;
+}
+
+/** "93991234567" → "(93) 99123-4567" */
+export function formatarTelefone(d: string): string {
+  return d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+}
+
+/**
+ * Lista nominal de uma faixa: os contratos gravados na última leitura do SGP
+ * (só os que contam), com nome, telefone e mensalidade do cadastro. pop null
+ * = todas as unidades; familias null = todos os planos.
+ */
+export async function lerListaFidelidade(
+  faixa: FaixaFidelidade,
+  pop: number | null,
+  familias: string[] | null
+): Promise<{ clientes: ClienteFidelidade[]; atualizadoEm: string | null }> {
+  if (familias && familias.length === 0) return { clientes: [], atualizadoEm: null };
+  const admin = criarClienteAdmin();
+  type Linha = {
+    pop_sgp_id: number;
+    sgp_contrato_id: string;
+    sgp_cliente_id: string | null;
+    cliente: string | null;
+    plano: string | null;
+    familia: string;
+    fim_fidelidade: string | null;
+    dias_restantes: number | null;
+    atualizado_em: string;
+  };
+  const linhas: Linha[] = [];
+  // o PostgREST corta em 1.000 linhas por resposta
+  for (let de = 0; de < 50_000; de += 1000) {
+    let q = admin
+      .from("fidelidade_contratos")
+      .select("pop_sgp_id, sgp_contrato_id, sgp_cliente_id, cliente, plano, familia, fim_fidelidade, dias_restantes, atualizado_em")
+      .eq("faixa", faixa)
+      .order("pop_sgp_id")
+      .order("sgp_contrato_id")
+      .range(de, de + 999);
+    if (pop) q = q.eq("pop_sgp_id", pop);
+    if (familias) q = q.in("familia", familias);
+    const { data, error } = await q;
+    if (error) throw new Error(`lista da fidelidade: ${error.message}`);
+    linhas.push(...((data ?? []) as Linha[]));
+    if ((data ?? []).length < 1000) break;
+  }
+  const cadastro = new Map<string, { nome: string | null; telefone: string | null; mensalidade: number | null }>();
+  const ids = linhas.map((l) => l.sgp_contrato_id);
+  for (let i = 0; i < ids.length; i += 300) {
+    const { data, error } = await admin
+      .from("contratos")
+      .select("sgp_contrato_id, valor_mensalidade, clientes(nome, telefone)")
+      .in("sgp_contrato_id", ids.slice(i, i + 300));
+    if (error) throw new Error(`cadastro da fidelidade: ${error.message}`);
+    for (const c of data ?? []) {
+      const cl = c.clientes as unknown as { nome: string | null; telefone: string | null } | null;
+      cadastro.set(String(c.sgp_contrato_id), {
+        nome: cl?.nome ?? null,
+        telefone: telefoneLimpo(cl?.telefone),
+        mensalidade: c.valor_mensalidade == null ? null : Number(c.valor_mensalidade),
+      });
+    }
+  }
+  const nomeUnidade = new Map<number, string>(UNIDADES_FIDELIDADE.map((u) => [u.pop, u.nome]));
+  const clientes = linhas.map((l): ClienteFidelidade => {
+    const c = cadastro.get(l.sgp_contrato_id);
+    return {
+      pop: l.pop_sgp_id,
+      unidade: nomeUnidade.get(l.pop_sgp_id) ?? String(l.pop_sgp_id),
+      contrato: l.sgp_contrato_id,
+      clienteId: l.sgp_cliente_id,
+      cliente: (c?.nome || l.cliente || `Contrato ${l.sgp_contrato_id}`).trim(),
+      telefone: c?.telefone ?? null,
+      plano: l.plano,
+      familia: l.familia,
+      mensalidade: c?.mensalidade ?? null,
+      fim: l.fim_fidelidade,
+      dias: l.dias_restantes,
+    };
+  });
+  // quem vence primeiro no topo; sem fidelidade, por nome
+  clientes.sort((a, b) =>
+    faixa === "sem"
+      ? a.cliente.localeCompare(b.cliente, "pt-BR")
+      : (a.dias ?? 99_999) - (b.dias ?? 99_999) || a.cliente.localeCompare(b.cliente, "pt-BR")
+  );
+  const atualizadoEm = linhas.map((l) => l.atualizado_em).sort()[0] ?? null;
+  return { clientes, atualizadoEm };
+}
+
+/** o que a lista e a planilha mostram: faixa, unidade e plano (ou "outros") */
+export type FiltroListaFidelidade = {
+  faixa: FaixaFidelidade;
+  /** pop do SGP; null = todas as unidades */
+  pop: number | null;
+  /** grupo do plano (o rótulo do gráfico); null = todos os planos */
+  plano: string | null;
+  /** os planos que o gráfico juntou em "Outros N planos" */
+  outros: boolean;
+};
+
+export function lerFiltroLista(
+  p: { faixa?: string | null; unidade?: string | null; plano?: string | null; outros?: string | null },
+  unidadeFixa: { pop: number } | null
+): FiltroListaFidelidade {
+  const faixa = FAIXAS_FIDELIDADE.find((f) => f.chave === p.faixa)?.chave ?? "sem";
+  const pedido = UNIDADES_FIDELIDADE.find((u) => String(u.pop) === p.unidade)?.pop ?? null;
+  const outros = p.outros === "1";
+  const plano = !outros && p.plano?.trim() ? p.plano.trim().slice(0, 120) : null;
+  return { faixa, pop: unidadeFixa?.pop ?? pedido, plano, outros };
+}
+
+/** querystring da lista/planilha para um filtro (sem a unidade quando é fixa) */
+export function queryLista(f: Partial<FiltroListaFidelidade> & { faixa: FaixaFidelidade }): string {
+  const q = new URLSearchParams({ faixa: f.faixa });
+  if (f.pop) q.set("unidade", String(f.pop));
+  if (f.outros) q.set("outros", "1");
+  else if (f.plano) q.set("plano", f.plano);
+  return q.toString();
+}
+
+/**
+ * Os grupos de plano de um filtro e quantos contratos o gráfico mostra para
+ * ele (para conferir com a lista). familias null = todos os planos.
+ */
+export function familiasDoFiltro(
+  f: FiltroListaFidelidade,
+  resumo: ResumoFidelidade
+): { familias: string[] | null; noGrafico: number; titulo: string } {
+  const { principais, resto, total } = planosDoEscopo(resumo.unidades, f.pop, f.faixa);
+  if (f.outros) {
+    return {
+      familias: resto.map(([p]) => p),
+      noGrafico: resto.reduce((t, [, n]) => t + n, 0),
+      titulo: `Outros ${resto.length} planos`,
+    };
+  }
+  if (f.plano) {
+    const n = [...principais, ...resto].find(([p]) => p === f.plano)?.[1] ?? 0;
+    return { familias: [f.plano], noGrafico: n, titulo: f.plano };
+  }
+  return { familias: null, noGrafico: total, titulo: "Todos os planos" };
 }
