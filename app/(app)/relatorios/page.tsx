@@ -36,12 +36,12 @@ export default async function RelatoriosPage() {
   const { data: enviosBrutos } = relatorios.length
     ? await admin
         .from("relatorios_envios")
-        .select("relatorio_id, para, enviado, com_pdf, automatico, enviado_em, erro")
+        .select("relatorio_id, para, enviado, automatico, enviado_em, erro")
         .in("relatorio_id", relatorios.map((r) => r.id))
         .order("enviado_em", { ascending: false })
         .limit(300)
     : { data: [] };
-  type Envio = { relatorio_id: string; para: string[]; enviado: boolean; com_pdf: boolean; automatico: boolean; enviado_em: string; erro: string | null };
+  type Envio = { relatorio_id: string; para: string[]; enviado: boolean; automatico: boolean; enviado_em: string; erro: string | null };
   const ultimoEnvio = new Map<string, Envio>();
   for (const e of (enviosBrutos ?? []) as Envio[]) if (!ultimoEnvio.has(e.relatorio_id)) ultimoEnvio.set(e.relatorio_id, e);
   const emailPronto = Boolean(cfgEmail.usuario && cfgEmail.senha);
@@ -112,7 +112,7 @@ export default async function RelatoriosPage() {
                     {envio && (
                       <p className={`text-xs ${!envio.enviado ? "text-farol-vermelho" : envio.erro ? "text-amber-700" : "text-muted-foreground"}`}>
                         {envio.enviado
-                          ? `${envio.automatico ? "Enviado sozinho" : "Enviado"} para ${envio.para.join(", ")} em ${quando(envio.enviado_em)}${envio.com_pdf ? ", com o PDF" : ""}${envio.erro ? ` · ${envio.erro}` : ""}`
+                          ? `${envio.automatico ? "Enviado sozinho" : "Enviado"} para ${envio.para.join(", ")} em ${quando(envio.enviado_em)}${envio.erro ? ` · ${envio.erro}` : ""}`
                           : `Envio de ${quando(envio.enviado_em)} não saiu: ${envio.erro ?? "erro sem detalhe"}`}
                       </p>
                     )}

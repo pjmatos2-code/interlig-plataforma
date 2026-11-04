@@ -18,6 +18,11 @@ export function hojeSantarem(agora: Date = new Date()): string {
   return new Date(agora.getTime() - 3 * 3600_000).toISOString().slice(0, 10);
 }
 
+/** hora cheia em Santarém (UTC−3 o ano todo), de 0 a 23 */
+export function horaSantarem(agora: Date = new Date()): number {
+  return new Date(agora.getTime() - 3 * 3600_000).getUTCHours();
+}
+
 /** soma dias a uma data aaaa-mm-dd */
 export function somarDias(iso: string, dias: number): string {
   const d = new Date(`${iso}T12:00:00Z`);

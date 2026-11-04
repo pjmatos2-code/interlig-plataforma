@@ -25,7 +25,6 @@ create table if not exists public.relatorios_envios (
   para          text[] not null,
   assunto       text not null,
   enviado       boolean not null default true,
-  com_pdf       boolean not null default false,
   automatico    boolean not null default false,
   enviado_em    timestamptz not null default now(),
   enviado_por   uuid references public.usuarios(id) on delete set null,
@@ -38,6 +37,6 @@ create index if not exists relatorios_envios_relatorio on public.relatorios_envi
 alter table public.relatorios_envios enable row level security;
 
 comment on table public.relatorios_envios is
-  'Envios do Relatório Comercial Semanal por e-mail (manual e automático de segunda). enviado = false: não saiu (erro diz por quê); enviado com erro: saiu com aviso (por exemplo, sem o PDF). Só a service role lê.';
+  'Envios do Relatório Comercial Semanal por e-mail (manual e automático de segunda). enviado = false: não saiu (erro diz por quê); enviado com erro: saiu com aviso (destinatário recusado). Sempre com o PDF: sem ele não sai. Só a service role lê.';
 
 notify pgrst, 'reload schema';

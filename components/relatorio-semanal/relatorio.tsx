@@ -746,7 +746,7 @@ export function RelatorioSemanal({
               <h2>Perguntas para a reunião de segunda</h2>
               <p>
                 {impressao
-                  ? "Perguntas para levar à reunião. As respostas e o checklist do Paulo se preenchem no relatório da plataforma."
+                  ? "Perguntas para levar à reunião. O que for combinado fica registrado e aparece no relatório da semana seguinte."
                   : podeEditar
                     ? "Escreva as respostas direto nos campos. O que você digitar fica salvo no relatório."
                     : "Respostas registradas na reunião."}

@@ -24,5 +24,5 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const r = await enviarRelatorio(params.id, { para: validos, usuarioId: usuario.id, automatico: false, origem: origemDoSite(request.url) });
   revalidatePath("/relatorios");
   if (!r.ok) return NextResponse.json({ erro: r.erro }, { status: 502 });
-  return NextResponse.json({ ok: true, para: validos, comPdf: r.comPdf, aviso: r.aviso });
+  return NextResponse.json({ ok: true, para: validos, aviso: r.aviso });
 }

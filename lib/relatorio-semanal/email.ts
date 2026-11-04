@@ -7,10 +7,16 @@ import { lista, num, pct, plural, reaisMil } from "./formato";
  * O e-mail do relatório (funções puras): assunto, corpo em texto e em HTML,
  * no formato do e-mail que o Paulo aprovou — abertura com o nome do CEO, as
  * cinco linhas do resumo (melhor e pior indicador, base, críticos, o que
- * decidir) e o fecho com o PDF em anexo e o link da plataforma.
+ * decidir) e o fecho com o PDF em anexo.
+ *
+ * Sem link para a plataforma (decisão do Paulo, 04/11/2026): o PDF anexado é
+ * o relatório completo e quem recebe não precisa de login. As respostas da
+ * reunião o comercial registra na plataforma, e o combinado aparece no
+ * relatório da semana seguinte.
  */
 
 export type EmailRelatorio = { assunto: string; texto: string; html: string; arquivo: string };
+export type EmailSimples = Omit<EmailRelatorio, "arquivo">;
 
 const EXTENSO = ["Nenhum", "Um", "Dois", "Três", "Quatro", "Cinco", "Seis", "Sete", "Oito", "Nove", "Dez"];
 
@@ -33,50 +39,61 @@ export function linhasDoResumo(d: DadosRelatorio, t: TextosRelatorio | null): st
 
 const escapar = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
+/** parágrafos já escapados viram o corpo HTML do e-mail */
+function corpoHtml(paragrafos: string[]): string {
+  return [
+    `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1f1f1f">`,
+    ...paragrafos.map((p, i) => `<p style="margin:0 0 ${i === paragrafos.length - 1 ? 0 : 14}px">${p}</p>`),
+    `</div>`,
+  ].join("\n");
+}
+
+/** nome do PDF: o anexo do e-mail e o "Baixar PDF" */
+export function nomeDoArquivo(semana: Semana): string {
+  return `Relatório Comercial Semanal ${diaMes(semana.inicio).replace("/", "-")} a ${dataBr(semana.fim).replace(/\//g, "-")}.pdf`;
+}
+
+const FECHO = ["O relatório completo vai em PDF, em anexo.", "As perguntas para a reunião de segunda estão no fim do PDF."];
+
 export function montarEmailRelatorio(r: {
   semana: Semana;
   dados: DadosRelatorio;
   textos: TextosRelatorio | null;
   /** nome na abertura ("Estevam, o relatório…"); vazio abre sem nome */
   saudacao: string | null;
-  /** o relatório na plataforma (precisa de login com perfil Direção ou gestor) */
-  link: string;
-  comPdf: boolean;
 }): EmailRelatorio {
   const rot = rotuloSemanaCurto(r.semana);
   const nome = (r.saudacao ?? "").trim();
   const abertura = `${nome ? `${nome}, o` : "O"} relatório da semana de ${rot} está pronto.`;
   const resumo = linhasDoResumo(r.dados, r.textos);
-  const fecho = r.comPdf
-    ? ["O relatório completo vai em PDF, em anexo.", "Na reunião de segunda você preenche as respostas e copia o checklist para o Paulo no relatório da plataforma:"]
-    : ["Relatório completo:"];
-  const fechoFinal = r.comPdf ? null : "Na reunião de segunda você preenche as respostas e copia o checklist para o Paulo nesse mesmo link.";
-
-  const texto = [
-    abertura,
-    "",
-    ...resumo,
-    "",
-    ...(r.comPdf ? [fecho[0], "", `${fecho[1]} ${r.link}`] : [`${fecho[0]} ${r.link}`, "", fechoFinal!]),
-  ].join("\n");
-
-  const p = (conteudo: string, ultimo = false) => `<p style="margin:0 0 ${ultimo ? 0 : 14}px">${conteudo}</p>`;
-  const link = `<a href="${escapar(r.link)}" style="color:#0b57d0">${escapar(r.link)}</a>`;
-  const html = [
-    `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1f1f1f">`,
-    p(escapar(abertura)),
-    p(resumo.map(escapar).join("<br>")),
-    ...(r.comPdf
-      ? [p(escapar(fecho[0])), p(`${escapar(fecho[1])} ${link}`, true)]
-      : [p(`${escapar(fecho[0])} ${link}`), p(escapar(fechoFinal!), true)]),
-    `</div>`,
-  ].join("\n");
-
   return {
     assunto: `Relatório Comercial Semanal Interlig – semana de ${rot}`,
-    texto,
-    html,
-    arquivo: `Relatório Comercial Semanal ${diaMes(r.semana.inicio).replace("/", "-")} a ${dataBr(r.semana.fim).replace(/\//g, "-")}.pdf`,
+    texto: [abertura, "", ...resumo, "", FECHO[0], "", FECHO[1]].join("\n"),
+    html: corpoHtml([escapar(abertura), resumo.map(escapar).join("<br>"), ...FECHO.map(escapar)]),
+    arquivo: nomeDoArquivo(r.semana),
+  };
+}
+
+/**
+ * Aviso para a caixa que envia quando a última tentativa da segunda falha:
+ * ninguém recebeu nada, e o relatório sai pelo botão. (Este vai só para quem
+ * tem login, por isso pode levar o link.)
+ */
+export function montarAvisoFalha(r: { semana: Semana; para: string[]; motivo: string; link: string }): EmailSimples {
+  const rot = rotuloSemanaCurto(r.semana);
+  const linhas = [
+    `O envio automático do relatório da semana de ${rot} não saiu, e nada foi enviado para ${lista(r.para)}.`,
+    `Motivo: ${r.motivo}`,
+    `Para mandar, abra Relatório da diretoria na plataforma e use "Enviar por e-mail":`,
+  ];
+  return {
+    assunto: `Relatório da diretoria não foi enviado – semana de ${rot}`,
+    texto: [linhas[0], "", linhas[1], "", `${linhas[2]} ${r.link}`].join("\n"),
+    html: corpoHtml([
+      escapar(linhas[0]),
+      escapar(linhas[1]),
+      `${escapar(linhas[2])} <a href="${escapar(r.link)}" style="color:#0b57d0">${escapar(r.link)}</a>`,
+    ]),
   };
 }
 

@@ -2,14 +2,19 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { diasDaSemana, mesDeReferencia, rotuloSemana, rotuloSemanaCurto, semanaDe, ultimaSemanaCompleta } from "./periodo";
+import { diasDaSemana, horaSantarem, mesDeReferencia, rotuloSemana, rotuloSemanaCurto, semanaDe, ultimaSemanaCompleta } from "./periodo";
 import { contagemStatus, montarPlacar } from "./placar";
 import { foraDasVendas } from "./dados";
-import { lerDestinatarios, montarEmailRelatorio } from "./email";
+import { lerDestinatarios, montarAvisoFalha, montarEmailRelatorio } from "./email";
 import { VALIDADE_PDF_MS, assinarPdf, conferirAssinaturaPdf } from "./assinatura";
 import type { DadosRelatorio, TextosRelatorio } from "./tipos";
 
 describe("período do relatório", () => {
+  it("hora de Santarém: o cron das 11h e das 12h UTC cai às 8h e às 9h", () => {
+    expect(horaSantarem(new Date("2026-11-09T11:00:00Z"))).toBe(8);
+    expect(horaSantarem(new Date("2026-11-09T12:05:00Z"))).toBe(9);
+    expect(horaSantarem(new Date("2026-11-09T02:00:00Z"))).toBe(23);
+  });
   it("a semana do relatório é a última completa, de segunda a domingo", () => {
     for (const hoje of ["2026-11-02", "2026-11-04", "2026-11-08"]) {
       expect(ultimaSemanaCompleta(hoje)).toEqual({ inicio: "2026-10-26", fim: "2026-11-01" });
@@ -163,40 +168,47 @@ describe("e-mail do relatório", () => {
       decidir: "Para decidir com o Paulo: quem contata a fila e quando.",
     },
   } as TextosRelatorio;
-  const link = "https://interlig-plataforma.vercel.app/relatorios/semanal/abc";
+  const linkLista = "https://interlig-plataforma.vercel.app/relatorios";
 
   it("rótulo curto da semana, como no assunto do modelo", () => {
     expect(rotuloSemanaCurto(semanaDe("2026-10-19"))).toBe("19 a 25/10");
     expect(rotuloSemanaCurto(semanaDe("2026-10-26"))).toBe("26/10 a 01/11");
   });
   it("assunto, abertura com o nome, as cinco linhas e o fecho com o PDF", () => {
-    const e = montarEmailRelatorio({ semana: semanaDe("2026-10-26"), dados: dados(), textos, saudacao: "Estevam", link, comPdf: true });
+    const e = montarEmailRelatorio({ semana: semanaDe("2026-10-26"), dados: dados(), textos, saudacao: "Estevam" });
     expect(e.assunto).toBe("Relatório Comercial Semanal Interlig – semana de 26/10 a 01/11");
     const linhas = e.texto.split("\n");
     expect(linhas[0]).toBe("Estevam, o relatório da semana de 26/10 a 01/11 está pronto.");
     expect(linhas.slice(2, 7)).toEqual(Object.values(textos.email));
-    expect(e.texto).toContain("O relatório completo vai em PDF, em anexo.");
-    expect(e.texto).toContain(`checklist para o Paulo no relatório da plataforma: ${link}`);
-    expect(e.html).toContain(`href="${link}"`);
+    expect(linhas.slice(7)).toEqual(["", "O relatório completo vai em PDF, em anexo.", "", "As perguntas para a reunião de segunda estão no fim do PDF."]);
     expect(e.arquivo).toBe("Relatório Comercial Semanal 26-10 a 01-11-2026.pdf");
   });
-  it("sem PDF, o link vira o relatório completo; sem nome, a abertura fica sem vocativo", () => {
-    const e = montarEmailRelatorio({ semana: semanaDe("2026-10-26"), dados: dados(), textos, saudacao: "", link, comPdf: false });
+  it("sem link para a plataforma (o PDF basta, decisão de 04/11); sem nome, a abertura fica sem vocativo", () => {
+    const e = montarEmailRelatorio({ semana: semanaDe("2026-10-26"), dados: dados(), textos, saudacao: "" });
     expect(e.texto.startsWith("O relatório da semana de 26/10 a 01/11 está pronto.")).toBe(true);
-    expect(e.texto).toContain(`Relatório completo: ${link}`);
-    expect(e.texto).not.toContain("anexo");
+    expect(e.texto).not.toMatch(/https?:|plataforma|login/i);
+    expect(e.html).not.toMatch(/<a |https?:/);
   });
   it("sem os textos do Claude, o resumo sai dos números", () => {
-    const e = montarEmailRelatorio({ semana: semanaDe("2026-10-26"), dados: dados(), textos: null, saudacao: "Estevam", link, comPdf: true });
+    const e = montarEmailRelatorio({ semana: semanaDe("2026-10-26"), dados: dados(), textos: null, saudacao: "Estevam" });
     expect(e.texto).toContain("Vendas: 86 vendas novas na semana e 262 no mês, 116% da meta de 225.");
     expect(e.texto).toContain("Cinco dos dez indicadores estão críticos:");
     expect(e.texto).not.toMatch(/NaN|undefined|null/);
   });
   it("o HTML escapa o que vem do texto", () => {
     const t = { email: { ...textos.email, melhor: "Melhor indicador: <b>vendas</b> & cia" } } as TextosRelatorio;
-    const e = montarEmailRelatorio({ semana: semanaDe("2026-10-26"), dados: dados(), textos: t, saudacao: "Estevam", link, comPdf: true });
+    const e = montarEmailRelatorio({ semana: semanaDe("2026-10-26"), dados: dados(), textos: t, saudacao: "Estevam" });
     expect(e.html).toContain("Melhor indicador: &lt;b&gt;vendas&lt;/b&gt; &amp; cia");
     expect(e.html).not.toContain("<b>vendas</b>");
+  });
+  it("aviso de falha da segunda: vai só para a caixa que envia, com o motivo e o caminho do botão", () => {
+    const a = montarAvisoFalha({ semana: semanaDe("2026-10-26"), para: ["estevam@interlig.com"], motivo: "Não foi possível gerar o PDF <tempo esgotado>", link: linkLista });
+    expect(a.assunto).toBe("Relatório da diretoria não foi enviado – semana de 26/10 a 01/11");
+    expect(a.texto).toContain("nada foi enviado para estevam@interlig.com.");
+    expect(a.texto).toContain("Motivo: Não foi possível gerar o PDF <tempo esgotado>");
+    expect(a.texto).toContain(`"Enviar por e-mail": ${linkLista}`);
+    expect(a.html).toContain("&lt;tempo esgotado&gt;");
+    expect(a.html).toContain(`href="${linkLista}"`);
   });
   it("destinatários: separa por vírgula, ponto e vírgula ou espaço, tira repetidos e aponta os inválidos", () => {
     expect(lerDestinatarios("Estevam@Interlig.com; paulo@interlig.com, estevam@interlig.com\nfulano@")).toEqual({

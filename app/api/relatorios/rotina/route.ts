@@ -8,10 +8,11 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 /**
- * Cron do relatório da diretoria (vercel.json, segunda às 11h UTC = 8h de
- * Santarém): gera o relatório da semana que acabou e manda por e-mail, se o
- * envio automático estiver ligado em Relatório da diretoria. Mesma
- * autenticação dos outros crons (CRON_SECRET).
+ * Cron do relatório da diretoria (vercel.json, segunda às 11h e às 12h UTC
+ * = 8h e 9h de Santarém): gera o relatório da semana que acabou e manda por
+ * e-mail, se o envio automático estiver ligado em Relatório da diretoria. A
+ * das 9h é a nova tentativa: não repete o que já saiu. Mesma autenticação
+ * dos outros crons (CRON_SECRET).
  *
  * `?pdf=<id>` devolve só o PDF de um relatório, sem e-mail — para conferir
  * o gerador de PDF em produção.

@@ -818,14 +818,21 @@ Total: 73 pendentes de 314 vendas de maio (23%).
 - **E-mail (`email.ts`, puro e testado):** assunto "Relatório Comercial
   Semanal Interlig – semana de 26/10 a 01/11", abertura com o nome, as
   cinco linhas que o Claude escreve (melhor e pior indicador, base,
-  críticos, o que decidir) e o fecho com o anexo e o link da plataforma
-  (que pede login). Sem os textos do Claude, o resumo sai dos números.
+  críticos, o que decidir) e o fecho com o anexo ("as perguntas para a
+  reunião de segunda estão no fim do PDF"). Sem os textos do Claude, o
+  resumo sai dos números.
+- **Sem link no e-mail (decisão do Paulo, 04/11):** o PDF anexado é o
+  relatório completo; o CEO lê o PDF e não precisa de login. As respostas
+  da reunião e o checklist o comercial registra na plataforma, e o
+  combinado aparece no relatório da semana seguinte.
 - **Envio (`envio.ts`):** cada tentativa fica em `relatorios_envios`
-  (migração 0131). Pelo botão, se o PDF falhar, nada sai e quem clicou vê o
-  erro. No automático, o e-mail sai sem o PDF, com o link, e o aviso fica
-  registrado.
-- **Segunda-feira:** cron `/api/relatorios/rotina` às 11h UTC (8h de
-  Santarém): com o automático ligado, gera o relatório da semana que acabou
-  no domingo e manda uma vez (não repete se o cron rodar de novo).
+  (migração 0131). Sem o PDF não sai e-mail: pelo botão, quem clicou vê o
+  erro.
+- **Segunda-feira:** cron `/api/relatorios/rotina` às 11h e às 12h UTC (8h
+  e 9h de Santarém). Com o automático ligado, gera o relatório da semana
+  que acabou no domingo e manda só para quem ainda não recebeu. Às 8h, se
+  os textos do Claude falharem, espera as 9h, que gera de novo; relatório
+  gerado no dia e com os textos vai como está. Se a tentativa das 9h não
+  sair, vai um aviso só para a caixa que envia, com o motivo.
   `?pdf=<id>` com o CRON_SECRET devolve só o PDF, para conferir o gerador
   em produção.
