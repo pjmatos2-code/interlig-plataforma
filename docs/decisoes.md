@@ -749,3 +749,41 @@ Total: 73 pendentes de 314 vendas de maio (23%).
   faixas bate com o gráfico (diferenças de 1 contrato onde a base mudou desde
   a madrugada); "200 MB corporativo" sem fidelidade = 29, todos em Altamira;
   97% dos contratos têm telefone no cadastro.
+
+## Relatório da diretoria: Relatório Comercial Semanal (04/11/2026)
+
+- **Pedido do Paulo:** a própria plataforma monta o relatório semanal que o
+  CEO usa na reunião de segunda, no formato do modelo aprovado
+  (`Relatório Comercial Semanal.html`, semana de 26/10 a 01/11): placar de 10
+  indicadores com status, vendas, esteira, base, fila de débito, insights,
+  quem cobrar e as perguntas da reunião, com o que se digita salvo. Depois
+  vêm o envio por e-mail (com o resumo no corpo) e o automático de segunda.
+- **Etapa 1 (esta):** tela `/relatorios` (gestor e direção) com "Gerar
+  relatório" por semana e a lista dos gerados; o relatório abre em
+  `/relatorios/semanal/<id>`, fora do menu, no visual do modelo. Tabela
+  `relatorios_semanais` (migração 0130): números e textos congelados na
+  geração; regerar a semana mantém o que foi digitado na reunião. O checklist
+  de uma semana vira o "combinado" da seguinte.
+- **Números (`lib/relatorio-semanal/dados.ts`):** service role, todas as
+  páginas (várias telas cortam em 1.000 linhas), mesma régua das telas.
+  - Venda = `ehVendaContavel` pela data da venda. Prefeitura e rede neutra
+    ficam fora das vendas do comercial, pela regra de 24/10 (o Dashboard
+    conta — o relatório mostra a diferença).
+  - Semana de segunda a domingo; o mês de referência é o da segunda-feira
+    (a semana de 26/10 fala de outubro fechado). Meta do mês como no
+    Dashboard; dias de expediente pela tabela calendario.
+  - Sem consulta = regra da tela Vendedoras, com o fuso de Santarém.
+    Assinatura e instalação = regras da Esteira (5.7, 5.8 e OS aberta).
+  - Base = linha mais recente do crescimento do SGP (card do Dashboard), com
+    os suspensos e o fechamento do mês anterior: no começo do mês os
+    suspensos por débito sobem e os ativos caem (03/11: 9.205 no fechamento
+    de outubro, 8.964 hoje, suspensos de 649 para 875).
+  - Fila = `filaDebito` da Prevenção. Refidelização = aditivos válidos.
+  - Comparações de foto (base, fila) usam o relatório da semana anterior
+    guardado; o primeiro sai sem elas.
+- **Status do placar (`placar.ts`):** calculado pela plataforma, não pelo
+  Claude. Limites no código e no rodapé do relatório.
+- **Textos (`textos.ts`):** Claude com saída estruturada, só com os números
+  calculados; não pode inventar número nem contradizer o status. Modelo
+  padrão `claude-opus-5-5` (ou `modelo_relatorio` em integracoes_config,
+  sistema anthropic). Um ensaio de 26/10 a 01/11 levou 45 s.
