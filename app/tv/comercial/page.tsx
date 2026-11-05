@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Building2, CircleDollarSign, Gauge, Headset, ShoppingCart, Tag, Target, UserPlus } from "lucide-react";
 import { exigirPerfil } from "@/lib/auth";
-import { carregarTvComercial } from "@/lib/tv/comercial";
+import { carregarTvComercial, sinalDaTv } from "@/lib/tv/comercial";
 import { LogoInterlig } from "@/components/marca/logo-interlig";
 import { cn } from "@/lib/utils";
 import { AlertaNovaVenda, AutoAtualizar, BotaoTelaCheia, PalcoTv, Relogio } from "./cliente";
@@ -108,7 +108,8 @@ export default async function TvComercialPage({
     | "sino"
     | "conexao"
     | "moedas";
-  const d = await carregarTvComercial({ mes: searchParams.mes });
+  // o sinal sai junto: a TV compara com ele para saber se precisa reler tudo
+  const [d, sinal] = await Promise.all([carregarTvComercial({ mes: searchParams.mes }), sinalDaTv().catch(() => "")]);
 
   const pctMetaDia = d.metaDiaria > 0 ? Math.round((d.vendas.hoje / d.metaDiaria) * 100) : 0;
   const pctGeral = (d.metaGeral.ativos / d.metaGeral.meta) * 100;
@@ -142,7 +143,7 @@ export default async function TvComercialPage({
     <BotaoTelaCheia />
     <PalcoTv>
     <main className="flex h-full flex-col px-8 py-4 text-white">
-      <AutoAtualizar />
+      <AutoAtualizar sinal={sinal} />
 
       {/* cabeçalho */}
       <header className="mb-3 flex shrink-0 items-center justify-between">
