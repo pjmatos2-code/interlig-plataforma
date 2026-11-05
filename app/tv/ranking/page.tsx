@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { exigirUsuario } from "@/lib/auth";
+import { unstable_cache } from "next/cache";
 import { carregarRanking, type LinhaRanking } from "@/lib/ranking/dados";
+import { sinalDaTv } from "@/lib/tv/sinal";
 import { formatarMoeda } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { AtualizadorTotem, CarrosselPeriodos } from "./atualizador";
@@ -110,6 +112,16 @@ const CONFETES = [
   { l: "86%", d: "1.5s", c: "#818cf8" }, { l: "94%", d: "3.3s", c: "#facc15" },
 ];
 
+/**
+ * Dados do totem no cache do servidor, com o sinal de venda nova como chave
+ * (05/11/2026). A tela confere a cada 15 s e o carrossel troca de período a
+ * cada minuto, mas o banco só é relido quando entra venda nova ou a cada
+ * 5 min. Antes cada volta relia uns 239 KB.
+ */
+const rankingDoTotem = unstable_cache(async (_sinal: string) => carregarRanking(null), ["tv-ranking"], {
+  revalidate: 300,
+});
+
 export default async function TotemRankingPage({
   searchParams,
 }: {
@@ -118,7 +130,8 @@ export default async function TotemRankingPage({
   // Totem da sala comercial: painel único do time inteiro, igual para todos os
   // usuários (sem recorte por POP/coordenação). É só leitura e roda em telão.
   await exigirUsuario();
-  const dados = await carregarRanking(null);
+  const sinal = await sinalDaTv().catch(() => "");
+  const dados = sinal ? await rankingDoTotem(sinal) : await carregarRanking(null);
 
   const periodo: Periodo = (["dia", "semana", "mes"] as const).includes(
     searchParams.p as Periodo

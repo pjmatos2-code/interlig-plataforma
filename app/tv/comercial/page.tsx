@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { Building2, CircleDollarSign, Gauge, Headset, ShoppingCart, Tag, Target, UserPlus } from "lucide-react";
 import { exigirPerfil } from "@/lib/auth";
-import { carregarTvComercial, sinalDaTv } from "@/lib/tv/comercial";
+import { carregarTvComercial } from "@/lib/tv/comercial";
+import { sinalDaTv } from "@/lib/tv/sinal";
 import { LogoInterlig } from "@/components/marca/logo-interlig";
 import { cn } from "@/lib/utils";
 import { AlertaNovaVenda, AutoAtualizar, BotaoTelaCheia, PalcoTv, Relogio } from "./cliente";

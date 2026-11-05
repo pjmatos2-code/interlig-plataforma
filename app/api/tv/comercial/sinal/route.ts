@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { usuarioAtual } from "@/lib/auth";
-import { sinalDaTv } from "@/lib/tv/comercial";
+import { sinalDaTv } from "@/lib/tv/sinal";
 
 export const dynamic = "force-dynamic";
 
