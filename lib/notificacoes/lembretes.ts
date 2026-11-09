@@ -31,6 +31,17 @@ export async function despacharLembretes(): Promise<number> {
 
   let disparados = 0;
   for (const a of devidas) {
+    // Reserva antes de avisar (09/11/2026): o sino de cada pessoa online chama
+    // esta função a cada 15 s e duas chamadas juntas mandavam o mesmo
+    // lembrete duas vezes. Só quem marca notificado_em primeiro avisa.
+    const { data: reservado, error: erroReserva } = await admin
+      .from("ticket_acoes")
+      .update({ notificado_em: new Date().toISOString() })
+      .eq("id", a.id)
+      .is("notificado_em", null)
+      .select("id");
+    if (erroReserva || !reservado?.length) continue;
+
     const t = a.tickets as unknown as { cliente_nome: string; vendedor_id: string | null } | null;
     const vendedorId = t?.vendedor_id ?? null;
     const coordenadorId = vendedorId ? (coordDe.get(vendedorId) ?? null) : null;
@@ -56,10 +67,6 @@ export async function despacharLembretes(): Promise<number> {
         link: `/crm/${a.ticket_id}`,
       });
     }
-    await admin
-      .from("ticket_acoes")
-      .update({ notificado_em: new Date().toISOString() })
-      .eq("id", a.id);
     disparados += 1;
   }
   return disparados;

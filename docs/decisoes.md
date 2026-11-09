@@ -836,3 +836,35 @@ Total: 73 pendentes de 314 vendas de maio (23%).
   sair, vai um aviso só para a caixa que envia, com o motivo.
   `?pdf=<id>` com o CRON_SECRET devolve só o PDF, para conferir o gerador
   em produção.
+
+## CRM: tickets automáticos repetidos e trava por contrato (09/11/2026)
+
+- **Sintoma (Paulo, 09/11):** primeiro o aviso "Novo ticket no CRM" chegava
+  repetido; depois, na coluna "Contrato assinado" da Amanda Ribeiro, a
+  mesma venda (Karla India Souza Caçador, #23116) aparecia 11 vezes.
+- **Causa:** a rotina `criarTicketsDeVendasSgp` lia "todos os tickets de 45
+  dias" com `.limit(4000)`, mas a API devolve no máximo 1.000 linhas. Sem
+  enxergar o automático que já existia, criava outro a cada leitura (cron
+  de 5 min e cada abertura do /crm, que roda `executarRotinasCrm`). Onde
+  havia ticket real o descarte apagava o novo (daí os avisos repetidos);
+  onde não havia, eles se acumulavam: 9 vendas de 26/09 a 09/11 com 2 a 19
+  tickets, todos "convertidos", 90 a mais. Corrigido em e72dc59 (consulta
+  direta pelo contrato, todas as páginas).
+- **Limpeza e trava (migração 0132):** em cada contrato só com `sgp_auto`
+  fica um (o que tem interação; senão o que tem vendedora; senão o mais
+  antigo). Sai só quem não tem nada apontando para ele, e os avisos dos que
+  saem viram lidos. O índice único `tickets_sgp_auto_um_por_contrato` impede
+  dois automáticos no mesmo contrato mesmo com duas execuções ao mesmo
+  tempo: a segunda gravação falha e a rotina segue. Em produção a 0132 roda
+  pelo script `limpar-tickets-repetidos.mjs` (pasta de backups), que guarda
+  as linhas apagadas antes, na mesma transação.
+- **Vendedora herdada do contrato:** `herdarVendedoraDoContrato` não fazia
+  nada desde o Meu Dia (0116): tickets tem duas ligações com contratos e a
+  consulta sem o nome da ligação falhava (PGRST201) em silêncio. Agora usa
+  `contratos!tickets_contrato_id_fkey`; havia 3 vendas automáticas sem
+  vendedora no CRM (Vandesson #23007 e Grazielly #23113, da Damely; Edim
+  #23098, da Karoline).
+- **Lembretes:** `despacharLembretes` roda nas rotinas e no sino de cada
+  pessoa online (15 s). Duas chamadas juntas mandavam o mesmo lembrete duas
+  vezes; agora a ação é reservada (`notificado_em`) antes do aviso, e só
+  quem reserva avisa.

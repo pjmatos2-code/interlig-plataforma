@@ -476,6 +476,9 @@ export async function criarTicketsDeVendasSgp(): Promise<number> {
           .insert({ ...base, etapa: "aguardando" })
           .select("id")
           .single();
+    // Erro inclui o índice único de 0132 (um sgp_auto por contrato): se outra
+    // execução (cron e abertura do /crm ao mesmo tempo) gravou primeiro, esta
+    // desiste em silêncio — o ticket já existe.
     if (error || !novo) continue;
 
     await admin.from("ticket_eventos").insert({
@@ -499,13 +502,17 @@ export async function criarTicketsDeVendasSgp(): Promise<number> {
  */
 export async function herdarVendedoraDoContrato(): Promise<number> {
   const admin = criarClienteAdmin();
-  const { data } = await admin
+  // tickets tem duas ligações com contratos (contrato_id e, desde o Meu Dia,
+  // indicado_por_contrato_id): sem o nome da ligação a consulta falhava
+  // (PGRST201) e esta rotina não fazia nada desde meados de outubro.
+  const { data, error } = await admin
     .from("tickets")
-    .select("id, contratos!inner(vendedor_id, pop_id)")
+    .select("id, contratos!tickets_contrato_id_fkey!inner(vendedor_id, pop_id)")
     .is("vendedor_id", null)
     .not("contrato_id", "is", null)
     .not("contratos.vendedor_id", "is", null)
     .limit(500);
+  if (error) throw new Error(`tickets sem vendedora: ${error.message}`);
   let n = 0;
   for (const t of data ?? []) {
     const ct = t.contratos as unknown as { vendedor_id: string; pop_id: string | null };
@@ -561,7 +568,10 @@ export async function executarRotinasCrm() {
   const fechados = (await fecharTicketsInativos()) + viradaMes;
   const vendidos = await converterVendidosPorSgp().catch(() => 0);
   const criados = await criarTicketsDeVendasSgp().catch(() => 0);
-  await herdarVendedoraDoContrato().catch(() => 0);
+  await herdarVendedoraDoContrato().catch((e) => {
+    console.error("[crm] herdarVendedoraDoContrato:", e instanceof Error ? e.message : e);
+    return 0;
+  });
   await descartarTicketsSgpDuplicados().catch(() => 0);
   const reconciliados = await reconciliarTickets();
   const { despacharLembretes } = await import("@/lib/notificacoes/lembretes");
