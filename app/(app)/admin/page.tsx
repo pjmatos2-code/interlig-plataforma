@@ -47,7 +47,7 @@ export default async function AdminPage() {
     supabase.from("vendedores").select("id, nome, coordenador_id").eq("ativo", true).order("nome"),
     supabase
       .from("planos")
-      .select("id, nome, valor_referencia, venda_externa, setor_corporativo")
+      .select("id, nome, valor_referencia, venda_externa")
       .eq("ativo", true)
       .gt("valor_referencia", 0)
       .order("nome"),
@@ -196,23 +196,6 @@ export default async function AdminPage() {
               nome: p.nome,
               valor_referencia: Number(p.valor_referencia ?? 0),
               marcado: Boolean(p.venda_externa),
-            }))}
-          />
-        </CardContent>
-      </Card>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Planos do Setor Corporativo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <GestaoPlanosExterna
-            alvo="corporativo"
-            planos={(planosExterna ?? []).map((p) => ({
-              id: p.id,
-              nome: p.nome,
-              valor_referencia: Number(p.valor_referencia ?? 0),
-              marcado: Boolean(p.setor_corporativo),
             }))}
           />
         </CardContent>

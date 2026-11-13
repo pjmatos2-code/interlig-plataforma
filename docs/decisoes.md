@@ -868,3 +868,17 @@ Total: 73 pendentes de 314 vendas de maio (23%).
   pessoa online (15 s). Duas chamadas juntas mandavam o mesmo lembrete duas
   vezes; agora a ação é reservada (`notificado_em`) antes do aviso, e só
   quem reserva avisa.
+
+## Módulos desativados: Performance Comercial, Setor Corporativo e Qualidade (13/11/2026)
+
+O Paulo pediu para deixar a plataforma mais leve tirando três módulos.
+
+- **Saiu do código:** telas, menu, rotas de API e componentes de cada um:
+  - Performance Comercial: `/performance`, a TV `/tv/performance` e o cron `/api/performance/rotina`, que rodava a cada 10 min (coleta do chat, IA e alertas);
+  - Setor Corporativo: `/corporativo` e o cartão "Planos do Setor Corporativo" na Administração;
+  - Qualidade: `/qualidade`.
+- **Endereços antigos:** favoritos e avisos que apontavam para esses endereços agora vão para a tela inicial do perfil (redirecionamento no `next.config.mjs`).
+- **O que outros módulos usavam da Performance:** o relatório da diretoria usava duas funções dela. A leitura paginada foi para `lib/supabase/paginar.ts` e os dias úteis para `lib/relatorio-semanal/dias-uteis.ts`.
+- **O banco não mudou.** As tabelas e os dados continuam lá: conversas e análises do chat, follow-ups, alertas, metas da Performance, `config_comercial.performance`, visitas do corporativo e `planos.setor_corporativo`. Elas só deixam de receber dados novos.
+- **Perfil "Agente corporativo":** continua existindo, com Meu painel, Minhas vendas, Minha comissão, CRM, Esteira e InterChat.
+- **Para reativar:** reverter o commit desta mudança. Como os dados ficaram, as telas voltam com o histórico guardado. Ao religar, conferir a coleta do chat, que ficou parada desde a desativação.

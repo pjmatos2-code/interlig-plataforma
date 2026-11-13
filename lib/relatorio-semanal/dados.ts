@@ -1,7 +1,7 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
-import { todas } from "@/lib/performance/dados/paginar";
-import { carregarDiasUteis } from "@/lib/performance/config-servidor";
+import { todas } from "@/lib/supabase/paginar";
+import { carregarDiasUteis } from "./dias-uteis";
 import {
   ALERTA_ATIVACAO_DIAS,
   ativacoesPendentes,

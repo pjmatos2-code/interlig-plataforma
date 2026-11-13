@@ -1,6 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Performance Comercial, Setor Corporativo e Qualidade foram desativados em
+  // 13/11/2026 (docs/decisoes.md): favoritos e avisos antigos que apontam para
+  // eles voltam para a tela inicial do perfil em vez de cair numa página 404
+  async redirects() {
+    return ["/performance", "/performance/:resto*", "/tv/performance", "/corporativo", "/qualidade"].map((source) => ({
+      source,
+      destination: "/",
+      permanent: false,
+    }));
+  },
   experimental: {
     serverActions: {
       // upload de foto de perfil (o padrão de 1 MB derruba fotos de celular)
