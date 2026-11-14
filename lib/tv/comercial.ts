@@ -28,7 +28,8 @@ export type DadosTvComercial = {
   vendas: { hoje: number; antes: number };
   receita: { hoje: number; antes: number };
   ticket: { hoje: number; antes: number };
-  metaGeral: { meta: number; ativos: number; unidades: { nome: string; ativos: number }[] };
+  /** a meta conta só os ativos; os suspensos por débito vêm à parte (saem no corte e voltam ao pagar) */
+  metaGeral: { meta: number; ativos: number; suspensos: number; unidades: { nome: string; ativos: number; suspensos: number }[] };
   metaDiaria: number;
   porHora: { hora: number; vendas: number }[];
   funil: { leads: number; atendimento: number; assinado: number };
@@ -152,13 +153,13 @@ export async function carregarTvComercial(opcoes: { mes?: string } = {}): Promis
   // ---------- base ativa (Relatórios > Crescimento, 1x/dia) ----------
   const { data: base } = await admin
     .from("crescimento_base")
-    .select("mes, unidade, ativos")
+    .select("mes, unidade, ativos, suspensos")
     .order("mes", { ascending: false })
     .limit(30);
-  const unidadesBase = UNIDADES.map((nome) => ({
-    nome,
-    ativos: Number((base ?? []).find((b) => b.unidade === nome)?.ativos ?? 0),
-  }));
+  const unidadesBase = UNIDADES.map((nome) => {
+    const atual = (base ?? []).find((b) => b.unidade === nome);
+    return { nome, ativos: Number(atual?.ativos ?? 0), suspensos: Number(atual?.suspensos ?? 0) };
+  });
 
   // ---------- evolução por hora (horário em que o cadastro entrou) ----------
   // 8h–18h; o que entra depois das 18h soma na barra das 18h (antes das 8h, na das 8h)
@@ -241,7 +242,12 @@ export async function carregarTvComercial(opcoes: { mes?: string } = {}): Promis
     vendas: { hoje: vendasHoje.length, antes: vendasAntes.length },
     receita: { hoje: soma(vendasHoje), antes: soma(vendasAntes) },
     ticket: { hoje: ticket(vendasHoje), antes: ticket(vendasAntes) },
-    metaGeral: { meta: 10_000, ativos: unidadesBase.reduce((t, u) => t + u.ativos, 0), unidades: unidadesBase },
+    metaGeral: {
+      meta: 10_000,
+      ativos: unidadesBase.reduce((t, u) => t + u.ativos, 0),
+      suspensos: unidadesBase.reduce((t, u) => t + u.suspensos, 0),
+      unidades: unidadesBase,
+    },
     metaDiaria: metaDiariaAgentes,
     porHora,
     funil,

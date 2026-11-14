@@ -682,3 +682,203 @@ Total: 73 pendentes de 314 vendas de maio (23%).
   exportação recusam (escopo no servidor) e os avisos de alerta crítico não
   são enviados para ele.
 
+## Retenção: vínculo do caso ao contrato e casos repetidos (27/10 e 03/11/2026)
+
+- **Vínculo (27/10):** em outubro nenhum caso criado pelo robô ganhou contrato
+  e a auditoria, que só julga caso com contrato, deixou 36 em "novo". Causas:
+  o CPF da conversa era comparado só em dígitos (o cadastro grava
+  `000.000.000-00`); o telefone era procurado numa lista que o banco corta em
+  1.000 clientes (de 15,5 mil); e o contrato cancelado depois da conversa
+  ficava fora da escolha. Agora: CPF/CNPJ válido citado na conversa →
+  telefone (últimos 8 dígitos; LID do WhatsApp não conta) → nome completo,
+  quando um único cliente tem esse nome. Vale o contrato da época da conversa:
+  de preferência o cancelado a partir dela (é o desfecho); senão o mais
+  recente não cancelado (`lib/retencao/vinculo.ts`, `casar.ts`).
+- **Auditoria:** "cancelado antes do caso" é medido pelo dia da CONVERSA
+  (data do protocolo), com 1 dia de folga — não pelo dia em que o robô criou
+  o caso, que pode ser dias depois.
+- **Casos repetidos (03/11):** o mesmo cliente em até 15 dias é a MESMA
+  solicitação — reconhecido pelo contrato, pelo telefone (com ou sem 55) ou
+  pelo nome completo de 3+ palavras; contratos diferentes são casos
+  diferentes. Se a agente já abriu o caso à mão, a conversa do SZ completa
+  esse caso (protocolo, telefone, análise) em vez de abrir outro; o cadastro
+  manual recusa o segundo caso e aponta o existente; o botão trava enquanto
+  envia (clique duplo). Simulado nos 131 casos desde setembro: pegaria só os
+  5 repetidos conhecidos.
+- **Dados:** os 36 casos de outubro foram vinculados e carimbados pela régua
+  em 27/10; os repetidos de outubro foram juntados em 03/11 e as cópias,
+  marcadas "(cópia — excluir)", ficam para o gestor excluir no painel.
+
+## Gerência: sem early churn — recebe pelo total vendido no mês (03/11/2026)
+
+- **Decisão do Paulo:** a comissão da gerência não tem early churn; a gestão
+  recebe pelo total vendido no mês. O débito de early churn continua só das
+  vendedoras (`lib/comissao/debito.ts`). A especificação v1.1 do override
+  previa o débito na gerência a partir de outubro — fica revogado.
+- **Por quê:** em outubro/2026 o pilar Vendas mostrava 200 / 190 contra 264
+  vendas no dashboard. A conta era 264 − 3 sem vendedora (Prefeitura, uma
+  permuta e uma venda sem vendedora no SGP) = 261, menos 61 do débito das
+  vendedoras (safra de julho: 34 suspensos e 27 cancelados). Sem o débito,
+  outubro sobe de N3 (2,5%, R$ 2.707,61) para N4 (3%, R$ 3.249,13).
+- **Dados:** migração 0127 — `gerencia_config.flag_early_churn` fica sem uso
+  (comentário na coluna); outubro registrado com a observação da decisão, que
+  vai para o snapshot do fechamento.
+
+## Fidelidade da base: lista de clientes por plano (04/11/2026)
+
+- **Pedido do Paulo:** clicar no número de um plano do gráfico (ex.: "200 MB
+  corporativo") e saber exatamente quem são os clientes, para entrar em
+  contato — na plataforma ou em planilha.
+- **Por que não o SGP:** o relatório Fidelidades do SGP não filtra pelo grupo
+  de plano da plataforma (que junta vários planos do SGP, ex.: "FIBRA
+  CORPORATE 200MB" e "200MB | PJ") nem tira permutas, isentos e órgãos
+  públicos. O link do SGP mostraria outra lista e outro número.
+- **Como ficou:** a leitura diária do relatório (madrugada ou "Atualizar
+  agora") passa a guardar os contratos de cada unidade e faixa em
+  `fidelidade_contratos` (migração 0129), com o grupo do plano calculado na
+  mesma conta do gráfico (`montarLeituraFidelidade`). O número de cada plano
+  abre `/fidelidade/lista` — nome, telefone, plano, mensalidade e fim da
+  fidelidade, com WhatsApp e link para os contratos do cliente no SGP — e a
+  planilha sai em `/api/fidelidade/exportar`. "Outros N planos" abre
+  exatamente os planos que o gráfico juntou (`planosDoEscopo`).
+- **Dado pessoal:** a tabela só é lida pela service role; tela e planilha
+  checam o perfil (gestor, direção, agentes de atendimento e coordenação de
+  unidade, presa à própria unidade). Nome, telefone e mensalidade vêm do
+  cadastro na hora; o nome do relatório é o reserva.
+- **Conferido em 04/11:** ensaio sem gravar contra o SGP — a lista das 12
+  faixas bate com o gráfico (diferenças de 1 contrato onde a base mudou desde
+  a madrugada); "200 MB corporativo" sem fidelidade = 29, todos em Altamira;
+  97% dos contratos têm telefone no cadastro.
+
+## Relatório da diretoria: Relatório Comercial Semanal (04/11/2026)
+
+- **Pedido do Paulo:** a própria plataforma monta o relatório semanal que o
+  CEO usa na reunião de segunda, no formato do modelo aprovado
+  (`Relatório Comercial Semanal.html`, semana de 26/10 a 01/11): placar de 10
+  indicadores com status, vendas, esteira, base, fila de débito, insights,
+  quem cobrar e as perguntas da reunião, com o que se digita salvo. Depois
+  vêm o envio por e-mail (com o resumo no corpo) e o automático de segunda.
+- **Etapa 1 (esta):** tela `/relatorios` (gestor e direção) com "Gerar
+  relatório" por semana e a lista dos gerados; o relatório abre em
+  `/relatorios/semanal/<id>`, fora do menu, no visual do modelo. Tabela
+  `relatorios_semanais` (migração 0130): números e textos congelados na
+  geração; regerar a semana mantém o que foi digitado na reunião. O checklist
+  de uma semana vira o "combinado" da seguinte.
+- **Números (`lib/relatorio-semanal/dados.ts`):** service role, todas as
+  páginas (várias telas cortam em 1.000 linhas), mesma régua das telas.
+  - Venda = `ehVendaContavel` pela data da venda. Prefeitura e rede neutra
+    ficam fora das vendas do comercial, pela regra de 24/10 (o Dashboard
+    conta — o relatório mostra a diferença).
+  - Semana de segunda a domingo; o mês de referência é o da segunda-feira
+    (a semana de 26/10 fala de outubro fechado). Meta do mês como no
+    Dashboard; dias de expediente pela tabela calendario.
+  - Sem consulta = regra da tela Vendedoras, com o fuso de Santarém.
+    Assinatura e instalação = regras da Esteira (5.7, 5.8 e OS aberta).
+  - Base = linha mais recente do crescimento do SGP (card do Dashboard), com
+    os suspensos e o fechamento do mês anterior: no começo do mês os
+    suspensos por débito sobem e os ativos caem (03/11: 9.205 no fechamento
+    de outubro, 8.964 hoje, suspensos de 649 para 875).
+  - Fila = `filaDebito` da Prevenção. Refidelização = aditivos válidos.
+  - Comparações de foto (base, fila) usam o relatório da semana anterior
+    guardado; o primeiro sai sem elas.
+- **Status do placar (`placar.ts`):** calculado pela plataforma, não pelo
+  Claude. Limites no código e no rodapé do relatório.
+- **Textos (`textos.ts`):** Claude com saída estruturada, só com os números
+  calculados; não pode inventar número nem contradizer o status. Modelo
+  padrão `claude-opus-5-5` (ou `modelo_relatorio` em integracoes_config,
+  sistema anthropic). Um ensaio de 26/10 a 01/11 levou 45 s.
+
+## Relatório da diretoria: PDF por e-mail e envio de segunda (04/11/2026)
+
+- **Pedido do Paulo:** o relatório vai em PDF, anexado a um e-mail com o
+  resumo no corpo (o formato do e-mail ao CEO que ele aprovou), saindo da
+  caixa corporativa dele por enquanto. Na hora, pelo botão, e toda segunda.
+- **Caixa que envia:** Administração → Integrações, card "E-mail de envio"
+  (integracoes_config, sistema `email`): endereço, senha da caixa, nome do
+  remetente, servidor e porta. O interlig.com fica na Locaweb (MX
+  mx.core.locaweb.com.br): SMTP `email-ssl.com.br`, porta 465 com SSL. O
+  botão "Enviar e-mail de teste" manda para a própria caixa. O remetente vai
+  em cópia oculta de cada envio: mandado por SMTP, o e-mail não aparece na
+  pasta Enviados.
+- **Para quem vai:** `/relatorios`, "Envio por e-mail" (sistema
+  `relatorio_semanal`): destinatários, o nome da abertura (padrão "Estevam")
+  e o envio automático de segunda, desligado até alguém ligar.
+- **PDF (`lib/relatorio-semanal/pdf.ts`):** o Chromium do servidor abre a
+  página de impressão `/relatorios/pdf/<id>` e imprime em A4 (escala 0,8,
+  rodapé com página). É o mesmo componente da tela em `modo="pdf"`: sem
+  campos nem botões, perguntas da reunião como texto, seções de texto
+  abrindo página. A página não usa sessão: abre só com link assinado
+  (HMAC com o CRON_SECRET) que vence em 10 minutos. Na Vercel,
+  `@sparticuz/chromium` 153 + `puppeteer-core` 25.11 (versões casadas),
+  fora do bundle e com `bin/` incluído à mão nas rotas `/api/relatorios/**`
+  (`outputFileTracingIncludes`); no computador, o Chrome instalado. A fonte
+  reserva do Chromium serverless é Open Sans (tem ≈, não tem seta): a
+  página de impressão troca "→" por "para". Ensaio local com os dados de
+  26/10: 7 páginas, 530 KB, 4 a 8 s.
+- **E-mail (`email.ts`, puro e testado):** assunto "Relatório Comercial
+  Semanal Interlig – semana de 26/10 a 01/11", abertura com o nome, as
+  cinco linhas que o Claude escreve (melhor e pior indicador, base,
+  críticos, o que decidir) e o fecho com o anexo ("as perguntas para a
+  reunião de segunda estão no fim do PDF"). Sem os textos do Claude, o
+  resumo sai dos números.
+- **Sem link no e-mail (decisão do Paulo, 04/11):** o PDF anexado é o
+  relatório completo; o CEO lê o PDF e não precisa de login. As respostas
+  da reunião e o checklist o comercial registra na plataforma, e o
+  combinado aparece no relatório da semana seguinte.
+- **Envio (`envio.ts`):** cada tentativa fica em `relatorios_envios`
+  (migração 0131). Sem o PDF não sai e-mail: pelo botão, quem clicou vê o
+  erro.
+- **Segunda-feira:** cron `/api/relatorios/rotina` às 11h e às 12h UTC (8h
+  e 9h de Santarém). Com o automático ligado, gera o relatório da semana
+  que acabou no domingo e manda só para quem ainda não recebeu. Às 8h, se
+  os textos do Claude falharem, espera as 9h, que gera de novo; relatório
+  gerado no dia e com os textos vai como está. Se a tentativa das 9h não
+  sair, vai um aviso só para a caixa que envia, com o motivo.
+  `?pdf=<id>` com o CRON_SECRET devolve só o PDF, para conferir o gerador
+  em produção.
+
+## CRM: tickets automáticos repetidos e trava por contrato (09/11/2026)
+
+- **Sintoma (Paulo, 09/11):** primeiro o aviso "Novo ticket no CRM" chegava
+  repetido; depois, na coluna "Contrato assinado" da Amanda Ribeiro, a
+  mesma venda (Karla India Souza Caçador, #23116) aparecia 11 vezes.
+- **Causa:** a rotina `criarTicketsDeVendasSgp` lia "todos os tickets de 45
+  dias" com `.limit(4000)`, mas a API devolve no máximo 1.000 linhas. Sem
+  enxergar o automático que já existia, criava outro a cada leitura (cron
+  de 5 min e cada abertura do /crm, que roda `executarRotinasCrm`). Onde
+  havia ticket real o descarte apagava o novo (daí os avisos repetidos);
+  onde não havia, eles se acumulavam: 9 vendas de 26/09 a 09/11 com 2 a 19
+  tickets, todos "convertidos", 90 a mais. Corrigido em e72dc59 (consulta
+  direta pelo contrato, todas as páginas).
+- **Limpeza e trava (migração 0132):** em cada contrato só com `sgp_auto`
+  fica um (o que tem interação; senão o que tem vendedora; senão o mais
+  antigo). Sai só quem não tem nada apontando para ele, e os avisos dos que
+  saem viram lidos. O índice único `tickets_sgp_auto_um_por_contrato` impede
+  dois automáticos no mesmo contrato mesmo com duas execuções ao mesmo
+  tempo: a segunda gravação falha e a rotina segue. Em produção a 0132 roda
+  pelo script `limpar-tickets-repetidos.mjs` (pasta de backups), que guarda
+  as linhas apagadas antes, na mesma transação.
+- **Vendedora herdada do contrato:** `herdarVendedoraDoContrato` não fazia
+  nada desde o Meu Dia (0116): tickets tem duas ligações com contratos e a
+  consulta sem o nome da ligação falhava (PGRST201) em silêncio. Agora usa
+  `contratos!tickets_contrato_id_fkey`; havia 3 vendas automáticas sem
+  vendedora no CRM (Vandesson #23007 e Grazielly #23113, da Damely; Edim
+  #23098, da Karoline).
+- **Lembretes:** `despacharLembretes` roda nas rotinas e no sino de cada
+  pessoa online (15 s). Duas chamadas juntas mandavam o mesmo lembrete duas
+  vezes; agora a ação é reservada (`notificado_em`) antes do aviso, e só
+  quem reserva avisa.
+
+## Módulos desativados: Performance Comercial, Setor Corporativo e Qualidade (13/11/2026)
+
+O Paulo pediu para deixar a plataforma mais leve tirando três módulos.
+
+- **Saiu do código:** telas, menu, rotas de API e componentes de cada um:
+  - Performance Comercial: `/performance`, a TV `/tv/performance` e o cron `/api/performance/rotina`, que rodava a cada 10 min (coleta do chat, IA e alertas);
+  - Setor Corporativo: `/corporativo` e o cartão "Planos do Setor Corporativo" na Administração;
+  - Qualidade: `/qualidade`.
+- **Endereços antigos:** favoritos e avisos que apontavam para esses endereços agora vão para a tela inicial do perfil (redirecionamento no `next.config.mjs`).
+- **O que outros módulos usavam da Performance:** o relatório da diretoria usava duas funções dela. A leitura paginada foi para `lib/supabase/paginar.ts` e os dias úteis para `lib/relatorio-semanal/dias-uteis.ts`.
+- **O banco não mudou.** As tabelas e os dados continuam lá: conversas e análises do chat, follow-ups, alertas, metas da Performance, `config_comercial.performance`, visitas do corporativo e `planos.setor_corporativo`. Elas só deixam de receber dados novos.
+- **Perfil "Agente corporativo":** continua existindo, com Meu painel, Minhas vendas, Minha comissão, CRM, Esteira e InterChat.
+- **Para reativar:** reverter o commit desta mudança. Como os dados ficaram, as telas voltam com o histórico guardado. Ao religar, conferir a coleta do chat, que ficou parada desde a desativação.

@@ -344,54 +344,112 @@ export async function converterVendidosPorSgp(): Promise<number> {
  * valor e vendedora. Com plano → nasce fechado como Vendida (coluna Contrato
  * assinado); sem plano → nasce em "Criação do contrato". Pedido de 01/09.
  */
-export async function criarTicketsDeVendasSgp(): Promise<number> {
+type ContratoSemTicket = {
+  id: string;
+  sgp_contrato_id: string | number | null;
+  plano_id: string | null;
+  pop_id: string | null;
+  vendedor_id: string | null;
+  valor_mensalidade: number | null;
+  origem_cadastro: string | null;
+  data_venda: string;
+  cli: { telefone: string | null; cpf: string | null; nome: string } | null;
+};
+
+/** chaves de cliente (telefone e CPF normalizados) de um ticket ou contrato */
+function chavesDoCliente(telefone: string | null | undefined, cpf: string | null | undefined): string[] {
+  const tel = normalizarTelefone(telefone);
+  const doc = normalizarCpf(cpf);
+  return [tel ? `t:${tel}` : null, doc ? `c:${doc}` : null].filter((k): k is string => Boolean(k));
+}
+
+/**
+ * Vendas dos últimos 5 dias que ainda não têm ticket em lugar nenhum (só
+ * leitura). Já tem ticket: (1) qualquer ticket, de qualquer origem e data,
+ * ligado ao contrato; (2) qualquer ticket dos últimos 45 dias do mesmo
+ * cliente (telefone/CPF) — a conversão/reconciliação cuida dos abertos.
+ *
+ * Correção de 09/11/2026: antes a rotina lia "todos os tickets de 45 dias"
+ * numa consulta só, e a API da Supabase entrega no máximo 1.000 linhas.
+ * Quando a base passou disso (1.141 em nov/2026), parte dos tickets sumiu da
+ * conferência: a rotina recriava a cada 5 min um ticket automático que o
+ * descarte de duplicados apagava logo depois, e cada criação disparava o
+ * aviso "Novo ticket no CRM" (uns 7 mil por dia). Agora a conferência pelo
+ * contrato é direta e a de telefone/CPF lê todas as páginas. Se alguma
+ * leitura falhar, nada é criado nesta volta.
+ */
+export async function contratosSemTicket(): Promise<ContratoSemTicket[]> {
   const admin = criarClienteAdmin();
   const desde = new Date(Date.now() - 5 * 86_400_000).toISOString().slice(0, 10);
+  const { data: contratos, error } = await admin
+    .from("contratos")
+    .select(
+      "id, sgp_contrato_id, plano_id, pop_id, vendedor_id, valor_mensalidade, origem_cadastro, data_venda, clientes(telefone, cpf, nome)"
+    )
+    .gte("data_venda", desde)
+    .neq("status", "cancelado")
+    .limit(1000);
+  if (error) throw new Error(`contratos recentes: ${error.message}`);
+  if (!contratos?.length) return [];
 
-  const [{ data: contratos }, { data: existentes }] = await Promise.all([
-    admin
-      .from("contratos")
-      .select(
-        "id, sgp_contrato_id, plano_id, pop_id, vendedor_id, valor_mensalidade, origem_cadastro, data_venda, clientes(telefone, cpf, nome)"
-      )
-      .gte("data_venda", desde)
-      .neq("status", "cancelado")
-      .limit(1000),
-    // qualquer ticket recente (aberto ou fechado) conta como "já tem ticket":
-    // a conversão/reconciliação cuida dos abertos; aqui só entra o que não
-    // existe em lugar nenhum
-    admin
-      .from("tickets")
-      .select("id, contrato_id, telefone, cpf")
-      .gte("criado_em", new Date(Date.now() - 45 * 86_400_000).toISOString())
-      .limit(4000),
-  ]);
-  if (!contratos?.length) return 0;
+  // (1) tickets ligados aos contratos da vez — consulta direta, sem janela
+  const comTicket = new Set<string>();
+  const ids = contratos.map((c) => c.id as string);
+  for (let i = 0; i < ids.length; i += 150) {
+    const { data, error: e } = await admin.from("tickets").select("contrato_id").in("contrato_id", ids.slice(i, i + 150));
+    if (e) throw new Error(`tickets por contrato: ${e.message}`);
+    for (const t of data ?? []) comTicket.add(t.contrato_id as string);
+  }
+  const candidatos = contratos.filter((c) => !comTicket.has(c.id as string));
+  if (!candidatos.length) return [];
 
-  const comContrato = new Set((existentes ?? []).map((t) => t.contrato_id).filter(Boolean));
+  // (2) tickets recentes do mesmo cliente — todas as páginas, em ordem fixa
   const chaves = new Set<string>();
-  for (const t of existentes ?? []) {
-    const tel = normalizarTelefone(t.telefone);
-    const cpf = normalizarCpf(t.cpf);
-    if (tel) chaves.add(`t:${tel}`);
-    if (cpf) chaves.add(`c:${cpf}`);
+  const desde45 = new Date(Date.now() - 45 * 86_400_000).toISOString();
+  for (let de = 0; ; de += 1000) {
+    const { data, error: e } = await admin
+      .from("tickets")
+      .select("telefone, cpf")
+      .gte("criado_em", desde45)
+      .order("id")
+      .range(de, de + 999);
+    if (e) throw new Error(`tickets recentes: ${e.message}`);
+    for (const t of data ?? []) for (const k of chavesDoCliente(t.telefone, t.cpf)) chaves.add(k);
+    if (!data || data.length < 1000) break;
   }
 
-  let criados = 0;
-  for (const c of contratos) {
-    if (comContrato.has(c.id)) continue;
-    const cli = c.clientes as unknown as { telefone: string | null; cpf: string | null; nome: string } | null;
-    const tel = normalizarTelefone(cli?.telefone);
-    const cpf = normalizarCpf(cli?.cpf);
-    if (!tel && !cpf) continue; // identificação mínima do ticket
-    if ((tel && chaves.has(`t:${tel}`)) || (cpf && chaves.has(`c:${cpf}`))) continue;
+  const sem: ContratoSemTicket[] = [];
+  for (const c of candidatos) {
+    const cli = c.clientes as unknown as ContratoSemTicket["cli"];
+    const ks = chavesDoCliente(cli?.telefone, cli?.cpf);
+    if (!ks.length) continue; // identificação mínima do ticket
+    if (ks.some((k) => chaves.has(k))) continue;
+    ks.forEach((k) => chaves.add(k)); // dois contratos do mesmo cliente na mesma volta: um ticket só
+    sem.push({
+      id: c.id as string,
+      sgp_contrato_id: c.sgp_contrato_id as string | number | null,
+      plano_id: c.plano_id as string | null,
+      pop_id: c.pop_id as string | null,
+      vendedor_id: c.vendedor_id as string | null,
+      valor_mensalidade: c.valor_mensalidade as number | null,
+      origem_cadastro: c.origem_cadastro as string | null,
+      data_venda: c.data_venda as string,
+      cli,
+    });
+  }
+  return sem;
+}
 
+export async function criarTicketsDeVendasSgp(): Promise<number> {
+  const admin = criarClienteAdmin();
+  let criados = 0;
+  for (const c of await contratosSemTicket()) {
     const agora = new Date().toISOString();
     const base = {
       origem_criacao: "sgp_auto" as const,
-      cliente_nome: cli?.nome ?? "Cliente do SGP",
-      telefone: cli?.telefone ?? null,
-      cpf: cli?.cpf ?? null,
+      cliente_nome: c.cli?.nome ?? "Cliente do SGP",
+      telefone: c.cli?.telefone ?? null,
+      cpf: c.cli?.cpf ?? null,
       vendedor_id: c.vendedor_id,
       pop_id: c.pop_id,
       contrato_id: c.id,
@@ -418,6 +476,9 @@ export async function criarTicketsDeVendasSgp(): Promise<number> {
           .insert({ ...base, etapa: "aguardando" })
           .select("id")
           .single();
+    // Erro inclui o índice único de 0132 (um sgp_auto por contrato): se outra
+    // execução (cron e abertura do /crm ao mesmo tempo) gravou primeiro, esta
+    // desiste em silêncio — o ticket já existe.
     if (error || !novo) continue;
 
     await admin.from("ticket_eventos").insert({
@@ -427,8 +488,6 @@ export async function criarTicketsDeVendasSgp(): Promise<number> {
         texto: `🤖 Ticket criado automaticamente: venda cadastrada direto no SGP (contrato #${c.sgp_contrato_id}, venda em ${c.data_venda}) — dados importados do cadastro.`,
       },
     });
-    if (tel) chaves.add(`t:${tel}`);
-    if (cpf) chaves.add(`c:${cpf}`);
     criados += 1;
   }
   return criados;
@@ -443,13 +502,17 @@ export async function criarTicketsDeVendasSgp(): Promise<number> {
  */
 export async function herdarVendedoraDoContrato(): Promise<number> {
   const admin = criarClienteAdmin();
-  const { data } = await admin
+  // tickets tem duas ligações com contratos (contrato_id e, desde o Meu Dia,
+  // indicado_por_contrato_id): sem o nome da ligação a consulta falhava
+  // (PGRST201) e esta rotina não fazia nada desde meados de outubro.
+  const { data, error } = await admin
     .from("tickets")
-    .select("id, contratos!inner(vendedor_id, pop_id)")
+    .select("id, contratos!tickets_contrato_id_fkey!inner(vendedor_id, pop_id)")
     .is("vendedor_id", null)
     .not("contrato_id", "is", null)
     .not("contratos.vendedor_id", "is", null)
     .limit(500);
+  if (error) throw new Error(`tickets sem vendedora: ${error.message}`);
   let n = 0;
   for (const t of data ?? []) {
     const ct = t.contratos as unknown as { vendedor_id: string; pop_id: string | null };
@@ -481,12 +544,16 @@ export async function descartarTicketsSgpDuplicados(): Promise<number> {
     .gte("criado_em", desde)
     .limit(1000);
   if (!autos?.length) return 0;
-  const { data: reais } = await admin
-    .from("tickets")
-    .select("contrato_id")
-    .neq("origem_criacao", "sgp_auto")
-    .in("contrato_id", [...new Set(autos.map((a) => a.contrato_id as string))]);
-  const comReal = new Set((reais ?? []).map((r) => r.contrato_id as string));
+  const comReal = new Set<string>();
+  const contratosAuto = [...new Set(autos.map((a) => a.contrato_id as string))];
+  for (let i = 0; i < contratosAuto.length; i += 150) {
+    const { data: reais } = await admin
+      .from("tickets")
+      .select("contrato_id")
+      .neq("origem_criacao", "sgp_auto")
+      .in("contrato_id", contratosAuto.slice(i, i + 150));
+    for (const r of reais ?? []) comReal.add(r.contrato_id as string);
+  }
   let n = 0;
   for (const a of autos) {
     if (!comReal.has(a.contrato_id as string)) continue;
@@ -501,7 +568,10 @@ export async function executarRotinasCrm() {
   const fechados = (await fecharTicketsInativos()) + viradaMes;
   const vendidos = await converterVendidosPorSgp().catch(() => 0);
   const criados = await criarTicketsDeVendasSgp().catch(() => 0);
-  await herdarVendedoraDoContrato().catch(() => 0);
+  await herdarVendedoraDoContrato().catch((e) => {
+    console.error("[crm] herdarVendedoraDoContrato:", e instanceof Error ? e.message : e);
+    return 0;
+  });
   await descartarTicketsSgpDuplicados().catch(() => 0);
   const reconciliados = await reconciliarTickets();
   const { despacharLembretes } = await import("@/lib/notificacoes/lembretes");

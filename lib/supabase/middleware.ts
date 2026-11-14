@@ -1,9 +1,12 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// /api/sync, /api/performance/rotina e /api/webhooks têm autenticação própria
+// /api/sync e /api/webhooks têm autenticação própria
 // por segredo (CRON_SECRET e SZCHAT_WEBHOOK_SECRET) — não passam pela sessão.
-const ROTAS_PUBLICAS = ["/login", "/auth", "/api/sync", "/api/performance/rotina", "/api/webhooks", "/api/sz", "/sw.js", "/manifest.webmanifest", "/offline.html"];
+// /api/relatorios/rotina: cron do relatório da diretoria (CRON_SECRET).
+// /relatorios/pdf/: página que o servidor imprime para o PDF, com link
+// assinado que expira em minutos (lib/relatorio-semanal/assinatura.ts).
+const ROTAS_PUBLICAS = ["/login", "/auth", "/api/sync", "/api/relatorios/rotina", "/relatorios/pdf/", "/api/webhooks", "/api/sz", "/sw.js", "/manifest.webmanifest", "/offline.html"];
 
 export async function atualizarSessao(request: NextRequest) {
   let response = NextResponse.next({ request });

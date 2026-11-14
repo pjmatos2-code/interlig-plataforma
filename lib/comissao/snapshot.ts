@@ -468,7 +468,8 @@ export async function montarSnapshotGerencia(
       overridePct: d.overridePct,
       base: d.base,
       pilarLimitante: d.pilarLimitante?.rotulo ?? null,
-      flags: { earlyChurn: d.flags.earlyChurn, clawback: d.flags.clawback },
+      // a gerência não tem early churn (03/11/2026) — fica registrado no snapshot
+      flags: { earlyChurn: false, clawback: d.flags.clawback },
     },
   });
   return saida;

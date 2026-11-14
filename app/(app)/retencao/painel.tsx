@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useFormState } from "react-dom";
+import { useFormState, useFormStatus } from "react-dom";
 import {
   ShieldCheck,
   XCircle,
@@ -465,6 +465,17 @@ function Detalhe({
 
 const inicial: Resultado = {};
 
+/** Travado enquanto envia: o clique duplo abria o mesmo caso duas vezes. */
+function BotaoAbrirCaso() {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" disabled={pending}
+      className="h-10 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground disabled:opacity-60">
+      {pending ? "Abrindo…" : "Abrir caso"}
+    </button>
+  );
+}
+
 export function PainelRetencao({
   meses,
   ehGestor,
@@ -660,7 +671,7 @@ export function PainelRetencao({
           <Input name="cliente_nome" placeholder="nome do cliente" className="w-56" />
           <Input name="sgp_contrato_id" placeholder="contrato SGP" className="w-32" />
           <Input name="telefone" placeholder="telefone" className="w-36" />
-          <button type="submit" className="h-10 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground">Abrir caso</button>
+          <BotaoAbrirCaso />
           {estadoNovo.erro && <span className="text-xs text-farol-vermelho">{estadoNovo.erro}</span>}
           {estadoNovo.ok && <span className="text-xs text-farol-verde">{estadoNovo.ok}</span>}
         </form>

@@ -114,11 +114,52 @@ export function BotaoTelaCheia() {
 }
 
 /** Recarrega os dados da tela a cada 30s (o sync do SGP roda a cada 5 min). */
-export function AutoAtualizar() {
+const CONFERIR_A_CADA = 30_000;
+const RELER_TUDO_A_CADA = 5 * 60_000;
+
+/**
+ * Atualização da TV (05/11/2026): a cada 30 s confere só o sinal de venda
+ * nova (/api/tv/comercial/sinal, poucos bytes) e relê a tela inteira quando
+ * ele muda, para o aviso de venda continuar na hora. O resto (funil, gráfico,
+ * receita) relê a cada 5 min. Com a aba escondida, não confere nada.
+ */
+export function AutoAtualizar({ sinal }: { sinal: string }) {
   const router = useRouter();
+  // só o primeiro valor vem da página; depois, só a conferência muda o
+  // conhecido (assim a TV nunca fica recarregando em sequência)
+  const conhecido = useRef(sinal);
+  const ultimaLeitura = useRef(Date.now());
   useEffect(() => {
-    const t = setInterval(() => router.refresh(), 30_000);
-    return () => clearInterval(t);
+    let ativo = true;
+    const reler = () => {
+      ultimaLeitura.current = Date.now();
+      router.refresh();
+    };
+    const conferir = async () => {
+      if (document.visibilityState === "hidden") return;
+      if (Date.now() - ultimaLeitura.current >= RELER_TUDO_A_CADA) return reler();
+      try {
+        const r = await fetch("/api/tv/comercial/sinal", { cache: "no-store" });
+        if (!r.ok) return;
+        const { sinal: novo } = (await r.json()) as { sinal?: string };
+        if (ativo && novo && novo !== conhecido.current) {
+          conhecido.current = novo;
+          reler();
+        }
+      } catch {
+        // sem rede: tenta de novo na próxima volta
+      }
+    };
+    const t = setInterval(conferir, CONFERIR_A_CADA);
+    const aoVoltar = () => {
+      if (document.visibilityState === "visible") void conferir();
+    };
+    document.addEventListener("visibilitychange", aoVoltar);
+    return () => {
+      ativo = false;
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", aoVoltar);
+    };
   }, [router]);
   return null;
 }

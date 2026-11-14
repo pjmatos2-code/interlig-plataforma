@@ -6,7 +6,7 @@ import { Check, Copy, Star } from "lucide-react";
 export const IconeGoogle = () => <Star className="h-5 w-5" />;
 
 /** link de avaliação do Perfil da Empresa da Interlig no Google ("Pedir avaliações") */
-export const LINK_AVALIACAO_GOOGLE = "";
+export const LINK_AVALIACAO_GOOGLE = "https://g.page/r/CdG_hGczOOn5EBE/review";
 
 /** Lembrete simples — sem regra nem controle: só o texto pronto para mandar ao cliente */
 export function CopiarMensagemGoogle({ agente }: { agente: string }) {

@@ -11,8 +11,6 @@ import { AbrirMeuDia } from "@/components/meu-dia/abrir-meu-dia";
 import { ProvedorInterChat } from "@/components/interchat/provedor";
 import { DockInterChat } from "@/components/interchat/dock";
 import { chavePublicaPush } from "@/lib/interchat/push";
-import { carregarConfig } from "@/lib/performance/config-servidor";
-import { perfilAbreModulo } from "@/lib/performance/escopo-regras";
 
 export const dynamic = "force-dynamic";
 
@@ -39,12 +37,6 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
     if (!["Brasil Novo", "Vitória do Xingu"].includes(String(pop?.nome ?? ""))) {
       itens = itens.filter((i) => !["/fidelidade", "/meu-painel", "/prevencao"].includes(i.href));
     }
-  }
-
-  // Performance Comercial: por enquanto só o administrador; o gestor libera outros papéis em Configurações
-  if (usuario.perfil !== "gestor" && itens.some((i) => i.href === "/performance")) {
-    const cfgPerf = await carregarConfig().catch(() => null);
-    if (!cfgPerf || !perfilAbreModulo(usuario.perfil, cfgPerf.acesso.papeis_modulo)) itens = itens.filter((i) => i.href !== "/performance");
   }
 
   // Meu Dia: só para quem está no piloto; o gestor usa a visão da equipe

@@ -256,8 +256,8 @@ export default async function GerenciaPage({
               <strong className="tabular-nums text-primary">{formatarMoeda(d.base.total)}</strong>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              LIGCHIP compõe o valor, mas não conta no volume dos pilares.
-              {d.flags.earlyChurn && d.debitoEarlyChurn > 0 && ` · Débito early churn: −${d.debitoEarlyChurn} no volume de vendas.`}
+              LIGCHIP compõe o valor, mas não conta no volume dos pilares. Sem early churn na gerência: vale o
+              total vendido no mês.
             </p>
           </CardContent>
         </Card>

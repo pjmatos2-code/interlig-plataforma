@@ -6,14 +6,15 @@ import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatarDataHora } from "@/lib/format";
-import { PainelSgp, PainelSzchat } from "./paineis";
+import { lerConfigEmail } from "@/lib/email/enviar";
+import { PainelEmail, PainelSgp, PainelSzchat } from "./paineis";
 
 export const dynamic = "force-dynamic";
 
 export default async function IntegracoesPage() {
   await exigirPerfil(["gestor"]);
 
-  const [sgp, szchat] = await Promise.all([lerConfigSgp(), lerConfigSzchat()]);
+  const [sgp, szchat, email] = await Promise.all([lerConfigSgp(), lerConfigSzchat(), lerConfigEmail()]);
   const adminCfg = criarClienteAdmin();
   const { data: cfgSgpRaw } = await adminCfg
     .from("integracoes_config")
@@ -183,6 +184,34 @@ export default async function IntegracoesPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card className="mb-6">
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardTitle>E-mail de envio — relatório da diretoria</CardTitle>
+          {email.usuario && email.senha ? (
+            <Badge variant="verde">configurado</Badge>
+          ) : (
+            <Badge variant="outline">não configurado</Badge>
+          )}
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4 text-sm text-muted-foreground">
+            A caixa que manda o Relatório Comercial Semanal em PDF. O e-mail do interlig.com fica na Locaweb: use o
+            endereço completo e a senha da caixa (a mesma do webmail). O servidor e a porta já vêm preenchidos. O
+            remetente recebe uma cópia oculta de cada envio, porque o e-mail mandado pela plataforma não aparece na pasta
+            Enviados.
+          </p>
+          <PainelEmail
+            configurado={{
+              usuario: email.usuario,
+              senha: mascarar(email.senha),
+              nome: email.nome,
+              host: email.host,
+              porta: email.porta,
+            }}
+          />
+        </CardContent>
+      </Card>
 
       <p className="text-xs text-muted-foreground">
         Equipes que geram ticket (filtro por fluxo) e o mapeamento atendente ↔ vendedora ficam na{" "}

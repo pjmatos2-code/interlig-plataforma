@@ -25,6 +25,18 @@ export type VendedorPainel = {
   login: string | null;
 };
 
+/** uma linha do relatório Financeiro → Fidelidades do SGP */
+export type LinhaFidelidadeSgp = {
+  contrato: string;
+  /** 1ª coluna inteira (cliente, serviços e planos) */
+  texto: string;
+  clienteId: string | null;
+  cliente: string | null;
+  /** fim da fidelidade (aaaa-mm-dd); vazio para quem já está sem fidelidade */
+  fim: string | null;
+  dias: number | null;
+};
+
 export class PainelSgp {
   private cookies = new Map<string, string>();
   private logado = false;
@@ -103,8 +115,12 @@ export class PainelSgp {
   /**
    * Relatório Financeiro → Fidelidades: as linhas (contrato e o texto da 1ª coluna).
    * Altamira inteira leva ~15s no SGP, por isso o prazo maior que o padrão.
+   * Colunas (04/11/2026): Contrato, Status, Vencimento, Fidelidade, Início,
+   * Fim, Dias restantes, Multa — Fim e Dias restantes são lidos pelo
+   * cabeçalho, porque a ordem pode mudar. A 1ª coluna linka o cliente
+   * (/admin/cliente/{id}/edit/).
    */
-  async linhasRelatorioFidelidade(params: Record<string, string>): Promise<{ contrato: string; texto: string }[]> {
+  async linhasRelatorioFidelidade(params: Record<string, string>): Promise<LinhaFidelidadeSgp[]> {
     if (!this.logado) await this.login();
     const q = new URLSearchParams(params).toString();
     const res = await this.pegar(`/admin/financeiro/relatorios/fidelidade/?${q}`, {
@@ -112,12 +128,30 @@ export class PainelSgp {
     });
     if (res.status !== 200) throw new Error(`relatório de fidelidade respondeu ${res.status}`);
     const html = await res.text();
+    const limpa = (h: string) =>
+      h.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+    const thead = html.match(/<thead[\s\S]*?<\/thead>/i)?.[0] ?? "";
+    const titulos = [...thead.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)].map((m) => limpa(m[1]).toLowerCase());
+    const iFim = titulos.indexOf("fim");
+    const iDias = titulos.indexOf("dias restantes");
     const tbody = html.match(/<tbody[\s\S]*?<\/tbody>/i)?.[0] ?? "";
     // 1ª coluna: "22731 - CLIENTE 123 - Login: …, PLANO, Contrato: 22731"
     return [...tbody.matchAll(/<tr[\s\S]*?<\/tr>/gi)].map((m) => {
-      const primeira = m[0].match(/<td[^>]*>([\s\S]*?)<\/td>/i)?.[1] ?? "";
-      const texto = primeira.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
-      return { contrato: texto.match(/^(\d+)/)?.[1] ?? "", texto };
+      const celulas = [...m[0].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((c) => c[1]);
+      const texto = limpa(celulas[0] ?? "");
+      const fim = (iFim >= 0 ? limpa(celulas[iFim] ?? "") : "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      const dias = iDias >= 0 ? limpa(celulas[iDias] ?? "") : "";
+      return {
+        contrato: texto.match(/^(\d+)/)?.[1] ?? "",
+        texto,
+        clienteId: (celulas[0] ?? "").match(/\/admin\/cliente\/(\d+)\//)?.[1] ?? null,
+        // "19024 - FULANO DE TAL 18534 - Login: …" → o nome fica entre o
+        // contrato e o ID do serviço (que vem com "Login:", "Contrato:",
+        // "E-mail:"… conforme o tipo de serviço)
+        cliente: texto.match(/^\d+\s+-\s+(.+?)\s+\d+\s+-\s+[\p{L}-]+:/u)?.[1]?.trim() || null,
+        fim: fim ? `${fim[3]}-${fim[2]}-${fim[1]}` : null,
+        dias: /^-?\d+$/.test(dias) ? Number(dias) : null,
+      };
     });
   }
 

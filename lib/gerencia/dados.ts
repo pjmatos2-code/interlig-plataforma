@@ -4,7 +4,6 @@ import { hojeIso, primeiroDiaDoMes, ultimoDiaDoMes } from "@/lib/datas";
 import { refidelizacaoDoMes, AGENTES_SETOR } from "@/lib/refidelizacao/dados";
 import { META_REFIDELIZACAO } from "@/lib/refidelizacao/regras";
 import { retencaoDoMes } from "@/lib/retencao/dados";
-import { debitoPorCoorte } from "@/lib/comissao/debito";
 
 /**
  * Módulo de Override de Gerência — Instrução Geral Ago/2026, Seção 6 (v1.1,
@@ -17,6 +16,10 @@ import { debitoPorCoorte } from "@/lib/comissao/debito";
  *
  * Base global = VTV vendas novas + VTV refidelizado + VTV retido + LIGCHIP.
  * LIGCHIP compõe o VALOR, mas não conta no VOLUME de nenhum pilar.
+ *
+ * A gerência NÃO tem early churn (decisão do Paulo, 03/11/2026): a gestão
+ * recebe pelo total vendido no mês. O débito de early churn é só das
+ * vendedoras (lib/comissao/debito).
  */
 
 export const VERSAO_REGRA = "v1.1 · Ago/2026 · POP-RET-001 v2.0";
@@ -61,7 +64,7 @@ export type Pilar = {
 export type OverrideGerencia = {
   competencia: string;
   regra: string;
-  flags: { earlyChurn: boolean; clawback: boolean; observacao: string | null };
+  flags: { clawback: boolean; observacao: string | null };
   bloqueado: string | null; // meta não cadastrada etc.
   pilares: Pilar[];
   pilarLimitante: Pilar | null;
@@ -72,7 +75,6 @@ export type OverrideGerencia = {
   /** oportunidade: se só o limitante sobe 1 nível, quanto o mês ganha */
   oportunidade: { faltam: number; unidade: string; novoPct: number; ganho: number } | null;
   riscoZerar: Pilar[];
-  debitoEarlyChurn: number;
   /** composição da meta de vendas (quem soma) */
   metaVendasComposicao: { nome: string; meta: number }[];
   foraDaMeta: string[];
@@ -89,7 +91,7 @@ export async function overrideDoMes(mesIso?: string): Promise<OverrideGerencia> 
   const mes = primeiroDiaDoMes(mesIso ?? hojeIso());
   const fim = ultimoDiaDoMes(mes);
 
-  const [{ data: contratos }, { data: vendedores }, { data: cfg }, refi, retencao, debitoCoorte] =
+  const [{ data: contratos }, { data: vendedores }, { data: cfg }, refi, retencao] =
     await Promise.all([
       admin
         .from("contratos")
@@ -101,11 +103,9 @@ export async function overrideDoMes(mesIso?: string): Promise<OverrideGerencia> 
       admin.from("gerencia_config").select("*").eq("competencia", mes).maybeSingle(),
       refidelizacaoDoMes(mes),
       retencaoDoMes(mes),
-      debitoPorCoorte(mes),
     ]);
 
   const flags = {
-    earlyChurn: cfg?.flag_early_churn ?? true,
     clawback: cfg?.flag_clawback ?? true,
     observacao: (cfg?.observacao as string | null) ?? null,
   };
@@ -128,13 +128,8 @@ export async function overrideDoMes(mesIso?: string): Promise<OverrideGerencia> 
   const vtvVendas = vendasNovas.reduce((s, c) => s + Number(c.valor_mensalidade ?? 0), 0);
   const vtvLigchip = ligchips.reduce((s, c) => s + Number(c.valor_mensalidade ?? 0), 0);
 
-  // early churn: débito em VOLUME na meta de vendas (OFF no mês de migração)
-  const debitoEarlyChurn = flags.earlyChurn
-    ? [...debitoCoorte.porVendedora.entries()]
-        .filter(([id]) => comerciais.has(id))
-        .reduce((s, [, q]) => s + q, 0)
-    : 0;
-  const vendasAjustadas = Math.max(vendasNovas.length - debitoEarlyChurn, 0);
+  // a gerência recebe pelo total vendido no mês: sem débito de early churn
+  const vendasTotal = vendasNovas.length;
 
   // meta gerencial = soma das metas dos agentes comerciais ativos com soma_meta
   const { data: metas } = await admin
@@ -174,7 +169,7 @@ export async function overrideDoMes(mesIso?: string): Promise<OverrideGerencia> 
         ? "Meta de refidelização não configurada."
         : null;
 
-  const atingVendas = metaVendas > 0 ? (vendasAjustadas / metaVendas) * 100 : 0;
+  const atingVendas = metaVendas > 0 ? (vendasTotal / metaVendas) * 100 : 0;
   const atingRefi = metaRefi > 0 ? (refiPlanos / metaRefi) * 100 : 0;
 
   const proximoPct = (nivel: number, meta: number) => {
@@ -191,11 +186,11 @@ export async function overrideDoMes(mesIso?: string): Promise<OverrideGerencia> 
       return {
         chave: "vendas" as const,
         rotulo: "Vendas",
-        volume: vendasAjustadas,
+        volume: vendasTotal,
         meta: metaVendas,
         atingimentoPct: atingVendas,
         nivel,
-        faltamProximo: alvo !== null ? Math.max(0, alvo - vendasAjustadas) : null,
+        faltamProximo: alvo !== null ? Math.max(0, alvo - vendasTotal) : null,
       };
     })(),
     (() => {
@@ -268,7 +263,6 @@ export async function overrideDoMes(mesIso?: string): Promise<OverrideGerencia> 
     comissao,
     oportunidade,
     riscoZerar: pilares.filter((p) => p.nivel === 0),
-    debitoEarlyChurn,
     metaVendasComposicao,
     foraDaMeta,
   };

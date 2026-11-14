@@ -11,6 +11,7 @@ import {
   ROTAS_SGP,
 } from "@/lib/integracoes/config";
 import { randomBytes } from "node:crypto";
+import { enviarEmail, explicarErroSmtp, lerConfigEmail } from "@/lib/email/enviar";
 
 export type EstadoIntegracao = { erro?: string; ok?: boolean; mensagem?: string };
 
@@ -241,5 +242,55 @@ export async function testarApiSzchat(): Promise<EstadoIntegracao> {
     };
   } catch (e) {
     return { erro: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// E-mail de envio (relatório da diretoria)
+// ---------------------------------------------------------------------------
+export async function salvarEmail(_e: EstadoIntegracao, dados: FormData): Promise<EstadoIntegracao> {
+  const usuario = await exigirPerfil(["gestor"]);
+  const endereco = String(dados.get("usuario") ?? "").trim().toLowerCase();
+  if (endereco && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(endereco)) return { erro: "E-mail inválido." };
+  const porta = String(dados.get("porta") ?? "").trim();
+  if (porta && !/^\d{2,5}$/.test(porta)) return { erro: "Porta inválida." };
+  try {
+    await salvarConfig(
+      "email",
+      {
+        usuario: endereco,
+        // a senha vai como foi digitada (vazia = manter a atual)
+        senha: String(dados.get("senha") ?? ""),
+        nome: String(dados.get("nome") ?? "").trim(),
+        host: String(dados.get("host") ?? "").trim().toLowerCase(),
+        porta: porta ? Number(porta) : "",
+      },
+      usuario.id
+    );
+  } catch (e) {
+    return { erro: e instanceof Error ? e.message : String(e) };
+  }
+  revalidar();
+  return { ok: true, mensagem: "E-mail de envio salvo. Use “Enviar e-mail de teste” para conferir a senha." };
+}
+
+/** manda um e-mail curto para a própria caixa: confere servidor, usuário e senha */
+export async function testarEmail(): Promise<EstadoIntegracao> {
+  await exigirPerfil(["gestor"]);
+  const cfg = await lerConfigEmail();
+  if (!cfg.usuario || !cfg.senha) return { erro: "Preencha e salve o e-mail e a senha antes de testar." };
+  try {
+    await enviarEmail(
+      {
+        para: [cfg.usuario],
+        assunto: "Teste de envio · Plataforma Interlig",
+        texto: "Este é um teste da plataforma Interlig. Se chegou, o envio do relatório da diretoria por e-mail está pronto.",
+        html: '<p style="font-family:Arial,Helvetica,sans-serif;font-size:15px">Este é um teste da plataforma Interlig. Se chegou, o envio do relatório da diretoria por e-mail está pronto.</p>',
+      },
+      cfg
+    );
+    return { ok: true, mensagem: `E-mail de teste enviado para ${cfg.usuario}. Confira a caixa de entrada (e o spam).` };
+  } catch (e) {
+    return { erro: explicarErroSmtp(e) };
   }
 }

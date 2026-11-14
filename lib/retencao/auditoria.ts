@@ -1,5 +1,6 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
+import { canceladoAntesDaConversa, dataDaConversa } from "./vinculo";
 
 /**
  * Auditoria da Retenção — o carimbo que a agente não controla.
@@ -30,7 +31,7 @@ export async function auditarRetencao(): Promise<ResultadoAuditoria> {
 
   const { data: casos, error } = await admin
     .from("casos_retencao")
-    .select("id, sgp_contrato_id, desfecho, desfecho_em, criado_em, clawback_em")
+    .select("id, sgp_contrato_id, protocolo_sz, desfecho, desfecho_em, criado_em, clawback_em")
     .not("sgp_contrato_id", "is", null)
     .in("etapa", ["novo", "negociacao", "validacao", "fechado"])
     .limit(5000);
@@ -77,10 +78,12 @@ export async function auditarRetencao(): Promise<ResultadoAuditoria> {
     // irreversível e transferido são decisões humanas: a auditoria não mexe
     if (atual === "irreversivel" || atual === "transferido") continue;
 
-    // contrato cancelado ANTES do caso existir = vínculo errado (contrato
-    // antigo do mesmo cliente), não churn — a auditoria não julga por ele
-    // (caso real 01/10/2026: João 2022, Marina 2023 derrubando casos de set/26)
-    if (x.s === "cancelado" && x.dc && x.dc < String(caso.criado_em).slice(0, 10)) continue;
+    // contrato cancelado ANTES da conversa = vínculo errado (contrato antigo
+    // do mesmo cliente), não churn — a auditoria não julga por ele (caso real
+    // 01/10/2026: João 2022, Marina 2023 derrubando casos de set/26). A régua
+    // é o dia da CONVERSA, não o de criação do caso: o robô cria o caso dias
+    // depois e o cancelamento nesse intervalo (o desfecho) ficava sem carimbo.
+    if (x.s === "cancelado" && canceladoAntesDaConversa(x.dc, dataDaConversa(caso.protocolo_sz as string | null, caso.criado_em as string))) continue;
 
     if (x.s === "cancelado") {
       // clawback: era retido e o cancelamento veio em até 30 dias do carimbo

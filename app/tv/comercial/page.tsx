@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Building2, CircleDollarSign, Gauge, Headset, ShoppingCart, Tag, Target, UserPlus } from "lucide-react";
 import { exigirPerfil } from "@/lib/auth";
 import { carregarTvComercial } from "@/lib/tv/comercial";
+import { sinalDaTv } from "@/lib/tv/sinal";
 import { LogoInterlig } from "@/components/marca/logo-interlig";
 import { cn } from "@/lib/utils";
 import { AlertaNovaVenda, AutoAtualizar, BotaoTelaCheia, PalcoTv, Relogio } from "./cliente";
@@ -108,10 +109,12 @@ export default async function TvComercialPage({
     | "sino"
     | "conexao"
     | "moedas";
-  const d = await carregarTvComercial({ mes: searchParams.mes });
+  // o sinal sai junto: a TV compara com ele para saber se precisa reler tudo
+  const [d, sinal] = await Promise.all([carregarTvComercial({ mes: searchParams.mes }), sinalDaTv().catch(() => "")]);
 
   const pctMetaDia = d.metaDiaria > 0 ? Math.round((d.vendas.hoje / d.metaDiaria) * 100) : 0;
   const pctGeral = (d.metaGeral.ativos / d.metaGeral.meta) * 100;
+  const pctComSuspensos = ((d.metaGeral.ativos + d.metaGeral.suspensos) / d.metaGeral.meta) * 100;
   const faltam = Math.max(0, d.metaGeral.meta - d.metaGeral.ativos);
   const ritmoHora = d.metaDiaria / d.porHora.length;
   const maxHora = Math.max(1, ritmoHora * 1.3, ...d.porHora.map((h) => h.vendas));
@@ -141,7 +144,7 @@ export default async function TvComercialPage({
     <BotaoTelaCheia />
     <PalcoTv>
     <main className="flex h-full flex-col px-8 py-4 text-white">
-      <AutoAtualizar />
+      <AutoAtualizar sinal={sinal} />
 
       {/* cabeçalho */}
       <header className="mb-3 flex shrink-0 items-center justify-between">
@@ -202,36 +205,47 @@ export default async function TvComercialPage({
         </div>
       </div>
 
-      {/* META GERAL 2026 */}
+      {/* META GERAL 2026: a meta conta só os ativos. Os suspensos por débito
+          (saem dos ativos no dia de corte e voltam ao pagar) aparecem à parte:
+          na barra, em laranja depois dos ativos, e nas colunas da direita. */}
       <section className="mt-3 flex shrink-0 items-center gap-8 rounded-2xl border border-sky-400/40 bg-[#0b1f4a]/[0.86] px-7 py-2.5">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
-            <Target className="h-8 w-8 text-sky-400" />
+            <Target className="h-10 w-10 text-sky-400" />
             <div>
-              <p className="text-xl font-black tracking-wide">META GERAL 2026 · ATINGIMENTO</p>
-              <p className="text-sm text-slate-300">Base total de ativos (todas as unidades)</p>
+              <p className="text-2xl font-black tracking-wide">META GERAL 2026 · ATINGIMENTO</p>
+              <p className="text-base text-slate-300">Base total de ativos (todas as unidades)</p>
             </div>
           </div>
-          <div className="mt-2 flex items-end gap-6">
-            <p className="text-4xl font-black tabular-nums">
-              {num(d.metaGeral.ativos)}
-              <span className="ml-3 text-lg font-medium text-slate-300">
-                ativos hoje · {pctGeral.toFixed(1).replace(".", ",")}% da meta
-              </span>
-            </p>
-            <div className="flex-1">
-              <p className="mb-1 text-right text-lg font-black text-amber-300">
-                Faltam {num(faltam)} <span className="text-xs font-normal text-slate-400">até 31/12/2026</span>
+          <div className="mt-1.5 flex items-center gap-6">
+            <div className="shrink-0 border-r border-white/15 pr-6">
+              <p className="text-5xl font-black leading-none tabular-nums">{num(d.metaGeral.ativos)}</p>
+              <p className="mt-1 text-lg font-medium text-slate-100">
+                ativos hoje • {pctGeral.toFixed(1).replace(".", ",")}% da meta
               </p>
-              <div className="h-4 overflow-hidden rounded-full bg-white/10">
+              <span className="mt-2 inline-block rounded-full bg-white/10 px-4 py-1 text-base text-slate-200">
+                + {num(d.metaGeral.suspensos)} suspensos
+              </span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="mb-1 text-right text-xl font-black text-amber-300">
+                Faltam {num(faltam)} <span className="text-sm font-normal text-slate-400">até 31/12/2026</span>
+              </p>
+              <div className="relative h-5 overflow-hidden rounded-full bg-white/10">
+                {/* suspensos por baixo, do zero até ativos + suspensos; ativos por cima */}
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-[#2f8cff] to-[#22d3a6]"
+                  className="absolute inset-y-0 left-0 rounded-full bg-[#f7931e]"
+                  style={{ width: `${Math.min(100, pctComSuspensos)}%` }}
+                />
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#2f8cff] to-[#22d3a6]"
                   style={{ width: `${Math.min(100, pctGeral)}%` }}
                 />
               </div>
-              <div className="mt-2 flex gap-3">
+              <p className="mt-1.5 text-sm italic text-slate-300">Suspensos incluídos apenas como visão complementar da base</p>
+              <div className="mt-1.5 flex gap-3">
                 {d.metaGeral.unidades.map((u) => (
-                  <span key={u.nome} className="flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-sm">
+                  <span key={u.nome} className="flex items-center gap-2 rounded-full bg-white/5 px-4 py-1 text-base">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ background: COR_UNIDADE[u.nome] }} />
                     {u.nome}: <b className="tabular-nums">{num(u.ativos)}</b>
                   </span>
@@ -240,17 +254,21 @@ export default async function TvComercialPage({
             </div>
           </div>
         </div>
-        <div className="grid shrink-0 grid-cols-4 divide-x divide-white/15 border-l border-white/15 pl-6 text-center">
+        <div className="grid shrink-0 grid-cols-6 divide-x divide-white/15 border-l border-white/15 pl-4 text-center">
           {[
             ["META ANUAL", num(d.metaGeral.meta), "ativos", "text-white"],
             ["ATUAIS", num(d.metaGeral.ativos), "ativos", "text-white"],
+            ["SUSPENSOS", num(d.metaGeral.suspensos), "clientes", "text-slate-300"],
+            ["ATIVOS +\nSUSPENSOS", num(d.metaGeral.ativos + d.metaGeral.suspensos), "base total", "text-white"],
             ["% ATINGIDO", `${pctGeral.toFixed(1).replace(".", ",")}%`, "", "text-emerald-400"],
             ["RESTANTE", num(faltam), "ativos", "text-amber-300"],
           ].map(([r, v, s, c]) => (
-            <div key={r} className="px-5">
-              <p className="text-xs font-semibold tracking-wider text-slate-400">{r}</p>
+            <div key={r} className="px-4">
+              <p className="flex h-8 items-center justify-center whitespace-pre-line text-xs font-bold leading-4 tracking-wider text-slate-200">
+                {r}
+              </p>
               <p className={cn("text-3xl font-black tabular-nums", c)}>{v}</p>
-              <p className="text-xs text-slate-400">{s}</p>
+              <p className="text-sm text-slate-400">{s}</p>
             </div>
           ))}
         </div>
