@@ -882,3 +882,22 @@ O Paulo pediu para deixar a plataforma mais leve tirando três módulos.
 - **O banco não mudou.** As tabelas e os dados continuam lá: conversas e análises do chat, follow-ups, alertas, metas da Performance, `config_comercial.performance`, visitas do corporativo e `planos.setor_corporativo`. Elas só deixam de receber dados novos.
 - **Perfil "Agente corporativo":** continua existindo, com Meu painel, Minhas vendas, Minha comissão, CRM, Esteira e InterChat.
 - **Para reativar:** reverter o commit desta mudança. Como os dados ficaram, as telas voltam com o histórico guardado. Ao religar, conferir a coleta do chat, que ficou parada desde a desativação.
+
+## Rotinas com cron próprio e botão "Atualizar agora" na Prevenção (14/11/2026)
+
+O Paulo perguntou como a Prevenção de cancelamento se atualiza e pediu um botão. A conferência mostrou dois problemas:
+- as abas Insatisfação e Pedidos de cancelamento estavam paradas desde 28/10;
+- o robô comercial dava "sem orçamento" em quase todo ciclo.
+
+As duas leituras ficavam no fim do `/api/sync`, e o SGP sozinho gasta quase todo o tempo do ciclo.
+
+- **Cron próprio (`/api/sync/rotinas`, a cada 5 min):** saíram do fim do `/api/sync` o robô comercial, as ativações da esteira, o robô de retenção, o Meu Dia, os cancelamentos, as ocorrências e a fidelidade. Cada um tem a sua cadência, definida em `lib/sync/agenda.ts`, que tem testes.
+- **Ocorrências por cursor:** o primeiro dia ainda por ler fica em `integracoes_config` "sgp" → `ocorrencias_cursor`.
+  - Em dia, a leitura roda a cada 1 h no expediente e a cada 3 h fora dele.
+  - Atrasada, vai um trecho de 7 dias por disparo até chegar a hoje. O antigo teto de 15 dias deixava buraco.
+- **Data final do relatório de ocorrências:** conferido em 14/11, ela NÃO entra (12/11 a 12/11 volta vazio). A leitura agora pede até amanhã; antes, as ocorrências do dia só apareciam no dia seguinte. No relatório de cancelados a data final entra.
+- **Botão "Atualizar agora":** fica no topo da Prevenção, com a faixa "Dados do SGP" que mostra quando cada fonte foi lida.
+  - Faz um passo por chamada em `/api/prevencao/atualizar`: primeiro os cancelamentos recentes, depois as ocorrências em trechos, até alcançar hoje.
+  - Usa o mesmo cursor e a mesma trava da rotina, `ocorrencias_em_leitura_desde`, que vale 200 s.
+  - No SGP é só leitura.
+- **Cancelamentos:** a rotina de 6 h continua relendo o mês anterior inteiro. Ela levou ~65 s em 14/11, por isso agora só começa com 100 s de folga. O botão lê só desde a véspera da última leitura.

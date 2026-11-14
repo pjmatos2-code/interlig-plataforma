@@ -18,7 +18,9 @@ import {
   type UltimoContato,
 } from "@/lib/prevencao/dados";
 import { PERFIS_OPERAM, ROTULO_RESULTADO } from "@/lib/prevencao/resultados";
+import { estadoLeituras } from "@/lib/sgp/leituras-prevencao";
 import { RegistrarContato } from "./registrar-contato";
+import { AtualizarDados } from "./atualizar-dados";
 import { ExportarPlanilha } from "./exportar";
 
 export const dynamic = "force-dynamic";
@@ -73,7 +75,7 @@ export default async function PrevencaoPage({ searchParams }: { searchParams: Bu
   };
   const filtra = <T extends { pop: string | null; corporativo: boolean }>(l: T[]) =>
     l.filter((x) => (!unidade || x.pop === unidade) && (!corporativo || x.corporativo));
-  const linkTemplate = await templateLinkSgp();
+  const [linkTemplate, leituras] = await Promise.all([templateLinkSgp(), estadoLeituras()]);
 
   return (
     <>
@@ -81,6 +83,9 @@ export default async function PrevencaoPage({ searchParams }: { searchParams: Bu
         titulo={unidadeFixa ? `Prevenção de cancelamento · ${unidadeFixa}` : "Prevenção de cancelamento"}
         descricao="Quem está perto de cancelar e o que fazer agora. Base do SGP; rede neutra, permutas e órgãos públicos ficam fora."
       />
+
+      {/* quando o SGP foi lido pela última vez + botão para ler agora (14/11/2026) */}
+      <AtualizarDados estado={leituras} />
 
       {/* filtros: unidade e segmento valem para todas as abas */}
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">

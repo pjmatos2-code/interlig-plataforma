@@ -4,7 +4,6 @@ import { mesAtras } from "@/lib/datas";
 import {
   cancelamentosNaVez,
   fidelidadeNaVez,
-  janelaOcorrencias,
   meuDiaNaVez,
   noExpediente,
   ocorrenciasNaVez,
@@ -147,10 +146,12 @@ export async function rodarRotinas(orcamentoMs = 172_000) {
   }
 
   // cancelamentos oficiais (10/10/2026): relatório "Cancelados" do SGP do mês
-  // anterior até hoje — corrige data e motivo que a URA não informa. Leve
-  // (~2s por página de 100), 1x a cada 6h para o dia de hoje não ficar errado
+  // anterior até hoje — corrige data e motivo que a URA não informa. 1x a cada
+  // 6h para o dia de hoje não ficar errado. Em 14/11/2026 levou ~65 s (663
+  // linhas, ~9 s por página de 100): com menos de 100 s ela morria no teto
+  // da função sem deixar registro
   cancelamentos: {
-    if (restante() < 45_000) break cancelamentos;
+    if (restante() < 100_000) break cancelamentos;
     const { data: ultima } = await admin
       .from("sync_runs")
       .select("finalizado_em")
@@ -173,30 +174,19 @@ export async function rodarRotinas(orcamentoMs = 172_000) {
   }
 
   // ocorrências de atendimento (10/10/2026): suporte, cobrança, pedidos de
-  // cancelamento — base do risco de cancelamento. Pela data de cadastro (pega
-  // também o status/encerramento das recentes), a cada 3h; a janela recua até
-  // a última leitura boa quando a etapa ficou dias sem rodar
+  // cancelamento — base da Prevenção. Desde 14/11/2026 andam por cursor, o
+  // mesmo do botão "Atualizar agora" da tela (lib/sgp/leituras-prevencao.ts):
+  // em dia, a cada 1 h no expediente e 3 h fora; atrasada, um trecho de 7 dias
+  // por disparo até alcançar hoje. O registro em sync_runs fica com a leitura.
   ocorrencias: {
     if (restante() < 45_000) break ocorrencias;
-    const { data: ultima } = await admin
-      .from("sync_runs")
-      .select("finalizado_em")
-      .eq("entidade", "ocorrencias")
-      .eq("status", "sucesso")
-      .order("finalizado_em", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const ultimoSucesso = ultima?.finalizado_em as string | undefined;
-    if (!ocorrenciasNaVez(Date.now(), ultimoSucesso)) break ocorrencias;
+    const { estadoLeituras, lerTrechoOcorrencias } = await import("@/lib/sgp/leituras-prevencao");
+    const estado = await estadoLeituras(admin);
+    if (estado.lendoDesde) break ocorrencias; // o botão da Prevenção está lendo agora
+    if (!ocorrenciasNaVez(Date.now(), estado.ocorrenciasLidasEm, estado.ocorrenciasCursor)) break ocorrencias;
     const ini = Date.now();
-    const { de, ate } = janelaOcorrencias(ini, ultimoSucesso);
-    const { atualizarOcorrencias } = await import("@/lib/sgp/ocorrencias");
-    const o = await atualizarOcorrencias(de, ate);
-    await registrar(admin, "ocorrencias", ini, {
-      ok: o.ok,
-      registros: o.lidas,
-      erro: o.ok ? null : o.erro ?? "falhou",
-    });
+    const o = await lerTrechoOcorrencias(admin);
+    if (!o.ok && !o.ocupado) console.error("ocorrências falharam:", o.erro);
     medir("ocorrencias", ini);
   }
 

@@ -1,4 +1,4 @@
-import { somarDias } from "@/lib/datas";
+import { mesAtras, somarDias } from "@/lib/datas";
 
 /**
  * Quando cada rotina de /api/rotinas está "na vez" (24/10/2026). Regras puras
@@ -49,29 +49,89 @@ export function cancelamentosNaVez(agora: number, ultimoSucessoIso: string | nul
   return desde(agora, ultimoSucessoIso) >= 6 * HORA;
 }
 
-/** Ocorrências de atendimento: a cada 3 h desde o último sucesso. */
-export function ocorrenciasNaVez(agora: number, ultimoSucessoIso: string | null | undefined): boolean {
-  return desde(agora, ultimoSucessoIso) >= 3 * HORA;
+/**
+ * Ocorrências de atendimento (revisto em 14/11/2026). O relatório do SGP filtra
+ * pela data de cadastro e a data FINAL NÃO ENTRA: 12/11 a 12/11 volta vazio, e
+ * 12/11 a 13/11 traz só o dia 12. Por isso cada leitura pede até amanhã, senão
+ * as ocorrências de hoje só apareciam no dia seguinte.
+ *
+ * O cursor (integracoes_config "sgp" → ocorrencias_cursor) guarda o primeiro dia
+ * que ainda precisa ser lido. Hoje nunca fica "fechado": volta a ser lido na
+ * próxima vez. Atrasada, a leitura vai em trechos de 7 dias até alcançar hoje.
+ * Antes, o teto de 15 dias deixava buraco quando a etapa ficava parada mais que
+ * isso, como de 28/10 a 14/11/2026.
+ */
+const DIAS_RELIDOS = 3; // relê os últimos dias para pegar status e encerramento das recentes
+export const DIAS_POR_TRECHO = 7; // ~1.000 ocorrências, 10–25 s no SGP (medido em 14/11/2026)
+const ISO_DIA = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Primeiro dia de ocorrências ainda por ler. Sem cursor gravado (leituras de
+ * antes de 14/11/2026), deduz pela última leitura boa: aquelas pediam até
+ * "hoje" e o dia final não entrava. Nunca recua mais de 60 dias.
+ */
+export function cursorOcorrencias(
+  agora: number,
+  cursor: string | null | undefined,
+  ultimoSucessoIso: string | null | undefined
+): string {
+  const hoje = relogioSantarem(agora).dia;
+  const piso = somarDias(hoje, -60);
+  if (typeof cursor === "string" && ISO_DIA.test(cursor)) {
+    return cursor > hoje ? hoje : cursor < piso ? piso : cursor;
+  }
+  const ultimo = typeof ultimoSucessoIso === "string" ? Date.parse(ultimoSucessoIso) : NaN;
+  if (!Number.isFinite(ultimo)) return somarDias(hoje, -15);
+  const vespera = somarDias(relogioSantarem(ultimo).dia, -1);
+  return vespera < piso ? piso : vespera > hoje ? hoje : vespera;
+}
+
+export type TrechoOcorrencias = {
+  de: string;
+  /** data final pedida ao SGP; o dia em si não entra */
+  ateExclusivo: string;
+  /** cursor depois de uma leitura boa deste trecho */
+  cursorDepois: string;
+  /** o trecho vai até hoje (não falta nada depois dele) */
+  chegaHoje: boolean;
+};
+
+/** Próximo trecho a ler: relê sempre os últimos 3 dias; atrasada, até 7 dias a partir do cursor. */
+export function trechoOcorrencias(agora: number, cursor: string, maxDias = DIAS_POR_TRECHO): TrechoOcorrencias {
+  const hoje = relogioSantarem(agora).dia;
+  const amanha = somarDias(hoje, 1);
+  const recentes = somarDias(hoje, -DIAS_RELIDOS);
+  const de = cursor < recentes ? cursor : recentes;
+  const fim = somarDias(de, Math.max(1, maxDias));
+  const ateExclusivo = fim < amanha ? fim : amanha;
+  return { de, ateExclusivo, cursorDepois: ateExclusivo < hoje ? ateExclusivo : hoje, chegaHoje: ateExclusivo === amanha };
 }
 
 /**
- * Janela do relatório de ocorrências (pela data de cadastro): os últimos 3
- * dias — ou, se a última leitura boa é mais antiga, desde a véspera dela, com
- * teto de 15 dias. Sem isso, dias em que a etapa não rodou viravam buraco
- * permanente no histórico que alimenta o risco de cancelamento.
+ * Atrasada (cursor antes dos últimos 3 dias): um trecho por disparo, até
+ * alcançar hoje. Em dia: a cada 1 h no expediente e a cada 3 h fora dele.
  */
-export function janelaOcorrencias(
+export function ocorrenciasNaVez(agora: number, ultimoSucessoIso: string | null | undefined, cursor: string): boolean {
+  if (cursor < somarDias(relogioSantarem(agora).dia, -DIAS_RELIDOS)) return true;
+  return desde(agora, ultimoSucessoIso) >= (noExpediente(agora) ? 1 : 3) * HORA;
+}
+
+/**
+ * Cancelamentos lidos pelo botão da Prevenção: desde a véspera da última
+ * leitura boa, no mínimo os últimos 3 dias. Nunca antes do 1º dia do mês
+ * anterior; a leitura completa continua com a rotina de 6 h. Aqui a data final
+ * entra, ao contrário do relatório de ocorrências.
+ */
+export function janelaCancelamentosRecentes(
   agora: number,
   ultimoSucessoIso: string | null | undefined
 ): { de: string; ate: string } {
-  const ate = relogioSantarem(agora).dia;
-  const padrao = somarDias(ate, -3);
-  const teto = somarDias(ate, -15);
+  const hoje = relogioSantarem(agora).dia;
+  const piso = mesAtras(hoje, 1);
   const ultimo = typeof ultimoSucessoIso === "string" ? Date.parse(ultimoSucessoIso) : NaN;
-  if (!Number.isFinite(ultimo)) return { de: teto, ate };
-  const vespera = somarDias(relogioSantarem(ultimo).dia, -1);
-  const de = vespera < padrao ? vespera : padrao;
-  return { de: de < teto ? teto : de, ate };
+  let de = Number.isFinite(ultimo) ? somarDias(relogioSantarem(ultimo).dia, -1) : piso;
+  if (de > somarDias(hoje, -3)) de = somarDias(hoje, -3);
+  return { de: de < piso ? piso : de, ate: hoje };
 }
 
 /** Fidelidade da base: fora do expediente, quando a faixa mais antiga tem 20 h ou mais. */

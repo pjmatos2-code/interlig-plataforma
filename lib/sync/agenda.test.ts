@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   cancelamentosNaVez,
+  cursorOcorrencias,
   fidelidadeNaVez,
-  janelaOcorrencias,
+  janelaCancelamentosRecentes,
   meuDiaNaVez,
   noExpediente,
   ocorrenciasNaVez,
   relogioSantarem,
   retencaoNaVez,
   roboComercialNaVez,
+  trechoOcorrencias,
 } from "./agenda";
 
 const t = (iso: string) => Date.parse(iso);
@@ -82,9 +84,18 @@ describe("relatórios do SGP", () => {
     expect(cancelamentosNaVez(MANHA, undefined)).toBe(true);
   });
 
-  it("ocorrências a cada 3 h desde o último sucesso", () => {
-    expect(ocorrenciasNaVez(MANHA, antes(MANHA, 3 * HORA - MIN))).toBe(false);
-    expect(ocorrenciasNaVez(MANHA, antes(MANHA, 3 * HORA))).toBe(true);
+  it("ocorrências em dia: a cada 1 h no expediente e 3 h fora", () => {
+    expect(ocorrenciasNaVez(MANHA, antes(MANHA, HORA - MIN), "2026-10-24")).toBe(false);
+    expect(ocorrenciasNaVez(MANHA, antes(MANHA, HORA), "2026-10-24")).toBe(true);
+    expect(ocorrenciasNaVez(NOITE, antes(NOITE, 3 * HORA - MIN), "2026-10-24")).toBe(false);
+    expect(ocorrenciasNaVez(NOITE, antes(NOITE, 3 * HORA), "2026-10-24")).toBe(true);
+  });
+
+  it("ocorrências atrasadas: lê um trecho a cada disparo, mesmo logo depois de uma leitura", () => {
+    // cursor em 20/10 (antes dos últimos 3 dias de 24/10) → na vez
+    expect(ocorrenciasNaVez(MANHA, antes(MANHA, MIN), "2026-10-20")).toBe(true);
+    // cursor em 21/10 = começo da janela normal → segue a cadência
+    expect(ocorrenciasNaVez(MANHA, antes(MANHA, MIN), "2026-10-21")).toBe(false);
   });
 
   it("fidelidade só fora do expediente, com a faixa mais antiga de 20 h ou mais", () => {
@@ -95,20 +106,70 @@ describe("relatórios do SGP", () => {
   });
 });
 
-describe("janela das ocorrências", () => {
-  it("leitura em dia: últimos 3 dias até hoje (data de Santarém)", () => {
-    expect(janelaOcorrencias(MANHA, antes(MANHA, HORA))).toEqual({ de: "2026-10-21", ate: "2026-10-24" });
-    expect(janelaOcorrencias(NOITE, antes(NOITE, HORA))).toEqual({ de: "2026-10-21", ate: "2026-10-24" });
+describe("cursor das ocorrências", () => {
+  it("usa o cursor gravado, sem passar de hoje nem recuar mais de 60 dias", () => {
+    expect(cursorOcorrencias(MANHA, "2026-10-20", undefined)).toBe("2026-10-20");
+    expect(cursorOcorrencias(MANHA, "2026-10-30", undefined)).toBe("2026-10-24");
+    expect(cursorOcorrencias(MANHA, "2026-01-01", undefined)).toBe("2026-08-25");
   });
 
-  it("dias sem rodar: recua até a véspera da última leitura boa", () => {
-    // última leitura boa em 18/10 → relê desde 17/10
-    expect(janelaOcorrencias(MANHA, "2026-10-18T15:00:00Z")).toEqual({ de: "2026-10-17", ate: "2026-10-24" });
+  it("sem cursor: véspera do dia da última leitura boa", () => {
+    // cenário de 14/11: a última leitura foi em 28/10 às 03:57 de Santarém (06:57 UTC)
+    const DIA14 = t("2026-11-14T13:00:00Z");
+    expect(cursorOcorrencias(DIA14, undefined, "2026-10-28T06:57:19Z")).toBe("2026-10-27");
+    // a véspera usa o dia de Santarém: 01:00 UTC de 19/10 ainda é 18/10 lá
+    expect(cursorOcorrencias(MANHA, null, "2026-10-19T01:00:00Z")).toBe("2026-10-17");
   });
 
-  it("nunca leu pelo cron, ou leitura muito velha: teto de 15 dias", () => {
-    // cenário de 24/10: a carga manual foi em 10/10 e o cron nunca rodou
-    expect(janelaOcorrencias(MANHA, undefined)).toEqual({ de: "2026-10-09", ate: "2026-10-24" });
-    expect(janelaOcorrencias(MANHA, "2026-09-01T12:00:00Z")).toEqual({ de: "2026-10-09", ate: "2026-10-24" });
+  it("sem cursor e sem leitura boa (ou cursor ilegível): últimos 15 dias", () => {
+    expect(cursorOcorrencias(MANHA, undefined, undefined)).toBe("2026-10-09");
+    expect(cursorOcorrencias(MANHA, "ontem", "nunca")).toBe("2026-10-09");
+  });
+});
+
+describe("trecho das ocorrências", () => {
+  it("em dia: relê os últimos 3 dias e pede até amanhã, porque a data final não entra no SGP", () => {
+    expect(trechoOcorrencias(MANHA, "2026-10-24")).toEqual({
+      de: "2026-10-21",
+      ateExclusivo: "2026-10-25",
+      cursorDepois: "2026-10-24",
+      chegaHoje: true,
+    });
+    // 22:00 de 24/10 em Santarém já é 25/10 em UTC: vale o dia de Santarém
+    expect(trechoOcorrencias(NOITE, "2026-10-24").ateExclusivo).toBe("2026-10-25");
+  });
+
+  it("atrasada: trechos de 7 dias a partir do cursor até alcançar hoje", () => {
+    const DIA14 = t("2026-11-14T13:00:00Z");
+    const passos: string[] = [];
+    let cursor = "2026-10-27";
+    for (let i = 0; i < 10; i++) {
+      const tr = trechoOcorrencias(DIA14, cursor);
+      passos.push(`${tr.de}..${tr.ateExclusivo}`);
+      cursor = tr.cursorDepois;
+      if (tr.chegaHoje) break;
+    }
+    expect(passos).toEqual(["2026-10-27..2026-11-03", "2026-11-03..2026-11-10", "2026-11-10..2026-11-15"]);
+    expect(cursor).toBe("2026-11-14");
+  });
+
+  it("o cursor nunca passa de hoje: o dia de hoje volta a ser lido na próxima vez", () => {
+    const tr = trechoOcorrencias(MANHA, "2026-10-22");
+    expect(tr).toEqual({ de: "2026-10-21", ateExclusivo: "2026-10-25", cursorDepois: "2026-10-24", chegaHoje: true });
+  });
+});
+
+describe("cancelamentos recentes (botão da Prevenção)", () => {
+  it("lidos ontem ou hoje: últimos 3 dias, com a data final incluída", () => {
+    expect(janelaCancelamentosRecentes(MANHA, antes(MANHA, HORA))).toEqual({ de: "2026-10-21", ate: "2026-10-24" });
+  });
+
+  it("dias sem ler: desde a véspera da última leitura boa", () => {
+    expect(janelaCancelamentosRecentes(MANHA, "2026-10-12T15:00:00Z")).toEqual({ de: "2026-10-11", ate: "2026-10-24" });
+  });
+
+  it("nunca antes do 1º dia do mês anterior (a rotina de 6 h relê o resto)", () => {
+    expect(janelaCancelamentosRecentes(MANHA, undefined)).toEqual({ de: "2026-09-01", ate: "2026-10-24" });
+    expect(janelaCancelamentosRecentes(MANHA, "2026-07-01T12:00:00Z")).toEqual({ de: "2026-09-01", ate: "2026-10-24" });
   });
 });
