@@ -2,7 +2,7 @@
 
 import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   criarUsuario,
   alternarUsuario,
@@ -22,6 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ROTULO_ORIGEM, ROTULO_PERFIL, exigeVinculoAgente, type CategoriaOrigem, type Perfil } from "@/lib/tipos";
 import { EditarUsuario } from "@/components/admin/editar-usuario";
+import { CAMPO_VINCULO, vinculosAtuais, type Vinculo } from "@/lib/coordenacao-vinculos";
+import { cn } from "@/lib/utils";
 
 const inicial: EstadoAdmin = {};
 const selectCls = "flex h-10 rounded-md border border-input bg-background px-3 text-sm";
@@ -327,50 +329,91 @@ export function GestaoSzChat({
 }
 
 // ---------------------------------------------------------------------------
-// Coordenações — define as agentes sob cada coordenador (escopo por agente).
-// O coordenador passa a ver só as ações dessas agentes em todos os módulos
-// (exceção: na Venda Externa vê todos os tickets de PAP).
+// Coordenações — vínculo de cada agente com o coordenador (16/11/2026):
+// Equipe (acesso, avisos e comissão) ou Apoio (só o acesso). A regra está em
+// lib/coordenacao-vinculos.ts. Exceção de sempre: na Venda Externa o
+// coordenador vê todos os tickets de PAP.
 // ---------------------------------------------------------------------------
 type Coordenador = { id: string; nome: string; email: string };
 type VendedoraCoord = { id: string; nome: string; coordenador_id: string | null };
+type ApoioCoord = { coordenadorId: string; vendedorId: string };
 
 function FormCoordenacao({
   coordenador,
   vendedoras,
+  emApoio,
+  nomeCoordenador,
 }: {
   coordenador: Coordenador;
   vendedoras: VendedoraCoord[];
+  /** ids das agentes que este coordenador apoia */
+  emApoio: string[];
+  nomeCoordenador: Map<string, string>;
 }) {
   const [estado, acao] = useFormState(definirAgentesCoordenador, inicial);
-  const doCoordenador = new Set(
-    vendedoras.filter((v) => v.coordenador_id === coordenador.id).map((v) => v.id)
-  );
+  // o que está gravado. Muda quando QUALQUER equipe é salva (levar uma agente
+  // para a equipe de um coordenador tira ela da equipe do outro), e aí os
+  // campos deste cartão acompanham.
+  const gravado = JSON.stringify(vinculosAtuais(coordenador.id, vendedoras, emApoio));
+  const [vinculos, setVinculos] = useState<Record<string, Vinculo | "">>(() => JSON.parse(gravado));
+  useEffect(() => {
+    setVinculos(JSON.parse(gravado));
+  }, [gravado]);
+
+  const naEquipe = vendedoras.filter((v) => vinculos[v.id] === "equipe").length;
+  const emApoioAgora = vendedoras.filter((v) => vinculos[v.id] === "apoio").length;
+
   return (
-    <form action={acao} className="rounded-lg border p-4" key={estado.ok ? Date.now() : coordenador.id}>
+    <form action={acao} className="rounded-lg border p-4">
       <input type="hidden" name="coordenador_id" value={coordenador.id} />
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-sm font-semibold">{coordenador.nome}</p>
-          <p className="text-xs text-muted-foreground">{coordenador.email}</p>
+          <p className="truncate text-xs text-muted-foreground">{coordenador.email}</p>
         </div>
-        <span className="text-xs text-muted-foreground">{doCoordenador.size} agente(s)</span>
+        <span className="shrink-0 text-right text-xs text-muted-foreground">
+          {naEquipe} na equipe
+          {emApoioAgora > 0 ? ` · ${emApoioAgora} em apoio` : ""}
+        </span>
       </div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
         {vendedoras.map((v) => {
-          const outro = v.coordenador_id && v.coordenador_id !== coordenador.id;
+          const vinculo = vinculos[v.id] ?? "";
+          const outro =
+            v.coordenador_id && v.coordenador_id !== coordenador.id
+              ? (nomeCoordenador.get(v.coordenador_id) ?? "outro coordenador")
+              : null;
           return (
-            <label key={v.id} className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                name="vendedor_id"
-                value={v.id}
-                defaultChecked={doCoordenador.has(v.id)}
-                className="h-4 w-4 rounded border-input"
-              />
-              <span className={outro ? "text-muted-foreground" : ""}>
-                {v.nome}
-                {outro ? " ↔" : ""}
+            <label key={v.id} className="flex items-center justify-between gap-2 text-sm">
+              <span className="min-w-0">
+                <span className={cn("block truncate", vinculo ? "font-medium" : "text-muted-foreground")}>
+                  {v.nome}
+                </span>
+                {outro && (
+                  <span
+                    className={cn(
+                      "block text-xs leading-tight",
+                      vinculo === "equipe" ? "text-amber-700" : "text-muted-foreground"
+                    )}
+                  >
+                    {vinculo === "equipe" ? `sai da equipe de ${outro}` : `equipe de ${outro}`}
+                  </span>
+                )}
               </span>
+              <select
+                name={`${CAMPO_VINCULO}${v.id}`}
+                value={vinculo}
+                onChange={(e) => setVinculos((atual) => ({ ...atual, [v.id]: e.target.value as Vinculo | "" }))}
+                aria-label={`Vínculo de ${v.nome} com ${coordenador.nome}`}
+                className={cn(
+                  "h-9 w-24 shrink-0 rounded-md border bg-background px-2 text-xs sm:h-8",
+                  vinculo ? "border-primary/50 font-medium" : "border-input text-muted-foreground"
+                )}
+              >
+                <option value="">—</option>
+                <option value="equipe">Equipe</option>
+                <option value="apoio">Apoio</option>
+              </select>
             </label>
           );
         })}
@@ -386,9 +429,11 @@ function FormCoordenacao({
 export function GestaoCoordenacoes({
   coordenadores,
   vendedoras,
+  apoios,
 }: {
   coordenadores: Coordenador[];
   vendedoras: VendedoraCoord[];
+  apoios: ApoioCoord[];
 }) {
   if (coordenadores.length === 0)
     return (
@@ -396,14 +441,31 @@ export function GestaoCoordenacoes({
         Nenhum coordenador cadastrado ainda. Crie um usuário com o perfil “Coordenador” acima.
       </p>
     );
+  const nomeCoordenador = new Map(coordenadores.map((c) => [c.id, c.nome]));
   return (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">
-        Marque as agentes de cada coordenador. Ele passa a ver só as ações dessas agentes (o “↔”
-        indica agente já vinculada a outro coordenador — marcá-la aqui a transfere).
-      </p>
+      <div className="space-y-1 text-xs text-muted-foreground">
+        <p>Escolha o vínculo de cada agente com o coordenador.</p>
+        <p>
+          <strong className="text-foreground">Equipe:</strong> a agente é do time dele. Ele acompanha o CRM, a
+          esteira e os resultados dela, recebe os avisos dela, e as ativações dela entram na comissão dele quando a
+          comissão é por equipe. Cada agente fica na equipe de um coordenador só: escolher Equipe aqui tira a
+          agente da equipe anterior.
+        </p>
+        <p>
+          <strong className="text-foreground">Apoio:</strong> o mesmo acesso ao CRM, à esteira e aos resultados da
+          agente, sem os avisos e sem entrar na meta nem na comissão dele.
+        </p>
+        <p>Coordenador sem nenhuma agente marcada acompanha o POP inteiro dele.</p>
+      </div>
       {coordenadores.map((c) => (
-        <FormCoordenacao key={c.id} coordenador={c} vendedoras={vendedoras} />
+        <FormCoordenacao
+          key={c.id}
+          coordenador={c}
+          vendedoras={vendedoras}
+          emApoio={apoios.filter((a) => a.coordenadorId === c.id).map((a) => a.vendedorId)}
+          nomeCoordenador={nomeCoordenador}
+        />
       ))}
     </div>
   );

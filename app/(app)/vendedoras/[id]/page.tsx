@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { exigirPerfil } from "@/lib/auth";
 import { resolverPeriodo } from "@/lib/datas";
 import { detalheVendedora } from "@/lib/vendedoras/dados";
-import { criarClienteServidor } from "@/lib/supabase/server";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { FiltrosDashboard } from "@/components/dashboard/filtros";
 import { PainelDetalheVendedora } from "@/components/vendedoras/painel-detalhe";
@@ -24,15 +23,11 @@ export default async function VendedoraDetalhePage({
   const usuario = await exigirPerfil(["gestor", "supervisor"]);
   const periodo = resolverPeriodo(searchParams);
 
-  // Coordenador só abre as agentes dele (bloqueia acesso por URL direta a outra).
+  // Coordenador só abre as agentes que acompanha: equipe, apoio ou, na
+  // coordenação de unidade, as do POP (bloqueia acesso por URL direta a outra).
   if (usuario.perfil === "supervisor") {
-    const supabase = criarClienteServidor();
-    const { data: v } = await supabase
-      .from("vendedores")
-      .select("coordenador_id")
-      .eq("id", params.id)
-      .maybeSingle();
-    if (!v || v.coordenador_id !== usuario.id) notFound();
+    const { coordenaAgente } = await import("@/lib/coordenacao");
+    if (!(await coordenaAgente(usuario, params.id))) notFound();
   }
 
   const detalhe = await detalheVendedora(params.id, periodo);

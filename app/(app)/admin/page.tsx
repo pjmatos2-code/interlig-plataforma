@@ -25,6 +25,7 @@ export default async function AdminPage() {
     { data: atendentes },
     { data: equipes },
     { data: vendedorasCoord },
+    { data: apoiosCoord },
     { data: planosExterna },
   ] = await Promise.all([
     supabase
@@ -45,6 +46,7 @@ export default async function AdminPage() {
       .order("sz_atendente_id"),
     supabase.from("sz_equipes_habilitadas").select("id, nome, ativo, pops(nome)").order("nome"),
     supabase.from("vendedores").select("id, nome, coordenador_id").eq("ativo", true).order("nome"),
+    supabase.from("coordenadores_extras").select("usuario_id, vendedor_id"),
     supabase
       .from("planos")
       .select("id, nome, valor_referencia, venda_externa")
@@ -165,6 +167,10 @@ export default async function AdminPage() {
               id: v.id,
               nome: v.nome,
               coordenador_id: v.coordenador_id ?? null,
+            }))}
+            apoios={(apoiosCoord ?? []).map((a) => ({
+              coordenadorId: a.usuario_id as string,
+              vendedorId: a.vendedor_id as string,
             }))}
           />
         </CardContent>

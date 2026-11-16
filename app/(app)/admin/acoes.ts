@@ -6,6 +6,7 @@ import { ehVendedora, type Perfil } from "@/lib/tipos";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { executarSync, type ResultadoSync } from "@/lib/sync/worker";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
+import { ehUuid, lerVinculos } from "@/lib/coordenacao-vinculos";
 
 export type EstadoAdmin = { erro?: string; ok?: boolean };
 
@@ -117,27 +118,52 @@ export async function criarUsuario(_e: EstadoAdmin, dados: FormData): Promise<Es
   return { ok: true };
 }
 
-// Coordenação: define quais agentes ficam sob um coordenador (escopo por agente).
-// O coordenador passa a ver só as ações dessas agentes (migração 0025).
+// Coordenação: define o vínculo de cada agente com um coordenador
+// (16/11/2026; regra em lib/coordenacao-vinculos.ts).
+//  - Equipe (vendedores.coordenador_id): acesso, avisos do sino e comissão.
+//    Uma equipe por agente: marcar aqui tira a agente da equipe anterior.
+//  - Apoio (coordenadores_extras): só o acesso; fora da comissão.
+// Só mexe nas agentes que estavam na tela. Antes a gravação zerava todas as
+// agentes do coordenador, inclusive as desligadas, que a tela não lista.
 export async function definirAgentesCoordenador(_e: EstadoAdmin, dados: FormData): Promise<EstadoAdmin> {
   await exigirPerfil(["gestor"]);
   const coordenadorId = String(dados.get("coordenador_id") ?? "");
-  if (!coordenadorId) return { erro: "Selecione o coordenador." };
-  const vendedorIds = dados.getAll("vendedor_id").map(String).filter(Boolean);
+  if (!ehUuid(coordenadorId)) return { erro: "Selecione o coordenador." };
+  const { equipe, apoio, nenhum } = lerVinculos(dados.entries());
 
   const admin = criarClienteAdmin();
-  // zera o vínculo atual desse coordenador e aplica o novo conjunto
-  const { error: e1 } = await admin
-    .from("vendedores")
-    .update({ coordenador_id: null })
-    .eq("coordenador_id", coordenadorId);
-  if (e1) return { erro: e1.message };
-  if (vendedorIds.length) {
-    const { error: e2 } = await admin
+  // equipe: sai quem ficou em apoio ou sem vínculo; entra quem foi marcada
+  const foraDaEquipe = [...apoio, ...nenhum];
+  if (foraDaEquipe.length) {
+    const { error } = await admin
       .from("vendedores")
-      .update({ coordenador_id: coordenadorId })
-      .in("id", vendedorIds);
-    if (e2) return { erro: e2.message };
+      .update({ coordenador_id: null })
+      .eq("coordenador_id", coordenadorId)
+      .in("id", foraDaEquipe);
+    if (error) return { erro: error.message };
+  }
+  if (equipe.length) {
+    const { error } = await admin.from("vendedores").update({ coordenador_id: coordenadorId }).in("id", equipe);
+    if (error) return { erro: error.message };
+  }
+  // apoio: sai quem foi para a equipe ou ficou sem vínculo; entra quem foi marcada
+  const foraDoApoio = [...equipe, ...nenhum];
+  if (foraDoApoio.length) {
+    const { error } = await admin
+      .from("coordenadores_extras")
+      .delete()
+      .eq("usuario_id", coordenadorId)
+      .in("vendedor_id", foraDoApoio);
+    if (error) return { erro: error.message };
+  }
+  if (apoio.length) {
+    const { error } = await admin
+      .from("coordenadores_extras")
+      .upsert(
+        apoio.map((vendedorId) => ({ usuario_id: coordenadorId, vendedor_id: vendedorId })),
+        { onConflict: "usuario_id,vendedor_id", ignoreDuplicates: true }
+      );
+    if (error) return { erro: error.message };
   }
   revalidatePath("/admin");
   return { ok: true };

@@ -40,7 +40,9 @@ export function ativadosNoPeriodo<T extends ContratoBase>(
 
 /**
  * Quem compõe a base de uma liderança.
- * - equipe: os vendedores cujo coordenador é o usuário desta pessoa
+ * - equipe: os vendedores cujo coordenador é o usuário desta pessoa (vínculo
+ *   Equipe, vendedores.coordenador_id). Quem ele só apoia
+ *   (coordenadores_extras) dá acesso e NÃO entra na comissão.
  * - pop: todos os contratos da POP dela, de quem quer que seja a venda
  */
 export function contratosDaBase<T extends ContratoBase>(

@@ -901,3 +901,22 @@ As duas leituras ficavam no fim do `/api/sync`, e o SGP sozinho gasta quase todo
   - Usa o mesmo cursor e a mesma trava da rotina, `ocorrencias_em_leitura_desde`, que vale 200 s.
   - No SGP é só leitura.
 - **Cancelamentos:** a rotina de 6 h continua relendo o mês anterior inteiro. Ela levou ~65 s em 14/11, por isso agora só começa com 100 s de folga. O botão lê só desde a véspera da última leitura.
+
+## Coordenação: Equipe e Apoio (16/11/2026)
+
+O Marcelo, coordenador da venda externa, passou a apoiar o Paulo na coordenação da Amanda, da Damely e da Karoline. O pedido: ele precisa do CRM, da esteira e dos resultados delas, mas em novembro a meta dele continua sendo só a da Jéssica.
+
+Pela Administração só existia um tipo de vínculo, o direto (`vendedores.coordenador_id`). Marcar as três no cartão do Marcelo deu o acesso, e também:
+- pôs as ativações das três na comissão de liderança dele (base "equipe"): em 16/11 eram 77 ativações contra a meta de 25, em vez das 14 da Jéssica;
+- tirou a Amanda da equipe da Aline Moraes, porque cada agente tem um coordenador direto só.
+
+Agora a Administração oferece dois vínculos por agente:
+- **Equipe** (`vendedores.coordenador_id`): acesso ao CRM, à esteira e aos resultados, avisos do sino e comissão de liderança. Uma equipe por agente; marcar Equipe em outro coordenador transfere a agente, e a tela avisa de quem ela sai.
+- **Apoio** (`coordenadores_extras`, a tabela da co-coordenação da Rayssa, de 23/09): o mesmo acesso, sem os avisos e sem entrar na comissão. Uma agente pode ter vários apoios.
+
+O que mudou no código:
+- **Administração → Coordenações:** cada agente tem um seletor (sem vínculo, Equipe ou Apoio). A gravação mexe só nas agentes listadas na tela; antes ela zerava todas as agentes do coordenador, inclusive as desligadas, que a tela não mostra.
+- **Painel por vendedora, detalhe:** abre para quem acompanha a agente por equipe, por apoio ou, na coordenação de unidade, pelo POP. Antes aceitava só a equipe, e quem estava em apoio via a agente na lista e recebia "não encontrado" ao abrir.
+- **Comissão:** nada mudou na conta. A base "equipe" sempre usou só o vínculo direto; ficou escrito em `lib/comissao/base.ts` que o apoio não entra.
+
+O Dashboard do coordenador soma a equipe e o apoio, na meta e no resultado, porque mostra o grupo que ele acompanha. A meta que vale para a comissão é a do cadastro dele em Metas e comissão.
