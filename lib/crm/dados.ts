@@ -5,6 +5,8 @@ import {
   cicloNegociacao,
   taxaReconciliacao,
   estadoInatividade,
+  foraDaConversao,
+  separarNaoConvertidos,
   CRM_PADROES,
   type TicketIndicador,
 } from "@/lib/indicadores/crm";
@@ -31,6 +33,10 @@ export type CartaoTicket = {
   atualizado_em: string;
   followup_em: string | null;
   desfecho: "convertido" | "nao_convertido" | null;
+  /** nome do motivo do não convertido */
+  motivo: string | null;
+  /** fechado por motivo que não conta na conversão nem nos perdidos (17/11/2026) */
+  foraDaConversao: boolean;
   fechado_por: "vendedora" | "auto_inatividade" | null;
   origem_criacao: "sz_auto" | "manual" | "site";
   valor: number | null;
@@ -49,8 +55,10 @@ export type FiltrosCrm = {
   semContato24h?: boolean;
   emRisco?: boolean;
   altoValor?: boolean;
-  /** mostra SOMENTE os tickets perdidos (fechados não convertidos) do período */
+  /** mostra SOMENTE os tickets perdidos (fechados não convertidos que contam) do período */
   perdidos?: boolean;
+  /** mostra SOMENTE os fechados por motivo fora da conversão (já é cliente, transferido) do período */
+  foraDaConversao?: boolean;
   /** mostra SOMENTE tickets sem a consulta Consult Center anexada */
   semConsulta?: boolean;
 };
@@ -94,6 +102,8 @@ export type DadosCrm = {
     ultimas: { id: string; cliente: string; valor: number }[];
   };
   perdidosPeriodo: number;
+  /** fechados no período por motivo que não conta na conversão nem nos perdidos (17/11/2026) */
+  foraDaConversaoPeriodo: { total: number; porMotivo: { motivo: string; quantidade: number }[] };
   /** vendidas do período SEM a consulta Consult Center (disciplina 01/10) */
   vendidasSemConsulta: number;
   rodape: {
@@ -184,7 +194,7 @@ export async function carregarCrm(
       .limit(1000),
     supabase
       .from("tickets")
-      .select("desfecho, fechado_em, contratos!tickets_contrato_id_fkey(data_venda)")
+      .select("etapa, desfecho, fechado_em, contratos!tickets_contrato_id_fkey(data_venda), motivos_nao_conversao(nome)")
       .eq("etapa", "fechado")
       .gte("fechado_em", `${comFolga(periodo.deAnterior, -10)}T00:00:00`)
       .lte("fechado_em", `${comFolga(periodo.ateAnterior, 10)}T23:59:59.999`)
@@ -301,6 +311,8 @@ export async function carregarCrm(
       atualizado_em: t.atualizado_em,
       followup_em: t.followup_em,
       desfecho: t.desfecho,
+      motivo: t.desfecho === "nao_convertido" ? (t.motivos_nao_conversao?.nome ?? null) : null,
+      foraDaConversao: foraDaConversao(t),
       fechado_por: t.fechado_por,
       origem_criacao: t.origem_criacao,
       valor: t.valor_estimado,
@@ -321,7 +333,7 @@ export async function carregarCrm(
     aguardando: [],
     fechado: [],
   };
-  for (const t of filtros.perdidos ? [] : abertos) {
+  for (const t of filtros.perdidos || filtros.foraDaConversao ? [] : abertos) {
     // ticket aberto remanescente da etapa antiga cai em Contato inicial
     const etapa = (t.etapa === "proposta" ? "em_atendimento" : t.etapa) as EtapaTicket;
     colunas[etapa]?.push(paraCartao(t));
@@ -330,7 +342,12 @@ export async function carregarCrm(
   for (const etapa of ["novo", "em_atendimento", "aguardando"] as const) {
     colunas[etapa].sort((a, b) => (a.criado_em > b.criado_em ? -1 : 1));
   }
+  // fechado por motivo fora da conversão (já é cliente, transferido) não é
+  // perdido: sai da coluna e aparece no filtro próprio ou quando alguém
+  // procura o cliente pela busca (17/11/2026)
   for (const t of fechados) {
+    const fora = foraDaConversao(t);
+    if (filtros.foraDaConversao ? !fora : fora && (!filtros.busca || filtros.perdidos)) continue;
     if (filtros.perdidos && t.desfecho !== "nao_convertido") continue;
     colunas[t.desfecho === "nao_convertido" ? "proposta" : "fechado"].push(paraCartao(t));
   }
@@ -358,10 +375,16 @@ export async function carregarCrm(
 
   // conversão do período anterior (delta em pontos percentuais)
   const fechadosAnt = (
-    (fechadosAntBrutos ?? []) as unknown as { desfecho: string | null; fechado_em: string | null; contratos: { data_venda: string | null } | null }[]
+    (fechadosAntBrutos ?? []) as unknown as {
+      etapa: string;
+      desfecho: "convertido" | "nao_convertido" | null;
+      fechado_em: string | null;
+      contratos: { data_venda: string | null } | null;
+      motivos_nao_conversao: { nome: string } | null;
+    }[]
   ).filter((t) => {
     const d = dataRef(t);
-    return d >= periodo.deAnterior && d <= periodo.ateAnterior;
+    return d >= periodo.deAnterior && d <= periodo.ateAnterior && !foraDaConversao(t);
   });
   const convAnt =
     fechadosAnt.length === 0
@@ -499,19 +522,25 @@ export async function carregarCrm(
     vendedorasTotal: (vendedorasAtivas ?? []).length,
     maiorTicketMedio,
   };
-  const perdidosPeriodo = fechados.filter((t) => t.desfecho === "nao_convertido").length;
-
-  // motivos de perda no período (alimenta 3.4)
-  const porMotivo = new Map<string, number>();
-  for (const t of fechados) {
-    if (t.desfecho !== "nao_convertido") continue;
-    const nome = t.motivos_nao_conversao?.nome ?? "Sem motivo";
-    porMotivo.set(nome, (porMotivo.get(nome) ?? 0) + 1);
-  }
+  // não convertidos do período: os perdidos e, à parte, os fechados por
+  // motivo fora da conversão (já é cliente, transferido)
+  const naoConvertidos = separarNaoConvertidos(fechados);
+  const perdidosPeriodo = naoConvertidos.perdidos.length;
+  const contarPorMotivo = (lista: Bruto[]) => {
+    const m = new Map<string, number>();
+    for (const t of lista) {
+      const nome = t.motivos_nao_conversao?.nome ?? "Sem motivo";
+      m.set(nome, (m.get(nome) ?? 0) + 1);
+    }
+    return [...m.entries()]
+      .map(([motivo, quantidade]) => ({ motivo, quantidade }))
+      .sort((a, b) => b.quantidade - a.quantidade);
+  };
 
   // conversão real por vendedora (5.14)
   const porVendedora = new Map<string, { fechados: number; convertidos: number }>();
   for (const t of fechados) {
+    if (foraDaConversao(t)) continue;
     const nome = t.vendedores?.nome ?? "Não atribuído";
     const atual = porVendedora.get(nome) ?? { fechados: 0, convertidos: 0 };
     atual.fechados += 1;
@@ -520,8 +549,9 @@ export async function carregarCrm(
   }
 
   // funil do período (3.4): criados no período → proposta → convertidos
+  // (fechado por motivo fora da conversão não foi oportunidade: não é recebido)
   const criadosNoPeriodo = [...abertos, ...fechados].filter(
-    (t) => t.criado_em.slice(0, 10) >= periodo.de && t.criado_em.slice(0, 10) <= periodo.ate
+    (t) => t.criado_em.slice(0, 10) >= periodo.de && t.criado_em.slice(0, 10) <= periodo.ate && !foraDaConversao(t)
   );
   const passouProposta = criadosNoPeriodo.filter(
     (t) =>
@@ -549,15 +579,14 @@ export async function carregarCrm(
     retornosVencidos,
     fechadosMes,
     perdidosPeriodo,
+    foraDaConversaoPeriodo: { total: naoConvertidos.fora.length, porMotivo: contarPorMotivo(naoConvertidos.fora) },
     vendidasSemConsulta: fechados.filter(
       (t) => t.desfecho === "convertido" && estadoConsulta(t) === "sem_consulta"
     ).length,
     rodape,
     followupsHoje,
     colunas,
-    motivosPerda: [...porMotivo.entries()]
-      .map(([motivo, quantidade]) => ({ motivo, quantidade }))
-      .sort((a, b) => b.quantidade - a.quantidade),
+    motivosPerda: contarPorMotivo(naoConvertidos.perdidos),
     funil: [
       { etapa: "Atendimentos (tickets)", quantidade: criadosNoPeriodo.length },
       { etapa: "Proposta enviada", quantidade: passouProposta },

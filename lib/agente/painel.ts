@@ -1,6 +1,7 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { vendasDoPeriodo, type ContratoIndicador } from "@/lib/indicadores/regras";
+import { foraDaConversao } from "@/lib/indicadores/crm";
 import type { AgentePainel } from "@/lib/comissao/painel";
 import { hojeIso, primeiroDiaDoMes, ultimoDiaDoMes } from "@/lib/datas";
 
@@ -47,7 +48,7 @@ export async function carregarExtrasAgente(
       admin.from("tickets").select("atualizado_em").eq("vendedor_id", vendedorId).neq("etapa", "fechado").limit(2000),
       admin
         .from("tickets")
-        .select("etapa, desfecho, primeira_tratativa_em, contrato_id, origem_criacao")
+        .select("etapa, desfecho, primeira_tratativa_em, contrato_id, origem_criacao, motivos_nao_conversao(nome)")
         .eq("vendedor_id", vendedorId)
         .gte("criado_em", `${mes}T00:00:00-03:00`)
         .lte("criado_em", `${fim}T23:59:59-03:00`)
@@ -95,10 +96,18 @@ export async function carregarExtrasAgente(
   };
 
   // ---------- funil do CRM no mês ----------
-  const tk = ticketsMes ?? [];
+  // fechado como já é cliente da base ou transferido não foi oportunidade de
+  // venda (17/11/2026): fica fora dos leads, da conversão e dos não convertidos
+  type TicketFunil = {
+    etapa: string;
+    desfecho: "convertido" | "nao_convertido" | null;
+    contrato_id: string | null;
+    motivos_nao_conversao: { nome: string } | null;
+  };
+  const tk = ((ticketsMes ?? []) as unknown as TicketFunil[]).filter((t) => !foraDaConversao(t));
   const assinadosTk = tk.filter((t) => t.etapa === "fechado" && t.desfecho === "convertido");
   const validas = (agente?.contratos ?? []).filter((c) => c.situacao !== "nao_conta" && c.situacao !== "estornada");
-  const contratosComConversa = new Set(assinadosTk.map((t) => t.contrato_id as string | null).filter(Boolean));
+  const contratosComConversa = new Set(assinadosTk.map((t) => t.contrato_id).filter(Boolean));
   const funil = {
     leads: tk.length,
     // ainda abertos (negociando) — o ticket já nasce quando a agente assume a conversa

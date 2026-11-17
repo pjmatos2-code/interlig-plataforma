@@ -9,6 +9,9 @@ import {
   mediana,
   normalizarTelefone,
   normalizarCpf,
+  foraDaConversao,
+  motivoForaDaConversao,
+  separarNaoConvertidos,
   type TicketIndicador,
 } from "./crm";
 
@@ -71,6 +74,77 @@ describe("5.14 — conversão real", () => {
 
   it("nenhum fechado → null", () => {
     expect(conversaoReal([ticket({})]).taxa).toBeNull();
+  });
+});
+
+describe("motivos fora da conversão (17/11/2026)", () => {
+  const jaCliente = { motivos_nao_conversao: { nome: "Já é cliente da base" } };
+  const transferido = { motivos_nao_conversao: { nome: "Transferido" } };
+  const preco = { motivos_nao_conversao: { nome: "Preço" } };
+
+  it("reconhece os dois motivos sem depender de maiúsculas, acentos ou espaços", () => {
+    expect(motivoForaDaConversao("Já é cliente da base")).toBe(true);
+    expect(motivoForaDaConversao("Transferido")).toBe(true);
+    expect(motivoForaDaConversao("  ja e cliente da base ")).toBe(true);
+    expect(motivoForaDaConversao("TRANSFERIDO")).toBe(true);
+  });
+
+  it("os outros motivos, e ticket sem motivo, continuam contando", () => {
+    for (const nome of ["Preço", "Concorrente", "Outra cidade", "Desistência", "Sem resposta", "Mês encerrado sem conversão"])
+      expect(motivoForaDaConversao(nome)).toBe(false);
+    expect(motivoForaDaConversao(null)).toBe(false);
+    expect(motivoForaDaConversao(undefined)).toBe(false);
+    expect(motivoForaDaConversao("")).toBe(false);
+  });
+
+  it("vale só para ticket fechado como não convertido", () => {
+    expect(foraDaConversao(fechadoNaoConvertido(jaCliente))).toBe(true);
+    expect(foraDaConversao(fechadoNaoConvertido(transferido))).toBe(true);
+    expect(foraDaConversao(fechadoNaoConvertido(preco))).toBe(false);
+    expect(foraDaConversao(fechadoNaoConvertido())).toBe(false); // consulta sem o motivo: conta
+    // reaberto (o motivo antigo pode ter ficado no ticket) ou vendido: conta normalmente
+    expect(foraDaConversao(ticket({ etapa: "em_atendimento", ...jaCliente }))).toBe(false);
+    expect(foraDaConversao(fechadoConvertido(transferido))).toBe(false);
+  });
+
+  it("conversão real: não entra no numerador nem no denominador", () => {
+    const r = conversaoReal([
+      fechadoConvertido(),
+      fechadoNaoConvertido(preco),
+      fechadoNaoConvertido(jaCliente),
+      fechadoNaoConvertido(transferido),
+    ]);
+    expect(r.fechados).toBe(2);
+    expect(r.convertidos).toBe(1);
+    expect(r.taxa).toBe(0.5);
+  });
+
+  it("só fechados fora da conversão → sem taxa", () => {
+    const r = conversaoReal([fechadoNaoConvertido(jaCliente), fechadoNaoConvertido(transferido)]);
+    expect(r.fechados).toBe(0);
+    expect(r.taxa).toBeNull();
+  });
+
+  it("ciclo de negociação ignora quem nunca foi negociação", () => {
+    const lista = [
+      fechadoNaoConvertido({ criado_em: "2026-08-01T10:00:00Z", fechado_em: "2026-08-05T10:00:00Z", ...preco }),
+      fechadoNaoConvertido({ criado_em: "2026-08-01T10:00:00Z", fechado_em: "2026-08-01T10:30:00Z", ...jaCliente }),
+    ];
+    expect(cicloNegociacao(lista, "nao_convertido")).toBe(4);
+  });
+
+  it("separa os perdidos dos fechados fora da conversão", () => {
+    const lista = [
+      fechadoConvertido(),
+      fechadoNaoConvertido(preco),
+      fechadoNaoConvertido(),
+      fechadoNaoConvertido(jaCliente),
+      fechadoNaoConvertido(transferido),
+      ticket({ etapa: "novo" }),
+    ];
+    const { perdidos, fora } = separarNaoConvertidos(lista);
+    expect(perdidos).toHaveLength(2);
+    expect(fora.map((t) => t.motivos_nao_conversao?.nome)).toEqual(["Já é cliente da base", "Transferido"]);
   });
 });
 

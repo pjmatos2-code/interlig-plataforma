@@ -920,3 +920,15 @@ O que mudou no código:
 - **Comissão:** nada mudou na conta. A base "equipe" sempre usou só o vínculo direto; ficou escrito em `lib/comissao/base.ts` que o apoio não entra.
 
 O Dashboard do coordenador soma a equipe e o apoio, na meta e no resultado, porque mostra o grupo que ele acompanha. A meta que vale para a comissão é a do cadastro dele em Metas e comissão.
+
+## CRM: motivos fora da conversão e dos perdidos (17/11/2026)
+
+O Paulo pediu dois motivos novos para o "Não convertido": **Já é cliente da base** e **Transferido**. Eles entraram pelo cadastro de motivos (`motivos_nao_conversao`), sem mudança de código. Em seguida ele decidiu que os dois ficam fora da conversão e dos perdidos, porque esses tickets nunca foram oportunidade de venda.
+
+O ticket continua fechando como não convertido, com a descrição obrigatória, para sair da fila. O que muda é a conta:
+- **Conversão:** o ticket não entra como recebido nem como fechado. Vale para a "Conversão real" do CRM, a taxa do Meu painel da agente, a conversão do dia na TV comercial e o selo de melhor conversão do ranking.
+- **Perdidos:** fica fora de "Perdidos no período", da coluna "Não convertido", do filtro "Perdidos" e da planilha de perdidos. Na planilha "Todos os tickets" sai com a situação "Fora da conversão".
+- **Onde aparece:** ao lado dos perdidos, o CRM mostra "Fora da conversão: N" quando existe algum no período. O clique lista esses tickets, para a gestão conferir o uso dos motivos. A busca por cliente também encontra o ticket, com o selo "Não conta".
+- **No ticket:** ao escolher um dos dois motivos, o formulário avisa que ele não conta. O ticket fechado mostra o mesmo aviso.
+
+No código, a regra fica em um lugar só: `MOTIVOS_FORA_DA_CONVERSAO` e `foraDaConversao()` em `lib/indicadores/crm.ts`, com testes. A lista é pelo nome do motivo, como já acontece com "Outra cidade". Para outro motivo deixar de contar, basta incluir o nome nessa lista.

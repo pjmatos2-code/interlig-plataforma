@@ -167,7 +167,9 @@ function CartaoGlass({ t, hoje, podeExcluir = false }: { t: CartaoTicket; hoje: 
           {podeExcluir && <ExcluirTicketMini ticketId={t.id} cliente={t.cliente_nome} />}
         </span>
       </div>
-      <p className="mt-0.5 truncate text-xs text-slate-500">{t.plano ?? "Plano a definir"}</p>
+      <p className="mt-0.5 truncate text-xs text-slate-500">
+        {t.foraDaConversao ? (t.motivo ?? "Fora da conversão") : (t.plano ?? "Plano a definir")}
+      </p>
       <SeloConsulta t={t} />
       <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-600">
         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-interlig-ceu/30 to-interlig-azul/30 text-[9px] font-bold text-interlig-azul">
@@ -182,7 +184,15 @@ function CartaoGlass({ t, hoje, podeExcluir = false }: { t: CartaoTicket; hoje: 
         <span className="text-[11px] text-slate-400">
           ⏱ {t.diasNaEtapa === 0 ? "hoje" : `há ${t.diasNaEtapa}d`}
         </span>
-        {perdida ? (
+        {t.foraDaConversao ? (
+          // já é cliente ou transferido (17/11/2026): não é perdida
+          <span
+            className="whitespace-nowrap rounded-md bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-600"
+            title="Não conta na conversão nem nos perdidos"
+          >
+            ● Não conta
+          </span>
+        ) : perdida ? (
           <span className="rounded-md bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
             ● Perdida
           </span>
@@ -219,6 +229,7 @@ export default async function CrmPage({
     emRisco: searchParams.risco === "1",
     altoValor: searchParams.alto_valor === "1",
     perdidos: searchParams.perdidos === "1",
+    foraDaConversao: searchParams.fora === "1",
     semConsulta: searchParams.sem_consulta === "1",
   };
   const d = await carregarCrm(periodo, usuario, filtros);
@@ -560,7 +571,8 @@ export default async function CrmPage({
             {COLUNAS_TRILHA.map((etapa) => {
               const itens = d.colunas[etapa];
               const total = itens.reduce((s, t) => s + (t.valor ?? 0), 0);
-              const tom = TOM_COLUNA[etapa];
+              // a lista "Fora da conversão" não é de perdidos: tom neutro, não o vermelho
+              const tom = TOM_COLUNA[etapa === "proposta" && filtros.foraDaConversao ? "novo" : etapa];
               return (
                 <div key={etapa} className={cn(vidro, "flex min-w-0 flex-col", tom.borda)}>
                   <div
@@ -572,7 +584,9 @@ export default async function CrmPage({
                     <div className="flex items-center justify-between gap-1">
                       <p className={cn("truncate text-sm font-bold", tom.texto)}>
                         {etapa === "proposta"
-                          ? "Não convertido"
+                          ? filtros.foraDaConversao
+                            ? "Fora da conversão"
+                            : "Não convertido"
                           : d.funilEtapas.find((f) => f.etapa === etapa)?.rotulo}
                       </p>
                       <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-bold tabular-nums text-slate-600">
@@ -825,6 +839,33 @@ export default async function CrmPage({
             <span className={cn(vidro, "px-3.5 py-2 text-sm font-semibold text-rose-600")}>
               🚩 Perdidos no período: {d.perdidosPeriodo}
             </span>
+            {/* já é cliente / transferido (17/11/2026): fora da conversão e dos
+                perdidos; a contagem abre a lista para a gestão conferir */}
+            {(d.foraDaConversaoPeriodo.total > 0 || filtros.foraDaConversao) && (
+              <Link
+                href={comChip("fora")}
+                aria-pressed={Boolean(filtros.foraDaConversao)}
+                title={
+                  [
+                    "Fechados como já cliente da base ou transferido: não contam na conversão nem nos perdidos.",
+                    d.foraDaConversaoPeriodo.porMotivo.map((m) => `${m.motivo}: ${m.quantidade}`).join(" · "),
+                    filtros.foraDaConversao ? "Clique para voltar ao quadro." : "Clique para ver os tickets.",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")
+                }
+                className={cn(
+                  vidro,
+                  "px-3.5 py-2 text-sm font-semibold transition-colors",
+                  filtros.foraDaConversao
+                    ? "border-interlig-azul bg-interlig-azul text-white"
+                    : "text-slate-600 hover:bg-white/80"
+                )}
+              >
+                Fora da conversão: {d.foraDaConversaoPeriodo.total}
+                {filtros.foraDaConversao && " ✕"}
+              </Link>
+            )}
             <span
               className={cn(
                 vidro,

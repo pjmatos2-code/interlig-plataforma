@@ -184,7 +184,7 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
       .lte("data", ultimoDiaDoMes(hoje)),
     admin
       .from("tickets")
-      .select("vendedor_id, etapa, desfecho, criado_em, primeira_tratativa_em, fechado_em, contrato_id, reconciliado_em, atualizado_em")
+      .select("vendedor_id, etapa, desfecho, criado_em, primeira_tratativa_em, fechado_em, contrato_id, reconciliado_em, atualizado_em, motivos_nao_conversao(nome)")
       .eq("etapa", "fechado")
       .gte("fechado_em", `${inicioMes}T00:00:00`)
       .limit(3000),
@@ -326,12 +326,13 @@ export async function carregarRanking(popId: string | null): Promise<DadosRankin
   // melhor conversão real do mês (5.14, mínimo 5 fechados)
   let melhorConversao: Badges["melhorConversao"] = null;
   const ticketsPorVendedora = new Map<string, TicketIndicador[]>();
-  for (const t of (ticketsMes ?? []) as (TicketIndicador & { vendedor_id: string | null })[]) {
+  for (const t of (ticketsMes ?? []) as unknown as (TicketIndicador & { vendedor_id: string | null })[]) {
     if (!t.vendedor_id || !idsEscopo.has(t.vendedor_id)) continue;
     if (!ticketsPorVendedora.has(t.vendedor_id)) ticketsPorVendedora.set(t.vendedor_id, []);
     ticketsPorVendedora.get(t.vendedor_id)!.push(t);
   }
   for (const v of vendedoras) {
+    // conversaoReal já deixa de fora os fechados como já é cliente ou transferido
     const r = conversaoReal(ticketsPorVendedora.get(v.id) ?? []);
     if (r.fechados < 5 || r.taxa === null) continue;
     if (!melhorConversao || r.taxa > melhorConversao.taxa)

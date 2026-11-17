@@ -1,6 +1,7 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { vendasDoPeriodo, type ContratoIndicador } from "@/lib/indicadores/regras";
+import { foraDaConversao } from "@/lib/indicadores/crm";
 import { carregarRanking } from "@/lib/ranking/dados";
 
 /**
@@ -96,7 +97,7 @@ export async function carregarTvComercial(opcoes: { mes?: string } = {}): Promis
         .limit(5000),
       admin
         .from("tickets")
-        .select("etapa")
+        .select("etapa, desfecho, motivos_nao_conversao(nome)")
         .gte("criado_em", `${hoje}T00:00:00-03:00`)
         .limit(3000),
     ]);
@@ -171,7 +172,14 @@ export async function carregarTvComercial(opcoes: { mes?: string } = {}): Promis
   }
 
   // ---------- funil do dia ----------
-  const tk = ticketsHoje ?? [];
+  // fechado como já é cliente da base ou transferido não é lead (17/11/2026)
+  const tk = (
+    (ticketsHoje ?? []) as unknown as {
+      etapa: string;
+      desfecho: "convertido" | "nao_convertido" | null;
+      motivos_nao_conversao: { nome: string } | null;
+    }[]
+  ).filter((t) => !foraDaConversao(t));
   const funil = {
     // leads = tickets criados hoje
     leads: tk.length,

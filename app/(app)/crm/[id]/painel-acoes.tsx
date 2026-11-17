@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, PlusCircle, Trash2, XCircle } from "lucide-react";
 import { ROTULO_ETAPA, ROTULO_ORIGEM, type CategoriaOrigem, type EtapaTicket } from "@/lib/tipos";
+import { motivoForaDaConversao } from "@/lib/indicadores/crm";
 
 const inicial: EstadoAcao = {};
 const ETAPAS: EtapaTicket[] = ["novo", "em_atendimento", "aguardando"];
@@ -150,6 +151,8 @@ export function FormularioFechamento({
   const [motivoSel, setMotivoSel] = useState("");
   // "Outra cidade": a cidade é obrigatória — mede a demanda por expansão da rede
   const ehOutraCidade = motivos.find((m) => m.id === motivoSel)?.nome === "Outra cidade";
+  // "Já é cliente da base" e "Transferido" (17/11/2026): não foi oportunidade de venda
+  const motivoNaoConta = motivoForaDaConversao(motivos.find((m) => m.id === motivoSel)?.nome);
   // política de crédito (fase monitoramento): fechar Vendida com adiantamento
   // pendente mostra uma confirmação simples — NUNCA bloqueia o prosseguimento
   const [confirmarCredito, setConfirmarCredito] = useState(false);
@@ -331,6 +334,11 @@ export function FormularioFechamento({
                 </option>
               ))}
             </select>
+            {motivoNaoConta && (
+              <p className="text-xs text-muted-foreground">
+                Este motivo não conta na conversão nem entra nos perdidos.
+              </p>
+            )}
           </div>
           {ehOutraCidade && (
             <div className="space-y-1.5">

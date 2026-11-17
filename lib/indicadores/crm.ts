@@ -13,6 +13,8 @@ export type TicketIndicador = {
   contrato_id: string | null;
   reconciliado_em: string | null;
   atualizado_em: string;
+  /** motivo do não convertido, quando a consulta traz o nome (motivos_nao_conversao(nome)) */
+  motivos_nao_conversao?: { nome: string } | null;
 };
 
 /** Parâmetros do CRM (PRD 3.10) — padrões; sobrescritos por env no runtime. */
@@ -36,16 +38,61 @@ const horas = (deIso: string, ateIso: string) =>
   (Date.parse(ateIso) - Date.parse(deIso)) / 3_600_000;
 
 /**
+ * Motivos fora da conversão (decisão do gestor, 17/11/2026): quem já é
+ * cliente da base ou foi transferido nunca foi uma oportunidade de venda. O
+ * ticket fecha como não convertido para sair da fila, mas:
+ *  - não entra na conversão, nem como recebido nem como fechado;
+ *  - não é perdido: fica fora da contagem e da planilha do contato posterior.
+ * A lista é pelo NOME do motivo, como já acontece com "Outra cidade": os
+ * motivos são cadastro da Administração, que cria e desativa, mas não renomeia.
+ */
+export const MOTIVOS_FORA_DA_CONVERSAO = ["Já é cliente da base", "Transferido"] as const;
+
+const semAcento = (texto: string) =>
+  texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+const FORA_DA_CONVERSAO = new Set(MOTIVOS_FORA_DA_CONVERSAO.map(semAcento));
+
+export function motivoForaDaConversao(nome: string | null | undefined): boolean {
+  return !!nome && FORA_DA_CONVERSAO.has(semAcento(nome));
+}
+
+/** Ticket fechado como não convertido por um motivo que não conta. */
+export function foraDaConversao(
+  ticket: Pick<TicketIndicador, "etapa" | "desfecho" | "motivos_nao_conversao">
+): boolean {
+  return (
+    ticket.etapa === "fechado" &&
+    ticket.desfecho === "nao_convertido" &&
+    motivoForaDaConversao(ticket.motivos_nao_conversao?.nome)
+  );
+}
+
+/**
+ * Não convertidos fechados, separados: os perdidos (contam e vão para a
+ * planilha do contato posterior) e os fechados por motivo fora da conversão.
+ */
+export function separarNaoConvertidos<
+  T extends Pick<TicketIndicador, "etapa" | "desfecho" | "motivos_nao_conversao">,
+>(tickets: T[]): { perdidos: T[]; fora: T[] } {
+  const naoConvertidos = tickets.filter((t) => t.etapa === "fechado" && t.desfecho === "nao_convertido");
+  return {
+    perdidos: naoConvertidos.filter((t) => !foraDaConversao(t)),
+    fora: naoConvertidos.filter(foraDaConversao),
+  };
+}
+
+/**
  * 5.14 — taxa de conversão real: fechados como convertidos ÷ fechados no
  * conjunto. Fechados por inatividade já vêm como não convertidos e contam no
- * denominador — é isso que torna o número auditável.
+ * denominador — é isso que torna o número auditável. Os fechados por motivo
+ * fora da conversão (já é cliente, transferido) não entram na conta.
  */
 export function conversaoReal(tickets: TicketIndicador[]): {
   taxa: number | null;
   fechados: number;
   convertidos: number;
 } {
-  const fechados = tickets.filter((t) => t.etapa === "fechado");
+  const fechados = tickets.filter((t) => t.etapa === "fechado" && !foraDaConversao(t));
   const convertidos = fechados.filter((t) => t.desfecho === "convertido").length;
   return {
     taxa: fechados.length === 0 ? null : convertidos / fechados.length,
@@ -63,13 +110,16 @@ export function tempoPrimeiraTratativa(tickets: TicketIndicador[]): number | nul
   return mediana(minutos);
 }
 
-/** 5.16 — mediana de (fechamento − criação), em dias, por desfecho. */
+/**
+ * 5.16 — mediana de (fechamento − criação), em dias, por desfecho. Fechado por
+ * motivo fora da conversão não foi negociação e não entra.
+ */
 export function cicloNegociacao(
   tickets: TicketIndicador[],
   desfecho: "convertido" | "nao_convertido"
 ): number | null {
   const diasLista = tickets
-    .filter((t) => t.etapa === "fechado" && t.desfecho === desfecho && t.fechado_em)
+    .filter((t) => t.etapa === "fechado" && t.desfecho === desfecho && t.fechado_em && !foraDaConversao(t))
     .map((t) => horas(t.criado_em, t.fechado_em!) / 24);
   return mediana(diasLista);
 }

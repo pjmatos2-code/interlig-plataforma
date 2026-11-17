@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { exigirUsuario } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { ehAgenteCrm, ROTULO_ORIGEM, type CategoriaOrigem, type Perfil } from "@/lib/tipos";
+import { foraDaConversao } from "@/lib/indicadores/crm";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,10 @@ export const dynamic = "force-dynamic";
  *
  * Datas: abertos/todos filtram pela CRIAÇÃO do ticket; vendidas e perdidas,
  * pela data de FECHAMENTO (é a régua do contato posterior).
+ *
+ * Fechado como "Já é cliente da base" ou "Transferido" não é perdido
+ * (17/11/2026): fica fora da planilha de perdidas e, em "todos", sai com a
+ * situação "Fora da conversão".
  */
 const ETAPA_ROTULO: Record<string, string> = {
   pre_cadastro: "Pré-Cadastro",
@@ -76,11 +81,13 @@ export async function GET(req: Request) {
   if (vendedor) q = q.eq("vendedor_id", vendedor);
   q = q.order("criado_em", { ascending: false });
 
-  const { data: tickets, error } = await q;
+  const { data: lidos, error } = await q;
   if (error) return NextResponse.json({ erro: error.message }, { status: 500 });
+  type Lido = { id: string; etapa: string; desfecho: "convertido" | "nao_convertido" | null; motivos_nao_conversao: { nome: string } | null };
+  const tickets = ((lidos ?? []) as unknown as Lido[]).filter((t) => situacao !== "nao_convertido" || !foraDaConversao(t));
 
   // observação do fechamento (fica no histórico do ticket como nota)
-  const ids = (tickets ?? []).map((t) => (t as { id: string }).id);
+  const ids = tickets.map((t) => t.id);
   const obsPorTicket = new Map<string, string>();
   for (let i = 0; i < ids.length; i += 200) {
     const { data: evs } = await supabase
@@ -121,13 +128,15 @@ export async function GET(req: Request) {
     motivos_nao_conversao: { nome: string } | null;
     planos: { nome: string } | null;
   };
-  const linhas = ((tickets ?? []) as unknown as Linha[]).map((t) => {
+  const linhas = (tickets as unknown as Linha[]).map((t) => {
     const fechado = t.etapa === "fechado";
     const situacaoTexto = !fechado
       ? "Em aberto"
       : t.desfecho === "convertido"
         ? "Vendida"
-        : "Perdida";
+        : foraDaConversao(t as unknown as Lido)
+          ? "Fora da conversão"
+          : "Perdida";
     const etapaTexto = fechado
       ? t.desfecho === "convertido"
         ? "Contrato assinado"

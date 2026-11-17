@@ -4,7 +4,7 @@ import { exigirUsuario } from "@/lib/auth";
 import { carregarTicket } from "@/lib/crm/dados";
 import { templateLinkSgp } from "@/lib/sgp/links-server";
 import { aplicarLinkSgp } from "@/lib/sgp/links";
-import { podeReabrir } from "@/lib/indicadores/crm";
+import { motivoForaDaConversao, podeReabrir } from "@/lib/indicadores/crm";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { Badge } from "@/components/ui/badge";
@@ -640,6 +640,9 @@ export default async function TicketPage({ params }: { params: { id: string } })
                 ) : (
                   <>
                     <p className="pt-1"><span className="text-muted-foreground">Motivo:</span> {t.motivo ?? "—"}</p>
+                    {motivoForaDaConversao(t.motivo) && (
+                      <p className="text-xs text-muted-foreground">Não conta na conversão nem nos perdidos.</p>
+                    )}
                     {detalheFechamento && (
                       <p><span className="text-muted-foreground">Descrição:</span> {detalheFechamento}</p>
                     )}

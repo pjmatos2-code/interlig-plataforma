@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { exigirUsuario } from "@/lib/auth";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { ehAgenteCrm, ROTULO_ORIGEM, type CategoriaOrigem, type Perfil } from "@/lib/tipos";
+import { motivoForaDaConversao } from "@/lib/indicadores/crm";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
  * Exportação dos perdidos (24/09/2026): planilha CSV com tudo que a equipe
  * precisa para o contato posterior. Abre direto no Excel (BOM + ponto e
  * vírgula). A RLS recorta pelo perfil: gestor tudo, coordenador o time/POP.
+ * Fechado como "Já é cliente da base" ou "Transferido" não é perdido e fica
+ * fora (17/11/2026).
  */
 export async function GET(req: Request) {
   const usuario = await exigirUsuario();
@@ -73,7 +76,9 @@ export async function GET(req: Request) {
     motivos_nao_conversao: { nome: string } | null;
     planos: { nome: string } | null;
   };
-  const linhas = ((tickets ?? []) as unknown as Linha[]).map((t) =>
+  const linhas = ((tickets ?? []) as unknown as Linha[])
+    .filter((t) => !motivoForaDaConversao(t.motivos_nao_conversao?.nome))
+    .map((t) =>
     [
       campo(t.cliente_nome),
       campo(t.telefone),
