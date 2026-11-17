@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { AlertTriangle, Building2, ExternalLink, Headset, MessageCircle, PieChart, PhoneOff, Wallet } from "lucide-react";
-import { exigirPerfil } from "@/lib/auth";
+import { exigirPerfilAtendimento } from "@/lib/auth";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { templateLinkSgp } from "@/lib/sgp/links-server";
@@ -46,7 +46,7 @@ const pctTxt = (a: number, b: number) => (b > 0 ? `${Math.round((100 * a) / b)}%
  * públicos ficam fora; CNPJ e planos corporativos têm filtro próprio.
  */
 export default async function PrevencaoPage({ searchParams }: { searchParams: Busca }) {
-  const usuario = await exigirPerfil(["gestor", "direcao", "agente_retencao", "agente_atendimento", "supervisor"]);
+  const usuario = await exigirPerfilAtendimento(["gestor", "direcao", "agente_retencao", "agente_atendimento", "supervisor"]);
   const podeOperar = PERFIS_OPERAM.includes(usuario.perfil);
 
   // coordenação de unidade (Brasil Novo, Vitória do Xingu) vê só a própria base

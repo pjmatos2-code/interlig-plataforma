@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import ExcelJS from "exceljs";
-import { exigirUsuario } from "@/lib/auth";
+import { comoAtendimento, exigirUsuario } from "@/lib/auth";
 import {
   FAIXAS_FIDELIDADE,
   UNIDADES_FIDELIDADE,
@@ -36,7 +36,7 @@ const slug = (t: string) =>
     .replace(/^-|-$/g, "");
 
 export async function GET(req: Request) {
-  const usuario = await exigirUsuario();
+  const usuario = await comoAtendimento(await exigirUsuario());
   const escopo = await escopoFidelidade(usuario);
   if (!escopo) return NextResponse.json({ erro: "Sem permissão." }, { status: 403 });
 

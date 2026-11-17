@@ -16,6 +16,7 @@ import {
 } from "@/lib/indicadores/regras";
 import { hojeIso, primeiroDiaDoMes, ultimoDiaDoMes, somarDias, mesAtras, type Periodo } from "@/lib/datas";
 import type { CategoriaOrigem, Usuario } from "@/lib/tipos";
+import { AGENTES_SETOR, refidelizaPeloLogin } from "@/lib/refidelizacao/agentes";
 
 type ContratoVend = ContratoIndicador & {
   vendedor_id: string | null;
@@ -37,6 +38,11 @@ export type LinhaVendedora = {
   tendencia: "sobe" | "desce" | "estavel";
   /** vendidas do período SEM a consulta Consult Center (disciplina 01/10) */
   semConsulta: number;
+  /**
+   * Só para quem vende no comercial e também refideliza (17/11/2026): os
+   * planos refidelizados válidos no mês corrente, ao lado das vendas.
+   */
+  refidelizacao?: { planos: number; meta: number } | null;
 };
 
 /** Contexto de dias úteis do mês corrente, compartilhado pelos cálculos. */
@@ -81,12 +87,15 @@ export async function listaVendedoras(
   const ehCoord = usuario.perfil === "supervisor";
   let consultaVend = supabase
     .from("vendedores")
-    .select("id, nome, pop_id, setor, pops(nome)")
+    .select("id, nome, pop_id, setor, sgp_login, pops(nome)")
     .eq("ativo", true)
     .order("nome");
   // sem filtro, o painel mostra TODOS os setores — inclusive refidelização,
-  // que tem métrica própria (planos, não vendas)
-  if (setorFiltro) consultaVend = consultaVend.eq("setor", setorFiltro);
+  // que tem métrica própria (planos, não vendas). O filtro de refidelização
+  // traz também quem é do comercial e ainda refideliza (17/11/2026).
+  if (setorFiltro === "atendimento")
+    consultaVend = consultaVend.or(`setor.eq.atendimento,sgp_login.in.(${AGENTES_SETOR.join(",")})`);
+  else if (setorFiltro) consultaVend = consultaVend.eq("setor", setorFiltro);
   if (ehCoord) {
     // coordenador de TIME (Marcelo/Rayssa): só as vendedoras do time, em
     // qualquer cidade; coordenador de UNIDADE: as agentes do POP dele
@@ -137,20 +146,20 @@ export async function listaVendedoras(
 
   // Atendimento não vende: o "resultado" delas são os planos refidelizados.
   // Sem isso elas apareceriam zeradas ao lado das vendedoras, o que é pior do
-  // que não aparecer.
-  const temAtendimento = (vendedoras ?? []).some((v) => v.setor === "atendimento");
+  // que não aparecer. Desde 17/11/2026 também refideliza quem é do comercial
+  // e tem o login na lista da refidelização: essa pessoa aparece pelas vendas,
+  // com os planos anotados ao lado.
+  const refidelizam = (vendedoras ?? []).filter(
+    (v) => v.setor === "atendimento" || refidelizaPeloLogin(v.sgp_login as string | null)
+  );
   const refidPorAgente = new Map<
     string,
     { planos: number; vtv: number; meta: number; porDia: Map<string, number> }
   >();
-  if (temAtendimento) {
+  if (refidelizam.length > 0) {
     const { refidelizacaoDoMes, META_REFIDELIZACAO } = await import("@/lib/refidelizacao/dados");
-    const { data: logins } = await supabase
-      .from("vendedores")
-      .select("id, sgp_login")
-      .eq("setor", "atendimento");
     const porLogin = new Map(
-      (logins ?? [])
+      refidelizam
         .filter((v) => v.sgp_login)
         .map((v) => [String(v.sgp_login).toLowerCase(), v.id as string])
     );
@@ -182,7 +191,10 @@ export async function listaVendedoras(
 
   const linhas = (vendedoras ?? []).map((v) => {
     const refid = refidPorAgente.get(v.id);
-    if (refid) {
+    // a linha mostra planos refidelizados para o setor de Atendimento e, no
+    // filtro de refidelização, também para quem vende e refideliza; fora
+    // dele, essa pessoa aparece pelas vendas, com os planos anotados ao lado
+    if (refid && (v.setor === "atendimento" || setorFiltro === "atendimento")) {
       const popRelR = v.pops as unknown as { nome: string } | null;
       const noIntervalo = (de: string, ate: string) =>
         [...refid.porDia.entries()]
@@ -252,6 +264,7 @@ export async function listaVendedoras(
       farol,
       tendencia: tendencia(ult7, ant7),
       semConsulta: semConsultaPor.get(v.id) ?? 0,
+      refidelizacao: refid ? { planos: refid.planos, meta: refid.meta } : null,
     };
   });
 

@@ -1,5 +1,5 @@
 import { ExternalLink } from "lucide-react";
-import { exigirPerfil } from "@/lib/auth";
+import { exigirPerfilAtendimento } from "@/lib/auth";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import {
   FAIXAS_FIDELIDADE,
@@ -38,7 +38,7 @@ export default async function FidelidadePage({
 }: {
   searchParams: { unidade?: string; faixa?: string };
 }) {
-  const usuario = await exigirPerfil(["gestor", "direcao", "agente_atendimento", "supervisor"]);
+  const usuario = await exigirPerfilAtendimento(["gestor", "direcao", "agente_atendimento", "supervisor"]);
   const [resumo, { data: cfg }, { data: pops }] = await Promise.all([
     lerResumoFidelidade(),
     criarClienteAdmin().from("integracoes_config").select("config").eq("sistema", "sgp").maybeSingle(),

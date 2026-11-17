@@ -1,6 +1,12 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
-import { vendasDoPeriodo, type ContratoIndicador } from "@/lib/indicadores/regras";
+import {
+  ativacoesPendentes,
+  pendentesAssinatura,
+  receitaContratada,
+  vendasDoPeriodo,
+  type ContratoIndicador,
+} from "@/lib/indicadores/regras";
 import { foraDaConversao } from "@/lib/indicadores/crm";
 import type { AgentePainel } from "@/lib/comissao/painel";
 import { hojeIso, primeiroDiaDoMes, ultimoDiaDoMes } from "@/lib/datas";
@@ -22,6 +28,13 @@ export type ExtrasAgente = {
   metaDiaMes: number | null;
   mix: { plano: string; quantidade: number }[];
   ticketMedio: number;
+  /**
+   * Só para quem NÃO tem cartão de comissão no mês (sem meta ou sem regra —
+   * agente nova ou em migração para o comercial, 17/11/2026). As vendas dela
+   * vêm direto dos contratos, pela régua 5.1, com as pendências das réguas
+   * 5.8 (assinatura) e 5.7 (ativação). Com cartão, é null: vale o cartão.
+   */
+  semCartao: { vendas: number; receita: number; semAssinatura: number; aguardandoAtivacao: number } | null;
 };
 
 /** "FIBRA 400MB | PÓS PAGO" → "Fibra 400MB" (o sufixo de cobrança não ajuda a ler) */
@@ -43,7 +56,7 @@ export async function carregarExtrasAgente(
   const mesAtual = primeiroDiaDoMes(hoje);
   const limiteParado = new Date(Date.now() - 48 * 3600_000).toISOString();
 
-  const [{ data: abertos }, { data: ticketsMes }, { data: cal }, { data: calAtual }, { data: anteriores }, { data: vendasRecentes }, { data: metaAtual }] =
+  const [{ data: abertos }, { data: ticketsMes }, { data: cal }, { data: calAtual }, { data: anteriores }, { data: vendasRecentes }, { data: metaAtual }, { data: contratosDoMes }] =
     await Promise.all([
       admin.from("tickets").select("atualizado_em").eq("vendedor_id", vendedorId).neq("etapa", "fechado").limit(2000),
       admin
@@ -71,7 +84,34 @@ export async function carregarExtrasAgente(
         .eq("referencia_id", vendedorId)
         .eq("mes_ano", mesAtual)
         .maybeSingle(),
+      // sem cartão de comissão, as vendas do mês saem daqui (ver ExtrasAgente.semCartao)
+      agente
+        ? Promise.resolve({ data: null })
+        : admin
+            .from("contratos")
+            .select(
+              "id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, assinatura_dispensada, valor_mensalidade, planos(nome)"
+            )
+            .eq("vendedor_id", vendedorId)
+            .gte("data_venda", mes)
+            .lte("data_venda", fim)
+            .limit(2000),
     ]);
+
+  // Quem não tem meta ou regra no mês não tem cartão de comissão, e era dele
+  // que saíam as vendas do mês: a agente via zero mesmo tendo vendido. Aqui as
+  // vendas vêm dos contratos, pela mesma régua do ranking (5.1).
+  type VendaSemCartao = ContratoIndicador & { id: string; planos: { nome: string } | null };
+  const vendasSemCartao = agente
+    ? null
+    : (vendasDoPeriodo(
+        ((contratosDoMes ?? []) as unknown as VendaSemCartao[]).map((c) => ({
+          ...c,
+          valor_mensalidade: Number(c.valor_mensalidade ?? 0),
+        })),
+        mes,
+        fim < hoje ? fim : hoje
+      ) as VendaSemCartao[]);
 
   // ---------- CRM agora ----------
   const crm = {
@@ -106,7 +146,9 @@ export async function carregarExtrasAgente(
   };
   const tk = ((ticketsMes ?? []) as unknown as TicketFunil[]).filter((t) => !foraDaConversao(t));
   const assinadosTk = tk.filter((t) => t.etapa === "fechado" && t.desfecho === "convertido");
-  const validas = (agente?.contratos ?? []).filter((c) => c.situacao !== "nao_conta" && c.situacao !== "estornada");
+  const validas: { id: string; plano: string | null; valor: number }[] = vendasSemCartao
+    ? vendasSemCartao.map((c) => ({ id: c.id, plano: c.planos?.nome ?? null, valor: c.valor_mensalidade }))
+    : (agente?.contratos ?? []).filter((c) => c.situacao !== "nao_conta" && c.situacao !== "estornada");
   const contratosComConversa = new Set(assinadosTk.map((t) => t.contrato_id).filter(Boolean));
   const funil = {
     leads: tk.length,
@@ -123,6 +165,7 @@ export async function carregarExtrasAgente(
     if (c.situacao === "nao_conta") continue;
     porDia.set(c.dataVenda, (porDia.get(c.dataVenda) ?? 0) + 1);
   }
+  for (const c of vendasSemCartao ?? []) porDia.set(c.data_venda, (porDia.get(c.data_venda) ?? 0) + 1);
   const diasCal = (cal ?? []) as { data: string; dia_util: boolean }[];
   const uteisMes = diasCal.filter((d) => d.dia_util).length;
 
@@ -144,5 +187,13 @@ export async function carregarExtrasAgente(
     metaDiaMes: agente && uteisMes > 0 ? agente.metaFinal / uteisMes : null,
     mix,
     ticketMedio: validas.length ? validas.reduce((s, c) => s + c.valor, 0) / validas.length : 0,
+    semCartao: vendasSemCartao
+      ? {
+          vendas: vendasSemCartao.length,
+          receita: receitaContratada(vendasSemCartao),
+          semAssinatura: pendentesAssinatura(vendasSemCartao, hoje).length,
+          aguardandoAtivacao: ativacoesPendentes(vendasSemCartao, hoje).length,
+        }
+      : null,
   };
 }

@@ -92,12 +92,19 @@ export default async function VendedorasPage({
                           fotoUrl={fotoPor.get(l.id) ?? null}
                           podeEditar
                         />
-                        <Link
-                          href={`/vendedoras/${l.id}`}
-                          className="font-medium text-primary hover:underline"
-                        >
-                          {l.nome}
-                        </Link>
+                        <span className="min-w-0">
+                          <Link
+                            href={`/vendedoras/${l.id}`}
+                            className="font-medium text-primary hover:underline"
+                          >
+                            {l.nome}
+                          </Link>
+                          {l.refidelizacao && (
+                            <span className="block whitespace-nowrap text-[11px] text-muted-foreground">
+                              também refideliza: {formatarNumero(l.refidelizacao.planos)} de {l.refidelizacao.meta} planos no mês
+                            </span>
+                          )}
+                        </span>
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground">

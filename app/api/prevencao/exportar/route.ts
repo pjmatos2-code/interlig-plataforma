@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import ExcelJS from "exceljs";
-import { exigirUsuario } from "@/lib/auth";
+import { comoAtendimento, exigirUsuario } from "@/lib/auth";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { FORA_DA_BASE, filaDebito, filaInsatisfacao, pedidosCancelamento, ROTULO_RESULTADO, type UltimoContato } from "@/lib/prevencao/dados";
 import { cancelamentosPeriodo, indicadoresPorContrato } from "@/lib/prevencao/exportar";
@@ -52,7 +52,7 @@ function aba(wb: ExcelJS.Workbook, nome: string, colunas: Coluna[], linhas: Reco
 }
 
 export async function GET(req: Request) {
-  const usuario = await exigirUsuario();
+  const usuario = await comoAtendimento(await exigirUsuario());
   if (!["gestor", "direcao", "agente_retencao", "agente_atendimento", "supervisor"].includes(usuario.perfil))
     return NextResponse.json({ erro: "Sem permissão." }, { status: 403 });
 

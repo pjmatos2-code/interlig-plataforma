@@ -229,15 +229,20 @@ export async function montarSnapshotsRefidelizacao(
   const fechadoEm = new Date().toISOString();
   const saida = new Map<string, SnapshotComissao>();
 
+  // O cadastro é achado pelo login que assinou os aditivos, em qualquer setor
+  // (17/11/2026): quem passou a vender no comercial e segue refidelizando tem
+  // o setor "comercial interno" e continua recebendo pela refidelização. Com o
+  // filtro por setor que havia aqui, ela sairia do fechamento sem aviso.
   const { data: agentes } = await admin
     .from("vendedores")
-    .select("id, nome, sgp_login, pops(nome)")
-    .eq("setor", "atendimento");
+    .select("id, nome, sgp_login, ativo, pops(nome)")
+    .not("sgp_login", "is", null);
 
   for (const a of dados.agentes) {
-    const cadastro = (agentes ?? []).find(
+    const doLogin = (agentes ?? []).filter(
       (v) => String(v.sgp_login ?? "").toLowerCase() === a.agente
     );
+    const cadastro = doLogin.find((v) => v.ativo) ?? doLogin[0];
     if (!cadastro) continue; // sem cadastro não há a quem pagar
 
     const linhas: ContratoSnapshot[] = a.linhas

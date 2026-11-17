@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lerVinculos, vinculosAtuais } from "./coordenacao-vinculos";
+import { lerVinculos, timeQueValeNoMes, vinculosAtuais } from "./coordenacao-vinculos";
 
 const JESSICA = "0ef435b9-0000-4000-8000-000000000001";
 const AMANDA = "43c54e9c-0000-4000-8000-000000000002";
@@ -66,5 +66,34 @@ describe("vínculos atuais de um coordenador", () => {
 
   it("se a agente estiver nos dois, vale a equipe", () => {
     expect(vinculosAtuais(MARCELO, agentes, [JESSICA])[JESSICA]).toBe("equipe");
+  });
+});
+
+describe("time que vale no mês para o coordenador", () => {
+  const TALIA = "c0ffee00-0000-4000-8000-000000000005";
+  const TIME = [JESSICA, AMANDA, DAMELY, KAROLINE];
+
+  it("com todo mundo de meta no mês, vale o time inteiro", () => {
+    expect(timeQueValeNoMes(TIME, TIME, TIME)).toEqual(TIME);
+  });
+
+  it("quem já teve meta e está sem meta no mês (férias, desligamento) sai", () => {
+    expect(timeQueValeNoMes(TIME, [JESSICA, DAMELY, KAROLINE], TIME)).toEqual([JESSICA, DAMELY, KAROLINE]);
+  });
+
+  it("quem nunca teve meta (nova ou em migração para o comercial) fica no resultado", () => {
+    const comTalia = [...TIME, TALIA];
+    expect(timeQueValeNoMes(comTalia, TIME, TIME)).toEqual(comTalia);
+    // e a regra das férias continua valendo para as outras
+    expect(timeQueValeNoMes(comTalia, [JESSICA, DAMELY, KAROLINE], TIME)).toEqual([JESSICA, DAMELY, KAROLINE, TALIA]);
+  });
+
+  it("no mês em que ela ganhar meta e depois ficar sem, passa a sair como as demais", () => {
+    const comTalia = [...TIME, TALIA];
+    expect(timeQueValeNoMes(comTalia, TIME, comTalia)).toEqual(TIME);
+  });
+
+  it("se ninguém do time tem meta no mês, vale o time inteiro", () => {
+    expect(timeQueValeNoMes(TIME, [], TIME)).toEqual(TIME);
   });
 });

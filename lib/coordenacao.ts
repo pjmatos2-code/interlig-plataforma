@@ -1,5 +1,6 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
+import { timeQueValeNoMes } from "@/lib/coordenacao-vinculos";
 
 /**
  * Time do coordenador (23/09/2026): vendedoras ATIVAS que o usuário
@@ -32,17 +33,25 @@ export async function timeDoCoordenador(usuarioId: string): Promise<string[] | n
  * Time que vale no mês (20/10/2026): só quem tem meta de vendedora
  * cadastrada naquele mês — férias e desligamentos ficam sem meta e saem da
  * meta E do resultado do coordenador (ex.: out/2026, Marcelo = só Jessica).
- * Se ninguém do time tiver meta no mês, vale o time inteiro.
+ * Quem nunca teve meta de venda (nova ou em migração, 17/11/2026) fica no
+ * resultado. Se ninguém do time tiver meta no mês, vale o time inteiro.
+ * A regra está em timeQueValeNoMes (lib/coordenacao-vinculos.ts).
  */
 export async function timeComMetaNoMes(ids: string[], mesIso: string): Promise<string[]> {
+  // todas as metas do time, de qualquer mês: a regra separa quem está sem meta
+  // AGORA (férias, desligamento) de quem nunca teve (nova ou em migração)
   const { data } = await criarClienteAdmin()
     .from("metas")
-    .select("referencia_id")
+    .select("referencia_id, mes_ano")
     .eq("escopo", "vendedora")
-    .eq("mes_ano", mesIso)
-    .in("referencia_id", ids);
-  const comMeta = new Set((data ?? []).map((m) => m.referencia_id as string));
-  return comMeta.size > 0 ? ids.filter((id) => comMeta.has(id)) : ids;
+    .in("referencia_id", ids)
+    .limit(5000);
+  const metas = data ?? [];
+  return timeQueValeNoMes(
+    ids,
+    metas.filter((m) => String(m.mes_ano).slice(0, 10) === mesIso.slice(0, 10)).map((m) => m.referencia_id as string),
+    metas.map((m) => m.referencia_id as string)
+  );
 }
 
 /**

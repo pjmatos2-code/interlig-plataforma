@@ -79,6 +79,24 @@ export async function fecharComissoes(mesAno: string): Promise<EstadoFechamento>
     montarSnapshotsRetencao(mesAno, usuario.nome ?? null),
     montarSnapshotGerencia(mesAno, usuario.nome ?? null),
   ]);
+  // um demonstrativo por pessoa por mês: quem tiver duas comissões na mesma
+  // competência (vende e refideliza) não pode ter uma apagando a outra
+  const { pessoasEmMaisDeUmaApuracao } = await import("@/lib/comissao/fechamento");
+  const repetidas = pessoasEmMaisDeUmaApuracao([
+    { tipo: "venda", ids: vendas.keys() },
+    { tipo: "refidelização", ids: refidelizacao.keys() },
+    { tipo: "retenção", ids: retencao.keys() },
+    { tipo: "gerência", ids: gerencia.keys() },
+  ]);
+  if (repetidas.length > 0) {
+    const nomes = repetidas
+      .map((r) => `${vendas.get(r.id)?.vendedora ?? refidelizacao.get(r.id)?.vendedora ?? retencao.get(r.id)?.vendedora ?? "agente"} (${r.tipos.join(" e ")})`)
+      .join(", ");
+    return {
+      erro: `Fechamento não gravado: ${nomes} tem mais de uma comissão neste mês, e o fechamento guarda um demonstrativo por pessoa. Nada foi alterado.`,
+    };
+  }
+
   // Atendimento, Retenção e o override da Gerência entram no mesmo fechamento:
   // o financeiro recebe todo mundo na mesma competência (gerência = etapa 3,
   // derivada dos resultados já validados)

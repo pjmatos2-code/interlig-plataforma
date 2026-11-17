@@ -44,6 +44,21 @@ export function navDoPerfil(perfil: Perfil): ItemNav[] {
   return ITENS_NAV.filter((item) => item.perfis.includes(perfil));
 }
 
+/** Telas do Atendimento que a vendedora que ainda refideliza mantém (17/11/2026). */
+export const TELAS_DE_QUEM_REFIDELIZA = ["/fidelidade", "/prevencao"];
+
+/**
+ * Menu da pessoa: o do perfil, mais as telas do Atendimento para quem vende e
+ * ainda refideliza — na posição em que elas aparecem para o Atendimento.
+ */
+export function navDoUsuario(perfil: Perfil, opcoes: { tambemRefideliza?: boolean } = {}): ItemNav[] {
+  return ITENS_NAV.filter(
+    (item) =>
+      item.perfis.includes(perfil) ||
+      (opcoes.tambemRefideliza === true && TELAS_DE_QUEM_REFIDELIZA.includes(item.href))
+  );
+}
+
 export function podeAcessar(perfil: Perfil, caminho: string): boolean {
   const item = ITENS_NAV.find((i) => caminho.startsWith(i.href));
   return item ? item.perfis.includes(perfil) : true;

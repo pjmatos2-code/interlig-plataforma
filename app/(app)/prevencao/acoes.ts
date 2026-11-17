@@ -1,14 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { exigirUsuario } from "@/lib/auth";
+import { comoAtendimento, exigirUsuario } from "@/lib/auth";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { PERFIS_OPERAM, RESULTADOS } from "@/lib/prevencao/resultados";
 
 export type Resultado = { erro?: string; ok?: string };
 
 export async function registrarContato(_e: Resultado, dados: FormData): Promise<Resultado> {
-  const usuario = await exigirUsuario();
+  const usuario = await comoAtendimento(await exigirUsuario());
   if (!PERFIS_OPERAM.includes(usuario.perfil)) return { erro: "Sem permissão." };
   const contrato = String(dados.get("sgp_contrato_id") ?? "").trim();
   const fila = String(dados.get("fila") ?? "") as "debito" | "insatisfacao";

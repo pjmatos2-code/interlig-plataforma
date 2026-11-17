@@ -17,7 +17,9 @@ import { primeiroDiaDoMes, ultimoDiaDoMes, hojeIso } from "@/lib/datas";
  */
 
 export { META_REFIDELIZACAO, FAIXAS_REFIDELIZACAO, faixaDe } from "./regras";
+export { AGENTES_SETOR } from "./agentes";
 import { META_REFIDELIZACAO, faixaDe } from "./regras";
+import { AGENTES_SETOR } from "./agentes";
 
 export type AditivoLinha = {
   id: string;
@@ -70,8 +72,6 @@ export type RefidelizacaoMes = {
 /** valor que vale para a comissão: o ajuste manual tem precedência */
 const valorDe = (a: { valor_mensal: number; valor_mensal_ajustado: number | null }) =>
   a.valor_mensal_ajustado !== null ? Number(a.valor_mensal_ajustado) : Number(a.valor_mensal ?? 0);
-
-export const AGENTES_SETOR = ["talia.marques", "myllena.araujo"];
 
 export async function refidelizacaoDoMes(
   mesIso?: string,

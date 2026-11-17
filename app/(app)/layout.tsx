@@ -1,5 +1,5 @@
-import { exigirUsuario } from "@/lib/auth";
-import { navDoPerfil } from "@/lib/nav";
+import { exigirUsuario, tambemRefideliza } from "@/lib/auth";
+import { navDoUsuario } from "@/lib/nav";
 import { AppShell } from "@/components/layout/app-shell";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { haQuantoTempo } from "@/lib/format";
@@ -28,7 +28,8 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   // Fidelidade da base é da coordenação das UNIDADES (Aline Moraes em Brasil
   // Novo, Railson em Vitória do Xingu); a coordenação de Altamira cuida de
   // equipes (Marcelo Otávio, Rayssa) e não vê
-  let itens = navDoPerfil(usuario.perfil);
+  // quem vende e ainda refideliza mantém Fidelidade e Prevenção no menu
+  let itens = navDoUsuario(usuario.perfil, { tambemRefideliza: await tambemRefideliza(usuario).catch(() => false) });
   if (usuario.perfil === "supervisor") {
     const { data: pop } = usuario.pop_id
       ? await criarClienteAdmin().from("pops").select("nome").eq("id", usuario.pop_id).maybeSingle()

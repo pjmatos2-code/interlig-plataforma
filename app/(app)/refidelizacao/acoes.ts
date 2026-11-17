@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { exigirPerfil } from "@/lib/auth";
+import { exigirPerfil, exigirPerfilAtendimento } from "@/lib/auth";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 
 export type Resultado = { erro?: string; ok?: string };
@@ -85,7 +85,7 @@ export async function ajustarValor(
  * rodar: depois de regularizar a assinatura no SGP, ela mesma atualiza e o
  * aditivo sai de pendente. Sem mês informado, vale o mês corrente. */
 export async function sincronizar(mes?: string): Promise<Resultado> {
-  await exigirPerfil(["gestor", "agente_atendimento"]);
+  await exigirPerfilAtendimento(["gestor", "agente_atendimento"]);
   const { primeiroDiaDoMes, hojeIso } = await import("@/lib/datas");
   const { sincronizarAditivos } = await import("@/lib/sgp/aditivos");
   const r = await sincronizarAditivos(mes ?? primeiroDiaDoMes(hojeIso()));

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { exigirUsuario } from "@/lib/auth";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
@@ -7,6 +8,7 @@ import { MinhaRefidelizacao } from "@/components/refidelizacao/minha-refidelizac
 import { CartaoAgenteComercial } from "@/components/agentes/cartao-agente-comercial";
 import { minhaComissao } from "@/lib/comissao/minha";
 import { refidelizacaoDoMes } from "@/lib/refidelizacao/dados";
+import { vendeERefideliza } from "@/lib/refidelizacao/agentes";
 import { templateLinkSgp } from "@/lib/sgp/links-server";
 import { lerConfigSgp } from "@/lib/integracoes/config";
 
@@ -48,26 +50,66 @@ export default async function MinhaComissaoPage() {
   }
 
   // ---------- Setor de Atendimento: refidelização ----------
-  if (agente?.setor === "atendimento") {
-    const login = (agente.sgp_login as string | null)?.toLowerCase();
+  // Quem vende e ainda refideliza (17/11/2026) vê as duas comissões aqui: a
+  // refidelização primeiro, que é a régua em vigor para ela, e a de vendas.
+  const duasComissoes = vendeERefideliza(agente as { setor: string | null; sgp_login: string | null } | null);
+  if (agente?.setor === "atendimento" || duasComissoes) {
+    const login = (agente?.sgp_login as string | null | undefined)?.toLowerCase();
     const dados = login ? (await refidelizacaoDoMes(undefined, [login])).agentes[0] ?? null : null;
     const cfg = await lerConfigSgp();
     const baseSgp = `${(cfg.base_url ?? "").replace(/\/+$/, "").replace(/\/admin$/, "")}/admin`;
+    const refidelizacao = dados ? (
+      <MinhaRefidelizacao dados={dados} baseSgp={baseSgp} />
+    ) : (
+      <Card>
+        <CardContent className="p-8 text-center text-sm text-muted-foreground">
+          Nenhum aditivo registrado neste mês.
+        </CardContent>
+      </Card>
+    );
 
+    if (!duasComissoes) {
+      return (
+        <>
+          <CabecalhoPagina
+            titulo="Minha comissão"
+            descricao={`${agente?.nome ?? ""} · Setor de Atendimento · refidelização do mês corrente`}
+          />
+          {refidelizacao}
+        </>
+      );
+    }
+
+    const vendas = await minhaComissao(usuario.vendedor_id);
+    const temComissaoDeVenda = vendas.temRegra && vendas.resultado !== null;
     return (
       <>
         <CabecalhoPagina
           titulo="Minha comissão"
-          descricao={`${agente.nome} · Setor de Atendimento · refidelização do mês corrente`}
+          descricao={`${agente?.nome ?? ""} · refidelização e vendas do mês corrente`}
         />
-        {dados ? (
-          <MinhaRefidelizacao dados={dados} baseSgp={baseSgp} />
-        ) : (
-          <Card>
-            <CardContent className="p-8 text-center text-sm text-muted-foreground">
-              Nenhum aditivo registrado neste mês.
-            </CardContent>
-          </Card>
+        {!temComissaoDeVenda && (
+          <div className="mb-4 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+            <span className="font-medium">Vendas:</span> a comissão das suas vendas ainda não foi definida pela gestão.
+            As vendas do mês aparecem no{" "}
+            <Link href="/meu-painel" className="font-medium text-primary hover:underline">
+              Meu painel
+            </Link>
+            .
+          </div>
+        )}
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Refidelização</h2>
+        {refidelizacao}
+        {temComissaoDeVenda && (
+          <>
+            <h2 className="mb-2 mt-8 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Vendas</h2>
+            <CartaoAgenteComercial vendedorId={usuario.vendedor_id} />
+            <PainelMinhaComissao
+              dados={vendas}
+              demonstrativo={await ultimoDemonstrativo(usuario.vendedor_id)}
+              linkTemplate={await templateLinkSgp()}
+            />
+          </>
         )}
       </>
     );

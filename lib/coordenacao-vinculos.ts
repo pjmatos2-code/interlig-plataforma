@@ -57,3 +57,25 @@ export function vinculosAtuais(
     agentes.map((a) => [a.id, a.coordenador_id === coordenadorId ? "equipe" : apoio.has(a.id) ? "apoio" : ""])
   );
 }
+
+/**
+ * Time que vale no mês para a meta e o resultado do coordenador (20/10/2026):
+ * só quem tem meta de venda no mês. Férias e desligamentos ficam sem meta e
+ * saem da meta E do resultado.
+ *
+ * Exceção (17/11/2026): quem NUNCA teve meta de venda — agente nova ou em
+ * migração para o comercial — continua no resultado. Como não tem meta, soma
+ * as vendas sem mexer na meta do time.
+ *
+ * Se ninguém do time tiver meta no mês, vale o time inteiro.
+ */
+export function timeQueValeNoMes(
+  ids: string[],
+  comMetaNoMes: Iterable<string>,
+  jaTiveramMeta: Iterable<string>
+): string[] {
+  const noMes = new Set(comMetaNoMes);
+  if (noMes.size === 0) return ids;
+  const jaTiveram = new Set(jaTiveramMeta);
+  return ids.filter((id) => noMes.has(id) || !jaTiveram.has(id));
+}

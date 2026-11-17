@@ -156,8 +156,9 @@ export default async function RankingPage() {
                   : `${meuStreak.streak} dia(s) útil(eis) seguidos batendo a meta diária`}
               </p>
               <p className="text-xs text-muted-foreground">
-                Meta diária: {meuStreak.metaDiaria.toFixed(1).replace(".", ",")} venda(s)/dia útil
-                (regra 5.13)
+                {meuStreak.metaDiaria > 0
+                  ? `Meta diária: ${meuStreak.metaDiaria.toFixed(1).replace(".", ",")} venda(s)/dia útil (regra 5.13)`
+                  : "Sem meta de venda cadastrada neste mês: a sequência conta a partir da meta diária (regra 5.13)."}
               </p>
             </div>
           </CardContent>

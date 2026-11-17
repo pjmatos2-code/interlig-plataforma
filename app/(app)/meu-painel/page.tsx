@@ -21,6 +21,7 @@ import { Bloco, ItemFoco, Kpi } from "@/components/agente/blocos";
 import { carregarPainelAtendimento } from "@/lib/agente/atendimento";
 import { PainelAtendimentoAgente } from "@/components/agente/painel-atendimento";
 import { lerResumoFidelidade } from "@/lib/sgp/fidelidade";
+import { vendeERefideliza } from "@/lib/refidelizacao/agentes";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export const dynamic = "force-dynamic";
 export default async function MeuPainelPage({
   searchParams,
 }: {
-  searchParams: { mes?: string; agente?: string };
+  searchParams: { mes?: string; agente?: string; visao?: string };
 }) {
   const usuario = await exigirUsuario();
   const gestao = ["gestor", "direcao"].includes(usuario.perfil);
@@ -94,24 +95,35 @@ export default async function MeuPainelPage({
     );
   }
 
-  const { data: cadastro } = await admin.from("vendedores").select("nome, setor").eq("id", vendedorId).maybeSingle();
+  const { data: cadastro } = await admin.from("vendedores").select("nome, setor, sgp_login").eq("id", vendedorId).maybeSingle();
+
+  // Quem vende e ainda refideliza (17/11/2026) tem os dois painéis: abre no de
+  // vendas e troca para o de refidelização pelo seletor do topo.
+  const duasVisoes = vendeERefideliza(cadastro as { setor: string | null; sgp_login: string | null } | null);
+  const verRefidelizacao = duasVisoes && searchParams.visao === "refidelizacao";
+  const seletorVisao = duasVisoes && (
+    <SeletorVisao
+      atual={verRefidelizacao ? "refidelizacao" : "vendas"}
+      resto={[gestao ? `agente=${vendedorId}` : "", pedido ? `mes=${pedido.slice(0, 7)}` : ""].filter(Boolean).join("&")}
+    />
+  );
 
   // ---------- Atendimento (refidelização): meta fixa de 150, sem cadastro mensal ----------
-  if (cadastro?.setor === "atendimento") {
+  if (cadastro?.setor === "atendimento" || verRefidelizacao) {
     const mesA = pedido ?? atual;
     const [pa, resumo, { data: cfgSgp }] = await Promise.all([
       carregarPainelAtendimento(vendedorId, mesA),
       lerResumoFidelidade(),
       admin.from("integracoes_config").select("config").eq("sistema", "sgp").maybeSingle(),
     ]);
-    const sufixo = gestao ? `&agente=${vendedorId}` : "";
+    const sufixo = `${gestao ? `&agente=${vendedorId}` : ""}${verRefidelizacao ? "&visao=refidelizacao" : ""}`;
     const somaFaixa = (f: "sem" | "ate30") => resumo.unidades.reduce((s, u) => s + u.faixas[f], 0);
     return (
       <>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">
-              {gestao ? `Painel de ${cadastro.nome}` : `Olá, ${String(cadastro.nome).split(/\s+/)[0]}!`}
+              {gestao ? `Painel de ${cadastro?.nome ?? "agente"}` : `Olá, ${String(cadastro?.nome ?? "").split(/\s+/)[0]}!`}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">Sua meta de refidelização e sua comissão — com a conta de cada número.</p>
           </div>
@@ -130,6 +142,7 @@ export default async function MeuPainelPage({
             ))}
           </div>
         </div>
+        {seletorVisao}
         {seletorGestao}
         {pa ? (
           <PainelAtendimentoAgente
@@ -149,14 +162,20 @@ export default async function MeuPainelPage({
     );
   }
 
-  // mês novo ainda sem meta cadastrada: mostra o anterior e avisa
+  // mês novo ainda sem meta cadastrada: mostra o anterior e avisa. Só vale
+  // quando o anterior tem resultado — quem nunca teve meta (agente nova ou em
+  // migração para o comercial) fica no mês corrente, com os indicadores dele;
+  // antes caía no mês passado, onde também não havia nada para mostrar.
   let mes = pedido ?? atual;
   let p = await carregarPainelComissoes(mes, { vendedorId });
   let semMetaNoMesAtual = false;
   if (!pedido && p.agentes.length === 0) {
-    semMetaNoMesAtual = true;
-    mes = mesAtras(atual, 1);
-    p = await carregarPainelComissoes(mes, { vendedorId });
+    const anterior = await carregarPainelComissoes(mesAtras(atual, 1), { vendedorId });
+    if (anterior.agentes.length > 0) {
+      semMetaNoMesAtual = true;
+      mes = mesAtras(atual, 1);
+      p = anterior;
+    }
   }
   const a = p.agentes[0] ?? null;
 
@@ -246,6 +265,7 @@ export default async function MeuPainelPage({
         </div>
       </div>
 
+      {seletorVisao}
       {seletorGestao}
 
       <div className="mb-4 flex flex-wrap gap-2 text-xs">
@@ -271,6 +291,8 @@ export default async function MeuPainelPage({
 
       {a ? (
         <CartaoResultadoAgente a={a} linkSgp={linkSgp} debito={p.debito} semConferencia />
+      ) : x.semCartao ? (
+        <ResultadoSemMeta s={x.semCartao} ticketMedio={x.ticketMedio} mes={nomeMes(mes)} />
       ) : (
         <Card>
           <CardContent className="p-8 text-center text-sm text-muted-foreground">
@@ -309,11 +331,81 @@ export default async function MeuPainelPage({
 // ---------------------------------------------------------------------------
 // blocos do painel
 // ---------------------------------------------------------------------------
+
+/**
+ * Cartão de resultado de quem vende sem meta cadastrada no mês (agente nova
+ * ou em migração para o comercial): as vendas contam e aparecem, só não há
+ * meta nem comissão de venda para mostrar.
+ */
+function ResultadoSemMeta({
+  s,
+  ticketMedio,
+  mes,
+}: {
+  s: NonNullable<ExtrasAgente["semCartao"]>;
+  ticketMedio: number;
+  mes: string;
+}) {
+  return (
+    <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      {/* no celular: vendas em cima, valores lado a lado embaixo; a partir de sm, três colunas */}
+      <div className="grid grid-cols-2 sm:grid-cols-3">
+        <div className="col-span-2 border-b p-4 sm:col-span-1 sm:border-b-0">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Vendas no mês</p>
+          <p className="mt-1 text-3xl font-bold tabular-nums">{num(s.vendas)}</p>
+        </div>
+        <div className="min-w-0 p-4 sm:border-l">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Mensalidades</p>
+          <p className="mt-1 text-lg font-semibold tabular-nums sm:text-xl">{formatarMoeda(s.receita)}</p>
+        </div>
+        <div className="min-w-0 border-l p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Ticket médio</p>
+          <p className="mt-1 text-lg font-semibold tabular-nums sm:text-xl">{formatarMoeda(ticketMedio)}</p>
+        </div>
+      </div>
+      <p className="border-t bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
+        Sem meta de venda cadastrada em {mes}. As vendas contam no resultado do time; a comissão de venda ainda não se
+        aplica.
+      </p>
+    </section>
+  );
+}
+
+/**
+ * Troca entre o painel de vendas e o de refidelização, para quem faz os dois.
+ * `resto` carrega o que já estava na URL (agente aberto pela gestão, mês).
+ */
+function SeletorVisao({ atual, resto }: { atual: "vendas" | "refidelizacao"; resto: string }) {
+  const opcoes = [
+    { chave: "vendas", rotulo: "Vendas", href: `/meu-painel${resto ? `?${resto}` : ""}` },
+    { chave: "refidelizacao", rotulo: "Refidelização", href: `/meu-painel?visao=refidelizacao${resto ? `&${resto}` : ""}` },
+  ] as const;
+  return (
+    <nav aria-label="Qual resultado ver" className="mb-4 inline-flex max-w-full rounded-full border bg-muted/40 p-1 text-sm">
+      {opcoes.map((o) => (
+        <Link
+          key={o.chave}
+          href={o.href}
+          aria-current={o.chave === atual ? "page" : undefined}
+          className={cn(
+            "rounded-full px-4 py-1.5 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            o.chave === atual ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {o.rotulo}
+        </Link>
+      ))}
+    </nav>
+  );
+}
 const num = (v: number) => v.toLocaleString("pt-BR");
 const dec = (v: number) => v.toFixed(1).replace(".", ",");
 
 function Indicadores({ a, x }: { a: AgentePainel | null; x: ExtrasAgente }) {
-  const pend = a ? a.pendAssinatura + a.pendAtivacao : 0;
+  // sem cartão de comissão, as pendências vêm das réguas 5.8 e 5.7 (x.semCartao)
+  const semAssinatura = a ? a.pendAssinatura : x.semCartao?.semAssinatura ?? 0;
+  const comOperacional = a ? a.pendAtivacao : x.semCartao?.aguardandoAtivacao ?? 0;
+  const pend = semAssinatura + comOperacional;
   const delta = x.vendasHoje.hoje - x.vendasHoje.anterior;
   return (
     <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
@@ -359,8 +451,8 @@ function Indicadores({ a, x }: { a: AgentePainel | null; x: ExtrasAgente }) {
         tom="ambar"
         rotulo="Pendências"
         valor={num(pend)}
-        href="#conferir-contratos"
-        rodape={a ? `${a.pendAssinatura} sem assinatura · ${a.pendAtivacao} com o operacional` : "—"}
+        href={a ? "#conferir-contratos" : "/esteira"}
+        rodape={a || x.semCartao ? `${semAssinatura} sem assinatura · ${comOperacional} com o operacional` : "—"}
       />
       <Kpi
         icone={<UserX className="h-5 w-5" />}
@@ -442,6 +534,16 @@ function FocoDoDia({ a, x }: { a: AgentePainel | null; x: ExtrasAgente }) {
         titulo={`${a.pendAssinatura} ${plural(a.pendAssinatura, "contrato sem assinatura", "contratos sem assinatura")}`}
         texto="Cobre o cliente: sem Termo de Adesão e Fidelidade a venda não comissiona."
         href="#conferir-contratos"
+      />
+    ),
+    !a && x.semCartao && x.semCartao.semAssinatura > 0 && (
+      <ItemFoco
+        key="ass-sem-meta"
+        icone={<AlertTriangle className="h-4 w-4" />}
+        tom="bg-farol-vermelho/10 text-farol-vermelho"
+        titulo={`${x.semCartao.semAssinatura} ${plural(x.semCartao.semAssinatura, "contrato sem assinatura", "contratos sem assinatura")}`}
+        texto="Cobre do cliente a assinatura do Termo de Adesão e da Fidelidade."
+        href="/esteira"
       />
     ),
     x.crm.parados > 0 && (

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Download } from "lucide-react";
-import { exigirPerfil } from "@/lib/auth";
+import { exigirPerfilAtendimento } from "@/lib/auth";
 import {
   FAIXAS_FIDELIDADE,
   UNIDADES_FIDELIDADE,
@@ -35,7 +35,7 @@ export default async function ListaFidelidadePage({
 }: {
   searchParams: { faixa?: string; unidade?: string; plano?: string; outros?: string };
 }) {
-  const usuario = await exigirPerfil(["gestor", "direcao", "agente_atendimento", "supervisor"]);
+  const usuario = await exigirPerfilAtendimento(["gestor", "direcao", "agente_atendimento", "supervisor"]);
   const escopo = await escopoFidelidade(usuario);
   if (!escopo) redirect("/dashboard");
   const filtro = lerFiltroLista(searchParams, escopo.unidadeFixa);

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { exigirUsuario } from "@/lib/auth";
+import { comoAtendimento, exigirUsuario } from "@/lib/auth";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { estadoLeituras, lerCancelamentosRecentes, lerTrechoOcorrencias } from "@/lib/sgp/leituras-prevencao";
 
@@ -19,7 +19,7 @@ const PERFIS = ["gestor", "direcao", "agente_retencao", "agente_atendimento", "s
  * rotina automática.
  */
 export async function POST(request: Request) {
-  const usuario = await exigirUsuario();
+  const usuario = await comoAtendimento(await exigirUsuario());
   if (!PERFIS.includes(usuario.perfil)) return NextResponse.json({ erro: "Sem permissão." }, { status: 403 });
   const corpo = (await request.json().catch(() => ({}))) as { etapa?: string };
   const admin = criarClienteAdmin();

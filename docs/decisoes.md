@@ -932,3 +932,30 @@ O ticket continua fechando como não convertido, com a descrição obrigatória,
 - **No ticket:** ao escolher um dos dois motivos, o formulário avisa que ele não conta. O ticket fechado mostra o mesmo aviso.
 
 No código, a regra fica em um lugar só: `MOTIVOS_FORA_DA_CONVERSAO` e `foraDaConversao()` em `lib/indicadores/crm.ts`, com testes. A lista é pelo nome do motivo, como já acontece com "Outra cidade". Para outro motivo deixar de contar, basta incluir o nome nessa lista.
+
+## Vendedora que também refideliza: migração da Talia para o comercial (17/11/2026)
+
+A Talia Marques, do Atendimento (refidelização), passou a fazer parte também do comercial interno de Altamira. Na transição ela faz os dois: atende o comercial e continua refidelizando. Ainda não tem meta de venda, mas o resultado dela precisa aparecer no resultado do time comercial.
+
+A plataforma tratava cada pessoa como de um setor só. O perfil do usuário decide o menu e o acesso; o setor do cadastro decide a régua e onde o número aparece. Como `atendimento`, ela ficava fora do ranking, das Comissões, do pilar Vendas da Gerência e do painel de vendas.
+
+Decisões do Paulo:
+- **Cadastro:** perfil Vendedora interna e setor Comercial interno. Com isso ranking, TV, Comissões, Gerência, Relatório da diretoria e painel por vendedora passam a incluí-la, sem regra especial.
+- **Meta:** sem meta de venda por enquanto. As vendas dela somam no resultado (Gerência, coordenação, ranking) sem mexer na meta. A comissão de venda será definida até o fim de novembro.
+- **Refidelização:** segue como está, com a meta de 150 planos e as mesmas faixas.
+- **Coordenação:** entra no Apoio do Marcelo, como a Amanda, a Damely e a Karoline.
+- **Ranking:** aparece desde já.
+- **Meu Dia:** não ativa para ela ainda.
+
+O que mudou no código:
+- **Quem refideliza é definido pelo login do SGP**, não pelo setor: `AGENTES_SETOR` e `vendeERefideliza()` em `lib/refidelizacao/agentes.ts`. A lista já definia o módulo de Refidelização, o Financeiro e a meta do pilar da Gerência (150 por agente da lista). Quando ela deixar a refidelização, sai da lista.
+- **Fechamento da comissão:** o cadastro da refidelização é achado pelo login, em qualquer setor. Com o filtro por setor que havia, ela sairia do fechamento sem aviso ao mudar para o comercial.
+- **Um demonstrativo por pessoa por mês:** o fechamento não grava se alguém tiver duas comissões na mesma competência (`lib/comissao/fechamento.ts`). Hoje ela só tem a de refidelização. No mês em que tiver meta de venda e ainda refidelizar, o fechamento para e avisa, em vez de uma comissão apagar a outra; nesse momento é preciso decidir como guardar as duas.
+- **Acesso:** ela mantém Fidelidade da base e Prevenção de cancelamento. Nessas telas, e na atualização dos aditivos, quem vende e refideliza entra como agente de atendimento (`comoAtendimento()` em `lib/auth.ts`); no resto, o perfil é o de vendedora. As outras vendedoras continuam sem acesso.
+- **Meu painel:** quem faz os dois tem um seletor Vendas | Refidelização no topo. Minha comissão mostra a refidelização e, quando houver meta, a comissão de venda.
+- **Painel por vendedora:** ela aparece pelas vendas, com os planos refidelizados anotados ao lado do nome. No filtro Refidelização, aparece pelos planos, junto do Atendimento.
+- **Sem meta no mês:**
+  - o Meu painel deixa de cair no mês anterior quando lá também não há resultado, e mostra as vendas do mês direto dos contratos (régua 5.1), com as pendências das réguas 5.8 e 5.7. Antes, quem não tinha meta via zero vendas mesmo tendo vendido;
+  - no Dashboard do coordenador, quem nunca teve meta de venda fica no resultado do time (`timeQueValeNoMes()` em `lib/coordenacao-vinculos.ts`). A regra de 20/10 continua: quem já teve meta e está sem meta no mês (férias, desligamento) sai da meta e do resultado.
+
+No SZ Chat, ela entrou nas equipes comerciais e na ordem do sequencial de Comercial Altamira, e ganhou a linha no mapa de atendentes da Administração. As conversas que atender nessas equipes viram ticket no nome dela.
