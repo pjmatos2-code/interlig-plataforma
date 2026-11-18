@@ -13,6 +13,21 @@ export function dataDaVenda(
   return jaGravado?.venda_retomada_em ? jaGravado.data_venda : cadastroNoSgp;
 }
 
+/**
+ * A tabela contratos não aceita assinatura, ativação nem cancelamento
+ * anteriores à venda, e uma linha recusada derruba o lote inteiro do sync.
+ *
+ * Em venda retomada a data da venda fica depois do cadastro no SGP, e é pelo
+ * cadastro que o leitor aproxima a assinatura e a ativação. Sem este ajuste,
+ * um contrato retomado que volta a ficar ativo, ou cujas assinaturas ainda
+ * não foram conferidas, chegaria com data anterior à venda (18/11/2026). A
+ * data sobe para o dia da venda; a que já é do mesmo dia ou posterior fica
+ * como está.
+ */
+export function naoAntesDaVenda(data: string | null, dataVenda: string): string | null {
+  return data && data < dataVenda ? dataVenda : data;
+}
+
 const diasEntre = (deIso: string, ateIso: string) =>
   Math.round((Date.parse(`${ateIso}T00:00:00Z`) - Date.parse(`${deIso}T00:00:00Z`)) / 86_400_000);
 

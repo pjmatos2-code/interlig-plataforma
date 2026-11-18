@@ -3,7 +3,7 @@ import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { dataHoraSgp } from "@/lib/sgp/datas";
 import { criarClienteSgp } from "@/lib/sgp/client";
 import type { SgpForaDoEscopo } from "@/lib/sgp/tipos";
-import { dataDaVenda, dataDoCancelamento } from "@/lib/sync/contratos";
+import { dataDaVenda, dataDoCancelamento, naoAntesDaVenda } from "@/lib/sync/contratos";
 import type { SgpContrato } from "@/lib/sgp/tipos";
 
 /**
@@ -302,6 +302,7 @@ export async function executarSync(): Promise<ResultadoSync> {
           // vendedor não mapeado → null: aparece como "não atribuída", nunca some (PRD seção 2)
           const vendedor = c.sgp_vendedor_id ? vendedorPorSgp.get(c.sgp_vendedor_id) : undefined;
           const antes = anterior.get(c.sgp_contrato_id);
+          const dataVenda = dataDaVenda(antes, c.data_venda);
           // não regride: mantém cancelamento enriquecido, atribuição e assinaturas
           const dataCancelamento = dataDoCancelamento(antes, c, new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10));
           const vendedorFinal = vendedor?.id ?? (antes?.vendedor_id as string | null) ?? null;
@@ -331,11 +332,12 @@ export async function executarSync(): Promise<ResultadoSync> {
             origem_cadastro: origem(c.origem_cadastro_sgp),
             // venda retomada (18/11/2026): a gestão ajustou a data da venda e o
             // sync não volta para a data de cadastro do SGP, que fica à parte
-            data_venda: dataDaVenda(antes, c.data_venda),
+            data_venda: dataVenda,
             data_venda_sgp: c.data_venda,
-            data_assinatura: dataAssinatura,
-            data_ativacao: dataAtivacao,
-            data_cancelamento: dataCancelamento,
+            // o banco recusa o lote inteiro se uma destas ficar antes da venda
+            data_assinatura: naoAntesDaVenda(dataAssinatura, dataVenda),
+            data_ativacao: naoAntesDaVenda(dataAtivacao, dataVenda),
+            data_cancelamento: naoAntesDaVenda(dataCancelamento, dataVenda),
             motivo_cancelamento: c.motivo_cancelamento,
             sync_updated_at: new Date().toISOString(),
           });
