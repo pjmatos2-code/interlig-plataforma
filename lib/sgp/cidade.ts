@@ -9,9 +9,11 @@
  *
  *  1. as grafias conhecidas ("ALTAMIRA-PA", "VTX", "ALTAMIR"…) — regra de
  *     02/09/2026;
- *  2. erro de digitação do nome da cidade ("ALTMIRA", "ALTAMITA", "NRASIL
+ *  2. localidade que não é município mas pertence a uma unidade: Leonardo da
+ *     Vinci, também chamada de KM 18, é do POP de Vitória do Xingu;
+ *  3. erro de digitação do nome da cidade ("ALTMIRA", "ALTAMITA", "NRASIL
  *     NOVO") — 18/11/2026, depois de duas vendas de novembro ficarem de fora;
- *  3. CEP ou nada no campo cidade: vale a cidade do endereço do contrato.
+ *  4. CEP ou nada no campo cidade: vale a cidade do endereço do contrato.
  *
  * Arquivo sem dependência de servidor, para ter teste.
  */
@@ -54,6 +56,30 @@ export function cidadeEscopo(s: string | undefined | null): string | null {
   return null;
 }
 
+/** UF do Pará ou em branco: fora disso o endereço é de outro estado */
+const ufDoPara = (uf: string | undefined | null) => {
+  const limpa = semAcento(uf).replace(/[^A-Z]/g, "");
+  return limpa === "" || limpa === "PA" || limpa === "PARA";
+};
+
+/**
+ * Localidade digitada no campo cidade que pertence a uma unidade (decisão do
+ * Paulo, 18/11/2026). Leonardo da Vinci e KM 18 são o mesmo lugar e contam
+ * como Vitória do Xingu: o suporte de lá é feito por Altamira, mas o POP é o
+ * de Vitória do Xingu, e é o POP que vale na plataforma.
+ *
+ * Só olha o campo cidade. Quem tem a localidade no bairro e uma cidade
+ * atendida no campo cidade continua na cidade que está no cadastro.
+ */
+export function localidadeAtendida(cidade: string | undefined | null, uf?: string | null): string | null {
+  if (!ufDoPara(uf)) return null;
+  // letras e números colados: "LEONARDO D'VINCI", "LEONARDO DA VINCE", "KM-18"…
+  const colado = semAcento(cidade).replace(/[^A-Z0-9]+/g, "");
+  if (/LEONARDO?D?[AE]?VINC[IE]/.test(colado)) return "Vitória do Xingu";
+  if (colado === "KM18") return "Vitória do Xingu";
+  return null;
+}
+
 /**
  * Quantas letras é preciso trocar, tirar ou pôr para um texto virar o outro.
  * Duas letras vizinhas invertidas ("ALTMAIRA") contam uma troca só.
@@ -91,8 +117,7 @@ export function cidadeComErroDeDigitacao(
   cidade: string | undefined | null,
   uf?: string | null
 ): string | null {
-  const ufLimpa = semAcento(uf).replace(/[^A-Z]/g, "");
-  if (ufLimpa && ufLimpa !== "PA" && ufLimpa !== "PARA") return null;
+  if (!ufDoPara(uf)) return null;
   const c = soLetras(cidade);
   if (!c) return null;
   for (const [chave, nome, erros] of TOLERANCIA) {
@@ -114,7 +139,7 @@ export function cidadeDoCadastro(cliente: {
   contratos?: { endereco?: EnderecoSgp | null }[] | null;
 }): string | null {
   const reconhecer = (e: EnderecoSgp | null | undefined) =>
-    cidadeEscopo(e?.cidade) ?? cidadeComErroDeDigitacao(e?.cidade, e?.uf);
+    cidadeEscopo(e?.cidade) ?? localidadeAtendida(e?.cidade, e?.uf) ?? cidadeComErroDeDigitacao(e?.cidade, e?.uf);
 
   const doCliente = reconhecer(cliente.endereco);
   if (doCliente) return doCliente;
@@ -122,8 +147,8 @@ export function cidadeDoCadastro(cliente: {
   // Campo cidade vazio ou com número (o CEP digitado no lugar): o endereço do
   // contrato costuma estar certo. Só vale se todos os contratos reconhecidos
   // apontarem para a mesma cidade. Com nome de outro lugar no campo ("BRASÍLIA",
-  // "LEONARDO DA VINCI") não vale: aí é endereço de fora ou bairro, e a
-  // decisão é do gestor.
+  // "BAIRRO LATICINIO") não vale: aí é endereço de fora ou bairro, e a decisão
+  // é do gestor.
   const digitado = String(cliente.endereco?.cidade ?? "").trim();
   if (digitado === "" || /\d/.test(digitado)) {
     const dosContratos = new Set(

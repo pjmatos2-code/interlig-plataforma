@@ -973,11 +973,12 @@ Conferência de 18/11: de 952 tickets Vendida desde agosto, 12 estavam sem contr
 O que mudou (`lib/sgp/cidade.ts`, com testes):
 - **Erro de digitação:** além das grafias já previstas, a leitura aceita um erro em "Altamira" e até dois em "Brasil Novo" e "Vitória do Xingu" (letra trocada, faltando, sobrando ou duas vizinhas invertidas). Só vale para cadastro do Pará ou sem UF. Altamira fica em um erro porque, com dois, "Altaneira" (CE) passaria.
 - **CEP ou campo vazio:** quando o campo cidade do cliente está vazio ou tem número, vale a cidade do endereço do contrato, se todos os contratos reconhecidos apontarem para a mesma.
-- **O que continua de fora:** cidade de fato diferente (Brasília, Uruará, Santarém) e bairro ou vila digitado no lugar da cidade ("Leonardo da Vinci", "KM 18"). Aí a decisão é da gestão: corrigir no SGP ou pedir a inclusão.
+- **Leonardo da Vinci e KM 18:** são o mesmo lugar e contam como Vitória do Xingu (decisão do Paulo). O suporte de lá é feito por Altamira, mas o POP é o de Vitória do Xingu, e é o POP que vale. A regra olha só o campo cidade: quem tem a localidade no bairro e "Altamira" no campo cidade continua em Altamira (em 18/11 eram 20 clientes, com 17 contratos ativos; os outros 100 já estavam em Vitória do Xingu).
+- **O que continua de fora:** cidade de fato diferente (Brasília, Uruará, Santarém) e outro bairro digitado no lugar da cidade ("Bairro Laticínio"). Aí a decisão é da gestão: corrigir no SGP ou pedir a inclusão.
 - **Lista em Administração:** "Cadastros do SGP fora da plataforma" mostra quem o sync viu e deixou de fora, com a cidade digitada, os contratos ativos e o contrato mais recente, e destaca quem tem contrato dos últimos 30 dias. O sync inclui e retira sozinho (tabela `sgp_fora_do_escopo`, migração 0133).
 - **Contrato antigo que entra já cancelado:** a API não informa a data do cancelamento, e o sync carimbava o dia em que percebia. Para contrato novo na base, já cancelado e com cadastro de mais de 30 dias, passa a valer a data do cadastro: ele não foi cancelado hoje, e carimbar hoje jogaria cancelamentos de 2023 e 2024 no mês corrente (`dataDoCancelamento` em `lib/sync/contratos.ts`).
 
-Dos 39, nove passam a entrar: os clientes 19395, 19349 e 18517 (contratos ativos de novembro e de julho), o 13370 e cinco com contratos já cancelados. Na amostra de 1.500 cadastros do SGP, quem já era reconhecido continuou com a mesma cidade.
+Dos 39, treze passam a entrar, com 7 contratos ativos: os clientes 19395, 19349 e 18517 (vendas de novembro e de julho), o 13370, os quatro de Leonardo da Vinci e KM 18 e cinco com contratos já cancelados. Continuam de fora 26. Na amostra de 1.500 cadastros do SGP, quem já era reconhecido continuou com a mesma cidade.
 
 ### Venda retomada
 

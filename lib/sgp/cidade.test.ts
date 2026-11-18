@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cidadeComErroDeDigitacao, cidadeDoCadastro, cidadeEscopo, distanciaEdicao } from "./cidade";
+import { cidadeComErroDeDigitacao, cidadeDoCadastro, cidadeEscopo, distanciaEdicao, localidadeAtendida } from "./cidade";
 
 describe("grafias conhecidas (regra de 02/09/2026, sem mudança)", () => {
   it("reconhece as três cidades com variações de acento, UF e espaços", () => {
@@ -69,12 +69,39 @@ describe("erro de digitação da cidade (18/11/2026)", () => {
     const deFora: [string, string][] = [
       ["CASCAVEL", "PR"], ["BARUERI", "SP"], ["MUNDO NOVO", "MS"], ["SÃO PAULO", "SP"], ["BRASILIA", "DF"], ["BRASÍLIA", "DF"],
       ["SOUZEL", "PA"], ["POUSO ALEGRE", "MG"], ["PARIQUERA-AÇU", "SP"], ["URUARÁ", "PA"], ["FORTALEZA", "CE"],
-      ["ANANINDEUA", "PA"], ["RURÓPOLIS", "PA"], ["SANTAREM", "PA"], ["LEONARDO DA VINCI", "PA"], ["LEONARDO DA VINCE", "PA"],
-      ["KM 18", "PA"], ["BAIRRO LATICINIO", "PA"], ["CIDADE NOVA", "PA"], ["VITÓRIA", "PA"], ["", ""],
+      ["ANANINDEUA", "PA"], ["RURÓPOLIS", "PA"], ["SANTAREM", "PA"],
+      ["BAIRRO LATICINIO", "PA"], ["CIDADE NOVA", "PA"], ["VITÓRIA", "PA"], ["", ""],
     ];
     for (const [cidade, uf] of deFora) {
       expect(cidadeDoCadastro({ endereco: { cidade, uf }, contratos: [{ endereco: { cidade, uf } }] }), cidade).toBeNull();
     }
+  });
+});
+
+describe("Leonardo da Vinci e KM 18 contam como Vitória do Xingu (18/11/2026)", () => {
+  it("reconhece as grafias que aparecem no SGP", () => {
+    for (const c of ["LEONARDO DA VINCI", "LEONARDO DA VINCE", "Leonardo D'Vinci", "LEONARDO D'VINCE", "LEONARD D'VINCI", "LEONARDO D VINCI", "LEONARDO DVINCI", "LEONARDO DAVINCI", "VILA LEONARDO DA VINCI", "LEONARDO DA VINCI (KM18)", "KM 18 LEONARDO DVINCI", "KM 18", "KM18", "Km-18"]) {
+      expect(localidadeAtendida(c, "PA"), c).toBe("Vitória do Xingu");
+    }
+  });
+
+  it("os quatro cadastros que estavam de fora entram em Vitória do Xingu", () => {
+    // clientes 14300, 16291, 16288 e 16287
+    for (const cidade of ["LEONARDO DA VINCI", "LEONARDO DA VINCE", "KM 18"]) {
+      expect(cidadeDoCadastro({ endereco: { cidade, uf: "PA" }, contratos: [{ endereco: { cidade, uf: "PA" } }] }), cidade).toBe("Vitória do Xingu");
+    }
+  });
+
+  it("outro quilômetro, outro estado ou outro Leonardo não entram", () => {
+    for (const c of ["KM 180", "KM 12", "KM 18 DA TRANSAMAZONICA", "LEONARDO", "VINCI", "SAO LEONARDO"]) {
+      expect(localidadeAtendida(c, "PA"), c).toBeNull();
+    }
+    expect(localidadeAtendida("LEONARDO DA VINCI", "SP")).toBeNull();
+  });
+
+  it("cidade atendida no campo cidade continua mandando", () => {
+    expect(cidadeDoCadastro({ endereco: { cidade: "ALTAMIRA - LEONARDO DA VINCI", uf: "PA" } })).toBe("Altamira");
+    expect(cidadeDoCadastro({ endereco: { cidade: "VITORIA DO XINGU KM 18", uf: "PA" } })).toBe("Vitória do Xingu");
   });
 });
 
