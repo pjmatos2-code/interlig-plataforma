@@ -2,6 +2,8 @@ import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { dataHoraSgp } from "@/lib/sgp/datas";
 import { criarClienteSgp } from "@/lib/sgp/client";
+import type { SgpForaDoEscopo } from "@/lib/sgp/tipos";
+import { dataDaVenda, dataDoCancelamento } from "@/lib/sync/contratos";
 import type { SgpContrato } from "@/lib/sgp/tipos";
 
 /**
@@ -205,6 +207,36 @@ export async function executarSync(): Promise<ResultadoSync> {
     }
   }
 
+  // ---------- cadastros fora da plataforma por cidade ----------
+  // Quem a varredura deixou de fora entra em sgp_fora_do_escopo; quem ela
+  // trouxe (cidade corrigida no SGP ou reconhecida agora) sai da lista. Não
+  // é etapa do sync: se falhar, só registra no log e o ciclo continua.
+  if ("listarForaDoEscopo" in sgp) {
+    try {
+      const fora = await (sgp as unknown as { listarForaDoEscopo: () => Promise<SgpForaDoEscopo[]> }).listarForaDoEscopo();
+      const agora = new Date().toISOString();
+      for (let i = 0; i < fora.length; i += 500) {
+        const { error } = await admin
+          .from("sgp_fora_do_escopo")
+          .upsert(fora.slice(i, i + 500).map((f) => ({ ...f, visto_em: agora })), { onConflict: "sgp_cliente_id" });
+        if (error) throw new Error(error.message);
+      }
+      const dentro = (await sgp.listarClientes()).map((c) => c.sgp_cliente_id);
+      for (let i = 0; i < dentro.length; i += 400) {
+        const { error } = await admin.from("sgp_fora_do_escopo").delete().in("sgp_cliente_id", dentro.slice(i, i + 400));
+        if (error) throw new Error(error.message);
+      }
+      // a varredura passa pela base inteira em poucas horas: quem não é visto
+      // há 3 dias foi apagado ou unificado no SGP
+      await admin
+        .from("sgp_fora_do_escopo")
+        .delete()
+        .lt("visto_em", new Date(Date.now() - 3 * 86_400_000).toISOString());
+    } catch (e) {
+      console.error("sync: cadastros fora da plataforma por cidade:", e instanceof Error ? e.message : e);
+    }
+  }
+
   // ---------- contratos ----------
   {
     const run = await iniciarRun(admin, "contratos");
@@ -234,13 +266,18 @@ export async function executarSync(): Promise<ResultadoSync> {
           data_assinatura: string | null;
           assinaturas_verificadas_em: string | null;
           data_ativacao: string | null;
+          data_venda: string;
+          venda_retomada_em: string | null;
 };
         const existentes: Existente[] = [];
         for (let i = 0; i < idsContratos.length; i += 400) {
-          const { data: parte } = await admin
+          const { data: parte, error: erroExistentes } = await admin
             .from("contratos")
-            .select("sgp_contrato_id, data_cancelamento, vendedor_id, data_assinatura, data_ativacao, assinaturas_verificadas_em")
+            .select("sgp_contrato_id, data_cancelamento, vendedor_id, data_assinatura, data_ativacao, assinaturas_verificadas_em, data_venda, venda_retomada_em")
             .in("sgp_contrato_id", idsContratos.slice(i, i + 400));
+          // sem saber o que já está gravado, o upsert apagaria atribuição,
+          // assinatura e cancelamento preservados: melhor pular a passada
+          if (erroExistentes) throw new Error(`leitura dos contratos existentes: ${erroExistentes.message}`);
           existentes.push(...((parte ?? []) as Existente[]));
         }
         const [{ data: planos }, { data: vendedores }, { data: pops }] = await Promise.all([
@@ -266,10 +303,7 @@ export async function executarSync(): Promise<ResultadoSync> {
           const vendedor = c.sgp_vendedor_id ? vendedorPorSgp.get(c.sgp_vendedor_id) : undefined;
           const antes = anterior.get(c.sgp_contrato_id);
           // não regride: mantém cancelamento enriquecido, atribuição e assinaturas
-          const dataCancelamento =
-            c.data_cancelamento && antes?.data_cancelamento
-              ? (antes.data_cancelamento as string)
-              : c.data_cancelamento;
+          const dataCancelamento = dataDoCancelamento(antes, c, new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10));
           const vendedorFinal = vendedor?.id ?? (antes?.vendedor_id as string | null) ?? null;
           const dataAssinatura = antes?.assinaturas_verificadas_em
             ? ((antes.data_assinatura as string | null) ?? null)
@@ -295,7 +329,10 @@ export async function executarSync(): Promise<ResultadoSync> {
             valor_instalacao: c.valor_instalacao,
             status: statusNovo,
             origem_cadastro: origem(c.origem_cadastro_sgp),
-            data_venda: c.data_venda,
+            // venda retomada (18/11/2026): a gestão ajustou a data da venda e o
+            // sync não volta para a data de cadastro do SGP, que fica à parte
+            data_venda: dataDaVenda(antes, c.data_venda),
+            data_venda_sgp: c.data_venda,
             data_assinatura: dataAssinatura,
             data_ativacao: dataAtivacao,
             data_cancelamento: dataCancelamento,

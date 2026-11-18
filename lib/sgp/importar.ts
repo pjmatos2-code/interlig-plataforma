@@ -2,6 +2,7 @@ import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { criarClienteSgp } from "@/lib/sgp/client";
 import { normalizarStatus } from "@/lib/sync/worker";
+import { dataDoCancelamento } from "@/lib/sync/contratos";
 
 /**
  * Importação pontual de um cliente do SGP pelo CPF/CNPJ — o elo que faltava
@@ -99,9 +100,11 @@ export async function importarClientePorCpf(cpf: string): Promise<ResultadoImpor
       valor_instalacao: c.valor_instalacao,
       status: statusNovo,
       data_venda: c.data_venda,
+      data_venda_sgp: c.data_venda,
       data_assinatura: c.data_assinatura,
       data_ativacao: statusNovo === "ativo" ? c.data_ativacao ?? agora.slice(0, 10) : c.data_ativacao,
-      data_cancelamento: c.data_cancelamento,
+      // contrato novo na base: se já chega cancelado e o cadastro é antigo, não foi cancelado hoje
+      data_cancelamento: dataDoCancelamento(undefined, c, agora.slice(0, 10)),
       motivo_cancelamento: c.motivo_cancelamento,
       sync_updated_at: agora,
     });

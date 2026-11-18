@@ -5,6 +5,7 @@ import { criarClienteServidor } from "@/lib/supabase/server";
 import { GestaoMotivos } from "./motivos";
 import { GestaoUsuarios, GestaoOrigens, GestaoSzChat, GestaoCoordenacoes, GestaoPlanosExterna, GestaoPrecosPlanos } from "./cadastros";
 import { BotaoSincronizar } from "./botao-sync";
+import { CadastrosForaDoEscopo } from "./fora-do-escopo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatarDataHora, haQuantoTempo } from "@/lib/format";
@@ -115,6 +116,8 @@ export default async function AdminPage() {
           </div>
         </CardContent>
       </Card>
+
+      <CadastrosForaDoEscopo />
 
       <Card className="mb-6 border-interlig-ceu/50">
         <CardHeader className="flex-row items-center justify-between space-y-0">

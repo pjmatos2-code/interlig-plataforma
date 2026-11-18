@@ -55,6 +55,19 @@ export type SgpTitulo = {
   status: string;
 };
 
+/** cadastro do SGP que ficou fora da plataforma por causa da cidade */
+export type SgpForaDoEscopo = {
+  sgp_cliente_id: string;
+  nome: string;
+  /** o que está digitado no campo cidade do SGP */
+  cidade_digitada: string | null;
+  uf: string | null;
+  contratos: number;
+  contratos_ativos: number;
+  /** data de cadastro do contrato mais recente */
+  ultimo_contrato_em: string | null;
+};
+
 export interface SgpClient {
   /** identifica o modo nos logs de sync_runs */
   modo: "mock" | "real";

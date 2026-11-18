@@ -1,5 +1,6 @@
 import type { ConfigSgp } from "@/lib/integracoes/config";
-import type { SgpClient, SgpCliente, SgpContrato, SgpPlano, SgpTitulo } from "./tipos";
+import type { SgpClient, SgpCliente, SgpContrato, SgpForaDoEscopo, SgpPlano, SgpTitulo } from "./tipos";
+import { cidadeDoCadastro, semAcento } from "./cidade";
 
 /**
  * SgpApiClient — API URA real da instância da Interlig (docs/decisoes.md D3).
@@ -8,21 +9,17 @@ import type { SgpClient, SgpCliente, SgpContrato, SgpPlano, SgpTitulo } from "./
  * memoizada para alimentar os quatro listar*.
  *
  * Aproximações da D3: sem vendedor, datas de assinatura/ativação assumem o
- * cadastro, mensalidade = título mais recente. Escopo: só os POPs abaixo.
+ * cadastro, mensalidade = título mais recente. Escopo: só as cidades
+ * atendidas — a regra de reconhecimento da cidade fica em ./cidade.ts.
  */
 
-const CIDADES_ESCOPO = new Map([
-  ["ALTAMIRA", "Altamira"],
-  ["VITORIA DO XINGU", "Vitória do Xingu"],
-  ["BRASIL NOVO", "Brasil Novo"],
-]);
 const PAGINA = 100; // limite máximo aceito pela API
 
 type BrutoCliente = {
   id: number;
   nome: string;
   cpfcnpj: string | null;
-  endereco?: { bairro?: string; cidade?: string; latitude?: string; longitude?: string };
+  endereco?: { bairro?: string; cidade?: string; uf?: string; latitude?: string; longitude?: string };
   contatos?: { telefones?: string[]; celulares?: string[] };
   contratos?: BrutoContrato[];
   titulos?: BrutoTitulo[];
@@ -32,6 +29,8 @@ type BrutoContrato = {
   status?: string;
   motivo_status?: string;
   dataCadastro?: string;
+  /** endereço de instalação do contrato — desempata quando o do cliente veio com CEP ou vazio */
+  endereco?: { cidade?: string; uf?: string };
   servicos?: { tipo?: string; plano?: { id?: number; descricao?: string } }[];
 };
 type BrutoTitulo = {
@@ -44,31 +43,6 @@ type BrutoTitulo = {
   dataPagamento?: string;
 };
 
-const semAcento = (s: string | undefined) =>
-  (s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().trim();
-
-/**
- * Cidade do cadastro → nome canônico do escopo, tolerando as variações que o
- * atendimento digita ("ALTAMIRA-PA", "ALTAMIRA PARA", "VITORIA DO  XINGU PA",
- * "ALTAMIA", "XINFU", "VTX"…). Um levantamento de 02/09/2026 achou 111
- * clientes do escopo excluídos do sync só pela grafia da cidade — sem
- * contrato, sem ticket e sem contar na comissão.
- */
-const cidadeEscopo = (s: string | undefined): string | null => {
-  let c = semAcento(s).replace(/[^A-Z]+/g, " ").replace(/\s+/g, " ").trim();
-  c = c.replace(/ (PA|PARA)$/, "");
-  if (c === "ALTAMIA") c = "ALTAMIRA";
-  if (c === "VTX" || c === "VITORIA DO XINFU") c = "VITORIA DO XINGU";
-  const direto = CIDADES_ESCOPO.get(c);
-  if (direto) return direto;
-  // cadastro com texto livre no campo cidade ("ZONA RURAL DE VTX", "RAMAL DO
-  // ALTAMIRA KM 12"…) ou truncado/errado ("ALTAMIR" — caso real 22/09):
-  // reconhece a cidade CONTIDA na frase, tolerando o final comido
-  if (/\bVITORIA DO XINGU\b|\bVTX\b|\bXING\w*\b/.test(c)) return "Vitória do Xingu";
-  if (/\bBRASIL NOV\w*\b/.test(c)) return "Brasil Novo";
-  if (/\bALTAMIRA?\b/.test(c)) return "Altamira";
-  return null;
-};
 const num = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -149,6 +123,8 @@ export class SgpApiClient implements SgpClient {
    */
   /** clientes carregados fora da varredura (caçador de cadastros novos) */
   private extras: BrutoCliente[] = [];
+  /** cadastros desta varredura que a cidade deixou de fora (ver listarForaDoEscopo) */
+  private foraDoEscopo: BrutoCliente[] = [];
 
   /**
    * Busca clientes direto na URA por CPF/CNPJ e injeta na varredura desta
@@ -203,7 +179,8 @@ export class SgpApiClient implements SgpClient {
       // extras do caçador entram junto (sem duplicar quem a janela já trouxe)
       const ids = new Set(todos.map((c) => c.id));
       const comExtras = [...todos, ...this.extras.filter((c) => !ids.has(c.id))];
-      return comExtras.filter((c) => cidadeEscopo(c.endereco?.cidade) !== null);
+      this.foraDoEscopo = comExtras.filter((c) => cidadeDoCadastro(c) === null);
+      return comExtras.filter((c) => cidadeDoCadastro(c) !== null);
     })();
     return this.varredura;
   }
@@ -236,10 +213,33 @@ export class SgpApiClient implements SgpClient {
       cpf: c.cpfcnpj ?? null,
       telefone: c.contatos?.celulares?.[0] ?? c.contatos?.telefones?.[0] ?? null,
       bairro: c.endereco?.bairro ?? null,
-      cidade: cidadeEscopo(c.endereco?.cidade),
+      cidade: cidadeDoCadastro(c),
       origem_cadastro_sgp: null, // não exposto pela URA (D3)
       ...coordenada(c.endereco?.latitude, c.endereco?.longitude),
     }));
+  }
+
+  /**
+   * Cadastros que esta varredura deixou de fora por causa da cidade. O sync
+   * grava em sgp_fora_do_escopo para o gestor ver em Administração: antes
+   * eles sumiam em silêncio, e uma cidade digitada errada tirava a venda da
+   * plataforma sem ninguém saber (18/11/2026).
+   */
+  async listarForaDoEscopo(): Promise<SgpForaDoEscopo[]> {
+    await this.escanear();
+    return this.foraDoEscopo.map((c) => {
+      const contratos = c.contratos ?? [];
+      const datas = contratos.map((k) => dataBr(k.dataCadastro)).filter((d): d is string => d !== null).sort();
+      return {
+        sgp_cliente_id: String(c.id),
+        nome: c.nome ?? "—",
+        cidade_digitada: (c.endereco?.cidade ?? "").trim() || null,
+        uf: (c.endereco?.uf ?? "").trim() || null,
+        contratos: contratos.length,
+        contratos_ativos: contratos.filter((k) => semAcento(k.status) === "ATIVO").length,
+        ultimo_contrato_em: datas.length ? datas[datas.length - 1] : null,
+      };
+    });
   }
 
   async listarContratos(): Promise<SgpContrato[]> {

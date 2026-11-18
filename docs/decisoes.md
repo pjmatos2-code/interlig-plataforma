@@ -959,3 +959,34 @@ O que mudou no código:
   - no Dashboard do coordenador, quem nunca teve meta de venda fica no resultado do time (`timeQueValeNoMes()` em `lib/coordenacao-vinculos.ts`). A regra de 20/10 continua: quem já teve meta e está sem meta no mês (férias, desligamento) sai da meta e do resultado.
 
 No SZ Chat, ela entrou nas equipes comerciais e na ordem do sequencial de Comercial Altamira, e ganhou a linha no mapa de atendentes da Administração. As conversas que atender nessas equipes viram ticket no nome dela.
+
+## Cidade digitada errada no SGP e venda retomada (18/11/2026)
+
+O Paulo encontrou dois tickets do CRM fechados como Vendida que não reconciliavam com o SGP, embora o nome e o CPF estivessem certos nos dois lados. As causas eram diferentes.
+
+### Cidade do cadastro
+
+A plataforma só importa cliente cuja cidade ela reconhece como Altamira, Vitória do Xingu ou Brasil Novo. O campo é texto livre no SGP. O cadastro de uma das clientes estava com "ALTMIRA", e o de outra venda de novembro com "ALTAMITA": cliente e contrato nunca entraram, a venda ficou fora de vendas, ranking e comissão, e o ticket ficou esperando para sempre. Nada avisava.
+
+Conferência de 18/11: de 952 tickets Vendida desde agosto, 12 estavam sem contrato ligado, 3 deles por cidade. Entre os cadastros do SGP com código acima de 10.000, 39 estavam fora da plataforma: 8 por grafia, 8 com CEP, bairro ou vila no campo cidade, 22 de outra cidade de fato e 1 sem cidade.
+
+O que mudou (`lib/sgp/cidade.ts`, com testes):
+- **Erro de digitação:** além das grafias já previstas, a leitura aceita um erro em "Altamira" e até dois em "Brasil Novo" e "Vitória do Xingu" (letra trocada, faltando, sobrando ou duas vizinhas invertidas). Só vale para cadastro do Pará ou sem UF. Altamira fica em um erro porque, com dois, "Altaneira" (CE) passaria.
+- **CEP ou campo vazio:** quando o campo cidade do cliente está vazio ou tem número, vale a cidade do endereço do contrato, se todos os contratos reconhecidos apontarem para a mesma.
+- **O que continua de fora:** cidade de fato diferente (Brasília, Uruará, Santarém) e bairro ou vila digitado no lugar da cidade ("Leonardo da Vinci", "KM 18"). Aí a decisão é da gestão: corrigir no SGP ou pedir a inclusão.
+- **Lista em Administração:** "Cadastros do SGP fora da plataforma" mostra quem o sync viu e deixou de fora, com a cidade digitada, os contratos ativos e o contrato mais recente, e destaca quem tem contrato dos últimos 30 dias. O sync inclui e retira sozinho (tabela `sgp_fora_do_escopo`, migração 0133).
+- **Contrato antigo que entra já cancelado:** a API não informa a data do cancelamento, e o sync carimbava o dia em que percebia. Para contrato novo na base, já cancelado e com cadastro de mais de 30 dias, passa a valer a data do cadastro: ele não foi cancelado hoje, e carimbar hoje jogaria cancelamentos de 2023 e 2024 no mês corrente (`dataDoCancelamento` em `lib/sync/contratos.ts`).
+
+Dos 39, nove passam a entrar: os clientes 19395, 19349 e 18517 (contratos ativos de novembro e de julho), o 13370 e cinco com contratos já cancelados. Na amostra de 1.500 cadastros do SGP, quem já era reconhecido continuou com a mesma cidade.
+
+### Venda retomada
+
+O contrato da outra cliente foi cadastrado no SGP em 28/09 e ligado ao ticket daquele dia. A instalação não saiu. Em novembro ela retomou o contato, a vendedora abriu outro ticket e a assinatura veio em 12/11. Como a plataforma conta a venda pela data de cadastro do contrato, ela ficou em setembro: fora da meta de novembro e de qualquer fechamento de comissão, porque em setembro estava sem assinatura.
+
+Decisão do Paulo: **a venda vale para novembro**, o mês em que foi retomada.
+
+Como fica:
+- `contratos.data_venda` continua sendo a data que vale para todos os indicadores. Em venda retomada a gestão ajusta essa data; `venda_retomada_em`, `venda_retomada_por` e `venda_retomada_motivo` registram quem, quando e por quê, e `data_venda_sgp` guarda a data de cadastro original.
+- O sync copiava a data do SGP a cada passada. Com `venda_retomada_em` preenchido ele respeita a data ajustada (`dataDaVenda` em `lib/sync/contratos.ts`).
+- A data de ativação não muda. Como ela pode ficar antes da data da venda, o tempo médio venda → ativação conta zero nesses casos, nunca negativo.
+- O ajuste é caso a caso, por decisão da gestão. Não há regra automática que mude a data de venda, e por enquanto não há tela: é aplicado direto no banco, com o motivo.

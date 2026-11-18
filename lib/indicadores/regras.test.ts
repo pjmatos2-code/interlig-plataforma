@@ -298,6 +298,15 @@ describe("tempo médio venda → ativação (PRD 3.5)", () => {
   it("nenhum ativado → null", () => {
     expect(tempoMedioVendaAtivacao([contrato({})])).toBeNull();
   });
+
+  it("venda retomada: ativação anterior à data da venda conta zero dia, não negativo", () => {
+    const lista = [
+      contrato({ data_venda: "2026-11-01", data_ativacao: "2026-11-11", status: "ativo" }), // 10 dias
+      // cadastro em 28/09, venda retomada e contada em 12/11
+      contrato({ data_venda: "2026-11-12", data_ativacao: "2026-09-28", status: "ativo" }),
+    ];
+    expect(tempoMedioVendaAtivacao(lista)).toBeCloseTo(5);
+  });
 });
 
 describe("5.10 — churn precoce (90 dias)", () => {

@@ -214,11 +214,15 @@ export function taxaInstalacaoEfetiva(
 /**
  * Tempo médio venda → ativação, em dias (PRD 3.5). Considera apenas
  * contratos já ativados; null quando não há nenhum.
+ *
+ * Em venda retomada (18/11/2026) a data da venda é a da retomada e pode ficar
+ * depois da ativação registrada no SGP: aí o prazo conta zero, nunca negativo,
+ * para um caso só não derrubar a média.
  */
 export function tempoMedioVendaAtivacao(contratos: ContratoIndicador[]): number | null {
   const ativados = contratos.filter((c) => c.data_ativacao !== null);
   if (ativados.length === 0) return null;
-  const soma = ativados.reduce((acc, c) => acc + dias(c.data_venda, c.data_ativacao!), 0);
+  const soma = ativados.reduce((acc, c) => acc + Math.max(0, dias(c.data_venda, c.data_ativacao!)), 0);
   return soma / ativados.length;
 }
 
