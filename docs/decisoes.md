@@ -1102,3 +1102,20 @@ A varredura passa pela base inteira em pouco mais de 2 h no expediente, então a
 - Roteiro semanal da coordenação (leads no mesmo dia, follow-ups, diagnóstico até sexta, reunião de equipe no sábado, planos em dia) e da diretoria (reunião de resultados na segunda, decisões e validações em até 2 dias), conferido pela plataforma com os dados.
 - Vale a partir da semana de 23/11/2026; o cumprimento da semana entra na apresentação e na ata da reunião de resultados.
 - Detalhes em `docs/grr/rotinas.md`.
+
+## Sync: cliente repetido na varredura do SGP (18/11/2026)
+
+Desde agosto, cerca de uma rodada do sync por dia útil terminava com `ON CONFLICT DO UPDATE command cannot affect row a second time`: a etapa clientes em erro e a etapa contratos parcial, na mesma rodada. Foram 93 rodadas de 24/08 a 17/11, em 18,5 mil execuções. O trecho da base lido naquela rodada ficava sem atualizar até a varredura passar de novo por ele, cerca de duas horas depois.
+
+**Causa.** A varredura lê a lista de clientes da URA em páginas de 100, por posição, e a lista é alfabética. Quando alguém cadastra ou renomeia um cliente no SGP com a leitura em andamento (ela ocupa perto de 95 segundos de cada 5 minutos), quem vem depois anda uma posição, e o último cliente de uma página volta como o primeiro da seguinte. O leitor juntava as páginas sem conferir. O mesmo cliente saía duas vezes, com os contratos e os títulos dele, e o Postgres recusa o lote inteiro do upsert quando duas linhas do mesmo comando têm a mesma chave.
+
+O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 7h e 19h e nenhuma no domingo, embora só 55% das execuções caiam nesse horário. Nas mesmas rodadas a etapa títulos gravou em média 417 títulos a menos que as rodadas vizinhas e terminou em "sucesso": o lote recusado não era registrado.
+
+**O que mudou.**
+- `escanear()` em `lib/sgp/api.ts` guarda um cadastro por cliente, pela mesma chave do upsert (`sgp_cliente_id`). Quem aparece duas vezes fica com a leitura mais recente. Clientes, contratos, títulos e a lista de cadastros fora da plataforma saem todos dessa leitura, então a correção vale para os quatro. Os testes ficam em `lib/sgp/api.test.ts`, com um SGP simulado em que a lista muda no meio da leitura.
+- A etapa títulos do sync registra o lote recusado pelo banco (status parcial, com a mensagem), como a etapa contratos já fazia.
+
+**O que continua igual.**
+- O cursor anda por posição, com o recuo de 200. O cadastro repetido só ocupa uma das 800 posições da rodada.
+- Quando a lista recua (cliente apagado, unificado ou renomeado para depois do ponto de leitura), um cliente pode ficar fora daquela passada e entra na seguinte. Cadastro novo continua entrando pelo caçador (`cadastros_novos`).
+- Planos nunca tiveram o problema: a lista já é montada por código do plano.

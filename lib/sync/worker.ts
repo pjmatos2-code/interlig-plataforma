@@ -369,6 +369,9 @@ export async function executarSync(): Promise<ResultadoSync> {
     try {
       const titulos = await sgp.listarTitulos();
       let gravados = 0;
+      // lote recusado pelo banco aparece no histórico, como em contratos: antes
+      // a etapa terminava em "sucesso" e ninguém via que o lote não entrou
+      const pendencias: string[] = [];
       if (titulos.length > 0) {
         const sgpIds = [...new Set(titulos.map((t) => t.sgp_contrato_id))];
         const contratoPorSgp = new Map<string, string>();
@@ -395,11 +398,18 @@ export async function executarSync(): Promise<ResultadoSync> {
           const { error } = await admin
             .from("titulos")
             .upsert(linhas.slice(i, i + 500), { onConflict: "sgp_titulo_id" });
-          if (!error) gravados += Math.min(500, linhas.length - i);
+          if (error) pendencias.push(`lote de títulos: ${error.message}`);
+          else gravados += Math.min(500, linhas.length - i);
         }
       }
-      await finalizarRun(admin, run, "sucesso", gravados);
-      execucoes.push({ entidade: "titulos", registros: gravados, status: "sucesso" });
+      const status = pendencias.length > 0 ? "parcial" : "sucesso";
+      await finalizarRun(admin, run, status, gravados, pendencias.join(" | ") || undefined);
+      execucoes.push({
+        entidade: "titulos",
+        registros: gravados,
+        status,
+        erro: pendencias.join(" | ") || undefined,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       await finalizarRun(admin, run, "erro", 0, msg);

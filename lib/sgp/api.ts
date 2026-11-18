@@ -156,7 +156,14 @@ export class SgpApiClient implements SgpClient {
 
   private escanear(): Promise<BrutoCliente[]> {
     this.varredura ??= (async () => {
-      const todos: BrutoCliente[] = [];
+      // Cada cliente uma vez só, pela mesma chave do upsert (sgp_cliente_id).
+      // A lista da URA é alfabética e muda durante a leitura: um cadastro novo
+      // empurra todo mundo uma posição e o último cliente de uma página volta
+      // como o primeiro da seguinte. Repetido, ele saía duas vezes em clientes,
+      // contratos e títulos, e o Postgres recusava o lote inteiro do upsert
+      // ("ON CONFLICT DO UPDATE command cannot affect row a second time").
+      // Quem vem duas vezes fica com a leitura mais recente (18/11/2026).
+      const porId = new Map<string, BrutoCliente>();
       let offset = this.janela?.offset ?? 0;
       const limitePaginas = this.janela?.maxPaginas ?? Infinity;
       let paginas = 0;
@@ -167,7 +174,7 @@ export class SgpApiClient implements SgpClient {
           clientes: BrutoCliente[];
         }>("/api/ura/clientes/", { limit: PAGINA, offset });
         total = pagina.paginacao.total;
-        todos.push(...pagina.clientes);
+        for (const c of pagina.clientes) porId.set(String(c.id), c);
         offset += PAGINA;
         paginas += 1;
       }
@@ -177,10 +184,12 @@ export class SgpApiClient implements SgpClient {
         completou: offset >= total,
       };
       // extras do caçador entram junto (sem duplicar quem a janela já trouxe)
-      const ids = new Set(todos.map((c) => c.id));
-      const comExtras = [...todos, ...this.extras.filter((c) => !ids.has(c.id))];
-      this.foraDoEscopo = comExtras.filter((c) => cidadeDoCadastro(c) === null);
-      return comExtras.filter((c) => cidadeDoCadastro(c) !== null);
+      for (const c of this.extras) {
+        if (!porId.has(String(c.id))) porId.set(String(c.id), c);
+      }
+      const lidos = [...porId.values()];
+      this.foraDoEscopo = lidos.filter((c) => cidadeDoCadastro(c) === null);
+      return lidos.filter((c) => cidadeDoCadastro(c) !== null);
     })();
     return this.varredura;
   }
