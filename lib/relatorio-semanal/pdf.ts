@@ -32,7 +32,7 @@ export async function gerarPdfRelatorio(id: string, origem: string): Promise<Buf
 }
 
 /** abre uma página do site no Chromium e imprime em A4 */
-export async function imprimirPagina(url: string): Promise<Buffer> {
+export async function imprimirPagina(url: string, rodape = "Relatório Comercial Semanal · Interlig"): Promise<Buffer> {
   const { default: puppeteer } = await import("puppeteer-core");
   let executablePath: string;
   let args: string[];
@@ -66,7 +66,8 @@ export async function imprimirPagina(url: string): Promise<Buffer> {
       headerTemplate: "<span></span>",
       footerTemplate:
         '<div style="width:100%;padding:0 10mm;font-family:Arial,sans-serif;font-size:7.5px;color:#6B7A99;display:flex;justify-content:space-between">' +
-        '<span>Relatório Comercial Semanal · Interlig</span><span>Página <span class="pageNumber"></span> de <span class="totalPages"></span></span></div>',
+        `<span>${rodape.replace(/[<>&]/g, "")}</span>` +
+        '<span>Página <span class="pageNumber"></span> de <span class="totalPages"></span></span></div>',
       timeout: 60_000,
     });
     return Buffer.from(pdf);

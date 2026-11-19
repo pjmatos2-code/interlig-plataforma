@@ -181,12 +181,13 @@ export function SeletorSituacaoPlano({ id, atual, permitidas }: { id: string; at
   );
 }
 
-export function FormAprovacaoPlano({ id, compacto = false }: { id: string; compacto?: boolean }) {
+export function FormAprovacaoPlano({ id, compacto = false, reuniaoId }: { id: string; compacto?: boolean; reuniaoId?: string }) {
   const [estado, acao] = useFormState<EstadoPlano, FormData>(aprovacaoPlanoAcao, {});
   const botao = "h-9 rounded-lg border px-3 text-sm font-medium hover:border-interlig-ceu";
   return (
     <form action={acao} className="space-y-2">
       <input type="hidden" name="id" value={id} />
+      {reuniaoId && <input type="hidden" name="reuniao" value={reuniaoId} />}
       <input name="justificativa" maxLength={1000} className={cn(campo, compacto && "h-9")} placeholder="Justificativa (obrigatória para ajuste ou rejeição)" />
       <div className="flex flex-wrap gap-2">
         <button name="aprovacao" value="aprovado" className={cn(botao, "border-farol-verde/40 bg-farol-verde/10")}>Aprovar</button>

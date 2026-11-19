@@ -4,6 +4,7 @@ import { Lock, Presentation } from "lucide-react";
 import { AreasGrr } from "@/components/grr/areas";
 import { BotoesAprovacao, FormCompromisso, FormCorrecao, FormEncerrar, FormPreparacao, SeletorSituacao } from "@/components/grr/reunioes/formularios";
 import { TabelaEquipe } from "@/components/grr/reunioes/tabela-equipe";
+import { PaginaReuniaoDiretoria } from "@/components/grr/reunioes/pagina-diretoria";
 import { exigirPerfil } from "@/lib/auth";
 import { compromissosParaConferir, participantesSugeridos, podeConduzir, resumoCompromissos, ROTULO_APROVACAO, ROTULO_SITUACAO, type Compromisso } from "@/lib/grr/reunioes";
 import { indicadoresDaReuniao, lerReuniao, type FotoDaReuniao } from "@/lib/grr/reunioes-dados";
@@ -60,6 +61,7 @@ export default async function GrrReuniaoPage({ params }: { params: { id: string 
   const completa = await lerReuniao(params.id);
   if (!completa) notFound();
   const { reuniao: r, compromissos, anterior, daAnterior, registros } = completa;
+  if (r.modalidade === "diretoria") return <PaginaReuniaoDiretoria r={r} registros={registros} usuario={usuario} />;
   const hoje = hojeSantarem();
   const { dados, congelados, cadastro } = await indicadoresDaReuniao(r, usuario.id);
   const pode = podeConduzir(usuario, r, cadastro);

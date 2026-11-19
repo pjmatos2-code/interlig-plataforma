@@ -17,6 +17,9 @@ export type ProximaReuniao = {
   congelada: boolean;
   hrefApresentar: string;
   hrefPreparar: string | null;
+  rotuloPreparar?: string;
+  /** há reunião de resultados aberta registrada no GRR? */
+  programada?: boolean;
   /** desvios sem diagnóstico no recorte e planos aguardando a diretoria (null antes da Etapa 3 no banco) */
   pendencias: { semDiagnostico: number; aguardandoAprovacao: number } | null;
 };
@@ -41,7 +44,7 @@ export function CartaoProximaReuniao({ r }: { r: ProximaReuniao }) {
       <dl className="mt-3 space-y-1.5 text-sm">
         <div className="flex justify-between gap-3">
           <dt className="text-muted-foreground">Data</dt>
-          <dd className="text-right font-medium">{r.data ? dataBr(r.data) : r.relatorio === "sem_acesso" ? "—" : "Ainda sem data definida"}</dd>
+          <dd className="text-right font-medium">{r.data ? dataBr(r.data) : r.programada === false ? "Nenhuma reunião programada" : r.relatorio === "sem_acesso" ? "—" : "Ainda sem data definida"}</dd>
         </div>
         {r.participantes && (
           <div className="flex justify-between gap-3">
@@ -66,7 +69,7 @@ export function CartaoProximaReuniao({ r }: { r: ProximaReuniao }) {
         </Link>
         {r.hrefPreparar && (
           <Link href={r.hrefPreparar} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border bg-background px-4 text-sm font-medium hover:border-interlig-ceu">
-            <FileText className="h-4 w-4" aria-hidden /> Preparar no relatório da diretoria
+            <FileText className="h-4 w-4" aria-hidden /> {r.rotuloPreparar ?? "Preparar no relatório da diretoria"}
           </Link>
         )}
       </div>

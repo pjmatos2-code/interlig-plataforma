@@ -1041,3 +1041,10 @@ O Paulo pediu um módulo novo para a diretoria e as lideranças acompanharem res
 - Detalhes em `docs/grr/etapa-3.md`.
 
 - Churn precoce também fora do GRR e das reuniões (decisão da gestão em 19/11/2026), como a inadimplência. O GRR Comercial fica com seis grupos.
+
+### GRR, Etapa 4 (19/11/2026)
+
+- Reunião de resultados da diretoria registrada no GRR (mesma tabela da reunião de equipe), com pauta fixa, decisões e encerramento só pela diretoria.
+- Encerrar congela a semana e guarda números, diagnósticos, planos, participantes e ata; correções à parte.
+- Relatório da reunião na plataforma e em PDF, pelo mesmo mecanismo de link assinado do Relatório da diretoria.
+- Detalhes em `docs/grr/etapa-4.md`.

@@ -59,3 +59,31 @@ describe("reuniões do GRR", () => {
     expect(resumoCompromissos(lista, "2026-11-21")).toEqual({ total: 4, concluidos: 1, naoFeitos: 0, emAberto: 3, atrasados: 1, aguardandoDiretoria: 1 });
   });
 });
+
+import { incluirDecisao, lerAta, lerParticipantesDiretoria, removerDecisao } from "./reunioes";
+
+describe("ata da reunião de resultados", () => {
+  it("lê a ata do banco com tipos garantidos", () => {
+    const ata = lerAta({ pauta: { indicadores: "  vendas acima  ", estranho: "x" }, decisoes: [{ id: "a", texto: "plantão", responsavel: "Marcelo", prazo: "2026-11-30" }, { id: "b", texto: "" }, { texto: "sem id" }] });
+    expect(ata.pauta).toEqual({ indicadores: "vendas acima" });
+    expect(ata.decisoes).toEqual([{ id: "a", texto: "plantão", responsavel: "Marcelo", prazo: "2026-11-30" }]);
+    expect(lerAta(null)).toEqual({ pauta: {}, decisoes: [] });
+  });
+  it("inclui e remove decisões", () => {
+    let ata = incluirDecisao({ pauta: {}, decisoes: [] }, { texto: " revisar metas ", responsavel: "Paulo", prazo: null }, "d1");
+    ata = incluirDecisao(ata, { texto: "   ", responsavel: "", prazo: null }, "d2");
+    expect(ata.decisoes.map((d) => [d.id, d.texto])).toEqual([["d1", "revisar metas"]]);
+    expect(removerDecisao(ata, "d1").decisoes).toEqual([]);
+  });
+  it("participantes: diretoria e coordenação marcadas, mais convidados por nome", () => {
+    const possiveis = [
+      { id: "g", nome: "Paulo", perfil: "gestor" as const },
+      { id: "c", nome: "Marcelo", perfil: "supervisor" as const },
+    ];
+    expect(lerParticipantesDiretoria(["c", "g", "x"], possiveis, "Fulano").map((p) => [p.nome, p.papel])).toEqual([
+      ["Paulo", "diretoria"],
+      ["Marcelo", "coordenacao"],
+      ["Fulano", "convidado"],
+    ]);
+  });
+});

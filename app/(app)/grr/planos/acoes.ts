@@ -147,7 +147,13 @@ export async function aprovacaoPlanoAcao(_e: EstadoPlano, f: FormData): Promise<
   if (!lido) return { erro: "Plano não encontrado." };
   const { error } = await criarClienteServidor()
     .from("grr_acoes")
-    .update({ aprovacao, aprovacao_justificativa: justificativa || null, atualizado_por: usuario.id })
+    .update({
+      aprovacao,
+      aprovacao_justificativa: justificativa || null,
+      atualizado_por: usuario.id,
+      // decidido durante uma reunião de resultados: o plano fica ligado a ela
+      ...(ehId(texto(f, "reuniao")) && !lido.plano.reuniao_id ? { reuniao_id: texto(f, "reuniao") } : {}),
+    })
     .eq("id", id);
   if (error) return { erro: erroDoBanco(error.message) };
   const titulo = aprovacao === "aprovado" ? "👍 Plano de ação aprovado" : aprovacao === "ajuste" ? "✏️ Diretoria pediu ajuste no plano" : "⛔ Plano de ação rejeitado";

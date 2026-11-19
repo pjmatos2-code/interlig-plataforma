@@ -14,6 +14,8 @@ import type { AcaoCombinada, ReuniaoDaSemana } from "@/lib/grr/reuniao-dados";
 import { situacaoExibida, type Diagnostico, type Plano } from "@/lib/grr/planos";
 import { FormAprovacaoPlano } from "@/components/grr/planos/formularios";
 import { SeloAprovacao, SeloSituacao } from "@/components/grr/planos/selos";
+import { FormDecisao, FormEncerrarDiretoria, ListaDecisoesEditavel } from "@/components/grr/reunioes/diretoria-forms";
+import type { AtaDiretoria } from "@/lib/grr/reunioes";
 import { GraficoEvolucaoVendas } from "@/components/grr/painel/grafico-evolucao";
 import { ROTULO_STATUS, SELO_STATUS } from "@/components/grr/painel/icones";
 import { RoscaSituacao } from "@/components/grr/painel/rosca";
@@ -43,6 +45,8 @@ type Props = {
   planos: Plano[];
   hoje: string;
   diretoria: boolean;
+  /** reunião de resultados registrada no GRR (Etapa 4); sem ela, a apresentação é só da semana */
+  reuniaoGrr: { id: string; data: string; participantes: string[]; aberta: boolean; encerradaEm: string | null; ata: AtaDiretoria } | null;
   hrefVoltar: string;
 };
 
@@ -114,6 +118,7 @@ export function ApresentacaoGrr(p: Props) {
   const porConversao = dados.porAgente.filter((l) => l.safraAtendidos > 0).sort((a, b) => (b.safraTaxa ?? -1) - (a.safraTaxa ?? -1) || b.safraConvertidos - a.safraConvertidos);
   const cartao = (k: string) => p.todos.find((c) => c.chave === k);
   const r = reuniao?.reuniao ?? {};
+  const g = p.reuniaoGrr;
 
   const telas: React.ReactNode[] = [
     // 1. Abertura
@@ -125,9 +130,9 @@ export function ApresentacaoGrr(p: Props) {
       <p className="mt-1 text-lg tabular-nums text-white/80 sm:text-xl">Semana de {p.semana.rotulo}</p>
       <dl className="mt-10 grid w-full max-w-3xl gap-3 text-left sm:grid-cols-3">
         {[
-          ["Data da reunião", r["reuniao-data"] ? dataBr(r["reuniao-data"]) : "não registrada"],
-          ["Participantes", r["reuniao-quem"] || "não registrados"],
-          ["Situação", foto ? "Números congelados" : p.semana.emAndamento ? "Semana em andamento" : "Aguardando encerramento"],
+          ["Data da reunião", g ? dataBr(g.data) : r["reuniao-data"] ? dataBr(r["reuniao-data"]) : "não registrada"],
+          ["Participantes", g ? g.participantes.join(", ") || "não registrados" : r["reuniao-quem"] || "não registrados"],
+          ["Situação", g && !g.aberta ? "Reunião encerrada" : foto ? "Números congelados" : p.semana.emAndamento ? "Semana em andamento" : "Aguardando encerramento"],
         ].map(([t, v]) => (
           <div key={t} className="rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/15">
             <dt className="text-xs font-medium uppercase tracking-wide text-white/60">{t}</dt>
@@ -428,64 +433,102 @@ export function ApresentacaoGrr(p: Props) {
           <Caixa titulo="Situação dos indicadores">
             <RoscaSituacao situacao={p.situacao} gruposSemDados={p.gruposSemDados} />
           </Caixa>
+          {g ? (
+            <Caixa titulo="Fechamento oficial">
+              {!g.aberta ? (
+                <p className="text-base">Reunião encerrada em {g.encerradaEm ? dataHora(g.encerradaEm) : "—"}. A ata, os números e as decisões estão guardados; o relatório em PDF está na página da reunião.</p>
+              ) : p.diretoria ? (
+                <div className="space-y-2">
+                  <p className="text-base text-slate-600">Encerrar congela a semana (se ainda não estiver) e guarda a ata da reunião.</p>
+                  <FormEncerrarDiretoria id={g.id} grande />
+                </div>
+              ) : (
+                <p className="text-base text-slate-600">Só a diretoria encerra a reunião de resultados.</p>
+              )}
+            </Caixa>
+          ) : (
           <Caixa titulo="Fechamento oficial">
-            {foto ? (
-              <p className="text-base">
-                Semana congelada na versão {foto.versao}, em {dataHora(foto.congeladoEm)}. Os números desta apresentação estão preservados; correções criam nova versão com motivo.
-              </p>
-            ) : p.congelamento.aoVivo && p.congelamento.foto ? (
-              <p className="text-base">Esta semana já está congelada (versão {p.congelamento.foto.versao}). A apresentação está mostrando os números de agora.</p>
-            ) : !p.semana.completa ? (
-              <p className="text-base text-slate-600">A semana ainda está em andamento. O encerramento oficial congela só semana completa.</p>
-            ) : !p.congelamento.disponivel ? (
-              <p className="text-base text-slate-600">As tabelas do GRR não estão disponíveis; não é possível congelar.</p>
-            ) : p.congelamento.podeCongelar ? (
-              <div className="space-y-2">
-                <p className="text-base text-slate-600">Encerrar congela os números da semana em todos os recortes. As decisões ao lado continuam editáveis.</p>
-                <BotaoEncerrar semana={p.semana.inicio} />
-              </div>
+              {foto ? (
+                <p className="text-base">
+                  Semana congelada na versão {foto.versao}, em {dataHora(foto.congeladoEm)}. Os números desta apresentação estão preservados; correções criam nova versão com motivo.
+                </p>
+              ) : p.congelamento.aoVivo && p.congelamento.foto ? (
+                <p className="text-base">Esta semana já está congelada (versão {p.congelamento.foto.versao}). A apresentação está mostrando os números de agora.</p>
+              ) : !p.semana.completa ? (
+                <p className="text-base text-slate-600">A semana ainda está em andamento. O encerramento oficial congela só semana completa.</p>
+              ) : !p.congelamento.disponivel ? (
+                <p className="text-base text-slate-600">As tabelas do GRR não estão disponíveis; não é possível congelar.</p>
+              ) : p.congelamento.podeCongelar ? (
+                <div className="space-y-2">
+                  <p className="text-base text-slate-600">Encerrar congela os números da semana em todos os recortes. As decisões ao lado continuam editáveis.</p>
+                  <BotaoEncerrar semana={p.semana.inicio} />
+                </div>
+              ) : (
+                <p className="text-base text-slate-600">O encerramento oficial é feito pela diretoria.</p>
+              )}
+            </Caixa>
+          )}
+        </div>
+        {g ? (
+          <Caixa titulo="Decisões da reunião">
+            {g.ata.decisoes.length === 0 ? (
+              <p className="text-slate-500">Nenhuma decisão registrada ainda.</p>
             ) : (
-              <p className="text-base text-slate-600">O encerramento oficial é feito pela diretoria.</p>
+              <ol className="list-decimal space-y-2 pl-6 text-base">
+                {g.ata.decisoes.map((d) => (
+                  <li key={d.id}>
+                    <b>{d.texto}</b>
+                    <span className="text-slate-600"> · {d.responsavel || "sem responsável"} · {d.prazo ? `até ${dataBr(d.prazo)}` : "sem prazo"}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+            {g.aberta && p.diretoria && (
+              <div className="mt-4 space-y-3">
+                <FormDecisao id={g.id} />
+                <ListaDecisoesEditavel id={g.id} decisoes={g.ata.decisoes} />
+              </div>
             )}
           </Caixa>
-        </div>
+        ) : (
         <Caixa titulo="Decisões da reunião">
-          {reuniao ? (
-            <div className={cn("space-y-4", CAMPOS)}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block text-sm font-medium text-slate-600">
-                  Data da reunião
-                  <CampoReuniao id={reuniao.relatorioId} campo="reuniao-data" inicial={r["reuniao-data"] ?? ""} tipo="date" podeEditar={p.podeEditarReuniao} ariaLabel="Data da reunião" />
-                </label>
-                <label className="block text-sm font-medium text-slate-600">
-                  Participantes
-                  <CampoReuniao id={reuniao.relatorioId} campo="reuniao-quem" inicial={r["reuniao-quem"] ?? ""} placeholder="Quem participou" podeEditar={p.podeEditarReuniao} ariaLabel="Participantes" />
-                </label>
-              </div>
-              <label className="block text-sm font-medium text-slate-600">
-                O que foi entregue contra a meta?
-                <CampoReuniao id={reuniao.relatorioId} campo="a1" inicial={r.a1 ?? ""} placeholder="Vendas, receita, assinaturas, time e origem." podeEditar={p.podeEditarReuniao} multilinha ariaLabel="O que foi entregue contra a meta" />
-              </label>
-              <div>
-                <p className="mb-2 text-sm font-medium text-slate-600">Ações combinadas para a próxima semana (ação, responsável e prazo)</p>
-                <div className="space-y-2">
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <div key={n} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_11rem_9rem] [&_input]:!mt-0">
-                      <CampoReuniao id={reuniao.relatorioId} campo={`p${n}a`} inicial={r[`p${n}a`] ?? ""} placeholder={`Ação ${n}`} podeEditar={p.podeEditarReuniao} ariaLabel={`Ação ${n}`} />
-                      <CampoReuniao id={reuniao.relatorioId} campo={`p${n}r`} inicial={r[`p${n}r`] ?? ""} placeholder="Responsável" podeEditar={p.podeEditarReuniao} ariaLabel={`Responsável da ação ${n}`} />
-                      <CampoReuniao id={reuniao.relatorioId} campo={`p${n}p`} inicial={r[`p${n}p`] ?? ""} placeholder="Prazo" podeEditar={p.podeEditarReuniao} ariaLabel={`Prazo da ação ${n}`} />
-                    </div>
-                  ))}
+            {reuniao ? (
+              <div className={cn("space-y-4", CAMPOS)}>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block text-sm font-medium text-slate-600">
+                    Data da reunião
+                    <CampoReuniao id={reuniao.relatorioId} campo="reuniao-data" inicial={r["reuniao-data"] ?? ""} tipo="date" podeEditar={p.podeEditarReuniao} ariaLabel="Data da reunião" />
+                  </label>
+                  <label className="block text-sm font-medium text-slate-600">
+                    Participantes
+                    <CampoReuniao id={reuniao.relatorioId} campo="reuniao-quem" inicial={r["reuniao-quem"] ?? ""} placeholder="Quem participou" podeEditar={p.podeEditarReuniao} ariaLabel="Participantes" />
+                  </label>
                 </div>
+                <label className="block text-sm font-medium text-slate-600">
+                  O que foi entregue contra a meta?
+                  <CampoReuniao id={reuniao.relatorioId} campo="a1" inicial={r.a1 ?? ""} placeholder="Vendas, receita, assinaturas, time e origem." podeEditar={p.podeEditarReuniao} multilinha ariaLabel="O que foi entregue contra a meta" />
+                </label>
+                <div>
+                  <p className="mb-2 text-sm font-medium text-slate-600">Ações combinadas para a próxima semana (ação, responsável e prazo)</p>
+                  <div className="space-y-2">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <div key={n} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_11rem_9rem] [&_input]:!mt-0">
+                        <CampoReuniao id={reuniao.relatorioId} campo={`p${n}a`} inicial={r[`p${n}a`] ?? ""} placeholder={`Ação ${n}`} podeEditar={p.podeEditarReuniao} ariaLabel={`Ação ${n}`} />
+                        <CampoReuniao id={reuniao.relatorioId} campo={`p${n}r`} inicial={r[`p${n}r`] ?? ""} placeholder="Responsável" podeEditar={p.podeEditarReuniao} ariaLabel={`Responsável da ação ${n}`} />
+                        <CampoReuniao id={reuniao.relatorioId} campo={`p${n}p`} inicial={r[`p${n}p`] ?? ""} placeholder="Prazo" podeEditar={p.podeEditarReuniao} ariaLabel={`Prazo da ação ${n}`} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500">Cada campo se salva sozinho no registro da reunião do Relatório da diretoria (os mesmos campos da página do relatório).</p>
               </div>
-              <p className="text-xs text-slate-500">Cada campo se salva sozinho no registro da reunião do Relatório da diretoria (os mesmos campos da página do relatório).</p>
-            </div>
-          ) : (
-            <p className="text-slate-500">
-              Sem registro de reunião para esta semana. As decisões ficam no Relatório da diretoria da semana; gere o relatório para registrá-las aqui.
-            </p>
-          )}
-        </Caixa>
+            ) : (
+              <p className="text-slate-500">
+                Sem registro de reunião para esta semana. As decisões ficam no Relatório da diretoria da semana; gere o relatório para registrá-las aqui.
+              </p>
+            )}
+          </Caixa>
+        )}
       </div>
     </div>,
   ];

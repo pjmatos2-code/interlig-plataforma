@@ -10,7 +10,7 @@ import { resolverEscopo, type CadastroGrr, type EscopoGrr } from "./escopo";
 
 export type Modalidade = "equipe" | "diretoria";
 export type EscopoReuniao = { tipo: "equipe" | "unidade" | "empresa"; ref: string | null; rotulo: string };
-export type Participante = { id: string; nome: string; papel: "agente" | "coordenacao" | "convidado" };
+export type Participante = { id: string; nome: string; papel: "agente" | "coordenacao" | "diretoria" | "convidado" };
 
 export type ReuniaoGrr = {
   id: string;
@@ -28,6 +28,8 @@ export type ReuniaoGrr = {
   boas_praticas: string | null;
   situacao: "aberta" | "encerrada";
   dados: unknown | null;
+  /** ata da reunião de resultados (pauta e decisões); {} na reunião de equipe */
+  ata?: AtaDiretoria | Record<string, never>;
   corte_em: string | null;
   encerrada_em: string | null;
   encerrada_por: string | null;
@@ -128,4 +130,57 @@ export function lerParticipantes(marcados: string[], sugeridos: Participante[], 
     .slice(0, 10)
     .map((nome, i) => ({ id: `convidado-${i + 1}`, nome: nome.slice(0, 60), papel: "convidado" as const }));
   return [...dentro, ...extras];
+}
+
+// ---------------------------------------------------------------------------
+// reunião de resultados da diretoria (Etapa 4)
+// ---------------------------------------------------------------------------
+
+/** pauta fixa, na ordem da especificação */
+export const PAUTA_DIRETORIA = [
+  { chave: "indicadores", titulo: "Indicadores, metas e resultados" },
+  { chave: "diagnosticos", titulo: "Diagnósticos dos desvios" },
+  { chave: "acompanhamento", titulo: "Acompanhamento das ações anteriores" },
+  { chave: "novas_acoes", titulo: "Proposição e aprovação de novas ações" },
+  { chave: "decisoes", titulo: "Decisões e encerramento" },
+] as const;
+export type ItemPauta = (typeof PAUTA_DIRETORIA)[number]["chave"];
+
+export type Decisao = { id: string; texto: string; responsavel: string; prazo: string | null };
+export type AtaDiretoria = { pauta: Partial<Record<ItemPauta, string>>; decisoes: Decisao[] };
+
+const limpo = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+
+/** a ata como veio do banco, com tipos garantidos (campos estranhos ficam de fora) */
+export function lerAta(bruta: unknown): AtaDiretoria {
+  const o = (bruta && typeof bruta === "object" ? bruta : {}) as { pauta?: Record<string, unknown>; decisoes?: unknown };
+  const pauta: AtaDiretoria["pauta"] = {};
+  for (const item of PAUTA_DIRETORIA) {
+    const t = limpo(o.pauta?.[item.chave], 4000);
+    if (t) pauta[item.chave] = t;
+  }
+  const decisoes = (Array.isArray(o.decisoes) ? o.decisoes : [])
+    .map((d) => d as Record<string, unknown>)
+    .map((d) => ({ id: limpo(d.id, 40), texto: limpo(d.texto, 600), responsavel: limpo(d.responsavel, 80), prazo: /^\d{4}-\d{2}-\d{2}$/.test(String(d.prazo ?? "")) ? String(d.prazo) : null }))
+    .filter((d) => d.id && d.texto)
+    .slice(0, 30);
+  return { pauta, decisoes };
+}
+
+export function incluirDecisao(ata: AtaDiretoria, d: Omit<Decisao, "id">, id: string): AtaDiretoria {
+  if (!d.texto.trim()) return ata;
+  return { ...ata, decisoes: [...ata.decisoes, { id, texto: d.texto.trim().slice(0, 600), responsavel: d.responsavel.trim().slice(0, 80), prazo: d.prazo }].slice(0, 30) };
+}
+
+export function removerDecisao(ata: AtaDiretoria, id: string): AtaDiretoria {
+  return { ...ata, decisoes: ata.decisoes.filter((d) => d.id !== id) };
+}
+
+/** quem participa da reunião de resultados: diretoria e coordenadores (os marcados), mais convidados por nome */
+export function lerParticipantesDiretoria(marcados: string[], possiveis: { id: string; nome: string; perfil: Perfil }[], convidados: string): Participante[] {
+  const set = new Set(marcados);
+  const dentro = possiveis
+    .filter((p) => set.has(p.id))
+    .map((p) => ({ id: p.id, nome: p.nome, papel: (p.perfil === "supervisor" ? "coordenacao" : "diretoria") as Participante["papel"] }));
+  return [...dentro, ...lerParticipantes([], [], convidados)];
 }

@@ -6,7 +6,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // /api/relatorios/rotina: cron do relatório da diretoria (CRON_SECRET).
 // /relatorios/pdf/: página que o servidor imprime para o PDF, com link
 // assinado que expira em minutos (lib/relatorio-semanal/assinatura.ts).
-const ROTAS_PUBLICAS = ["/login", "/auth", "/api/sync", "/api/relatorios/rotina", "/api/grr/fechamento", "/relatorios/pdf/", "/api/webhooks", "/api/sz", "/sw.js", "/manifest.webmanifest", "/offline.html"];
+const ROTAS_PUBLICAS = ["/login", "/auth", "/api/sync", "/api/relatorios/rotina", "/api/grr/fechamento", "/relatorios/pdf/", "/reuniao-pdf/", "/api/webhooks", "/api/sz", "/sw.js", "/manifest.webmanifest", "/offline.html"];
 
 export async function atualizarSessao(request: NextRequest) {
   let response = NextResponse.next({ request });

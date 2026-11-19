@@ -3,6 +3,7 @@ import { CalendarClock, FileText, Presentation, Users } from "lucide-react";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { AreasGrr } from "@/components/grr/areas";
 import { FormNovaReuniao } from "@/components/grr/reunioes/formularios";
+import { FormNovaReuniaoDiretoria } from "@/components/grr/reunioes/diretoria-forms";
 import { exigirPerfil } from "@/lib/auth";
 import { carregarCadastroGrr } from "@/lib/grr/dados";
 import { recortesPermitidos } from "@/lib/grr/reunioes";
@@ -39,10 +40,24 @@ export default async function GrrReunioesPage() {
           <h2 id="t-diretoria" className="flex items-center gap-2 text-base font-semibold">
             <CalendarClock className="h-5 w-5 text-interlig-azul" aria-hidden /> Reunião de resultados da diretoria
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">Segunda-feira, diretoria com a coordenação, sobre a última semana completa ({rotuloSemana(ultima)}). O registro fica no Relatório da diretoria.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Diretoria com a coordenação, sobre a última semana completa ({rotuloSemana(ultima)}). Pauta: indicadores, diagnósticos, acompanhamento das ações, novas ações e decisões. Só a diretoria encerra.
+          </p>
+          {diretoria && disponivel && (
+            <div className="mt-3">
+              <FormNovaReuniaoDiretoria
+                hoje={hoje}
+                unidades={cadastro.pops}
+                semanas={[
+                  { valor: ultima.inicio, rotulo: `Última completa (${rotuloSemana(ultima)})` },
+                  { valor: atual.inicio, rotulo: `Semana atual (${rotuloSemana(atual)})` },
+                ]}
+              />
+            </div>
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
             <Link href="/apresentacao/grr?semana=ultima" className="inline-flex h-10 items-center gap-2 rounded-lg bg-interlig-azul px-4 text-sm font-semibold text-white hover:bg-interlig-azul/90">
-              <Presentation className="h-4 w-4" aria-hidden /> Apresentar
+              <Presentation className="h-4 w-4" aria-hidden /> Apresentar a semana sem reunião
             </Link>
             {diretoria && (
               <Link href="/relatorios" className="inline-flex h-10 items-center gap-2 rounded-lg border bg-background px-4 text-sm font-medium hover:border-interlig-ceu">
@@ -78,10 +93,10 @@ export default async function GrrReunioesPage() {
 
       <section className="mt-6" aria-labelledby="t-lista">
         <h2 id="t-lista" className="mb-2 text-base font-semibold">
-          Reuniões de equipe
+          Reuniões
         </h2>
         {!disponivel || reunioes.length === 0 ? (
-          <p className="rounded-xl border border-dashed bg-card p-4 text-sm text-muted-foreground">Nenhuma reunião de equipe registrada ainda.</p>
+          <p className="rounded-xl border border-dashed bg-card p-4 text-sm text-muted-foreground">Nenhuma reunião registrada ainda.</p>
         ) : (
           <ul className="divide-y rounded-2xl border bg-card shadow-sm">
             {reunioes.map((r) => (
@@ -89,7 +104,9 @@ export default async function GrrReunioesPage() {
                 <Link href={`/grr/reunioes/${r.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-muted/40">
                   <span className="w-24 font-semibold tabular-nums">{dataBr(r.data_reuniao)}</span>
                   <span className="min-w-0 flex-1">
-                    <span className="font-medium">{r.escopo_rotulo}</span>
+                    <span className="font-medium">
+                      {r.modalidade === "diretoria" ? "Resultados" : "Equipe"} · {r.escopo_rotulo}
+                    </span>
                     <span className="block text-xs text-muted-foreground">
                       Período {rotuloSemana({ inicio: r.periodo_inicio, fim: r.periodo_fim })} · {r.responsavel_nome ?? "sem responsável"} · {r.participantes.length} participantes
                     </span>

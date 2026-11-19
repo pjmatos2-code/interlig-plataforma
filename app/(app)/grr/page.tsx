@@ -15,6 +15,7 @@ import { alertasDoResumo, destaquesDoResumo, pontosDoGrafico, situacaoDosIndicad
 import { lerReuniaoDaSemana, PERFIS_RELATORIO } from "@/lib/grr/reuniao-dados";
 import { contarPlanos, desviosSemDiagnostico, diagnosticosAtuais } from "@/lib/grr/planos";
 import { diagnosticosDaSemana, listarPlanos } from "@/lib/grr/planos-dados";
+import { listarReunioes } from "@/lib/grr/reunioes-dados";
 import { rotuloSemana, ultimaSemanaCompleta } from "@/lib/relatorio-semanal/periodo";
 import { carregarTelaGrr, parametrosDaTela, type ParametrosGrr } from "./carregar";
 
@@ -35,13 +36,16 @@ export default async function GrrPage({ searchParams }: { searchParams: Parametr
   const ultima = ultimaSemanaCompleta(hoje);
   const mesmaSemana = ultima.inicio === semana.inicio;
   const chaveTela = chaveDoEscopo(escopo, usuario.id);
-  const [reuniaoDaSemana, reuniaoUltima, fotoUltima, planos, diagnosticos] = await Promise.all([
+  const [reuniaoDaSemana, reuniaoUltima, fotoUltima, planos, diagnosticos, reunioesGrr] = await Promise.all([
     lerReuniaoDaSemana(semana.inicio, usuario.perfil),
     mesmaSemana ? null : lerReuniaoDaSemana(ultima.inicio, usuario.perfil),
     mesmaSemana || !config.disponivel ? null : lerFoto(ultima, chaveTela),
     listarPlanos(),
     diagnosticosDaSemana(semana.inicio),
+    listarReunioes(),
   ]);
+  // a reunião de resultados aberta registrada no GRR (a mais recente), se houver
+  const proxima = reunioesGrr.disponivel ? reunioesGrr.reunioes.find((x) => x.modalidade === "diretoria" && x.situacao === "aberta") ?? null : null;
   const doRecorte = (x: { escopo_tipo: string; escopo_ref: string | null }) => x.escopo_tipo === chaveTela.tipo && (x.escopo_ref ?? null) === (chaveTela.ref ?? null);
   const contagemPlanos = planos.disponivel ? contarPlanos(planos.planos, hoje) : null;
   const semDiagnostico = desviosSemDiagnostico(dados.cartoes, diagnosticosAtuais(diagnosticos.lista.filter(doRecorte))).length;
@@ -134,13 +138,15 @@ export default async function GrrPage({ searchParams }: { searchParams: Parametr
         <aside className="grid content-start gap-4 md:grid-cols-2 2xl:grid-cols-1" aria-label="Gestão">
           <CartaoProximaReuniao
             r={{
-              semanaRotulo: rotuloSemana(ultima),
-              data: reuniao?.reuniao["reuniao-data"] || null,
-              participantes: reuniao?.reuniao["reuniao-quem"] || null,
+              semanaRotulo: proxima ? rotuloSemana({ inicio: proxima.periodo_inicio, fim: proxima.periodo_fim }) : rotuloSemana(ultima),
+              data: proxima ? proxima.data_reuniao : reuniao?.reuniao["reuniao-data"] || null,
+              participantes: proxima ? proxima.participantes.map((x) => x.nome).join(", ") || null : reuniao?.reuniao["reuniao-quem"] || null,
+              programada: reunioesGrr.disponivel ? !!proxima : undefined,
               relatorio: !acessoRelatorio ? "sem_acesso" : reuniao ? "gerado" : "nao_gerado",
               congelada: mesmaSemana ? !!congelamento.foto : !!fotoUltima,
-              hrefApresentar: `/apresentacao/grr${qUltima}`,
-              hrefPreparar: reuniao ? `/relatorios/semanal/${reuniao.relatorioId}` : acessoRelatorio ? "/relatorios" : null,
+              hrefApresentar: proxima ? `/apresentacao/grr?reuniao=${proxima.id}` : `/apresentacao/grr${qUltima}`,
+              hrefPreparar: proxima ? `/grr/reunioes/${proxima.id}` : acessoRelatorio ? "/grr/reunioes" : null,
+              rotuloPreparar: proxima ? "Preparar a reunião" : "Criar a reunião",
               pendencias: contagemPlanos ? { semDiagnostico, aguardandoAprovacao: contagemPlanos.aguardandoAprovacao } : null,
             }}
           />

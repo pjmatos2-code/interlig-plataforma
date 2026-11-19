@@ -7,7 +7,11 @@ import { carregarCadastroGrr, carregarGrrComercial } from "./dados";
 import type { CadastroGrr } from "./escopo";
 import { chaveDoEscopo, paraFoto } from "./fotos";
 import type { DadosGrr } from "./montar";
-import { escopoDaReuniao, type Compromisso, type Participante, type ReuniaoGrr } from "./reunioes";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
+import { lerFoto } from "./fotos-dados";
+import { diagnosticosAtuais, type Diagnostico, type Plano } from "./planos";
+import { diagnosticosDaSemana, listarPlanos } from "./planos-dados";
+import { escopoDaReuniao, lerAta, type AtaDiretoria, type Compromisso, type Participante, type ReuniaoGrr } from "./reunioes";
 import { resolverSemana } from "./semana";
 
 /**
@@ -26,7 +30,7 @@ export type FotoDaReuniao = {
 };
 export type Registro = { id: string; compromisso_id: string | null; tipo: "correcao" | "compromisso"; texto: string | null; dados: Record<string, unknown> | null; criado_em: string; criado_por: string | null };
 
-const CAMPOS = "id, modalidade, escopo_tipo, escopo_ref, escopo_rotulo, responsavel_id, responsavel_nome, data_reuniao, periodo_inicio, periodo_fim, participantes, observacoes, boas_praticas, situacao, corte_em, encerrada_em, encerrada_por, criada_em, criada_por";
+const CAMPOS = "id, modalidade, escopo_tipo, escopo_ref, escopo_rotulo, responsavel_id, responsavel_nome, data_reuniao, periodo_inicio, periodo_fim, participantes, observacoes, boas_praticas, ata, situacao, corte_em, encerrada_em, encerrada_por, criada_em, criada_por";
 const CAMPOS_COMPROMISSO = "id, reuniao_id, tipo, agente_id, responsavel_nome, descricao, prazo, situacao, aprovacao, conferido_em, criado_em";
 
 export async function listarReunioes(): Promise<{ disponivel: boolean; reunioes: Omit<ReuniaoGrr, "dados">[] }> {
@@ -96,4 +100,68 @@ export async function indicadoresDaReuniao(
 /** a foto que vai para a reunião no encerramento */
 export function montarFotoDaReuniao(dados: DadosGrr, r: ReuniaoGrr, compromissos: Compromisso[], conferidos: Compromisso[]): FotoDaReuniao {
   return { indicadores: paraFoto(dados), participantes: r.participantes, compromissos, conferidos, observacoes: r.observacoes, boas_praticas: r.boas_praticas };
+}
+
+// ---------------------------------------------------------------------------
+// reunião de resultados da diretoria (Etapa 4)
+// ---------------------------------------------------------------------------
+
+export type FotoReuniaoDiretoria = {
+  indicadores: DadosGrr;
+  /** versão da semana congelada usada (null: números de agora no encerramento) */
+  fotoVersao: number | null;
+  diagnosticos: Diagnostico[];
+  planos: Plano[];
+  participantes: Participante[];
+  ata: AtaDiretoria;
+};
+
+/** quem pode participar: diretoria e coordenação ativas */
+export async function participantesPossiveisDiretoria(): Promise<{ id: string; nome: string; perfil: "gestor" | "direcao" | "supervisor" }[]> {
+  const { data } = await criarClienteAdmin().from("usuarios").select("id, nome, perfil").eq("ativo", true).in("perfil", ["gestor", "direcao", "supervisor"]).order("nome");
+  return (data ?? []) as { id: string; nome: string; perfil: "gestor" | "direcao" | "supervisor" }[];
+}
+
+/**
+ * O que a pauta mostra: na reunião encerrada, a foto guardada; na aberta, a
+ * semana congelada (se houver) ou os números de agora, com os diagnósticos da
+ * semana e os planos visíveis.
+ */
+export async function pautaDaReuniao(r: ReuniaoGrr, usuarioId: string): Promise<FotoReuniaoDiretoria & { congelados: boolean; cadastro: CadastroGrr }> {
+  const hoje = hojeSantarem();
+  const semana = resolverSemana(r.periodo_inicio, hoje);
+  const cadastro = await carregarCadastroGrr(mesDeReferencia(semana).de);
+  if (r.situacao === "encerrada" && r.dados) {
+    const f = r.dados as FotoReuniaoDiretoria;
+    return { ...f, ata: lerAta(f.ata), congelados: true, cadastro };
+  }
+  const escopo = escopoDaReuniao(r, cadastro);
+  const chave = chaveDoEscopo(escopo, usuarioId);
+  const [config, diagnosticos, planos] = await Promise.all([lerConfigGrr(), diagnosticosDaSemana(semana.inicio), listarPlanos()]);
+  const foto = config.disponivel && semana.fim < hoje ? await lerFoto(semana, chave) : null;
+  const indicadores = foto
+    ? foto.dados
+    : await carregarGrrComercial(semana, escopo, cadastro).then((d) => ({ ...d, cartoes: aplicarConfig(d.cartoes, config, chave, semana.inicio) }));
+  return {
+    indicadores,
+    fotoVersao: foto?.versao ?? null,
+    diagnosticos: diagnosticosAtuais(diagnosticos.lista),
+    planos: planos.planos.filter((p) => p.aprovacao !== "rejeitado"),
+    participantes: r.participantes,
+    ata: lerAta(r.ata),
+    congelados: false,
+    cadastro,
+  };
+}
+
+/** leitura sem sessão, para a página de impressão do PDF (o link é assinado) */
+export async function lerReuniaoParaImpressao(id: string): Promise<ReuniaoGrr | null> {
+  if (!/^[0-9a-f-]{36}$/.test(id)) return null;
+  const { data } = await criarClienteAdmin().from("grr_reunioes").select(`${CAMPOS}, dados`).eq("id", id).maybeSingle();
+  return (data as unknown as ReuniaoGrr) ?? null;
+}
+
+export async function correcoesParaImpressao(id: string): Promise<Registro[]> {
+  const { data } = await criarClienteAdmin().from("grr_reuniao_registros").select("id, compromisso_id, tipo, texto, dados, criado_em, criado_por").eq("reuniao_id", id).eq("tipo", "correcao").order("criado_em");
+  return (data ?? []) as Registro[];
 }
