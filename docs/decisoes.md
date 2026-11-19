@@ -992,3 +992,15 @@ Como fica:
 - A ativação e a assinatura acompanham a venda. A tabela `contratos` não aceita assinatura, ativação nem cancelamento anteriores à venda, e o ajuste foi recusado na primeira tentativa por isso. A ativação que a plataforma guarda é a aproximação pela data de cadastro (o contrato já chega ativo do SGP), não o dia da instalação; nesse caso a OS de instalação continuava aberta, agendada para 14/11. No ajuste, a ativação ou a assinatura que estiver antes da venda sobe para o dia da venda.
 - O sync mantém essa ordem a cada passada (`naoAntesDaVenda` em `lib/sync/contratos.ts`). Sem isso, um contrato retomado que saísse de ativo e voltasse chegaria com a data do cadastro, e o banco recusaria o lote inteiro de contratos daquela passada. O tempo médio venda → ativação continua contando zero, nunca negativo, se aparecer ativação anterior à venda.
 - O ajuste é caso a caso, por decisão da gestão. Não há regra automática que mude a data de venda, e por enquanto não há tela: é aplicado direto no banco, com o motivo.
+
+## GRR, Gestão da Rotina de Resultados: Etapas 0 e 1 (18/11/2026)
+
+O Paulo pediu um módulo novo para a diretoria e as lideranças acompanharem resultados em reuniões periódicas: indicadores, desvios, planos de ação e atas. Ele fica dentro da plataforma, sem aplicação nova e sem integração nova. A implantação é por etapas, e cada uma só avança com aprovação.
+
+- **Etapa 1, entregue no ramo de desenvolvimento:** painel do GRR Comercial em modo de leitura, em `/grr`. Sem migração, sem gravação e sem mudança em cálculo existente. O detalhe está em `docs/grr/etapas-0-e-1.md`.
+- **Fórmulas:** todas vêm de `lib/indicadores/`. O que o GRR tem de próprio são regras de composição (meta do recorte, meta da semana, faróis), em `lib/grr/regras.ts`, com testes.
+- **Venda que conta no GRR:** a do Relatório da diretoria, sem Prefeitura e rede neutra. O painel mostra a diferença para o Dashboard.
+- **Semana:** segunda a domingo, fuso de Santarém. O painel abre na semana atual; a reunião usa a última semana completa. Semana em andamento compara segunda até hoje com o mesmo trecho da anterior.
+- **Acesso:** administração, direção e coordenação. A coordenação fica presa à própria equipe ou unidade, pela mesma regra do Dashboard. Agentes não acessam nesta etapa.
+- **Ficaram para decisão:** a conversão gerencial por safra de leads, a régua da inadimplência da primeira fatura e a origem da data de ativação.
+

@@ -18,6 +18,7 @@ export const ITENS_NAV: ItemNav[] = [
   { href: "/meu-painel",    rotulo: "Meu painel",  icone: "LayoutDashboard", perfis: ["vendedora", "vendedora_externa", "agente_corporativo", "agente_atendimento", "supervisor"] },
   { href: "/dashboard",     rotulo: "Dashboard",   icone: "LayoutDashboard", perfis: ["gestor", "supervisor", "direcao"] },
   { href: "/relatorios",    rotulo: "Relatório da diretoria", icone: "FileText", perfis: ["gestor", "direcao"] },
+  { href: "/grr",           rotulo: "GRR, Gestão de Resultados", icone: "Gauge", perfis: ["gestor", "supervisor", "direcao"] },
   { href: "/vendedoras",    rotulo: "Vendedoras",  icone: "Users",           perfis: ["gestor", "supervisor", "direcao"] },
   { href: "/minhas-vendas", rotulo: "Minhas vendas", icone: "TrendingUp",    perfis: ["gestor", "vendedora", "vendedora_externa", "agente_corporativo"] },
   { href: "/minha-comissao", rotulo: "Minha comissão", icone: "Wallet",       perfis: ["vendedora", "vendedora_externa", "agente_corporativo", "agente_atendimento"] },
