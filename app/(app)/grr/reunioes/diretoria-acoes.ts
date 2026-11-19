@@ -10,6 +10,7 @@ import { avisar } from "@/lib/grr/planos-dados";
 import { incluirDecisao, lerAta, lerParticipantesDiretoria, PAUTA_DIRETORIA, removerDecisao, type ReuniaoGrr } from "@/lib/grr/reunioes";
 import { lerReuniao, participantesPossiveisDiretoria, pautaDaReuniao, type FotoReuniaoDiretoria } from "@/lib/grr/reunioes-dados";
 import { resolverSemana } from "@/lib/grr/semana";
+import { carregarRotinas } from "@/lib/grr/rotinas-dados";
 import { hojeSantarem, mesDeReferencia } from "@/lib/relatorio-semanal/periodo";
 import { criarClienteServidor } from "@/lib/supabase/server";
 
@@ -138,6 +139,7 @@ export async function encerrarReuniaoDiretoriaAcao(_e: EstadoDiretoria, f: FormD
     planos: pauta.planos,
     participantes: c.r.participantes,
     ata: lerAta(c.r.ata),
+    rotinas: await carregarRotinas([semana], c.usuario, semana).then((r) => r[0]?.lideres ?? []).catch(() => []),
   };
   const agora = new Date().toISOString();
   const { error } = await criarClienteServidor()

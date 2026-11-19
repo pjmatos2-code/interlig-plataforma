@@ -5,6 +5,7 @@ import { lerReuniaoDaSemana } from "@/lib/grr/reuniao-dados";
 import { diagnosticosAtuais } from "@/lib/grr/planos";
 import { diagnosticosDaSemana, listarPlanos } from "@/lib/grr/planos-dados";
 import { hojeSantarem } from "@/lib/relatorio-semanal/periodo";
+import { carregarRotinas } from "@/lib/grr/rotinas-dados";
 import { notFound } from "next/navigation";
 import { exigirPerfil } from "@/lib/auth";
 import { lerAta } from "@/lib/grr/reunioes";
@@ -28,7 +29,12 @@ export default async function ApresentacaoGrrPage({ searchParams: pedido }: { se
   const rg = lida?.reuniao ?? null;
   const searchParams: ParametrosGrr = rg ? { semana: rg.periodo_inicio, unidade: rg.escopo_tipo === "unidade" ? rg.escopo_ref ?? undefined : undefined } : pedido;
   const { usuario, semana, rotuloDaSemana, escopo, dados, congelamento } = await carregarTelaGrr(searchParams);
-  const [reuniao, diagnosticos, planos] = await Promise.all([lerReuniaoDaSemana(semana.inicio, usuario.perfil), diagnosticosDaSemana(semana.inicio), listarPlanos()]);
+  const [reuniao, diagnosticos, planos, rotinas] = await Promise.all([
+    lerReuniaoDaSemana(semana.inicio, usuario.perfil),
+    diagnosticosDaSemana(semana.inicio),
+    listarPlanos(),
+    carregarRotinas([semana], usuario, semana).then((r) => r[0]?.lideres ?? []).catch(() => []),
+  ]);
   // a lista de tickets não vai para a tela de apresentação (nomes de clientes)
   const { tickets: _tickets, ...semTickets } = dados;
   void _tickets;
@@ -52,6 +58,7 @@ export default async function ApresentacaoGrrPage({ searchParams: pedido }: { se
       diagnosticos={diagnosticosAtuais(diagnosticos.lista)}
       planos={planos.planos.filter((x) => x.aprovacao !== "rejeitado" && x.situacao !== "cancelada")}
       hoje={hojeSantarem()}
+      rotinas={rotinas}
       diretoria={usuario.perfil === "gestor" || usuario.perfil === "direcao"}
       hrefVoltar={rg ? `/grr/reunioes/${rg.id}` : `/grr${parametrosDaTela(searchParams)}`}
       reuniaoGrr={

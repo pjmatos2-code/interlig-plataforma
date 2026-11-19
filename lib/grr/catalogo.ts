@@ -112,5 +112,5 @@ export const AREAS_GRR: { chave: string; rotulo: string; href: string | null; et
   { chave: "historico", rotulo: "Histórico", href: "/grr/historico", etapa: 2 },
   { chave: "configuracao", rotulo: "Configuração", href: "/grr/configuracao", etapa: 2, soGestor: true },
   { chave: "conferencia", rotulo: "Conferência dos dados", href: "/grr/conferencia", etapa: 5, soGestor: true },
-  { chave: "rotinas", rotulo: "Rotinas das lideranças", href: null, etapa: 0 },
+  { chave: "rotinas", rotulo: "Rotinas das lideranças", href: "/grr/rotinas", etapa: 0 },
 ];

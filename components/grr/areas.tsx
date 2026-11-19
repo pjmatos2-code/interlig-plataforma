@@ -10,7 +10,7 @@ export function AreasGrr({ ativa, parametros, gestor = false }: { ativa: string;
         a.href ? (
           <Link
             key={a.chave}
-            href={a.soGestor || a.chave === "reunioes" || a.chave === "acoes" ? a.href : `${a.href}${parametros}`}
+            href={a.soGestor || a.chave === "reunioes" || a.chave === "acoes" || a.chave === "rotinas" ? a.href : `${a.href}${parametros}`}
             aria-current={a.chave === ativa ? "page" : undefined}
             className={cn(
               "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium",

@@ -16,6 +16,8 @@ import { FormAprovacaoPlano } from "@/components/grr/planos/formularios";
 import { SeloAprovacao, SeloSituacao } from "@/components/grr/planos/selos";
 import { FormDecisao, FormEncerrarDiretoria, ListaDecisoesEditavel } from "@/components/grr/reunioes/diretoria-forms";
 import type { AtaDiretoria } from "@/lib/grr/reunioes";
+import type { RotinaLider } from "@/lib/grr/rotinas";
+import { CartaoRotina } from "@/components/grr/rotinas";
 import { GraficoEvolucaoVendas } from "@/components/grr/painel/grafico-evolucao";
 import { ROTULO_STATUS, SELO_STATUS } from "@/components/grr/painel/icones";
 import { RoscaSituacao } from "@/components/grr/painel/rosca";
@@ -46,6 +48,8 @@ type Props = {
   hoje: string;
   diretoria: boolean;
   /** reunião de resultados registrada no GRR (Etapa 4); sem ela, a apresentação é só da semana */
+  /** rotinas das lideranças da semana apresentada */
+  rotinas: RotinaLider[];
   reuniaoGrr: { id: string; data: string; participantes: string[]; aberta: boolean; encerradaEm: string | null; ata: AtaDiretoria } | null;
   hrefVoltar: string;
 };
@@ -58,6 +62,7 @@ const SECOES = [
   { chave: "receita", titulo: "Receita" },
   { chave: "desvios", titulo: "Diagnóstico dos desvios" },
   { chave: "planos", titulo: "Planos de ação" },
+  { chave: "rotinas", titulo: "Rotinas das lideranças" },
   { chave: "encerramento", titulo: "Encerramento" },
 ] as const;
 
@@ -425,7 +430,23 @@ export function ApresentacaoGrr(p: Props) {
       </Caixa>
     </div>,
 
-    // 8. Encerramento
+    // 8. Rotinas das lideranças
+    <div key="rotinas">
+      <Titulo sub={`Semana de ${p.semana.rotulo}: o que cada líder cumpriu do roteiro da semana.`}>Rotinas das lideranças</Titulo>
+      {p.rotinas.length === 0 ? (
+        <Caixa>
+          <p className="text-slate-500">Sem rotinas para mostrar.</p>
+        </Caixa>
+      ) : (
+        <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+          {p.rotinas.map((l) => (
+            <CartaoRotina key={l.liderId} lider={l} />
+          ))}
+        </div>
+      )}
+    </div>,
+
+    // 9. Encerramento
     <div key="encerramento">
       <Titulo sub="Resumo, decisões e o fechamento oficial da semana.">Encerramento</Titulo>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">

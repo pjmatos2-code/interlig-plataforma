@@ -1096,3 +1096,9 @@ A varredura passa pela base inteira em pouco mais de 2 h no expediente, então a
 - **Cancelado sem instalar:** o contrato que estava aguardando e é cancelado continua recebendo a data do cadastro como ativação. Desde agosto são 23 dos 33 cancelados: o relatório oficial do SGP mostra que estavam inativos. Eles entram como ativados e cancelados em até 90 dias no churn precoce (5.10) e como instalados na 5.9. A correção muda indicador, por isso ficou de fora.
 - **Ativação tardia:** cerca de 4 contratos por mês entram em serviço mais de 75 dias depois do cadastro (estimativa pela 1ª fatura), e há 639 contratos inativos na base, 590 com venda anterior a outubro. Quando um deles vira ativo, a ativação passa a valer o dia real e o intervalo desde o cadastro entra no tempo médio. O ajuste de venda retomada cobre esses casos.
 - **Esteira:** "Aguardando instalação" soma as OS abertas, inclusive as de contrato já ativo.
+
+### GRR: rotinas das lideranças (19/11/2026)
+
+- Roteiro semanal da coordenação (leads no mesmo dia, follow-ups, diagnóstico até sexta, reunião de equipe no sábado, planos em dia) e da diretoria (reunião de resultados na segunda, decisões e validações em até 2 dias), conferido pela plataforma com os dados.
+- Vale a partir da semana de 23/11/2026; o cumprimento da semana entra na apresentação e na ata da reunião de resultados.
+- Detalhes em `docs/grr/rotinas.md`.

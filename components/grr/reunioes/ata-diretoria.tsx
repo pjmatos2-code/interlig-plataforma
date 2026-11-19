@@ -6,6 +6,7 @@ import { PAUTA_DIRETORIA, type ItemPauta } from "@/lib/grr/reunioes";
 import type { FotoReuniaoDiretoria } from "@/lib/grr/reunioes-dados";
 import { ROTULO_STATUS } from "@/components/grr/painel/icones";
 import { paraPainel } from "@/lib/grr/painel";
+import { ROTULO_STATUS_ROTINA } from "@/lib/grr/rotinas";
 
 /**
  * Ata da reunião de resultados (Etapa 4): os cinco itens da pauta, na ordem
@@ -154,6 +155,27 @@ export function AtaDiretoria({
 
       <Item n={3} titulo={n(2).titulo} nota={foto.ata.pauta.acompanhamento} slot={slots.acompanhamento}>
         <ListaPlanos planos={emExecucao} hoje={hoje} vazio="Nenhum plano aprovado anteriormente." />
+        {foto.rotinas && foto.rotinas.length > 0 && (
+          <div className="break-inside-avoid">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rotinas das lideranças na semana</p>
+            <ul className="space-y-1">
+              {foto.rotinas.map((l) => (
+                <li key={l.liderId}>
+                  <b>{l.nome}</b>: {l.avaliados ? `${l.cumpridos} de ${l.avaliados} cumpridos` : "nada a avaliar"}
+                  {l.itens.filter((i) => i.status === "nao_cumprido" || i.status === "parcial").length > 0 && (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {l.itens
+                        .filter((i) => i.status === "nao_cumprido" || i.status === "parcial")
+                        .map((i) => `${i.titulo} (${ROTULO_STATUS_ROTINA[i.status].toLowerCase()})`)
+                        .join("; ")}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </Item>
 
       <Item n={4} titulo={n(3).titulo} nota={foto.ata.pauta.novas_acoes} slot={slots.novas_acoes}>

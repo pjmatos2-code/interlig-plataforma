@@ -11,6 +11,7 @@ import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { lerFoto } from "./fotos-dados";
 import { diagnosticosAtuais, type Diagnostico, type Plano } from "./planos";
 import { diagnosticosDaSemana, listarPlanos } from "./planos-dados";
+import type { RotinaLider } from "./rotinas";
 import { escopoDaReuniao, lerAta, type AtaDiretoria, type Compromisso, type Participante, type ReuniaoGrr } from "./reunioes";
 import { resolverSemana } from "./semana";
 
@@ -114,6 +115,8 @@ export type FotoReuniaoDiretoria = {
   planos: Plano[];
   participantes: Participante[];
   ata: AtaDiretoria;
+  /** rotinas das lideranças da semana, guardadas no encerramento */
+  rotinas?: RotinaLider[];
 };
 
 /** quem pode participar: diretoria e coordenação ativas */
