@@ -91,7 +91,7 @@ export function CampoReuniao({
   );
 }
 
-function SelecaoReuniao({ id, campo, inicial, podeEditar, ariaLabel }: { id: string; campo: string; inicial: string; podeEditar: boolean; ariaLabel: string }) {
+export function SelecaoReuniao({ id, campo, inicial, podeEditar, ariaLabel }: { id: string; campo: string; inicial: string; podeEditar: boolean; ariaLabel: string }) {
   const [valor, setValor] = useState(inicial);
   const salvar = useSalvar(id, campo);
   return (

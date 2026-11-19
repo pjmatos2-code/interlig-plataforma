@@ -4,7 +4,7 @@ import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { AreasGrr } from "@/components/grr/areas";
 import { CartaoIndicador } from "@/components/grr/cartao-indicador";
 import { COLUNAS_DO_GRUPO, EvolucaoSemanas, ListaTickets, METRICA_DO_GRUPO, METRICA_SAFRA, Numeros, TabelaQuebra } from "@/components/grr/detalhes";
-import { FiltrosGrr } from "@/components/grr/filtros";
+import { FiltrosRecorte, SeletorSemana } from "@/components/grr/painel/controles";
 import { FaixaCongelamento } from "@/components/grr/formularios";
 import { grupoPorChave, type GrupoGrr } from "@/lib/grr/catalogo";
 import type { DadosGrr, LinhaQuebra } from "@/lib/grr/montar";
@@ -114,11 +114,10 @@ export default async function GrrGrupoPage({ params, searchParams }: { params: {
       </p>
       <CabecalhoPagina titulo={grupo.titulo} descricao={`${grupo.descricao} · ${escopo.rotulo} · semana de ${rotuloDaSemana}`} />
       <AreasGrr ativa="resumo" parametros={q} gestor={usuario.perfil === "gestor"} />
-      <FiltrosGrr
-        semana={{ rotulo: rotuloDaSemana, tipo: semana.tipo }}
-        vizinhas={vizinhas}
-        {...filtros}
-      />
+      <div className="mb-3 sm:max-w-md">
+        <SeletorSemana semana={{ rotulo: rotuloDaSemana, tipo: semana.tipo, emAndamento: dados.trechos.emAndamento }} vizinhas={vizinhas} />
+      </div>
+      <FiltrosRecorte {...filtros} rotuloFixo={escopo.rotulo} />
       <FaixaCongelamento
         semanaInicio={semana.inicio}
         {...congelamento}

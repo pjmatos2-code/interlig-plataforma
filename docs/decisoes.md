@@ -1013,3 +1013,10 @@ O Paulo pediu um módulo novo para a diretoria e as lideranças acompanharem res
 - Metas com vigência por semana e somente inclusão; semanas congeladas são imutáveis, e a correção gera nova versão com motivo.
 - Congelamento manual nesta etapa; o automático fica para decisão posterior.
 - Detalhes em `docs/grr/etapa-2.md`.
+
+### GRR: novo Resumo executivo e Modo Apresentação (19/11/2026)
+
+- Painel redesenhado com base na referência visual aprovada pela gestão; números continuam vindo das regras oficiais.
+- Atingimento em percentual só com meta válida e quando maior é melhor; indicador sem meta não conta como bom.
+- Modo Apresentação dentro da plataforma (`/apresentacao/grr`), sem página pública; o registro da reunião reaproveita o do Relatório da diretoria; o encerramento congela a semana com origem "reunião".
+- Detalhes em `docs/grr/redesign-e-apresentacao.md`.

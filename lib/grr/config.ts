@@ -100,7 +100,7 @@ export function aplicarConfig(cartoes: CartaoGrr[], config: ConfigGrr, chave: Ch
       const def = indicadorPorChave(c.chave);
       const meta = def && def.metaOrigem === "grr" ? metaVigente(config.metas, def, chave, dia) : null;
       if (!def || !meta) return { ...c, dono };
-      return { ...c, dono, meta: `meta ${formatarValorDoIndicador(meta.meta!, def.unidade)}`, status: statusPorFaixa(c.numero, meta.meta!, meta.limite_atencao!, def.polaridade) };
+      return { ...c, dono, meta: `meta ${formatarValorDoIndicador(meta.meta!, def.unidade)}`, metaNumero: meta.meta, status: statusPorFaixa(c.numero, meta.meta!, meta.limite_atencao!, def.polaridade) };
     });
 }
 

@@ -98,6 +98,8 @@ export type CartaoGrr = {
   status: Status;
   /** quem responde pelo indicador (configuração do GRR) */
   dono?: string | null;
+  /** a meta em número, para o atingimento (fotos antigas não têm) */
+  metaNumero?: number | null;
 };
 
 export type LinhaQuebra = {
@@ -354,6 +356,7 @@ export function montarGrr(
       valor: num(m.vendas),
       numero: m.vendas,
       meta: metaSemana != null ? `meta ${num(Math.round(metaSemana))}` : null,
+      metaNumero: metaSemana != null ? Math.round(metaSemana) : null,
       contexto: metaSemana ? `${pct(percentualMeta(m.vendas, metaSemana))} da meta da semana · ${rotuloTrecho}` : `sem meta cadastrada · ${rotuloTrecho}`,
       evolucao: evolucao(m.vendas, m.vendasAnterior),
       status: statusSemana,
@@ -365,6 +368,7 @@ export function montarGrr(
       valor: num(m.vendasMes),
       numero: m.vendasMes,
       meta: metaMes != null ? `meta ${num(metaMes)}` : null,
+      metaNumero: metaMes,
       contexto: metaMes
         ? `${pct(percentualMeta(m.vendasMes, metaMes))} da meta${esperadoMes != null ? ` · esperado até ${diaMes(fimRitmoMes)}: ${num(Math.round(esperadoMes))}` : mes.fechado ? " · mês fechado" : ""}`
         : "sem meta cadastrada",
@@ -393,6 +397,7 @@ export function montarGrr(
       valor: num(paradas),
       numero: paradas,
       meta: "meta 0",
+      metaNumero: 0,
       contexto: `${num(aguardandoRecentes)} aguardando instalação hoje, das vendas dos últimos 60 dias`,
       evolucao: null,
       status: statusEsteira(paradas, antigasAguardando),
@@ -404,6 +409,7 @@ export function montarGrr(
       valor: num(acima48h),
       numero: acima48h,
       meta: "meta 0 acima de 48h",
+      metaNumero: 0,
       contexto: `${num(semAssinarDaSemana.length)} da semana sem assinar · ${num(antigasSemAssinar)} de vendas antigas`,
       evolucao: null,
       status: statusAssinatura(acima48h),

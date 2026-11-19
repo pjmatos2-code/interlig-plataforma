@@ -31,6 +31,27 @@ export async function congelarSemanaAcao(_estado: EstadoGrr, dados: FormData): P
   }
 }
 
+/**
+ * Encerramento da reunião no Modo Apresentação (direção e administração):
+ * congela a semana completa com origem "reunião". Se a semana já tem foto,
+ * nada muda: os números apresentados já estão preservados.
+ */
+export async function encerrarReuniaoAcao(_estado: EstadoGrr, dados: FormData): Promise<EstadoGrr> {
+  const usuario = await exigirPerfil(["gestor", "direcao"]);
+  const pedida = texto(dados, "semana");
+  if (!ehData(pedida)) return { erro: "Semana inválida." };
+  const semana = resolverSemana(pedida, hojeSantarem());
+  if (semana.inicio !== pedida) return { erro: "Semana inválida." };
+  try {
+    const r = await congelarSemana(semana, { usuarioId: usuario.id, motivo: null, origem: "reuniao" });
+    revalidatePath("/grr", "layout");
+    revalidatePath("/apresentacao/grr");
+    return { ok: `Reunião encerrada: semana congelada na versão ${r.versao}, em ${r.recortes} recortes.` };
+  } catch (e) {
+    return { erro: e instanceof Error ? e.message : "Não foi possível encerrar a reunião." };
+  }
+}
+
 /** liga ou desliga um indicador e define o dono (só a administração) */
 export async function salvarIndicadorAcao(_estado: EstadoGrr, dados: FormData): Promise<EstadoGrr> {
   const usuario = await exigirPerfil(["gestor"]);

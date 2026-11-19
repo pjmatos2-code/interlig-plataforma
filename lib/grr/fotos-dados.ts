@@ -43,7 +43,7 @@ export async function listarFotos(chave: ChaveEscopo): Promise<{ disponivel: boo
  * versão seguinte e exige o motivo; as versões anteriores ficam guardadas.
  * A leitura e a gravação usam a sessão de quem pediu (administração ou direção).
  */
-export async function congelarSemana(semana: Semana, opcoes: { usuarioId: string; motivo: string | null }): Promise<{ versao: number; recortes: number }> {
+export async function congelarSemana(semana: Semana, opcoes: { usuarioId: string; motivo: string | null; origem?: "manual" | "reuniao" }): Promise<{ versao: number; recortes: number }> {
   const hoje = hojeSantarem();
   if (semana.fim >= hoje) throw new Error("Só dá para congelar uma semana completa.");
   const supabase = criarClienteServidor();
@@ -72,7 +72,7 @@ export async function congelarSemana(semana: Semana, opcoes: { usuarioId: string
       versao,
       dados: paraFoto({ ...dados, cartoes: aplicarConfig(dados.cartoes, config, chave, semana.inicio) }),
       motivo,
-      origem: "manual",
+      origem: opcoes.origem ?? "manual",
       congelado_por: opcoes.usuarioId,
     };
   });
