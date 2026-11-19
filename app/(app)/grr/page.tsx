@@ -13,6 +13,8 @@ import { chaveDoEscopo } from "@/lib/grr/fotos";
 import { lerFoto } from "@/lib/grr/fotos-dados";
 import { alertasDoResumo, destaquesDoResumo, pontosDoGrafico, situacaoDosIndicadores, tabelaDeIndicadores } from "@/lib/grr/painel";
 import { lerReuniaoDaSemana, PERFIS_RELATORIO } from "@/lib/grr/reuniao-dados";
+import { contarPlanos, desviosSemDiagnostico, diagnosticosAtuais } from "@/lib/grr/planos";
+import { diagnosticosDaSemana, listarPlanos } from "@/lib/grr/planos-dados";
 import { rotuloSemana, ultimaSemanaCompleta } from "@/lib/relatorio-semanal/periodo";
 import { carregarTelaGrr, parametrosDaTela, type ParametrosGrr } from "./carregar";
 
@@ -32,11 +34,17 @@ export default async function GrrPage({ searchParams }: { searchParams: Parametr
   // reunião de segunda: a da última semana completa (registrada no Relatório da diretoria)
   const ultima = ultimaSemanaCompleta(hoje);
   const mesmaSemana = ultima.inicio === semana.inicio;
-  const [reuniaoDaSemana, reuniaoUltima, fotoUltima] = await Promise.all([
+  const chaveTela = chaveDoEscopo(escopo, usuario.id);
+  const [reuniaoDaSemana, reuniaoUltima, fotoUltima, planos, diagnosticos] = await Promise.all([
     lerReuniaoDaSemana(semana.inicio, usuario.perfil),
     mesmaSemana ? null : lerReuniaoDaSemana(ultima.inicio, usuario.perfil),
-    mesmaSemana || !config.disponivel ? null : lerFoto(ultima, chaveDoEscopo(escopo, usuario.id)),
+    mesmaSemana || !config.disponivel ? null : lerFoto(ultima, chaveTela),
+    listarPlanos(),
+    diagnosticosDaSemana(semana.inicio),
   ]);
+  const doRecorte = (x: { escopo_tipo: string; escopo_ref: string | null }) => x.escopo_tipo === chaveTela.tipo && (x.escopo_ref ?? null) === (chaveTela.ref ?? null);
+  const contagemPlanos = planos.disponivel ? contarPlanos(planos.planos, hoje) : null;
+  const semDiagnostico = desviosSemDiagnostico(dados.cartoes, diagnosticosAtuais(diagnosticos.lista.filter(doRecorte))).length;
   const reuniao = mesmaSemana ? reuniaoDaSemana : reuniaoUltima;
   const acessoRelatorio = PERFIS_RELATORIO.includes(usuario.perfil);
   const qUltima = parametrosDaTela(searchParams, { semana: ultima.inicio, vivo: null });
@@ -133,10 +141,11 @@ export default async function GrrPage({ searchParams }: { searchParams: Parametr
               congelada: mesmaSemana ? !!congelamento.foto : !!fotoUltima,
               hrefApresentar: `/apresentacao/grr${qUltima}`,
               hrefPreparar: reuniao ? `/relatorios/semanal/${reuniao.relatorioId}` : acessoRelatorio ? "/relatorios" : null,
+              pendencias: contagemPlanos ? { semDiagnostico, aguardandoAprovacao: contagemPlanos.aguardandoAprovacao } : null,
             }}
           />
           <CartaoAlertas alertas={alertas} parametros={q} />
-          <CartaoPlanos combinado={acessoRelatorio ? reuniao?.combinadoAnterior ?? [] : null} hrefRelatorio={reuniao ? `/relatorios/semanal/${reuniao.relatorioId}` : null} />
+          <CartaoPlanos planos={contagemPlanos} combinado={acessoRelatorio ? reuniao?.combinadoAnterior ?? [] : null} hrefRelatorio={reuniao ? `/relatorios/semanal/${reuniao.relatorioId}` : null} />
         </aside>
       </div>
 

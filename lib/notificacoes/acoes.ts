@@ -19,6 +19,9 @@ export async function listarNotificacoes(): Promise<{ itens: Notificacao[]; naoL
   // lembretes de ações agendadas: dispara os vencidos (barato: índice parcial)
   const { despacharLembretes } = await import("@/lib/notificacoes/lembretes");
   await despacharLembretes().catch(() => 0);
+  // prazos dos planos de ação do GRR (vence amanhã ou atrasado), uma vez por dia
+  const { despacharPrazosGrr } = await import("@/lib/grr/planos-dados");
+  await despacharPrazosGrr().catch(() => 0);
   const supabase = criarClienteServidor();
   const [{ data: itens }, { count }] = await Promise.all([
     supabase

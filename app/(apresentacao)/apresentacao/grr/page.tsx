@@ -2,6 +2,9 @@ import { ApresentacaoGrr } from "@/components/grr/apresentacao/apresentacao";
 import { GRUPOS_GRR } from "@/lib/grr/catalogo";
 import { alertasDoResumo, destaquesDoResumo, paraPainel, pontosDoGrafico, situacaoDosIndicadores } from "@/lib/grr/painel";
 import { lerReuniaoDaSemana } from "@/lib/grr/reuniao-dados";
+import { diagnosticosAtuais } from "@/lib/grr/planos";
+import { diagnosticosDaSemana, listarPlanos } from "@/lib/grr/planos-dados";
+import { hojeSantarem } from "@/lib/relatorio-semanal/periodo";
 import { carregarTelaGrr, parametrosDaTela, type ParametrosGrr } from "@/app/(app)/grr/carregar";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +18,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function ApresentacaoGrrPage({ searchParams }: { searchParams: ParametrosGrr }) {
   const { usuario, semana, rotuloDaSemana, escopo, dados, congelamento } = await carregarTelaGrr(searchParams);
-  const reuniao = await lerReuniaoDaSemana(semana.inicio, usuario.perfil);
+  const [reuniao, diagnosticos, planos] = await Promise.all([lerReuniaoDaSemana(semana.inicio, usuario.perfil), diagnosticosDaSemana(semana.inicio), listarPlanos()]);
   // a lista de tickets não vai para a tela de apresentação (nomes de clientes)
   const { tickets: _tickets, ...semTickets } = dados;
   void _tickets;
@@ -36,6 +39,10 @@ export default async function ApresentacaoGrrPage({ searchParams }: { searchPara
       pontos={pontosDoGrafico(dados)}
       reuniao={reuniao}
       podeEditarReuniao={usuario.perfil === "gestor" || usuario.perfil === "direcao"}
+      diagnosticos={diagnosticosAtuais(diagnosticos.lista)}
+      planos={planos.planos.filter((x) => x.aprovacao !== "rejeitado" && x.situacao !== "cancelada")}
+      hoje={hojeSantarem()}
+      diretoria={usuario.perfil === "gestor" || usuario.perfil === "direcao"}
       hrefVoltar={`/grr${parametrosDaTela(searchParams)}`}
     />
   );

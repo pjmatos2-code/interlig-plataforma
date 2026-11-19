@@ -10,7 +10,7 @@ export function AreasGrr({ ativa, parametros, gestor = false }: { ativa: string;
         a.href ? (
           <Link
             key={a.chave}
-            href={a.soGestor || a.chave === "reunioes" ? a.href : `${a.href}${parametros}`}
+            href={a.soGestor || a.chave === "reunioes" || a.chave === "acoes" ? a.href : `${a.href}${parametros}`}
             aria-current={a.chave === ativa ? "page" : undefined}
             className={cn(
               "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium",
@@ -21,7 +21,7 @@ export function AreasGrr({ ativa, parametros, gestor = false }: { ativa: string;
           </Link>
         ) : (
           <span key={a.chave} aria-disabled="true" className="shrink-0 rounded-full border border-dashed px-3 py-1.5 text-sm text-muted-foreground">
-            {a.rotulo} <span className="text-xs">· etapa {a.etapa}</span>
+            {a.rotulo} <span className="text-xs">· {a.etapa ? `etapa ${a.etapa}` : "a definir"}</span>
           </span>
         )
       )}

@@ -11,6 +11,9 @@ import { cn } from "@/lib/utils";
 import type { DadosGrr } from "@/lib/grr/montar";
 import type { Alerta, CartaoPainel, PontoGrafico, Situacao } from "@/lib/grr/painel";
 import type { AcaoCombinada, ReuniaoDaSemana } from "@/lib/grr/reuniao-dados";
+import { situacaoExibida, type Diagnostico, type Plano } from "@/lib/grr/planos";
+import { FormAprovacaoPlano } from "@/components/grr/planos/formularios";
+import { SeloAprovacao, SeloSituacao } from "@/components/grr/planos/selos";
 import { GraficoEvolucaoVendas } from "@/components/grr/painel/grafico-evolucao";
 import { ROTULO_STATUS, SELO_STATUS } from "@/components/grr/painel/icones";
 import { RoscaSituacao } from "@/components/grr/painel/rosca";
@@ -35,6 +38,11 @@ type Props = {
   pontos: PontoGrafico[];
   reuniao: ReuniaoDaSemana | null;
   podeEditarReuniao: boolean;
+  /** Etapa 3: diagnósticos atuais da semana (todos os recortes visíveis) e planos ativos */
+  diagnosticos: Diagnostico[];
+  planos: Plano[];
+  hoje: string;
+  diretoria: boolean;
   hrefVoltar: string;
 };
 
@@ -273,6 +281,23 @@ export function ApresentacaoGrr(p: Props) {
                 </div>
               </dl>
               {c.contexto && <p className="mt-3 text-sm text-slate-600">{c.contexto}</p>}
+              <div className="mt-3 space-y-2">
+                {p.diagnosticos.filter((d) => d.indicador === c.chave).length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">Sem diagnóstico registrado pela coordenação.</p>
+                ) : (
+                  p.diagnosticos
+                    .filter((d) => d.indicador === c.chave)
+                    .map((d) => (
+                      <div key={d.id} className="rounded-xl bg-slate-50 px-3 py-2 text-sm">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{d.escopo_rotulo}</p>
+                        <p><b>Causa:</b> {d.causa}</p>
+                        <p><b>Evidências:</b> {d.evidencias || <span className="text-amber-700">sem evidência (hipótese)</span>}</p>
+                        {d.providencias && <p><b>Providências:</b> {d.providencias}</p>}
+                        {d.solucao && <p><b>Solução proposta:</b> {d.solucao}</p>}
+                      </div>
+                    ))
+                )}
+              </div>
             </Caixa>
           ))}
         </div>
@@ -287,7 +312,21 @@ export function ApresentacaoGrr(p: Props) {
             <p className="text-slate-500">Sem registro de reunião para esta semana (o Relatório da diretoria da semana ainda não foi gerado ou o perfil não tem acesso).</p>
           )}
         </Caixa>
-        <Pendente etapa={3}>Diagnóstico da coordenação por indicador: causa, evidências, providências já tomadas e solução proposta.</Pendente>
+        <Caixa titulo="Diagnósticos de indicadores que não estão em desvio">
+          {p.diagnosticos.filter((d) => !p.desvios.some((c) => c.chave === d.indicador)).length === 0 ? (
+            <p className="text-slate-500">Nenhum.</p>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {p.diagnosticos
+                .filter((d) => !p.desvios.some((c) => c.chave === d.indicador))
+                .map((d) => (
+                  <li key={d.id}>
+                    <b>{d.escopo_rotulo}</b> · {d.indicador}: {d.causa}
+                  </li>
+                ))}
+            </ul>
+          )}
+        </Caixa>
       </div>
       <button type="button" onClick={() => setDetalhe("agentes")} className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-interlig-azul hover:underline">
         <Table2 className="h-4 w-4" aria-hidden /> Ver os dados por agente
@@ -331,9 +370,55 @@ export function ApresentacaoGrr(p: Props) {
           <Caixa titulo="Ações desta reunião">
             {reuniao ? <ListaAcoes acoes={reuniao.combinado} vazio="Nenhuma ação registrada ainda. Registre no encerramento." /> : <p className="text-slate-500">Sem registro de reunião para esta semana.</p>}
           </Caixa>
-          <Pendente etapa={3}>Planos de ação com situação acompanhada durante a semana (em andamento, aguardando validação, atrasada), evidências de execução e aprovação, ajuste ou rejeição pela diretoria.</Pendente>
+          <Caixa titulo={`Planos de ação aguardando a diretoria (${p.planos.filter((x) => x.aprovacao === "aguardando").length})`}>
+            {p.planos.filter((x) => x.aprovacao === "aguardando").length === 0 ? (
+              <p className="text-slate-500">Nenhum plano aguardando decisão.</p>
+            ) : (
+              <ul className="space-y-3">
+                {p.planos
+                  .filter((x) => x.aprovacao === "aguardando")
+                  .map((x) => (
+                    <li key={x.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-base font-semibold">{x.descricao}</p>
+                      <p className="text-sm text-slate-600">
+                        {x.escopo_rotulo} · {x.responsavel_nome} · {x.prazo ? `até ${dataBr(x.prazo)}` : "sem prazo"}
+                        {x.resultado_esperado ? ` · espera: ${x.resultado_esperado}` : ""}
+                      </p>
+                      {p.diretoria && (
+                        <div className="mt-2">
+                          <FormAprovacaoPlano id={x.id} compacto />
+                        </div>
+                      )}
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </Caixa>
         </div>
       </div>
+      <Caixa titulo="Acompanhamento dos planos em execução" className="mt-4">
+        {p.planos.filter((x) => x.aprovacao === "aprovado" && ["pendente", "em_andamento", "aguardando_validacao"].includes(x.situacao)).length === 0 ? (
+          <p className="text-slate-500">Nenhum plano aprovado em execução.</p>
+        ) : (
+          <ul className="grid gap-2 lg:grid-cols-2">
+            {p.planos
+              .filter((x) => x.aprovacao === "aprovado" && ["pendente", "em_andamento", "aguardando_validacao"].includes(x.situacao))
+              .sort((a, b) => (a.prazo ?? "9").localeCompare(b.prazo ?? "9"))
+              .map((x) => (
+                <li key={x.id} className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{x.descricao}</p>
+                    <p className="text-sm text-slate-600">
+                      {x.escopo_rotulo} · {x.responsavel_nome} · {x.prazo ? `até ${dataBr(x.prazo)}` : "sem prazo"}
+                    </p>
+                  </div>
+                  <SeloSituacao s={situacaoExibida(x, p.hoje)} className="text-sm" />
+                </li>
+              ))}
+          </ul>
+        )}
+        <p className="mt-2 text-sm text-slate-500">Validar e concluir, registrar evidências e ver o histórico: em Planos de ação, no GRR.</p>
+      </Caixa>
     </div>,
 
     // 8. Encerramento

@@ -1032,3 +1032,10 @@ O Paulo pediu um módulo novo para a diretoria e as lideranças acompanharem res
 - Detalhes em `docs/grr/reuniao-de-equipe.md`.
 
 - Inadimplência fora do GRR e das reuniões (decisão da gestão em 19/11/2026): já existe módulo próprio e o tema não está em atuação. O GRR Comercial fica com sete grupos; o churn precoce segue previsto na Etapa 5.
+
+### GRR, Etapa 3 (19/11/2026)
+
+- Diagnóstico por indicador, semana e recorte, em versões (nada é sobrescrito).
+- Planos de ação com aprovação da diretoria separada da situação; validar e concluir é da diretoria; atrasado é calculado.
+- Avisos pelo sino já existente; prazos avisados uma vez por dia junto com os lembretes do CRM.
+- Detalhes em `docs/grr/etapa-3.md`.

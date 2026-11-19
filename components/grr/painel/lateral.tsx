@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, CalendarClock, ClipboardList, FileText, Presentation } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Alerta } from "@/lib/grr/painel";
+import type { ContagemPlanos } from "@/lib/grr/planos";
 import type { AcaoConferida } from "@/lib/grr/reuniao-dados";
 
 const dataBr = (iso: string) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : iso);
@@ -16,6 +17,8 @@ export type ProximaReuniao = {
   congelada: boolean;
   hrefApresentar: string;
   hrefPreparar: string | null;
+  /** desvios sem diagnóstico no recorte e planos aguardando a diretoria (null antes da Etapa 3 no banco) */
+  pendencias: { semDiagnostico: number; aguardandoAprovacao: number } | null;
 };
 
 function Bloco({ titulo, icone: Icone, children, className }: { titulo: string; icone: typeof FileText; children: React.ReactNode; className?: string }) {
@@ -67,7 +70,20 @@ export function CartaoProximaReuniao({ r }: { r: ProximaReuniao }) {
           </Link>
         )}
       </div>
-      <p className="mt-3 text-xs text-muted-foreground">Análises da coordenação e aprovação de planos entram na Etapa 3; a agenda de reuniões, na Etapa 4.</p>
+      {r.pendencias && (
+        <ul className="mt-3 space-y-1 text-sm">
+          <li>
+            <Link href="/grr/planos?filtro=aprovacao" className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-muted/60">
+              <span>Planos aguardando a diretoria</span>
+              <b className="tabular-nums">{r.pendencias.aguardandoAprovacao}</b>
+            </Link>
+          </li>
+          <li className="flex items-center justify-between rounded-lg px-2 py-1.5">
+            <span>Desvios sem diagnóstico (semana na tela)</span>
+            <b className={cn("tabular-nums", r.pendencias.semDiagnostico > 0 && "text-amber-700")}>{r.pendencias.semDiagnostico}</b>
+          </li>
+        </ul>
+      )}
     </Bloco>
   );
 }
@@ -79,46 +95,54 @@ const SELO_SITUACAO: Record<string, string> = {
   "A conferir": "border-border bg-muted text-muted-foreground",
 };
 
-export function CartaoPlanos({ combinado, hrefRelatorio }: { combinado: AcaoConferida[] | null; hrefRelatorio: string | null }) {
-  const contagem = combinado
+export function CartaoPlanos({ planos, combinado, hrefRelatorio }: { planos: ContagemPlanos | null; combinado: AcaoConferida[] | null; hrefRelatorio: string | null }) {
+  const linhas: [string, number, string, string][] = planos
+    ? [
+        ["Aguardando a diretoria", planos.aguardandoAprovacao, "aprovacao", "bg-farol-amarelo"],
+        ["Pendentes", planos.pendente, "pendente", "bg-slate-400"],
+        ["Em andamento", planos.em_andamento, "em_andamento", "bg-interlig-ceu"],
+        ["Aguardando validação", planos.aguardando_validacao, "aguardando_validacao", "bg-farol-amarelo"],
+        ["Atrasados", planos.atrasada, "atrasada", "bg-farol-vermelho"],
+        ["Concluídos", planos.concluida, "concluida", "bg-farol-verde"],
+      ]
+    : [];
+  const conferencia = combinado
     ? (["Feito", "Parcial", "Não feito", "A conferir"] as const).map((s) => ({ s, n: combinado.filter((a) => (a.situacao ?? "A conferir") === s).length }))
     : [];
   return (
     <Bloco titulo="Planos de ação" icone={ClipboardList}>
-      {combinado === null ? (
-        <p className="text-sm text-muted-foreground">Planos de ação com responsável, prazo e situação entram na Etapa 3.</p>
-      ) : combinado.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhuma ação combinada na última reunião registrada.</p>
+      {planos === null ? (
+        <p className="text-sm text-muted-foreground">Os planos entram em funcionamento quando as tabelas da Etapa 3 forem criadas.</p>
       ) : (
-        <>
-          <p className="mb-2 text-sm text-muted-foreground">Combinado na reunião anterior ({combinado.length})</p>
-          <ul className="mb-3 grid grid-cols-2 gap-1.5 text-sm">
-            {contagem.map(({ s, n }) => (
-              <li key={s} className={cn("flex items-center justify-between rounded-lg border px-2.5 py-1.5", SELO_SITUACAO[s])}>
+        <ul className="space-y-1">
+          {linhas.map(([rotulo, n, filtro, cor]) => (
+            <li key={filtro}>
+              <Link href={`/grr/planos?filtro=${filtro}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-muted/60">
+                <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", cor)} aria-hidden />
+                <span className="flex-1">{rotulo}</span>
+                <b className={cn("tabular-nums", filtro === "atrasada" && n > 0 && "text-red-700")}>{n}</b>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {combinado && combinado.length > 0 && (
+        <div className="mt-3 border-t pt-3">
+          <p className="mb-2 text-xs text-muted-foreground">Checklist da reunião anterior (Relatório da diretoria)</p>
+          <ul className="grid grid-cols-2 gap-1.5 text-xs">
+            {conferencia.map(({ s, n }) => (
+              <li key={s} className={cn("flex items-center justify-between rounded-lg border px-2 py-1", SELO_SITUACAO[s])}>
                 <span>{s}</span>
                 <b className="tabular-nums">{n}</b>
               </li>
             ))}
           </ul>
-          <ul className="space-y-2">
-            {combinado.map((a) => (
-              <li key={a.n} className="rounded-lg border bg-background px-3 py-2 text-sm">
-                <p className="font-medium leading-snug">{a.acao}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {a.situacao ?? "a conferir"} · {a.responsavel || "sem responsável"} · {a.prazo ? `até ${a.prazo}` : "sem prazo"}
-                </p>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-xs text-muted-foreground">
-            A conferência é feita na reunião; o acompanhamento durante a semana entra na Etapa 3.{" "}
-            {hrefRelatorio && (
-              <Link href={hrefRelatorio} className="font-medium text-interlig-azul hover:underline">
-                Abrir o relatório
-              </Link>
-            )}
-          </p>
-        </>
+          {hrefRelatorio && (
+            <Link href={hrefRelatorio} className="mt-2 inline-block text-xs font-medium text-interlig-azul hover:underline">
+              Abrir o relatório
+            </Link>
+          )}
+        </div>
       )}
     </Bloco>
   );

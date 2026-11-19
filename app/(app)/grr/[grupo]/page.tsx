@@ -6,6 +6,11 @@ import { CartaoIndicador } from "@/components/grr/cartao-indicador";
 import { COLUNAS_DO_GRUPO, EvolucaoSemanas, ListaTickets, METRICA_DO_GRUPO, METRICA_SAFRA, Numeros, TabelaQuebra } from "@/components/grr/detalhes";
 import { FiltrosRecorte, SeletorSemana } from "@/components/grr/painel/controles";
 import { FaixaCongelamento } from "@/components/grr/formularios";
+import { PainelDiagnostico } from "@/components/grr/planos/painel-diagnostico";
+import { chaveDoEscopo } from "@/lib/grr/fotos";
+import { diagnosticosDaSemana, listarPlanos, nomesDeUsuarios, responsaveisPossiveis } from "@/lib/grr/planos-dados";
+import { recortesDePlano, valorDoRecorte } from "@/lib/grr/recortes";
+import { hojeSantarem } from "@/lib/relatorio-semanal/periodo";
 import { grupoPorChave, type GrupoGrr } from "@/lib/grr/catalogo";
 import type { DadosGrr, LinhaQuebra } from "@/lib/grr/montar";
 import { dec1, num, pct, reais, reais2 } from "@/lib/relatorio-semanal/formato";
@@ -91,7 +96,16 @@ function numerosDoGrupo(grupo: GrupoGrr, d: DadosGrr): { rotulo: string; valor: 
 export default async function GrrGrupoPage({ params, searchParams }: { params: { grupo: string }; searchParams: ParametrosGrr }) {
   const grupo = grupoPorChave(params.grupo);
   if (!grupo) notFound();
-  const { usuario, semana, rotuloDaSemana, vizinhas, escopo, dados, filtros, congelamento } = await carregarTelaGrr(searchParams);
+  const { usuario, semana, rotuloDaSemana, vizinhas, escopo, dados, filtros, congelamento, cadastro } = await carregarTelaGrr(searchParams);
+  // Etapa 3: diagnóstico e planos do recorte da tela, para os indicadores do grupo em atenção ou crítico
+  const chave = chaveDoEscopo(escopo, usuario.id);
+  const recorteDaTela = valorDoRecorte(chave);
+  const podeEscrever = recortesDePlano(usuario, cadastro).some((x) => valorDoRecorte(x) === recorteDaTela);
+  const doRecorte = <T extends { escopo_tipo: string; escopo_ref: string | null }>(x: T) => x.escopo_tipo === chave.tipo && (x.escopo_ref ?? null) === (chave.ref ?? null);
+  const [diagnosticos, planosVisiveis, responsaveis] = await Promise.all([diagnosticosDaSemana(semana.inicio), listarPlanos(), responsaveisPossiveis()]);
+  const versoesDoRecorte = diagnosticos.lista.filter(doRecorte);
+  const planosDoRecorte = planosVisiveis.planos.filter((p) => doRecorte(p) && p.aprovacao !== "rejeitado" && p.situacao !== "cancelada");
+  const nomesDiag = await nomesDeUsuarios(versoesDoRecorte.map((d) => d.criado_por));
   const CAMINHO = `/grr/${grupo.chave}`;
   const q = parametrosDaTela(searchParams);
   const colunas = COLUNAS_DO_GRUPO[grupo.chave];
@@ -138,6 +152,19 @@ export default async function GrrGrupoPage({ params, searchParams }: { params: {
               <CartaoIndicador key={c.chave} cartao={c} href={abre({})} />
             ))}
           </div>
+
+          {diagnosticos.disponivel && (
+            <PainelDiagnostico
+              desvios={cartoes.filter((c) => c.status === "atencao" || c.status === "critico")}
+              versoes={versoesDoRecorte}
+              planos={planosDoRecorte}
+              contexto={{ semana: semana.inicio, recorte: recorteDaTela }}
+              podeEscrever={podeEscrever}
+              responsaveis={responsaveis}
+              nomes={nomesDiag}
+              hoje={hojeSantarem()}
+            />
+          )}
 
           <div className="rounded-xl border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
             <span className="font-medium text-foreground">Como é calculado.</span> {grupo.regra}

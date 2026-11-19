@@ -115,8 +115,8 @@ export const grupoPorChave = (chave: string): DefinicaoGrupo | null => GRUPOS_GR
 export const AREAS_GRR: { chave: string; rotulo: string; href: string | null; etapa: number; soGestor?: boolean }[] = [
   { chave: "resumo", rotulo: "Resumo executivo", href: "/grr", etapa: 1 },
   { chave: "reunioes", rotulo: "Reuniões", href: "/grr/reunioes", etapa: 4 },
+  { chave: "acoes", rotulo: "Planos de ação", href: "/grr/planos", etapa: 3 },
   { chave: "historico", rotulo: "Histórico", href: "/grr/historico", etapa: 2 },
   { chave: "configuracao", rotulo: "Configuração", href: "/grr/configuracao", etapa: 2, soGestor: true },
-  { chave: "acoes", rotulo: "Planos de ação", href: null, etapa: 3 },
-  { chave: "rotinas", rotulo: "Rotinas das lideranças", href: null, etapa: 3 },
+  { chave: "rotinas", rotulo: "Rotinas das lideranças", href: null, etapa: 0 },
 ];
