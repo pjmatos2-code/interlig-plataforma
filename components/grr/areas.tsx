@@ -2,15 +2,15 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { AREAS_GRR } from "@/lib/grr/catalogo";
 
-/** Áreas do GRR: as que já existem são links; as demais mostram a etapa em que entram. */
-export function AreasGrr({ ativa, parametros }: { ativa: string; parametros: string }) {
+/** Áreas do GRR: as que já existem são links; as demais mostram a etapa em que entram. Configuração só aparece para a administração. */
+export function AreasGrr({ ativa, parametros, gestor = false }: { ativa: string; parametros: string; gestor?: boolean }) {
   return (
     <nav aria-label="Áreas do GRR" className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1">
-      {AREAS_GRR.map((a) =>
+      {AREAS_GRR.filter((a) => gestor || !a.soGestor).map((a) =>
         a.href ? (
           <Link
             key={a.chave}
-            href={`${a.href}${parametros}`}
+            href={a.soGestor ? a.href : `${a.href}${parametros}`}
             aria-current={a.chave === ativa ? "page" : undefined}
             className={cn(
               "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium",

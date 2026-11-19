@@ -41,7 +41,7 @@ export default async function GrrConfiguracaoPage() {
         </Link>
       </p>
       <CabecalhoPagina titulo="Configuração do GRR" descricao="Indicadores do Comercial: o que aparece no painel, quem é o dono e a meta de cada um." />
-      <AreasGrr ativa="configuracao" parametros="" />
+      <AreasGrr ativa="configuracao" parametros="" gestor />
 
       {!config.disponivel ? (
         <div className="rounded-xl border border-dashed bg-card p-4 text-sm">

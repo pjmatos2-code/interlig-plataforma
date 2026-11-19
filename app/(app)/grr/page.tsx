@@ -22,7 +22,7 @@ export default async function GrrPage({ searchParams }: { searchParams: Parametr
   return (
     <div>
       <CabecalhoPagina titulo="GRR · Gestão de Resultados" descricao={`Comercial · ${escopo.rotulo} · semana de ${rotuloDaSemana}`} />
-      <AreasGrr ativa="resumo" parametros={q} />
+      <AreasGrr ativa="resumo" parametros={q} gestor={usuario.perfil === "gestor"} />
       <FiltrosGrr
         semana={{ rotulo: rotuloDaSemana, tipo: semana.tipo }}
         vizinhas={vizinhas}

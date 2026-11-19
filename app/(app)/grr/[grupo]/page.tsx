@@ -91,7 +91,7 @@ function numerosDoGrupo(grupo: GrupoGrr, d: DadosGrr): { rotulo: string; valor: 
 export default async function GrrGrupoPage({ params, searchParams }: { params: { grupo: string }; searchParams: ParametrosGrr }) {
   const grupo = grupoPorChave(params.grupo);
   if (!grupo) notFound();
-  const { semana, rotuloDaSemana, vizinhas, escopo, dados, filtros, congelamento } = await carregarTelaGrr(searchParams);
+  const { usuario, semana, rotuloDaSemana, vizinhas, escopo, dados, filtros, congelamento } = await carregarTelaGrr(searchParams);
   const CAMINHO = `/grr/${grupo.chave}`;
   const q = parametrosDaTela(searchParams);
   const colunas = COLUNAS_DO_GRUPO[grupo.chave];
@@ -113,7 +113,7 @@ export default async function GrrGrupoPage({ params, searchParams }: { params: {
         </Link>
       </p>
       <CabecalhoPagina titulo={grupo.titulo} descricao={`${grupo.descricao} · ${escopo.rotulo} · semana de ${rotuloDaSemana}`} />
-      <AreasGrr ativa="resumo" parametros={q} />
+      <AreasGrr ativa="resumo" parametros={q} gestor={usuario.perfil === "gestor"} />
       <FiltrosGrr
         semana={{ rotulo: rotuloDaSemana, tipo: semana.tipo }}
         vizinhas={vizinhas}

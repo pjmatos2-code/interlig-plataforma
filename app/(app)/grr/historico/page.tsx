@@ -35,7 +35,7 @@ export default async function GrrHistoricoPage() {
   return (
     <div>
       <CabecalhoPagina titulo="Histórico do GRR" descricao={`Comercial · ${escopo.rotulo} · semanas com os resultados congelados`} />
-      <AreasGrr ativa="historico" parametros="" />
+      <AreasGrr ativa="historico" parametros="" gestor={usuario.perfil === "gestor"} />
       {!disponivel ? (
         <div className="rounded-xl border border-dashed bg-card p-4 text-sm">
           <p className="font-medium">O histórico entra em funcionamento quando as tabelas do GRR forem criadas no banco.</p>

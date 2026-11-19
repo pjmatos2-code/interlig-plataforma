@@ -119,10 +119,11 @@ export const indicadorPorChave = (chave: string): DefinicaoIndicador | null => I
 export const grupoPorChave = (chave: string): DefinicaoGrupo | null => GRUPOS_GRR.find((g) => g.chave === chave) ?? null;
 
 /** as áreas previstas do módulo; as sem endereço mostram a etapa em que entram */
-export const AREAS_GRR: { chave: string; rotulo: string; href: string | null; etapa: number }[] = [
+export const AREAS_GRR: { chave: string; rotulo: string; href: string | null; etapa: number; soGestor?: boolean }[] = [
   { chave: "resumo", rotulo: "Resumo executivo", href: "/grr", etapa: 1 },
+  { chave: "historico", rotulo: "Histórico", href: "/grr/historico", etapa: 2 },
+  { chave: "configuracao", rotulo: "Configuração", href: "/grr/configuracao", etapa: 2, soGestor: true },
   { chave: "reunioes", rotulo: "Reuniões", href: null, etapa: 4 },
   { chave: "acoes", rotulo: "Planos de ação", href: null, etapa: 3 },
   { chave: "rotinas", rotulo: "Rotinas das lideranças", href: null, etapa: 3 },
-  { chave: "historico", rotulo: "Histórico", href: "/grr/historico", etapa: 2 },
 ];
