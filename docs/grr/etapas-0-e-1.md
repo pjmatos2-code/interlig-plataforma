@@ -57,7 +57,7 @@ Só três cartões têm farol na Etapa 1, porque são os que já têm regra: ven
 - A leitura usa a sessão de quem abriu (`criarClienteServidor`), então a permissão por linha do banco vale por baixo.
 - O recorte do GRR é aplicado por cima (`resolverEscopo`): direção e administração veem a empresa e filtram por unidade, equipe e agente; quem coordena agentes fica preso à própria equipe (o time que vale no mês, como no Dashboard); quem não coordena agentes fica preso à própria unidade. Unidade, equipe ou agente fora do recorte, vindos pelo endereço, são ignorados.
 
-## Diferenças encontradas, que pedem decisão
+## Diferenças encontradas
 
 1. **Conversão.** A regra atual (5.14) divide convertidos por tickets fechados no período. A definição gerencial pede convertidos sobre leads elegíveis atendidos, por safra de leads. Diferenças medidas:
    - a regra atual conta como convertido o ticket criado a partir de venda lançada direto no SGP, sem atendimento;
@@ -65,10 +65,24 @@ Só três cartões têm farol na Etapa 1, porque são os que já têm regra: ven
    - oscila na virada do mês, quando a rotina fecha os tickets abertos do mês anterior;
    - no CRM o dia do fechamento é cortado pelo horário UTC, e no GRR pelo de Santarém.
    Proposta: criar uma função nova, `conversaoPorSafra`, ao lado de `conversaoReal`, usada só no GRR. Nada muda no CRM, nas comissões nem nos dashboards.
-2. **Venda que conta.** O Dashboard soma Prefeitura e rede neutra; o Relatório da diretoria não. O GRR segue o relatório e mostra a diferença em aviso.
-3. **Inadimplência da primeira fatura.** A regra 5.11 dá 10 dias de tolerância e conta como inadimplente quem pagou depois desse prazo. A definição gerencial fala em fatura vencida e não paga. Fica para a Etapa 5.
-4. **Data de ativação.** Nos contratos recentes a data de ativação gravada é a mesma da venda, porque o contrato já chega ativo do SGP e o leitor usa a data de cadastro. O painel avisa quando isso acontece. Corrigir a origem é assunto do sync, fora do GRR.
+2. **Venda que conta.** O Dashboard soma Prefeitura e rede neutra; o Relatório da diretoria não. **Decidido em 18/11/2026:** o GRR segue o relatório. Esses contratos não têm vendedor, então não contariam para ninguém. O painel mostra a diferença em aviso.
+3. **Inadimplência da primeira fatura.** A regra 5.11 dá 10 dias de tolerância e conta como inadimplente quem pagou depois desse prazo. A definição gerencial fala em fatura vencida e não paga. **Decidido em 18/11/2026:** fica pendente, para tratar mais à frente.
+4. **Data de ativação.** Nos contratos recentes a data de ativação gravada é a mesma da venda, porque o contrato já chega ativo do SGP e o leitor usa a data de cadastro. O painel avisa quando isso acontece. A correção da origem está sendo tratada numa frente separada, no sync; quando as datas forem reais, o aviso some sozinho.
 5. **Conclusão do retorno.** Concluir o retorno simples do ticket apaga a data e não guarda quando foi feito. Só as ações agendadas e o follow-up com IA têm registro de conclusão.
+
+## Decisões do Paulo depois da prévia (18/11/2026)
+
+- **Publicar a Etapa 1.** O painel em modo de leitura vai para o ar.
+- **Conversão gerencial:** ainda sem decisão. O painel segue com a regra oficial (5.14).
+- **Módulo independente no futuro.** O GRR pode virar uma plataforma própria, usada por outras unidades de negócio, cada uma lendo o seu SGP. Por isso, a partir da Etapa 2:
+  - as tabelas do GRR ficam isoladas das tabelas da plataforma, em esquema próprio no Supabase;
+  - toda tabela do GRR nasce com a chave da empresa (unidade de negócio), mesmo havendo uma só hoje;
+  - o GRR lê vendas, tickets e metas por uma camada única (`lib/grr/dados.ts`), para trocar a fonte sem mexer nas telas.
+- **Ambiente de teste isolado:** autorizado. As migrações das próximas etapas são testadas fora das tabelas de produção antes de qualquer aplicação.
+
+## Conferência da permissão por linha
+
+Antes de publicar, as leituras do GRR foram repetidas no banco com o papel de cada perfil (direção, administração, coordenação de equipe e coordenação de unidade), em transação somente leitura. Todas as tabelas respondem, e cada perfil recebe só o seu recorte.
 
 ## O que não foi feito, de propósito
 

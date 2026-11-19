@@ -1002,5 +1002,6 @@ O Paulo pediu um módulo novo para a diretoria e as lideranças acompanharem res
 - **Venda que conta no GRR:** a do Relatório da diretoria, sem Prefeitura e rede neutra. O painel mostra a diferença para o Dashboard.
 - **Semana:** segunda a domingo, fuso de Santarém. O painel abre na semana atual; a reunião usa a última semana completa. Semana em andamento compara segunda até hoje com o mesmo trecho da anterior.
 - **Acesso:** administração, direção e coordenação. A coordenação fica presa à própria equipe ou unidade, pela mesma regra do Dashboard. Agentes não acessam nesta etapa.
-- **Ficaram para decisão:** a conversão gerencial por safra de leads, a régua da inadimplência da primeira fatura e a origem da data de ativação.
+- **Decisões do Paulo depois da prévia (18/11):** publicar a Etapa 1; a venda do GRR é a do relatório, sem Prefeitura e rede neutra; a inadimplência da primeira fatura fica pendente; a data de ativação é corrigida numa frente separada, no sync. A conversão gerencial por safra de leads segue sem decisão, e o painel usa a regra oficial.
+- **Módulo independente no futuro:** o GRR pode virar plataforma própria para outras unidades de negócio, cada uma com o seu SGP. A partir da Etapa 2, as tabelas do GRR ficam em esquema próprio no Supabase, com a chave da empresa desde o início, e as migrações são testadas em ambiente isolado.
 
