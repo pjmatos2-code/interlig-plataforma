@@ -235,7 +235,6 @@ export function ApresentacaoGrr(p: Props) {
           <Barras itens={porVendas.filter((l) => l.ticket != null).slice(0, 8).map((l) => ({ nome: l.nome, valor: Math.round(l.ticket!), extra: `(${l.vendas} vendas)` }))} formato={(v) => reais(v)} />
         </Caixa>
         <div className="grid content-start gap-4">
-          <Pendente etapa={5}>Inadimplência da primeira fatura, ranking por agente e clientes suspensos das safras: a regra (faturas não vencidas, vencidas e suspensos) ainda depende de decisão.</Pendente>
           <Pendente etapa={5}>Churn precoce em 90 dias, por safra de ativação.</Pendente>
           <p className="text-sm text-slate-500">Mix de planos: ainda não calculado no GRR.</p>
         </div>

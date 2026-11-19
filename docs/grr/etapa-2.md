@@ -29,7 +29,7 @@ O painel funciona como na Etapa 1; Configuração e Histórico avisam que as tab
 
 - Congelamento automático toda segunda-feira (proposto para depois).
 - Foto mensal (a tabela já aceita).
-- Reuniões, planos de ação e rotinas (Etapas 3 e 4); inadimplência e churn (Etapa 5).
+- Reuniões, planos de ação e rotinas (Etapas 3 e 4); churn (Etapa 5).
 
 ## Verificações
 

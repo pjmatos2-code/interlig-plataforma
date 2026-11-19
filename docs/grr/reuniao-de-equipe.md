@@ -12,7 +12,7 @@ Segunda modalidade de reunião do GRR, conduzida pela coordenação com os agent
 - `/grr/reunioes/[id]`: indicadores da equipe por agente, compromissos da reunião anterior (com a situação), compromissos desta reunião, participantes, observações, boas práticas, encerramento e correções.
 - `/apresentacao/grr/reuniao/[id]`: Modo Apresentação em dez seções, com a mesma moldura da reunião da diretoria (teclado, tela cheia, sumário).
 
-Indicadores por equipe e por agente: vendas contra a meta, conversão por safra, leads recebidos e atendidos, ticket médio, vendas ativadas e pendências (sem assinatura, aguardando instalação), motivos de perda, follow-ups vencidos e a fazer, e a evolução em relação à semana anterior. Tudo sai de `lib/grr/montar.ts` (as mesmas listas do painel; os números por agente somam os totais). A receita por agente não aparece na reunião (dado financeiro). Inadimplência inicial e churn precoce ficam como bloco complementar, previsto na Etapa 5.
+Indicadores por equipe e por agente: vendas contra a meta, conversão por safra, leads recebidos e atendidos, ticket médio, vendas ativadas e pendências (sem assinatura, aguardando instalação), motivos de perda, follow-ups vencidos e a fazer, e a evolução em relação à semana anterior. Tudo sai de `lib/grr/montar.ts` (as mesmas listas do painel; os números por agente somam os totais). A receita por agente não aparece na reunião (dado financeiro). O churn precoce fica como bloco complementar, previsto na Etapa 5. A inadimplência não entra no GRR (decisão de 19/11/2026).
 
 ## Compromissos
 
@@ -34,4 +34,4 @@ Permissões: direção e administração veem todas; a coordenação vê, cria, 
 
 - Acesso dos agentes aos próprios indicadores e compromissos (muda a regra atual de que agentes não acessam o GRR).
 - Fila de compromissos gerenciais aguardando a diretoria fora da página da reunião (Etapa 3).
-- Inadimplência e churn (Etapa 5).
+- Churn precoce (Etapa 5).

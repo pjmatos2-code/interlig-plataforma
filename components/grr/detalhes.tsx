@@ -36,7 +36,6 @@ export const COLUNAS_DO_GRUPO: Record<GrupoGrr, Coluna[]> = {
   receita: [C.receita, C.ticket, C.vendas],
   produtividade: [C.recebidos, C.safraAtendidos, C.vendas, C.safraTaxa, C.anterior],
   perdas: [C.perdidos, C.negociacao, C.fechados],
-  inadimplencia: [],
   churn: [],
 };
 

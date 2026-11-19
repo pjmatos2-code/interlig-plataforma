@@ -54,7 +54,7 @@ export function RoscaSituacao({ situacao, grande = false, gruposSemDados = 0 }: 
         ))}
         {gruposSemDados > 0 && (
           <li className={grande ? "pt-1 text-base text-muted-foreground" : "pt-1 text-xs text-muted-foreground"}>
-            Mais {gruposSemDados} grupos sem dados (previstos na Etapa 5), fora da conta.
+            {gruposSemDados === 1 ? "Mais 1 grupo sem dados (previsto na Etapa 5), fora da conta." : `Mais ${gruposSemDados} grupos sem dados (previstos na Etapa 5), fora da conta.`}
           </li>
         )}
       </ul>

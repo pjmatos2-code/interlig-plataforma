@@ -247,10 +247,7 @@ export function ApresentacaoEquipe(p: Props) {
 
     <div key="qualidade">
       <Titulo sub="Bloco complementar, quando houver dados e safras elegíveis.">Qualidade da venda</Titulo>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Pendente etapa={5}>Inadimplência inicial por agente, com as faturas não vencidas, vencidas e os clientes suspensos separados. A regra ainda depende de decisão.</Pendente>
-        <Pendente etapa={5}>Churn precoce em 90 dias por safra de ativação.</Pendente>
-      </div>
+      <Pendente etapa={5}>Churn precoce em 90 dias por safra de ativação, por agente.</Pendente>
     </div>,
 
     <div key="encerramento">

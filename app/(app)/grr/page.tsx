@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
  * GRR Comercial — Resumo executivo. Semana atual por padrão, comparada com a
  * anterior; a reunião usa a última semana completa. Os números vêm das regras
  * oficiais (lib/grr/montar.ts); esta tela só organiza: destaques, evolução,
- * situação dos indicadores, tabela dos oito grupos e a coluna de gestão.
+ * situação dos indicadores, tabela dos sete grupos e a coluna de gestão.
  */
 export default async function GrrPage({ searchParams }: { searchParams: ParametrosGrr }) {
   const { usuario, hoje, semana, rotuloDaSemana, vizinhas, escopo, dados, filtros, congelamento, config } = await carregarTelaGrr(searchParams);

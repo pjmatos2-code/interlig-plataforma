@@ -9,7 +9,7 @@ Situação: desenvolvido na branch `feat/grr-redesign`. Sem migração de banco 
 - Filtros de unidade, equipe e agente com as mesmas regras de recorte; a coordenação vê o recorte travado.
 - Quatro destaques: vendas da semana, ativações, conversão do CRM e receita nova. O anel de atingimento só aparece com meta válida em indicador em que maior é melhor; sem meta, o cartão mostra "Sem meta".
 - Evolução das vendas (8 semanas) com a meta da semana analisada como traço, e a situação dos indicadores em rosca (na meta, atenção, crítico e sem meta; sem meta nunca conta como bom).
-- Tabela com os oito grupos do GRR Comercial, cada métrica em linha própria; inadimplência e churn aparecem como "previsto na Etapa 5".
+- Tabela com os grupos do GRR Comercial, cada métrica em linha própria; churn aparece como "previsto na Etapa 5". A inadimplência saiu do GRR em 19/11/2026.
 - Coluna de gestão: próxima reunião (do Relatório da diretoria), principais alertas (indicadores críticos e em atenção) e o combinado da reunião anterior com a conferência (Feito, Parcial, Não feito).
 
 As contas de apresentação ficam em `lib/grr/painel.ts`; nenhuma regra de indicador foi duplicada.
@@ -28,5 +28,5 @@ Encerramento: direção e administração congelam a semana completa com origem 
 
 - Etapa 3: diagnóstico da coordenação por indicador; planos de ação com situação durante a semana, evidências e aprovação pela diretoria.
 - Etapa 4: agenda de reuniões (data programada, preparação, reunião de sábado e de segunda).
-- Etapa 5: inadimplência da primeira fatura, clientes suspensos das safras e churn precoce.
+- Etapa 5: churn precoce.
 - Mix de planos: ainda não calculado no GRR.

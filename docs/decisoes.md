@@ -1030,3 +1030,5 @@ O Paulo pediu um módulo novo para a diretoria e as lideranças acompanharem res
 - Reunião encerrada guarda a foto dos indicadores e não muda; correções à parte.
 - Agentes sem acesso até decisão sobre a mudança de permissão.
 - Detalhes em `docs/grr/reuniao-de-equipe.md`.
+
+- Inadimplência fora do GRR e das reuniões (decisão da gestão em 19/11/2026): já existe módulo próprio e o tema não está em atuação. O GRR Comercial fica com sete grupos; o churn precoce segue previsto na Etapa 5.

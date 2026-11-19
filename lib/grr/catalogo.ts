@@ -4,7 +4,7 @@
  * Etapa 2 o catálogo passa para o banco, com metas e faixas por indicador.
  */
 
-export type GrupoGrr = "vendas" | "ativacoes" | "conversao" | "receita" | "produtividade" | "perdas" | "inadimplencia" | "churn";
+export type GrupoGrr = "vendas" | "ativacoes" | "conversao" | "receita" | "produtividade" | "perdas" | "churn";
 
 export type DefinicaoGrupo = {
   chave: GrupoGrr;
@@ -59,13 +59,6 @@ export const GRUPOS_GRR: DefinicaoGrupo[] = [
     descricao: "Por que as negociações não fecharam e o que ainda está em aberto.",
     regra: "Perdidos e motivos do CRM, sem os motivos fora da conversão; retornos pelo agendamento do ticket; primeira resposta pela regra 5.15.",
     etapa: 1,
-  },
-  {
-    chave: "inadimplencia",
-    titulo: "Inadimplência da primeira fatura",
-    descricao: "Clientes de cada safra que não pagaram a primeira fatura.",
-    regra: "Regra 5.11 (já existe e está testada). Entra na Etapa 5, depois da decisão sobre a régua gerencial.",
-    etapa: 5,
   },
   {
     chave: "churn",
