@@ -34,3 +34,7 @@ O painel funciona como na Etapa 1; Configuração e Histórico avisam que as tab
 ## Verificações
 
 Testes automatizados, tipos, lint e compilação de produção sem erros. Telas conferidas em 1280 e 390 px em prévia só de leitura (caminho sem as tabelas). Os formulários de meta e o congelamento só podem ser exercitados depois da migração.
+
+## Fechamento automático (19/11/2026)
+
+Toda segunda às 07:00 (Santarém), antes do Relatório da diretoria, o cron `/api/grr/fechamento` congela a última semana completa em todos os recortes, com origem "rotina" e sem autor. Se a semana já foi congelada (no painel ou no encerramento da reunião), não faz nada: o automático nunca cria uma segunda versão. A rota só aceita o `CRON_SECRET`.

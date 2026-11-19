@@ -14,7 +14,7 @@ import { PERFIS_GRR } from "../carregar";
 
 export const dynamic = "force-dynamic";
 
-const ROTULO_ORIGEM = { manual: "pelo painel", rotina: "automática", reuniao: "no fechamento da reunião" } as const;
+const ROTULO_ORIGEM = { manual: "pelo painel", rotina: "automaticamente, no fechamento de segunda", reuniao: "no fechamento da reunião" } as const;
 const dataHora = (iso: string) => {
   const d = new Date(Date.parse(iso) - 3 * 3600_000).toISOString();
   return `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)} às ${d.slice(11, 16)}`;
@@ -44,7 +44,7 @@ export default async function GrrHistoricoPage() {
       ) : semanas.length === 0 ? (
         <div className="rounded-xl border border-dashed bg-card p-4 text-sm">
           <p className="font-medium">Nenhuma semana congelada ainda.</p>
-          <p className="mt-1 text-muted-foreground">A administração e a direção congelam a semana pelo painel, em “Última semana completa”.</p>
+          <p className="mt-1 text-muted-foreground">Toda segunda às 07:00 a semana anterior é congelada automaticamente. A administração e a direção também podem congelar pelo painel ou no encerramento da reunião.</p>
         </div>
       ) : (
         <ul className="space-y-3">

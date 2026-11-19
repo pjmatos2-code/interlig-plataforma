@@ -15,6 +15,10 @@
     {
       "path": "/api/relatorios/rotina",
       "schedule": "0 12 * * 1"
+    },
+    {
+      "path": "/api/grr/fechamento",
+      "schedule": "0 10 * * 1"
     }
   ]
 }

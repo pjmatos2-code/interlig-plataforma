@@ -1020,3 +1020,5 @@ O Paulo pediu um módulo novo para a diretoria e as lideranças acompanharem res
 - Atingimento em percentual só com meta válida e quando maior é melhor; indicador sem meta não conta como bom.
 - Modo Apresentação dentro da plataforma (`/apresentacao/grr`), sem página pública; o registro da reunião reaproveita o do Relatório da diretoria; o encerramento congela a semana com origem "reunião".
 - Detalhes em `docs/grr/redesign-e-apresentacao.md`.
+
+- Fechamento automático do GRR toda segunda às 07:00 de Santarém (decisão da gestão em 19/11/2026); semana já congelada não ganha nova versão.
