@@ -1054,3 +1054,45 @@ O Paulo pediu um módulo novo para a diretoria e as lideranças acompanharem res
 - Conferência dos dados por semana para a diretoria (somas, atribuição de leads, reconciliação com o SGP, Relatório da diretoria e semana congelada), só leitura.
 - Teste de permissões por perfil em transação desfeita (`scripts/grr/conferir-permissoes.mjs`).
 - Detalhes em `docs/grr/etapa-5.md`.
+
+## Data de ativação: a virada Inativo → Ativo vale o dia em que o sync percebe (18/11/2026)
+
+A D12b definiu que a instalação é a virada Inativo → Ativo no SGP e que o sync carimba o dia em que observa a virada. Pela rota principal isso não acontecia. Medido em 18/11, entre os contratos com ativação em cada período, a ativação era igual à data da venda em 206 de 276 em setembro, 224 de 250 em outubro, 65 de 67 na semana de 02 a 08/11 e 56 de 56 na de 09 a 15/11.
+
+O que isso causava:
+- o tempo médio venda → ativação ficava em zero (0,0 dia no Relatório da diretoria de 16/11) e a taxa de instalação efetiva (5.9) tendia a 100%;
+- "ativações da semana" contava as vendas da semana que já estavam ativas, e o número crescia depois. O relatório de 16/11 guardou 36 ativações para 09 a 15/11; dois dias depois a mesma consulta dava 56. Nas duas semanas anteriores, 51 virou 67 e 73 virou 82;
+- a comissão de liderança conta por data de ativação: a venda de um mês instalada no mês seguinte ficava com a data do mês da venda;
+- o pós-venda do Meu Dia procura os ativados de ontem e não via o contrato com a ativação carimbada no passado.
+
+### Causa
+
+A API URA não informa a data de ativação. O leitor (`lib/sgp/api.ts`) devolve a data do cadastro para todo contrato que não está inativo. No worker a conta era "data gravada, senão a do leitor, senão hoje": a do leitor nunca vem vazia para contrato ativo, o "hoje" não era alcançado, e o contrato que estava aguardando e virava ativo recebia a data da venda. Está assim desde o commit da D12b, de 23/08.
+
+A data do dia só entrava pela outra rota, `atualizarContratoDoSgp` (botão "Atualizar do SGP" e `conferirAtivacoesDaEsteira`), que parte da linha gravada. Ela quase não alcança os contratos:
+- de 01/10 a 14/11 a conferência ficava no fim do `/api/sync` e precisava de 50 s livres. Só a parte do SGP gastava de 133 a 153 s dos 172 s (mediana em cinco dias de amostra); sobrava tempo em 1% a 12% dos ciclos;
+- desde 14/11 ela roda a cada 5 min, mas só olha contrato aguardando cuja OS de instalação saiu da lista de abertas nos últimos 3 dias. Em novembro a OS sai da lista dias depois da instalação: das 18 que saíram desde 14/11, 13 saíram mais de 3 dias depois do agendamento, e em 18/11 havia 65 OS abertas de contratos já ativos, 45 com o agendamento vencido. O contrato vira ativo antes, e quem percebe é a varredura. Em 18/11 a conferência tinha 1 candidato;
+- ela não registra nada em `sync_runs`: não há histórico do que conferiu.
+
+O contrato entra na plataforma no dia do cadastro (173 de 175 vendas de novembro), ainda inativo, e vira ativo na instalação. Em 18/11 nenhum contrato ativo tinha OS de instalação agendada para o futuro. Pelo agendamento da OS, a instalação das vendas de novembro saiu em média 2,2 dias depois da venda, e no próprio dia em 20 de 121.
+
+### O que mudou
+
+`dataDaAtivacao` em `lib/sync/contratos.ts`, com testes, passa a decidir a data na etapa de contratos do worker:
+- contrato que já estava na base sem data de ativação e aparece ativo: vale o dia em que o sync percebeu, no fuso de Santarém;
+- quem já tinha data continua com ela;
+- contrato novo na base que já chega ativo continua com a aproximação pela data do cadastro, porque a plataforma não viu a virada;
+- a ativação continua sem poder ficar antes da venda (`naoAntesDaVenda`).
+
+`lib/sync/worker.test.ts` roda o `executarSync()` com o leitor de verdade, um SGP simulado e um banco em memória com as travas da tabela `contratos`. No código anterior, 4 dos 5 casos falhavam com a data da venda no lugar do dia da virada.
+
+Conferido com os dados reais, só em leitura: nos 17.444 contratos da base, sem mudança de status no SGP, a regra nova regrava a mesma data que já está gravada. Só muda na virada.
+
+A varredura passa pela base inteira em pouco mais de 2 h no expediente, então a virada é percebida no mesmo dia. A conferência da esteira e o botão continuam carimbando o dia pelo relógio do servidor (UTC), que só difere do de Santarém depois das 21h.
+
+### O que não mudou e depende de decisão
+
+- **Histórico:** nenhuma data antiga foi regravada. A OS de instalação (`os_instalacao`) permite estimar a instalação pelo dia do agendamento em 607 dos 666 contratos não cancelados com ativação igual à venda desde agosto (121 de 132 em novembro). Por essa estimativa o tempo médio fica entre 1,8 e 3,0 dias conforme o mês. Quarenta deles mudariam de mês, e as comissões de agosto a outubro já foram fechadas com a data antiga.
+- **Cancelado sem instalar:** o contrato que estava aguardando e é cancelado continua recebendo a data do cadastro como ativação. Desde agosto são 23 dos 33 cancelados: o relatório oficial do SGP mostra que estavam inativos. Eles entram como ativados e cancelados em até 90 dias no churn precoce (5.10) e como instalados na 5.9. A correção muda indicador, por isso ficou de fora.
+- **Ativação tardia:** cerca de 4 contratos por mês entram em serviço mais de 75 dias depois do cadastro (estimativa pela 1ª fatura), e há 639 contratos inativos na base, 590 com venda anterior a outubro. Quando um deles vira ativo, a ativação passa a valer o dia real e o intervalo desde o cadastro entra no tempo médio. O ajuste de venda retomada cobre esses casos.
+- **Esteira:** "Aguardando instalação" soma as OS abertas, inclusive as de contrato já ativo.

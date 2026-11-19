@@ -3,7 +3,8 @@ import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { dataHoraSgp } from "@/lib/sgp/datas";
 import { criarClienteSgp } from "@/lib/sgp/client";
 import type { SgpForaDoEscopo } from "@/lib/sgp/tipos";
-import { dataDaVenda, dataDoCancelamento, naoAntesDaVenda } from "@/lib/sync/contratos";
+import { relogioSantarem } from "@/lib/sync/agenda";
+import { dataDaAtivacao, dataDaVenda, dataDoCancelamento, naoAntesDaVenda } from "@/lib/sync/contratos";
 import type { SgpContrato } from "@/lib/sgp/tipos";
 
 /**
@@ -310,16 +311,12 @@ export async function executarSync(): Promise<ResultadoSync> {
             ? ((antes.data_assinatura as string | null) ?? null)
             : c.data_assinatura;
           // D12b: a data de ativação REAL é a virada Inativo→Ativo observada
-          // pelo sync. Preserva a data já registrada; quando o contrato vira
-          // ativo e ainda não tinha data, carimba hoje.
+          // pelo sync. Preserva a data já registrada; quando o contrato que
+          // já estava na base vira ativo sem ter data, carimba hoje (o dia de
+          // Santarém). O leitor devolve a data do cadastro para todo contrato
+          // ativo, e ela só vale para quem a plataforma nunca viu inativo.
           const statusNovo = normalizarStatus(c);
-          const ativacaoAntes = (antes?.data_ativacao as string | null) ?? null;
-          const dataAtivacao =
-            statusNovo === "ativo"
-              ? ativacaoAntes ?? c.data_ativacao ?? new Date().toISOString().slice(0, 10)
-              : statusNovo === "cancelado" || statusNovo === "suspenso"
-                ? ativacaoAntes ?? c.data_ativacao
-                : null; // aguardando/pendente: sem instalação
+          const dataAtivacao = dataDaAtivacao(antes, c, statusNovo, relogioSantarem(Date.now()).dia);
           linhas.push({
             sgp_contrato_id: c.sgp_contrato_id,
             cliente_id: cliente.id,

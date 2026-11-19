@@ -28,6 +28,38 @@ export function naoAntesDaVenda(data: string | null, dataVenda: string): string 
   return data && data < dataVenda ? dataVenda : data;
 }
 
+/**
+ * A data de ativação que o sync grava (D12b: a instalação é a virada
+ * Inativo → Ativo no SGP). A API do SGP não informa quando o contrato foi
+ * ativado, só o status de agora; para todo contrato que não está inativo o
+ * leitor devolve a data do cadastro, que é uma aproximação.
+ *
+ * - Aguardando ativação ou pendente de assinatura: sem data.
+ * - Já havia data gravada: fica a gravada.
+ * - O contrato já estava na base sem data e apareceu ativo agora (18/11/2026):
+ *   vale hoje, o dia em que o sync percebeu a virada. Antes caía na data do
+ *   cadastro e a instalação aparecia no dia da venda: o tempo venda → ativação
+ *   zerava e as "ativações da semana" eram as vendas da semana já ativas.
+ * - O contrato é novo na base e já chega ativo: a plataforma não viu a virada.
+ *   Sem a data real, vale a do cadastro.
+ * - Cancelado ou suspenso sem data gravada: a do cadastro, como já era. Esta
+ *   correção não mexe nesse caso.
+ */
+export function dataDaAtivacao(
+  jaGravado: { data_ativacao: string | null } | undefined,
+  doSgp: { data_ativacao: string | null },
+  status: string,
+  hoje: string
+): string | null {
+  const gravada = jaGravado?.data_ativacao ?? null;
+  if (status === "ativo") {
+    if (gravada) return gravada;
+    return jaGravado ? hoje : doSgp.data_ativacao ?? hoje;
+  }
+  if (status === "cancelado" || status === "suspenso") return gravada ?? doSgp.data_ativacao;
+  return null;
+}
+
 const diasEntre = (deIso: string, ateIso: string) =>
   Math.round((Date.parse(`${ateIso}T00:00:00Z`) - Date.parse(`${deIso}T00:00:00Z`)) / 86_400_000);
 

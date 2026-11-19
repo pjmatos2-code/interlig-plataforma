@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dataDaVenda, dataDoCancelamento, naoAntesDaVenda } from "./contratos";
+import { dataDaAtivacao, dataDaVenda, dataDoCancelamento, naoAntesDaVenda } from "./contratos";
 
 describe("data da venda gravada pelo sync", () => {
   it("contrato novo: a data de cadastro do SGP", () => {
@@ -44,6 +44,53 @@ describe("data de cancelamento gravada pelo sync", () => {
     expect(dataDoCancelamento(undefined, { data_cancelamento: HOJE, data_venda: "2026-11-05" }, HOJE)).toBe(HOJE);
     expect(dataDoCancelamento(undefined, { data_cancelamento: HOJE, data_venda: "2026-10-19" }, HOJE)).toBe(HOJE); // 30 dias
     expect(dataDoCancelamento(undefined, { data_cancelamento: HOJE, data_venda: "2026-10-18" }, HOJE)).toBe("2026-10-18"); // 31 dias
+  });
+});
+
+describe("data de ativação gravada pelo sync (D12b)", () => {
+  const HOJE = "2026-11-16";
+  // o que o leitor do SGP devolve: a data do cadastro para todo contrato que
+  // não está inativo, e nada para o inativo
+  const cadastro12 = { data_ativacao: "2026-11-12" };
+  const inativo = { data_ativacao: null };
+
+  it("aguardando ativação ou pendente de assinatura: sem data", () => {
+    expect(dataDaAtivacao(undefined, inativo, "aguardando_ativacao", HOJE)).toBeNull();
+    expect(dataDaAtivacao({ data_ativacao: null }, inativo, "aguardando_ativacao", HOJE)).toBeNull();
+    expect(dataDaAtivacao(undefined, inativo, "pendente_assinatura", HOJE)).toBeNull();
+    // estava ativo e voltou a inativo no SGP: a data some, como já era
+    expect(dataDaAtivacao({ data_ativacao: "2026-10-01" }, inativo, "aguardando_ativacao", HOJE)).toBeNull();
+  });
+
+  it("já havia data gravada: fica a gravada", () => {
+    expect(dataDaAtivacao({ data_ativacao: "2026-11-14" }, cadastro12, "ativo", HOJE)).toBe("2026-11-14");
+    expect(dataDaAtivacao({ data_ativacao: "2026-11-14" }, cadastro12, "suspenso", HOJE)).toBe("2026-11-14");
+    expect(dataDaAtivacao({ data_ativacao: "2026-11-14" }, cadastro12, "cancelado", HOJE)).toBe("2026-11-14");
+  });
+
+  it("já estava na base sem data e apareceu ativo: o dia em que o sync percebeu a virada", () => {
+    // venda de 12/11 que ficou aguardando; em 16/11 o SGP mostra Ativo. Antes
+    // desta correção a ativação saía 12/11, a data do cadastro
+    expect(dataDaAtivacao({ data_ativacao: null }, cadastro12, "ativo", HOJE)).toBe(HOJE);
+  });
+
+  it("contrato novo na base que já chega ativo: a aproximação pela data do cadastro", () => {
+    expect(dataDaAtivacao(undefined, cadastro12, "ativo", HOJE)).toBe("2026-11-12");
+    // leitor que não informa a data (SGP simulado): o dia em que entrou
+    expect(dataDaAtivacao(undefined, inativo, "ativo", HOJE)).toBe(HOJE);
+  });
+
+  it("cancelado ou suspenso sem data gravada: a do cadastro, como já era", () => {
+    expect(dataDaAtivacao({ data_ativacao: null }, cadastro12, "cancelado", HOJE)).toBe("2026-11-12");
+    expect(dataDaAtivacao({ data_ativacao: null }, cadastro12, "suspenso", HOJE)).toBe("2026-11-12");
+    expect(dataDaAtivacao(undefined, cadastro12, "cancelado", HOJE)).toBe("2026-11-12");
+  });
+
+  it("a virada nunca fica antes da venda (trava do banco)", () => {
+    // venda retomada com a data ajustada para depois do dia em que o sync percebeu
+    const virada = dataDaAtivacao({ data_ativacao: null }, { data_ativacao: "2026-09-28" }, "ativo", HOJE);
+    expect(naoAntesDaVenda(virada, "2026-11-18")).toBe("2026-11-18");
+    expect(naoAntesDaVenda(virada, "2026-11-12")).toBe(HOJE);
   });
 });
 
