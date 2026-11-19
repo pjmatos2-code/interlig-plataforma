@@ -1,4 +1,4 @@
-import { CircleDollarSign, Crosshair, Filter, ShoppingCart, UserMinus, Users, Wifi, type LucideIcon } from "lucide-react";
+import { CircleDollarSign, Crosshair, Filter, ShoppingCart, Users, Wifi, type LucideIcon } from "lucide-react";
 import type { GrupoGrr } from "@/lib/grr/catalogo";
 
 /** um ícone por grupo do GRR, o mesmo no painel e na apresentação */
@@ -9,7 +9,6 @@ export const ICONE_DO_GRUPO: Record<GrupoGrr, LucideIcon> = {
   receita: CircleDollarSign,
   produtividade: Users,
   perdas: Crosshair,
-  churn: UserMinus,
 };
 
 export const ROTULO_STATUS = { ok: "Na meta", atencao: "Atenção", critico: "Crítico", sem_meta: "Sem meta" } as const;

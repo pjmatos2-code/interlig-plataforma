@@ -10,7 +10,7 @@ import { ROTULO_APROVACAO, ROTULO_SITUACAO, type Compromisso, type Participante 
 import { FormCompromisso, FormEncerrar, SeletorSituacao } from "@/components/grr/reunioes/formularios";
 import { TabelaEquipe } from "@/components/grr/reunioes/tabela-equipe";
 import { Moldura, Sobreposicao, useSecao } from "./moldura";
-import { Barras, Caixa, CartaoGrande, dataBr, dataHora, n0, Numero, Pendente, pct, reais, Titulo } from "./pecas";
+import { Barras, Caixa, CartaoGrande, dataBr, dataHora, n0, Numero, pct, reais, Titulo } from "./pecas";
 
 /**
  * Modo Apresentação da Reunião Semanal da Equipe Comercial (coordenação com os
@@ -27,7 +27,6 @@ const SECOES = [
   { chave: "perdas", titulo: "Motivos de perda" },
   { chave: "evolucao", titulo: "Evolução individual" },
   { chave: "compromissos", titulo: "Compromissos" },
-  { chave: "qualidade", titulo: "Qualidade da venda" },
   { chave: "encerramento", titulo: "Encerramento" },
 ] as const;
 
@@ -243,11 +242,6 @@ export function ApresentacaoEquipe(p: Props) {
           )}
         </Caixa>
       </div>
-    </div>,
-
-    <div key="qualidade">
-      <Titulo sub="Bloco complementar, quando houver dados e safras elegíveis.">Qualidade da venda</Titulo>
-      <Pendente etapa={5}>Churn precoce em 90 dias por safra de ativação, por agente.</Pendente>
     </div>,
 
     <div key="encerramento">

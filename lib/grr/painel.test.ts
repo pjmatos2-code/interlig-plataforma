@@ -53,10 +53,10 @@ describe("painel do GRR", () => {
     expect(s).toEqual({ ok: 1, atencao: 1, critico: 1, semMeta: 1, total: 4 });
   });
 
-  it("tabela traz os sete grupos, inclusive os das próximas etapas", () => {
+  it("tabela traz os seis grupos, inclusive os das próximas etapas", () => {
     const t = tabelaDeIndicadores(dados([cartao({ chave: "vendas_semana", grupo: "vendas" })]));
-    expect(t).toHaveLength(7);
-    expect(t.find((g) => g.grupo === "churn")?.linhas).toEqual([]);
+    expect(t).toHaveLength(6);
+    expect(t.find((g) => g.grupo === "perdas")?.linhas).toEqual([]);
   });
 
   it("alertas: críticos primeiro, sem os que estão bem ou sem meta", () => {

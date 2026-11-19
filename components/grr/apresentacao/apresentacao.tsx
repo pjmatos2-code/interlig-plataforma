@@ -18,7 +18,7 @@ import { GraficoEvolucaoVendas } from "@/components/grr/painel/grafico-evolucao"
 import { ROTULO_STATUS, SELO_STATUS } from "@/components/grr/painel/icones";
 import { RoscaSituacao } from "@/components/grr/painel/rosca";
 import { Moldura, Sobreposicao, useSecao } from "./moldura";
-import { Barras, Caixa, CartaoGrande, dataBr, dataHora, n0, Numero, Pendente, pct, reais, TabelaAgentes, Titulo } from "./pecas";
+import { Barras, Caixa, CartaoGrande, dataBr, dataHora, n0, Numero, pct, reais, TabelaAgentes, Titulo } from "./pecas";
 
 /** os campos do registro da reunião vêm do relatório (sem estilo próprio): aqui ganham caixa e tamanho de tela */
 export const CAMPOS =
@@ -51,7 +51,7 @@ const SECOES = [
   { chave: "resumo", titulo: "Resumo executivo" },
   { chave: "vendas", titulo: "Vendas e ativações" },
   { chave: "conversao", titulo: "Leads e conversão" },
-  { chave: "receita", titulo: "Receita e qualidade da venda" },
+  { chave: "receita", titulo: "Receita" },
   { chave: "desvios", titulo: "Diagnóstico dos desvios" },
   { chave: "planos", titulo: "Planos de ação" },
   { chave: "encerramento", titulo: "Encerramento" },
@@ -231,7 +231,7 @@ export function ApresentacaoGrr(p: Props) {
 
     // 5. Receita e qualidade da venda
     <div key="receita">
-      <Titulo sub="Mensalidade dos contratos novos e o que ainda depende da régua de qualidade.">Receita e qualidade da venda</Titulo>
+      <Titulo sub="Mensalidade dos contratos novos e ticket médio.">Receita</Titulo>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Numero rotulo="Receita nova da semana" valor={reais(dados.receita.semana)} detalhe={`semana anterior: ${reais(dados.receita.anterior)}`} destaque />
         <Numero rotulo="Ticket médio da semana" valor={reais(dados.receita.ticket)} detalhe={`semana anterior: ${reais(dados.receita.ticketAnterior)}`} />
@@ -243,7 +243,6 @@ export function ApresentacaoGrr(p: Props) {
           <Barras itens={porVendas.filter((l) => l.ticket != null).slice(0, 8).map((l) => ({ nome: l.nome, valor: Math.round(l.ticket!), extra: `(${l.vendas} vendas)` }))} formato={(v) => reais(v)} />
         </Caixa>
         <div className="grid content-start gap-4">
-          <Pendente etapa={5}>Churn precoce em 90 dias, por safra de ativação.</Pendente>
           <p className="text-sm text-slate-500">Mix de planos: ainda não calculado no GRR.</p>
         </div>
       </div>

@@ -57,7 +57,7 @@ export function situacaoDosIndicadores(cartoes: CartaoGrr[]): Situacao {
 
 export type GrupoDaTabela = { grupo: GrupoGrr; titulo: string; etapa: number; regra: string; linhas: CartaoPainel[] };
 
-/** os sete grupos do GRR Comercial, cada um com as suas métricas (sem juntar métricas num número só) */
+/** os seis grupos do GRR Comercial, cada um com as suas métricas (sem juntar métricas num número só) */
 export function tabelaDeIndicadores(dados: DadosGrr): GrupoDaTabela[] {
   return GRUPOS_GRR.map((g) => ({
     grupo: g.chave,

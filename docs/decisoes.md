@@ -1039,3 +1039,5 @@ O Paulo pediu um módulo novo para a diretoria e as lideranças acompanharem res
 - Planos de ação com aprovação da diretoria separada da situação; validar e concluir é da diretoria; atrasado é calculado.
 - Avisos pelo sino já existente; prazos avisados uma vez por dia junto com os lembretes do CRM.
 - Detalhes em `docs/grr/etapa-3.md`.
+
+- Churn precoce também fora do GRR e das reuniões (decisão da gestão em 19/11/2026), como a inadimplência. O GRR Comercial fica com seis grupos.

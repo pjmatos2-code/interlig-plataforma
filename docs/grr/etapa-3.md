@@ -34,4 +34,4 @@ Direção e administração: todos os recortes, aprovação e validação. Coord
 
 ## Fora desta etapa
 
-Rotinas das lideranças (a definir); relatório da reunião em PDF próprio do GRR (Etapa 4); churn precoce (Etapa 5).
+Rotinas das lideranças (a definir); relatório da reunião em PDF próprio do GRR (Etapa 4).

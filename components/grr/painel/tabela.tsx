@@ -6,7 +6,7 @@ import { Evolucao } from "./destaque";
 import { ICONE_DO_GRUPO, ROTULO_STATUS, SELO_STATUS } from "./icones";
 
 /**
- * Indicadores do período: os sete grupos do GRR Comercial, cada um com as
+ * Indicadores do período: os seis grupos do GRR Comercial, cada um com as
  * suas métricas em linhas próprias (nenhum grupo vira um número só). No
  * celular cada linha vira um bloco; no computador, colunas alinhadas.
  */
