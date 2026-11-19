@@ -1005,3 +1005,11 @@ O Paulo pediu um módulo novo para a diretoria e as lideranças acompanharem res
 - **Decisões do Paulo depois da prévia (18/11):** publicar a Etapa 1; a venda do GRR é a do relatório, sem Prefeitura e rede neutra; a inadimplência da primeira fatura fica pendente; a data de ativação é corrigida numa frente separada, no sync. A conversão gerencial por safra de leads segue sem decisão, e o painel usa a regra oficial.
 - **Módulo independente no futuro:** o GRR pode virar plataforma própria para outras unidades de negócio, cada uma com o seu SGP. A partir da Etapa 2, as tabelas do GRR ficam em esquema próprio no Supabase, com a chave da empresa desde o início, e as migrações são testadas em ambiente isolado.
 
+
+### GRR, Etapa 2 (18/11/2026)
+
+- Conversão por safra de leads criada só no GRR, ao lado da conversão oficial do CRM, que não muda (aprovado pela gestão).
+- Tabelas do GRR em esquema próprio (`grr`) com chave de empresa, para o módulo poder ser separado depois.
+- Metas com vigência por semana e somente inclusão; semanas congeladas são imutáveis, e a correção gera nova versão com motivo.
+- Congelamento manual nesta etapa; o automático fica para decisão posterior.
+- Detalhes em `docs/grr/etapa-2.md`.

@@ -1,7 +1,9 @@
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { AreasGrr } from "@/components/grr/areas";
 import { CartaoIndicador } from "@/components/grr/cartao-indicador";
+import Link from "next/link";
 import { FiltrosGrr } from "@/components/grr/filtros";
+import { FaixaCongelamento } from "@/components/grr/formularios";
 import { GRUPOS_GRR } from "@/lib/grr/catalogo";
 import { carregarTelaGrr, parametrosDaTela, type ParametrosGrr } from "./carregar";
 
@@ -13,7 +15,8 @@ export const dynamic = "force-dynamic";
  * Cada cartão abre o detalhe do grupo, por unidade, equipe e agente.
  */
 export default async function GrrPage({ searchParams }: { searchParams: ParametrosGrr }) {
-  const { semana, rotuloDaSemana, vizinhas, escopo, dados, filtros } = await carregarTelaGrr(searchParams);
+  const { usuario, semana, rotuloDaSemana, vizinhas, escopo, dados, filtros, congelamento } = await carregarTelaGrr(searchParams);
+  const CAMINHO = "/grr";
   const q = parametrosDaTela(searchParams);
 
   return (
@@ -24,6 +27,12 @@ export default async function GrrPage({ searchParams }: { searchParams: Parametr
         semana={{ rotulo: rotuloDaSemana, tipo: semana.tipo }}
         vizinhas={vizinhas}
         {...filtros}
+      />
+      <FaixaCongelamento
+        semanaInicio={semana.inicio}
+        {...congelamento}
+        linkVivo={`${CAMINHO}${parametrosDaTela(searchParams, { vivo: "1" })}`}
+        linkFoto={`${CAMINHO}${parametrosDaTela(searchParams, { vivo: null })}`}
       />
 
       {dados.avisos.length > 0 && (
@@ -63,8 +72,13 @@ export default async function GrrPage({ searchParams }: { searchParams: Parametr
       </div>
 
       <p className="mt-6 text-xs text-muted-foreground">
-        Painel em modo de leitura. As contas são as regras oficiais da plataforma; os cartões sem meta ganham meta e faixas na Etapa 2. Estoques (aguardando instalação,
-        negociações e retornos) mostram a situação de hoje, mesmo em semanas passadas.
+        As contas são as regras oficiais da plataforma. A meta de vendas vem de Metas e comissão; as demais metas e faixas são definidas na configuração do GRR. Estoques
+        (instalações, negociações e retornos) mostram a situação do dia em que os números foram lidos.{" "}
+        {usuario.perfil === "gestor" && (
+          <Link href="/grr/configuracao" className="font-medium text-interlig-azul hover:underline">
+            Configurar indicadores e metas
+          </Link>
+        )}
       </p>
     </div>
   );

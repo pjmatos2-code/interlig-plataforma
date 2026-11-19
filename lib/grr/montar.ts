@@ -32,6 +32,7 @@ import {
   type MetaLinha,
   type Trecho,
 } from "./regras";
+import { conversaoPorSafra } from "./safra";
 import { semanasAte } from "./semana";
 
 /**
@@ -56,6 +57,8 @@ export type TicketGrr = TicketIndicador & {
   vendedor_id: string | null;
   pop_id: string | null;
   origem_criacao: string;
+  /** só para reconhecer tickets repetidos do mesmo lead; não é exibido */
+  telefone: string | null;
   followup_em: string | null;
   followup_feito_em: string | null;
   /** data da venda do contrato ligado ao ticket, quando há */
@@ -86,11 +89,15 @@ export type CartaoGrr = {
   grupo: GrupoGrr;
   rotulo: string;
   valor: string;
+  /** o número por trás do valor exibido (para metas e faixas) */
+  numero: number | null;
   /** "meta 64" ou null quando o indicador ainda não tem meta */
   meta: string | null;
   contexto: string | null;
   evolucao: Evolucao | null;
   status: Status;
+  /** quem responde pelo indicador (configuração do GRR) */
+  dono?: string | null;
 };
 
 export type LinhaQuebra = {
@@ -111,6 +118,9 @@ export type LinhaQuebra = {
   perdidos: number;
   emNegociacao: number;
   ativacoes: number;
+  safraAtendidos: number;
+  safraConvertidos: number;
+  safraTaxa: number | null;
 };
 
 export type PontoSemana = {
@@ -124,6 +134,9 @@ export type PontoSemana = {
   convertidos: number;
   conversao: number | null;
   perdidos: number;
+  safraAtendidos: number;
+  safraConvertidos: number;
+  safraTaxa: number | null;
 };
 
 export type LinhaTicket = {
@@ -187,6 +200,8 @@ export type DadosGrr = {
     foraDaConversao: number;
     /** convertidas da semana que nasceram de venda lançada direto no SGP */
     convertidasSemLead: number;
+    /** conta gerencial: leads que chegaram no trecho (lib/grr/safra.ts) */
+    safra: { leads: number; atendidos: number; convertidos: number; perdidos: number; emNegociacao: number; taxa: number | null; taxaAnterior: number | null; semAtendimentoPrevio: number; repetidos: number };
   };
   receita: { semana: number; anterior: number; mes: number; ticket: number | null; ticketAnterior: number | null; ticketMes: number | null };
   perdas: {
@@ -219,7 +234,9 @@ function medir(r: Recorte, atual: Trecho, anterior: Trecho, mes: Trecho) {
   const conv = conversaoReal(fechadosSemana);
   const criadoNoTrecho = (t: TicketGrr) => entre(diaSantarem(t.criado_em), atual) && !foraDaConversao(t);
   const recebidos = [...r.abertos.filter(criadoNoTrecho), ...r.fechados.filter(criadoNoTrecho)];
+  const safra = conversaoPorSafra([...r.abertos, ...r.fechados], atual.de, atual.ate);
   return {
+    safra,
     vSemana,
     fechadosSemana,
     recebidosLista: recebidos,
@@ -335,6 +352,7 @@ export function montarGrr(
       grupo: "vendas",
       rotulo: "Vendas da semana",
       valor: num(m.vendas),
+      numero: m.vendas,
       meta: metaSemana != null ? `meta ${num(Math.round(metaSemana))}` : null,
       contexto: metaSemana ? `${pct(percentualMeta(m.vendas, metaSemana))} da meta da semana · ${rotuloTrecho}` : `sem meta cadastrada · ${rotuloTrecho}`,
       evolucao: evolucao(m.vendas, m.vendasAnterior),
@@ -345,6 +363,7 @@ export function montarGrr(
       grupo: "vendas",
       rotulo: `Vendas de ${mes.nome}`,
       valor: num(m.vendasMes),
+      numero: m.vendasMes,
       meta: metaMes != null ? `meta ${num(metaMes)}` : null,
       contexto: metaMes
         ? `${pct(percentualMeta(m.vendasMes, metaMes))} da meta${esperadoMes != null ? ` · esperado até ${diaMes(fimRitmoMes)}: ${num(Math.round(esperadoMes))}` : mes.fechado ? " · mês fechado" : ""}`
@@ -357,6 +376,7 @@ export function montarGrr(
       grupo: "ativacoes",
       rotulo: "Ativações na semana",
       valor: num(ativSemana.length),
+      numero: ativSemana.length,
       meta: null,
       contexto: (() => {
         if (ativacaoAproximada) return `${num(ativNoDiaDaVenda)} de ${num(ativSemana.length)} com a data de ativação igual à da venda`;
@@ -371,6 +391,7 @@ export function montarGrr(
       grupo: "ativacoes",
       rotulo: "Instalações paradas há mais de 7 dias",
       valor: num(paradas),
+      numero: paradas,
       meta: "meta 0",
       contexto: `${num(aguardandoRecentes)} aguardando instalação hoje, das vendas dos últimos 60 dias`,
       evolucao: null,
@@ -381,6 +402,7 @@ export function montarGrr(
       grupo: "ativacoes",
       rotulo: "Sem assinar há 48h ou mais",
       valor: num(acima48h),
+      numero: acima48h,
       meta: "meta 0 acima de 48h",
       contexto: `${num(semAssinarDaSemana.length)} da semana sem assinar · ${num(antigasSemAssinar)} de vendas antigas`,
       evolucao: null,
@@ -391,9 +413,21 @@ export function montarGrr(
       grupo: "conversao",
       rotulo: "Conversão do CRM",
       valor: m.conversao == null ? "—" : pct(m.conversao),
+      numero: m.conversao,
       meta: null,
       contexto: `${num(m.convertidos)} de ${num(m.fechados)} tickets fechados`,
       evolucao: pp(m.conversao, mAnt.conversao),
+      status: "sem_meta",
+    },
+    {
+      chave: "conversao_safra",
+      grupo: "conversao",
+      rotulo: "Conversão por safra de leads",
+      valor: m.safra.taxa == null ? "—" : pct(m.safra.taxa),
+      numero: m.safra.taxa,
+      meta: null,
+      contexto: `${num(m.safra.convertidos)} de ${num(m.safra.atendidos)} leads atendidos${m.safra.emNegociacao ? ` · ${num(m.safra.emNegociacao)} ainda em negociação` : ""}`,
+      evolucao: pp(m.safra.taxa, mAnt.safra.taxa),
       status: "sem_meta",
     },
     {
@@ -401,6 +435,7 @@ export function montarGrr(
       grupo: "conversao",
       rotulo: "Leads recebidos",
       valor: num(m.recebidos),
+      numero: m.recebidos,
       meta: null,
       contexto: `${num(m.atendidos)} atendidos · ${num(m.emNegociacao)} em negociação hoje`,
       evolucao: evolucao(m.recebidos, mAnt.recebidos),
@@ -411,6 +446,7 @@ export function montarGrr(
       grupo: "receita",
       rotulo: "Receita nova (mensalidades)",
       valor: reais(m.receita),
+      numero: m.receita,
       meta: null,
       contexto: `em ${mes.nome}: ${reais(receitaContratada(vendasDoPeriodo(recorte.contratos, mes.de, fimMes)))}`,
       evolucao: evolucao(m.receita, mAnt.receita),
@@ -421,6 +457,7 @@ export function montarGrr(
       grupo: "receita",
       rotulo: "Ticket médio",
       valor: m.ticket == null ? "—" : reais2(m.ticket),
+      numero: m.ticket,
       meta: null,
       contexto: (() => {
         const vm = vendasDoPeriodo(recorte.contratos, mes.de, fimMes);
@@ -434,6 +471,7 @@ export function montarGrr(
       grupo: "perdas",
       rotulo: "Perdidos na semana",
       valor: num(m.perdidos),
+      numero: m.perdidos,
       meta: null,
       contexto: listaMotivos.length ? `principal motivo: ${listaMotivos[0].motivo} (${num(listaMotivos[0].quantidade)})` : "nenhum ticket perdido no trecho",
       evolucao: evolucao(m.perdidos, mAnt.perdidos, { menorEMelhor: true }),
@@ -444,6 +482,7 @@ export function montarGrr(
       grupo: "perdas",
       rotulo: "Retornos vencidos (hoje)",
       valor: num(retornosVencidos),
+      numero: retornosVencidos,
       meta: null,
       contexto: `${num(retornosHoje)} para hoje · ${num(retornosFuturos)} agendados · ${num(retornosFeitosSemana)} feitos na semana`,
       evolucao: null,
@@ -462,6 +501,7 @@ export function montarGrr(
       receita: x.receita, ticket: x.ticket,
       recebidos: x.recebidos, atendidos: x.atendidos, fechados: x.fechados, convertidos: x.convertidos, conversao: x.conversao,
       perdidos: x.perdidos, emNegociacao: x.emNegociacao, ativacoes: x.ativacoes,
+      safraAtendidos: x.safra.atendidos, safraConvertidos: x.safra.convertidos, safraTaxa: x.safra.taxa,
     };
   };
   const cortar = (f: (x: { pop_id: string | null; vendedor_id: string | null }) => boolean): Recorte => ({
@@ -505,11 +545,12 @@ export function montarGrr(
   if (temNumero(semAgente)) porAgente.push(semAgente);
   const agentesDoTime = porAgente.filter((l) => escopo.agentesDisponiveis.some((v) => v.id === l.id));
   const comVenda = agentesDoTime.filter((l) => l.vendas > 0).length;
-  cartoes.splice(9, 0, {
+  cartoes.splice(cartoes.findIndex((c) => c.chave === "perdidos"), 0, {
     chave: "agentes_com_venda",
     grupo: "produtividade",
     rotulo: "Agentes com venda na semana",
     valor: `${num(comVenda)} de ${num(agentesDoTime.length)}`,
+    numero: comVenda,
     meta: null,
     contexto: agentesDoTime.length ? `${num(agentesDoTime.length - comVenda)} sem venda no trecho` : "nenhum agente no recorte",
     evolucao: null,
@@ -520,7 +561,7 @@ export function montarGrr(
   const evolucaoSemanas: PontoSemana[] = semanasAte(semana, 8).map((s) => {
     const t: Trecho = { de: s.inicio, ate: s.fim <= hoje ? s.fim : hoje };
     const x = medir(recorte, t, t, trechoMes);
-    return { inicio: s.inicio, rotulo: rotuloSemanaCurto(s), vendas: x.vendas, receita: x.receita, ativacoes: x.ativacoes, recebidos: x.recebidos, fechados: x.fechados, convertidos: x.convertidos, conversao: x.conversao, perdidos: x.perdidos };
+    return { inicio: s.inicio, rotulo: rotuloSemanaCurto(s), vendas: x.vendas, receita: x.receita, ativacoes: x.ativacoes, recebidos: x.recebidos, fechados: x.fechados, convertidos: x.convertidos, conversao: x.conversao, perdidos: x.perdidos, safraAtendidos: x.safra.atendidos, safraConvertidos: x.safra.convertidos, safraTaxa: x.safra.taxa };
   });
 
   // ---------- tickets que compõem a semana ----------
@@ -552,7 +593,7 @@ export function montarGrr(
   if (ativacaoAproximada)
     avisos.push(`Ativações: em ${num(ativNoDiaDaVenda)} de ${num(ativSemana.length)} contratos a data de ativação gravada é a mesma da venda. O cartão mostra vendas do trecho que já estão ativas, não instalações feitas no trecho, e o prazo da venda à ativação não é confiável.`);
   if (metaMes == null) avisos.push(`Sem meta de vendas cadastrada para ${mes.nome} neste recorte: os cartões de vendas ficam sem farol.`);
-  if (convertidasSemLead > 0) avisos.push(`${num(convertidasSemLead)} das ${num(m.convertidos)} convertidas da semana vieram de venda lançada direto no SGP, sem atendimento no CRM. Elas entram na conversão pela regra atual.`);
+  if (convertidasSemLead > 0) avisos.push(`${num(convertidasSemLead)} das ${num(m.convertidos)} convertidas da semana vieram de venda lançada direto no SGP, sem atendimento no CRM. Elas entram na conversão do CRM e ficam fora da conversão por safra.`);
 
   return {
     hoje,
@@ -600,6 +641,17 @@ export function montarGrr(
       novosSemAtendimento: recorte.abertos.filter((t) => t.primeira_tratativa_em === null).length,
       foraDaConversao: naoConvertidos.fora.length,
       convertidasSemLead,
+      safra: {
+        leads: m.safra.leads,
+        atendidos: m.safra.atendidos,
+        convertidos: m.safra.convertidos,
+        perdidos: m.safra.perdidos,
+        emNegociacao: m.safra.emNegociacao,
+        taxa: m.safra.taxa,
+        taxaAnterior: mAnt.safra.taxa,
+        semAtendimentoPrevio: m.safra.semAtendimentoPrevio,
+        repetidos: m.safra.repetidos,
+      },
     },
     receita: {
       semana: m.receita,

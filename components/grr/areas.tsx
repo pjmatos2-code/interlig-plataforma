@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { AREAS_GRR } from "@/lib/grr/catalogo";
 
-/** Áreas do GRR: só o Resumo executivo está ativo na Etapa 1; as demais mostram a etapa em que entram. */
+/** Áreas do GRR: as que já existem são links; as demais mostram a etapa em que entram. */
 export function AreasGrr({ ativa, parametros }: { ativa: string; parametros: string }) {
   return (
     <nav aria-label="Áreas do GRR" className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1">

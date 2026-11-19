@@ -1,4 +1,6 @@
 import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { timeComMetaNoMes, timeDoCoordenador } from "@/lib/coordenacao";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { todas } from "@/lib/supabase/paginar";
@@ -20,7 +22,7 @@ const CAMPOS_CONTRATO =
   "id, sgp_contrato_id, data_venda, data_assinatura, data_ativacao, data_cancelamento, motivo_cancelamento, status, desistencia_em, assinatura_dispensada, valor_mensalidade, vendedor_id, pop_id, clientes(nome), planos(nome)";
 
 const CAMPOS_TICKET =
-  "id, cliente_nome, vendedor_id, pop_id, etapa, criado_em, primeira_tratativa_em, followup_em, followup_feito_em, fechado_em, desfecho, origem_criacao, contrato_id, reconciliado_em, atualizado_em, contratos!tickets_contrato_id_fkey(data_venda), motivos_nao_conversao(nome)";
+  "id, cliente_nome, telefone, vendedor_id, pop_id, etapa, criado_em, primeira_tratativa_em, followup_em, followup_feito_em, fechado_em, desfecho, origem_criacao, contrato_id, reconciliado_em, atualizado_em, contratos!tickets_contrato_id_fkey(data_venda), motivos_nao_conversao(nome)";
 
 type ContratoBruto = Omit<ContratoGrr, "fora" | "valor_mensalidade"> & {
   valor_mensalidade: number | string | null;
@@ -40,30 +42,30 @@ const ticket = (t: TicketBruto): TicketGrr => {
   return { ...resto, data_venda_contrato: contratos?.data_venda ?? null };
 };
 
-/** cadastro usado nos filtros e nas quebras: unidades, agentes e equipes de cada coordenador */
-export async function carregarCadastroGrr(): Promise<CadastroGrr> {
+/**
+ * Cadastro usado nos filtros, nas quebras e nas fotos: unidades, agentes e a
+ * equipe de cada coordenador. A equipe é a mesma do Dashboard: quem o
+ * coordenador acompanha (equipe e apoio) e que vale no mês de referência.
+ */
+export async function carregarCadastroGrr(mesDe: string): Promise<CadastroGrr> {
   const admin = criarClienteAdmin();
-  const [{ data: pops }, { data: vendedores }, { data: coordenadores }, { data: apoios }] = await Promise.all([
+  const [{ data: pops }, { data: vendedores }, { data: coordenadores }] = await Promise.all([
     admin.from("pops").select("id, nome").order("nome"),
     admin.from("vendedores").select("id, nome, pop_id, setor, ativo, eh_coordenador, coordenador_id").order("nome"),
     admin.from("usuarios").select("id, nome").eq("perfil", "supervisor").eq("ativo", true).order("nome"),
-    admin.from("coordenadores_extras").select("usuario_id, vendedor_id"),
   ]);
-  const lista = (vendedores ?? []) as VendedorGrr[];
-  const ativos = new Set(lista.filter((v) => v.ativo && !v.eh_coordenador).map((v) => v.id));
-  const equipes: EquipeGrr[] = [];
-  for (const c of coordenadores ?? []) {
-    const ids = new Set<string>();
-    for (const v of lista) if (v.coordenador_id === c.id && ativos.has(v.id)) ids.add(v.id);
-    for (const a of apoios ?? []) if (a.usuario_id === c.id && ativos.has(a.vendedor_id as string)) ids.add(a.vendedor_id as string);
-    if (ids.size > 0) equipes.push({ coordenadorId: c.id as string, nome: String(c.nome), vendedorIds: [...ids] });
-  }
-  return { pops: (pops ?? []).map((p) => ({ id: p.id as string, nome: String(p.nome) })), vendedores: lista, equipes };
+  const times = await Promise.all(
+    (coordenadores ?? []).map(async (c) => {
+      const acompanhados = await timeDoCoordenador(c.id as string);
+      return { coordenadorId: c.id as string, nome: String(c.nome), vendedorIds: acompanhados ? await timeComMetaNoMes(acompanhados, mesDe) : [] };
+    })
+  );
+  const equipes: EquipeGrr[] = times.filter((t) => t.vendedorIds.length > 0);
+  return { pops: (pops ?? []).map((p) => ({ id: p.id as string, nome: String(p.nome) })), vendedores: (vendedores ?? []) as VendedorGrr[], equipes };
 }
 
 /** lê a base da semana pedida: 8 semanas de vendas, ativações e tickets, mais o estoque de pendências */
-export async function lerBaseGrr(semana: Semana): Promise<{ base: BaseGrr; ehExpediente: (dia: string) => boolean }> {
-  const supabase = criarClienteServidor();
+export async function lerBaseGrr(semana: Semana, supabase: SupabaseClient = criarClienteServidor()): Promise<{ base: BaseGrr; ehExpediente: (dia: string) => boolean }> {
   const mes = mesDeReferencia(semana);
   const inicioJanela = [somarDias(semana.inicio, -49), mes.de].sort()[0];
   const fechadosDesde = `${somarDias(inicioJanela, -10)}T00:00:00-03:00`;

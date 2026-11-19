@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { AreasGrr } from "@/components/grr/areas";
 import { CartaoIndicador } from "@/components/grr/cartao-indicador";
-import { COLUNAS_DO_GRUPO, EvolucaoSemanas, ListaTickets, METRICA_DO_GRUPO, Numeros, TabelaQuebra } from "@/components/grr/detalhes";
+import { COLUNAS_DO_GRUPO, EvolucaoSemanas, ListaTickets, METRICA_DO_GRUPO, METRICA_SAFRA, Numeros, TabelaQuebra } from "@/components/grr/detalhes";
 import { FiltrosGrr } from "@/components/grr/filtros";
+import { FaixaCongelamento } from "@/components/grr/formularios";
 import { grupoPorChave, type GrupoGrr } from "@/lib/grr/catalogo";
 import type { DadosGrr, LinhaQuebra } from "@/lib/grr/montar";
 import { dec1, num, pct, reais, reais2 } from "@/lib/relatorio-semanal/formato";
@@ -52,14 +53,17 @@ function numerosDoGrupo(grupo: GrupoGrr, d: DadosGrr): { rotulo: string; valor: 
   }
   if (grupo === "conversao")
     return [
-      { rotulo: "Leads recebidos", valor: num(d.conversao.recebidos), nota: `semana anterior: ${num(d.conversao.recebidosAnterior)}` },
-      { rotulo: "Leads atendidos", valor: num(d.conversao.atendidos), nota: "com primeira tratativa registrada" },
+      { rotulo: "Conversão por safra", valor: d.conversao.safra.taxa != null ? pct(d.conversao.safra.taxa) : traco, nota: `semana anterior: ${d.conversao.safra.taxaAnterior != null ? pct(d.conversao.safra.taxaAnterior) : traco}` },
+      { rotulo: "Leads atendidos da safra", valor: num(d.conversao.safra.atendidos), nota: `${num(d.conversao.safra.leads)} leads chegaram no trecho` },
+      { rotulo: "Viraram venda", valor: num(d.conversao.safra.convertidos), nota: `${num(d.conversao.safra.perdidos)} perdidos · ${num(d.conversao.safra.emNegociacao)} ainda em negociação` },
+      { rotulo: "Fora da conta por safra", valor: num(d.conversao.safra.semAtendimentoPrevio + d.conversao.safra.repetidos), nota: `${num(d.conversao.safra.semAtendimentoPrevio)} de venda direta no SGP · ${num(d.conversao.safra.repetidos)} tickets repetidos do mesmo lead` },
+      { rotulo: "Leads recebidos", valor: num(d.conversao.recebidos), nota: `semana anterior: ${num(d.conversao.recebidosAnterior)} · conta do painel do CRM` },
       { rotulo: "Em negociação (hoje)", valor: num(d.conversao.emNegociacao), nota: `${num(d.conversao.novosSemAtendimento)} ainda sem atendimento` },
       { rotulo: "Tickets fechados", valor: num(d.conversao.fechados) },
       { rotulo: "Convertidos", valor: num(d.conversao.convertidos) },
       { rotulo: "Conversão do CRM", valor: d.conversao.taxa != null ? pct(d.conversao.taxa) : traco, nota: `semana anterior: ${d.conversao.taxaAnterior != null ? pct(d.conversao.taxaAnterior) : traco}` },
       { rotulo: "Fora da conversão", valor: num(d.conversao.foraDaConversao), nota: "já é cliente da base ou transferido" },
-      { rotulo: "Convertidas de venda direta no SGP", valor: num(d.conversao.convertidasSemLead), nota: "sem atendimento no CRM; contam pela regra atual" },
+      { rotulo: "Convertidas de venda direta no SGP", valor: num(d.conversao.convertidasSemLead), nota: "sem atendimento no CRM; contam só na conversão do CRM" },
     ];
   if (grupo === "receita")
     return [
@@ -87,12 +91,14 @@ function numerosDoGrupo(grupo: GrupoGrr, d: DadosGrr): { rotulo: string; valor: 
 export default async function GrrGrupoPage({ params, searchParams }: { params: { grupo: string }; searchParams: ParametrosGrr }) {
   const grupo = grupoPorChave(params.grupo);
   if (!grupo) notFound();
-  const { semana, rotuloDaSemana, vizinhas, escopo, dados, filtros } = await carregarTelaGrr(searchParams);
+  const { semana, rotuloDaSemana, vizinhas, escopo, dados, filtros, congelamento } = await carregarTelaGrr(searchParams);
+  const CAMINHO = `/grr/${grupo.chave}`;
   const q = parametrosDaTela(searchParams);
   const colunas = COLUNAS_DO_GRUPO[grupo.chave];
   const metrica = METRICA_DO_GRUPO[grupo.chave];
   const cartoes = dados.cartoes.filter((c) => c.grupo === grupo.chave);
   const numeros = numerosDoGrupo(grupo.chave, dados);
+  const donos = cartoes.filter((c) => c.dono).map((c) => `${c.rotulo}: ${c.dono}`);
   const abre = (trocas: Parameters<typeof parametrosDaTela>[1]) => `/grr/${grupo.chave}${parametrosDaTela(searchParams, trocas)}`;
   const ehAgente = (l: LinhaQuebra) => escopo.agentesDisponiveis.some((v) => v.id === l.id);
   const tickets =
@@ -113,6 +119,13 @@ export default async function GrrGrupoPage({ params, searchParams }: { params: {
         vizinhas={vizinhas}
         {...filtros}
       />
+      <FaixaCongelamento
+        semanaInicio={semana.inicio}
+        {...congelamento}
+        podeCongelar={false}
+        linkVivo={`${CAMINHO}${parametrosDaTela(searchParams, { vivo: "1" })}`}
+        linkFoto={`${CAMINHO}${parametrosDaTela(searchParams, { vivo: null })}`}
+      />
 
       {grupo.etapa !== 1 ? (
         <div className="rounded-xl border border-dashed bg-card p-4 text-sm">
@@ -129,7 +142,16 @@ export default async function GrrGrupoPage({ params, searchParams }: { params: {
 
           <div className="rounded-xl border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
             <span className="font-medium text-foreground">Como é calculado.</span> {grupo.regra}
+            {donos.length > 0 && (
+              <>
+                {" "}
+                <span className="font-medium text-foreground">Dono:</span> {donos.join("; ")}.
+              </>
+            )}
           </div>
+          {!congelamento.aoVivo && (grupo.chave === "conversao" || grupo.chave === "perdas" || grupo.chave === "produtividade") && (
+            <p className="text-xs text-muted-foreground">A lista de tickets não entra na foto. Para ver os tickets da semana, abra os números de agora.</p>
+          )}
 
           {numeros.length > 0 && <Numeros itens={numeros} />}
 
@@ -150,6 +172,7 @@ export default async function GrrGrupoPage({ params, searchParams }: { params: {
             </section>
           )}
 
+          {grupo.chave === "conversao" && <EvolucaoSemanas pontos={dados.evolucao} metrica={METRICA_SAFRA} foco={semana.inicio} />}
           {metrica && <EvolucaoSemanas pontos={dados.evolucao} metrica={metrica} foco={semana.inicio} />}
 
           <TabelaQuebra
@@ -171,7 +194,7 @@ export default async function GrrGrupoPage({ params, searchParams }: { params: {
           <ListaTickets
             tickets={tickets}
             titulo={grupo.chave === "perdas" ? "Perdidos e em negociação da semana" : "Tickets que compõem a semana"}
-            nota="Fechados no trecho e leads recebidos no trecho. O nome abre a ficha no CRM."
+            nota={congelamento.aoVivo ? "Fechados no trecho e leads recebidos no trecho. O nome abre a ficha no CRM." : undefined}
           />
         </div>
       )}

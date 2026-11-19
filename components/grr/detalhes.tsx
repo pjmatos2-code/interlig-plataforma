@@ -19,7 +19,10 @@ const C: Record<string, Coluna> = {
   atendidos: { rotulo: "Atendidos", valor: (l) => num(l.atendidos), numero: (l) => l.atendidos },
   fechados: { rotulo: "Fechados", valor: (l) => num(l.fechados), numero: (l) => l.fechados },
   convertidos: { rotulo: "Convertidos", valor: (l) => num(l.convertidos), numero: (l) => l.convertidos },
-  conversao: { rotulo: "Conversão", valor: (l) => (l.conversao != null ? pct(l.conversao) : traco) },
+  conversao: { rotulo: "Conversão do CRM", valor: (l) => (l.conversao != null ? pct(l.conversao) : traco) },
+  safraAtendidos: { rotulo: "Leads atendidos", valor: (l) => num(l.safraAtendidos), numero: (l) => l.safraAtendidos },
+  safraConvertidos: { rotulo: "Viraram venda", valor: (l) => num(l.safraConvertidos), numero: (l) => l.safraConvertidos },
+  safraTaxa: { rotulo: "Conversão por safra", valor: (l) => (l.safraTaxa != null ? pct(l.safraTaxa) : traco) },
   receita: { rotulo: "Receita nova", valor: (l) => reais(l.receita), numero: (l) => l.receita },
   ticket: { rotulo: "Ticket médio", valor: (l) => (l.ticket != null ? reais2(l.ticket) : traco) },
   perdidos: { rotulo: "Perdidos", valor: (l) => num(l.perdidos), numero: (l) => l.perdidos },
@@ -29,9 +32,9 @@ const C: Record<string, Coluna> = {
 export const COLUNAS_DO_GRUPO: Record<GrupoGrr, Coluna[]> = {
   vendas: [C.vendas, C.anterior, C.mes, C.meta, C.atingimento],
   ativacoes: [C.ativacoes, C.vendas],
-  conversao: [C.recebidos, C.atendidos, C.fechados, C.convertidos, C.conversao],
+  conversao: [C.safraAtendidos, C.safraConvertidos, C.safraTaxa, C.fechados, C.convertidos, C.conversao],
   receita: [C.receita, C.ticket, C.vendas],
-  produtividade: [C.recebidos, C.atendidos, C.vendas, C.conversao, C.anterior],
+  produtividade: [C.recebidos, C.safraAtendidos, C.vendas, C.safraTaxa, C.anterior],
   perdas: [C.perdidos, C.negociacao, C.fechados],
   inadimplencia: [],
   churn: [],
@@ -111,11 +114,13 @@ export type MetricaEvolucao = { rotulo: string; valor: (p: PontoSemana) => numbe
 export const METRICA_DO_GRUPO: Partial<Record<GrupoGrr, MetricaEvolucao>> = {
   vendas: { rotulo: "Vendas por semana", valor: (p) => p.vendas, texto: num },
   ativacoes: { rotulo: "Ativações por semana", valor: (p) => p.ativacoes, texto: num },
-  conversao: { rotulo: "Conversão por semana", valor: (p) => p.conversao, texto: pct },
+  conversao: { rotulo: "Conversão do CRM por semana de fechamento", valor: (p) => p.conversao, texto: pct },
   receita: { rotulo: "Receita nova por semana", valor: (p) => p.receita, texto: reais },
   produtividade: { rotulo: "Leads recebidos por semana", valor: (p) => p.recebidos, texto: num },
   perdas: { rotulo: "Perdidos por semana", valor: (p) => p.perdidos, texto: num },
 };
+
+export const METRICA_SAFRA: MetricaEvolucao = { rotulo: "Conversão por safra, pela semana em que o lead chegou", valor: (p) => p.safraTaxa, texto: pct };
 
 /** Evolução das últimas semanas, em barras: a semana em foco fica em azul. */
 export function EvolucaoSemanas({ pontos, metrica, foco }: { pontos: PontoSemana[]; metrica: MetricaEvolucao; foco: string }) {

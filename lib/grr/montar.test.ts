@@ -40,6 +40,7 @@ const ticket = (id: string, vendedor: string, extra: Partial<TicketGrr>): Ticket
   vendedor_id: vendedor,
   pop_id: vendedor === "bia" ? "bn" : "alt",
   origem_criacao: "sz_auto",
+  telefone: null,
   etapa: "fechado",
   criado_em: "2026-11-10T13:00:00Z",
   primeira_tratativa_em: "2026-11-10T13:20:00Z",
@@ -123,6 +124,17 @@ describe("montagem do GRR Comercial", () => {
     expect(d.conversao.foraDaConversao).toBe(1);
     expect(d.conversao.convertidasSemLead).toBe(1);
     expect(cartao(d, "conversao").valor).toBe("67%");
+  });
+
+  it("conversão por safra fica ao lado: leads atendidos que chegaram na semana", () => {
+    // t1 convertido, t2 perdido, t5 em negociação; t3 (já é cliente) e t4 (venda direta no SGP) ficam fora
+    expect(d.conversao.safra).toMatchObject({ leads: 3, atendidos: 3, convertidos: 1, perdidos: 1, emNegociacao: 1, semAtendimentoPrevio: 1 });
+    expect(cartao(d, "conversao_safra").valor).toBe("33%");
+    expect(cartao(d, "conversao_safra").numero).toBeCloseTo(1 / 3, 5);
+    expect(d.porAgente.map((l) => [l.nome, l.safraAtendidos, l.safraConvertidos])).toEqual([
+      ["Ana", 2, 1],
+      ["Bia", 1, 0],
+    ]);
   });
 
   it("perdidos, motivos e retornos", () => {
