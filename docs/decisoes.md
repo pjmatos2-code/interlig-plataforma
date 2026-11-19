@@ -1048,3 +1048,9 @@ O Paulo pediu um módulo novo para a diretoria e as lideranças acompanharem res
 - Encerrar congela a semana e guarda números, diagnósticos, planos, participantes e ata; correções à parte.
 - Relatório da reunião na plataforma e em PDF, pelo mesmo mecanismo de link assinado do Relatório da diretoria.
 - Detalhes em `docs/grr/etapa-4.md`.
+
+### GRR, Etapa 5 (19/11/2026)
+
+- Conferência dos dados por semana para a diretoria (somas, atribuição de leads, reconciliação com o SGP, Relatório da diretoria e semana congelada), só leitura.
+- Teste de permissões por perfil em transação desfeita (`scripts/grr/conferir-permissoes.mjs`).
+- Detalhes em `docs/grr/etapa-5.md`.
