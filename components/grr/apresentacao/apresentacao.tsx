@@ -1,25 +1,25 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { AlertTriangle, ChevronLeft, ChevronRight, LayoutList, Maximize, Minimize, Table2, X } from "lucide-react";
+import { AlertTriangle, Table2 } from "lucide-react";
 import { encerrarReuniaoAcao, type EstadoGrr } from "@/app/(app)/grr/acoes";
 import type { Congelamento } from "@/app/(app)/grr/carregar";
 import { CampoReuniao, SelecaoReuniao } from "@/components/relatorio-semanal/reuniao";
 import { cn } from "@/lib/utils";
-import type { DadosGrr, LinhaQuebra } from "@/lib/grr/montar";
+import type { DadosGrr } from "@/lib/grr/montar";
 import type { Alerta, CartaoPainel, PontoGrafico, Situacao } from "@/lib/grr/painel";
 import type { AcaoCombinada, ReuniaoDaSemana } from "@/lib/grr/reuniao-dados";
+import { GraficoEvolucaoVendas } from "@/components/grr/painel/grafico-evolucao";
+import { ROTULO_STATUS, SELO_STATUS } from "@/components/grr/painel/icones";
+import { RoscaSituacao } from "@/components/grr/painel/rosca";
+import { Moldura, Sobreposicao, useSecao } from "./moldura";
+import { Barras, Caixa, CartaoGrande, dataBr, dataHora, n0, Numero, Pendente, pct, reais, TabelaAgentes, Titulo } from "./pecas";
 
 /** os campos do registro da reunião vêm do relatório (sem estilo próprio): aqui ganham caixa e tamanho de tela */
-const CAMPOS =
+export const CAMPOS =
   "[&_input:not([type=checkbox])]:mt-1 [&_input:not([type=checkbox])]:block [&_input:not([type=checkbox])]:h-11 [&_input:not([type=checkbox])]:w-full [&_input:not([type=checkbox])]:rounded-lg [&_input:not([type=checkbox])]:border [&_input:not([type=checkbox])]:border-slate-300 [&_input:not([type=checkbox])]:bg-white [&_input:not([type=checkbox])]:px-3 [&_input:not([type=checkbox])]:text-base [&_input:not([type=checkbox])]:text-slate-900 [&_select]:mt-1 [&_select]:h-11 [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-slate-300 [&_select]:bg-white [&_select]:px-2 [&_select]:text-base [&_textarea]:mt-1 [&_textarea]:block [&_textarea]:min-h-[5.5rem] [&_textarea]:w-full [&_textarea]:rounded-lg [&_textarea]:border [&_textarea]:border-slate-300 [&_textarea]:bg-white [&_textarea]:px-3 [&_textarea]:py-2 [&_textarea]:text-base [&_textarea]:text-slate-900 [&_:focus]:border-interlig-ceu [&_:focus]:outline-none [&_[readonly]]:bg-slate-50";
-import { AnelMeta, Evolucao } from "@/components/grr/painel/destaque";
-import { GraficoEvolucaoVendas } from "@/components/grr/painel/grafico-evolucao";
-import { ICONE_DO_GRUPO, ROTULO_STATUS, SELO_STATUS } from "@/components/grr/painel/icones";
-import { RoscaSituacao } from "@/components/grr/painel/rosca";
 
 type Props = {
   dados: Omit<DadosGrr, "tickets">;
@@ -49,106 +49,6 @@ const SECOES = [
   { chave: "encerramento", titulo: "Encerramento" },
 ] as const;
 
-const n0 = (v: number) => v.toLocaleString("pt-BR");
-const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
-const reais = (v: number | null) => (v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: v >= 1000 ? 0 : 2 }));
-const dataBr = (iso: string | null | undefined) => (iso && /^\d{4}-\d{2}-\d{2}/.test(iso) ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : iso || "");
-const dataHora = (iso: string) => {
-  const d = new Date(Date.parse(iso) - 3 * 3600_000).toISOString();
-  return `${d.slice(8, 10)}/${d.slice(5, 7)} às ${d.slice(11, 16)}`;
-};
-
-// ---------------------------------------------------------------------------
-// peças de tela
-// ---------------------------------------------------------------------------
-
-function Titulo({ children, sub }: { children: React.ReactNode; sub?: React.ReactNode }) {
-  return (
-    <div className="mb-5">
-      <h2 className="text-2xl font-bold tracking-tight text-interlig-marinho sm:text-3xl xl:text-4xl">{children}</h2>
-      {sub && <p className="mt-1 text-base text-slate-600 xl:text-lg">{sub}</p>}
-    </div>
-  );
-}
-
-function Caixa({ children, className, titulo }: { children: React.ReactNode; className?: string; titulo?: string }) {
-  return (
-    <section className={cn("min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm", className)} aria-label={titulo}>
-      {titulo && <h3 className="mb-3 text-lg font-semibold text-slate-800 xl:text-xl">{titulo}</h3>}
-      {children}
-    </section>
-  );
-}
-
-function Numero({ rotulo, valor, detalhe, destaque }: { rotulo: string; valor: string; detalhe?: React.ReactNode; destaque?: boolean }) {
-  return (
-    <div className={cn("min-w-0 rounded-2xl border bg-white p-5 shadow-sm", destaque ? "border-interlig-azul/30" : "border-slate-200")}>
-      <p className="text-sm font-medium text-slate-600 xl:text-base">{rotulo}</p>
-      <p className="mt-1 text-4xl font-bold tabular-nums tracking-tight text-slate-900 xl:text-5xl">{valor}</p>
-      {detalhe && <div className="mt-1 text-sm text-slate-600 xl:text-base">{detalhe}</div>}
-    </div>
-  );
-}
-
-function CartaoGrande({ c }: { c: CartaoPainel }) {
-  const Icone = ICONE_DO_GRUPO[c.grupo];
-  return (
-    <div className="flex min-w-0 flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="flex items-center gap-2 text-base font-semibold text-slate-700 xl:text-lg">
-            <Icone className="h-5 w-5 shrink-0 text-interlig-azul" aria-hidden /> {c.rotulo}
-          </p>
-          <p className="mt-2 flex flex-wrap items-baseline gap-x-2 tabular-nums">
-            <span className="text-4xl font-bold tracking-tight xl:text-5xl">{c.valor}</span>
-            {c.metaNumero != null && c.meta && <span className="text-xl font-medium text-slate-500">/ {c.meta.replace(/^meta /, "")}</span>}
-          </p>
-        </div>
-        {c.atingimento != null ? (
-          <AnelMeta atingimento={c.atingimento} status={c.status} tamanho={84} />
-        ) : (
-          <span className={cn("shrink-0 rounded-full border px-3 py-1 text-sm font-medium", SELO_STATUS[c.status])}>{ROTULO_STATUS[c.status]}</span>
-        )}
-      </div>
-      <div className="text-sm xl:text-base">
-        <Evolucao evolucao={c.evolucao} />
-        {c.contexto && <p className="mt-0.5 text-slate-600">{c.contexto}</p>}
-      </div>
-    </div>
-  );
-}
-
-/** barras horizontais simples (rótulo, barra e valor), legíveis de longe */
-function Barras({ itens, formato = n0, vazio = "Sem dados no período." }: { itens: { nome: string; valor: number; extra?: string }[]; formato?: (v: number) => string; vazio?: string }) {
-  if (!itens.length) return <p className="text-slate-500">{vazio}</p>;
-  const max = Math.max(1, ...itens.map((i) => i.valor));
-  return (
-    <ul className="space-y-2.5">
-      {itens.map((i) => (
-        <li key={i.nome} className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_auto] items-center gap-3 text-sm xl:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto] xl:text-base">
-          <span className="truncate font-medium">{i.nome}</span>
-          <span className="h-3 rounded-r bg-slate-100">
-            <span className="block h-3 rounded-r bg-interlig-ceu" style={{ width: `${(i.valor / max) * 100}%` }} />
-          </span>
-          <span className="text-right font-semibold tabular-nums">
-            {formato(i.valor)}
-            {i.extra && <span className="ml-1 font-normal text-slate-500">{i.extra}</span>}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function Pendente({ etapa, children }: { etapa: number | string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-5 text-slate-600">
-      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Previsto na Etapa {etapa}</p>
-      <p className="mt-1 text-base">{children}</p>
-    </div>
-  );
-}
-
 function ListaAcoes({ acoes, vazio }: { acoes: AcaoCombinada[]; vazio: string }) {
   if (!acoes.length) return <p className="text-slate-500">{vazio}</p>;
   return (
@@ -164,46 +64,6 @@ function ListaAcoes({ acoes, vazio }: { acoes: AcaoCombinada[]; vazio: string })
         </li>
       ))}
     </ul>
-  );
-}
-
-/** tabela completa por agente, aberta por cima da apresentação */
-function TabelaAgentes({ linhas }: { linhas: LinhaQuebra[] }) {
-  const cab = ["Agente", "Vendas", "Semana ant.", "Ativações", "Receita", "Ticket", "Leads atend.", "Viraram venda", "Conv. safra", "Conv. CRM", "Perdidos"];
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[56rem] text-sm">
-        <thead>
-          <tr className="border-b text-left text-slate-500">
-            {cab.map((c, i) => (
-              <th key={c} className={cn("py-2 font-medium", i > 0 && "text-right")}>
-                {c}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="tabular-nums">
-          {linhas.map((l) => (
-            <tr key={l.id} className="border-b last:border-0">
-              <td className="py-2 font-medium">
-                {l.nome}
-                {l.detalhe && <span className="block text-xs font-normal text-slate-500">{l.detalhe}</span>}
-              </td>
-              <td className="text-right font-semibold">{n0(l.vendas)}</td>
-              <td className="text-right">{n0(l.vendasAnterior)}</td>
-              <td className="text-right">{n0(l.ativacoes)}</td>
-              <td className="text-right">{reais(l.receita)}</td>
-              <td className="text-right">{reais(l.ticket)}</td>
-              <td className="text-right">{n0(l.safraAtendidos)}</td>
-              <td className="text-right">{n0(l.safraConvertidos)}</td>
-              <td className="text-right">{pct(l.safraTaxa)}</td>
-              <td className="text-right">{pct(l.conversao)}</td>
-              <td className="text-right">{n0(l.perdidos)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }
 
@@ -234,72 +94,8 @@ function Enviar() {
 
 export function ApresentacaoGrr(p: Props) {
   const { dados, reuniao } = p;
-  const [atual, setAtual] = useState(0);
-  const [sumario, setSumario] = useState(false);
+  const { atual, ir } = useSecao(SECOES);
   const [detalhe, setDetalhe] = useState<null | "agentes">(null);
-  const [cheia, setCheia] = useState(false);
-  const raiz = useRef<HTMLDivElement>(null);
-  const conteudo = useRef<HTMLDivElement>(null);
-  const total = SECOES.length;
-
-  const ir = useCallback(
-    (i: number) => {
-      const novo = Math.max(0, Math.min(total - 1, i));
-      setAtual(novo);
-      setSumario(false);
-      conteudo.current?.scrollTo({ top: 0 });
-      try {
-        history.replaceState(null, "", `#${SECOES[novo].chave}`);
-      } catch {
-        /* sem histórico: segue sem guardar a seção */
-      }
-    },
-    [total]
-  );
-
-  // volta para a seção do endereço (#vendas, #planos…) ao recarregar
-  useEffect(() => {
-    const i = SECOES.findIndex((s) => `#${s.chave}` === window.location.hash);
-    if (i > 0) setAtual(i);
-  }, []);
-
-  const alternarTelaCheia = useCallback(() => {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-    else raiz.current?.requestFullscreen?.().catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const aoMudar = () => setCheia(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", aoMudar);
-    return () => document.removeEventListener("fullscreenchange", aoMudar);
-  }, []);
-
-  // teclado: setas, Page Up/Down, espaço, Home/End, F para tela cheia, Esc fecha o que estiver aberto
-  useEffect(() => {
-    const aoTeclar = (e: KeyboardEvent) => {
-      const alvo = e.target as HTMLElement | null;
-      if (alvo && (alvo.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(alvo.tagName))) return;
-      if (e.altKey || e.ctrlKey || e.metaKey) return;
-      if (e.key === "Escape") {
-        setDetalhe(null);
-        setSumario(false);
-        return;
-      }
-      if (detalhe || sumario) return;
-      if (["ArrowRight", "PageDown"].includes(e.key) || (e.key === " " && !e.shiftKey)) {
-        e.preventDefault();
-        ir(atual + 1);
-      } else if (["ArrowLeft", "PageUp"].includes(e.key) || (e.key === " " && e.shiftKey)) {
-        e.preventDefault();
-        ir(atual - 1);
-      } else if (e.key === "Home") ir(0);
-      else if (e.key === "End") ir(total - 1);
-      else if (e.key === "f" || e.key === "F") alternarTelaCheia();
-    };
-    window.addEventListener("keydown", aoTeclar);
-    return () => window.removeEventListener("keydown", aoTeclar);
-  }, [atual, detalhe, sumario, ir, total, alternarTelaCheia]);
-
   const foto = p.congelamento.foto && !p.congelamento.aoVivo ? p.congelamento.foto : null;
   const statusNumeros = foto
     ? `Números congelados · versão ${foto.versao}, em ${dataHora(foto.congeladoEm)}`
@@ -612,85 +408,22 @@ export function ApresentacaoGrr(p: Props) {
   ];
 
   return (
-    <div ref={raiz} className="flex h-dvh flex-col bg-slate-100">
-      {/* barra superior */}
-      <header className="flex shrink-0 items-center gap-3 bg-interlig-marinho px-3 py-2 text-white sm:px-5">
-        <Image src="/marca/logo-fundo-escuro.png" alt="Interlig" width={120} height={36} className="hidden h-7 w-auto sm:block" />
-        <div className="min-w-0 flex-1 leading-tight">
-          <p className="truncate text-sm font-semibold">GRR Comercial · {p.escopoRotulo}</p>
-          <p className="truncate text-xs tabular-nums text-white/70">
-            Semana de {p.semana.rotulo} · {foto ? `congelada (v${foto.versao})` : "números de agora"}
-          </p>
-        </div>
-        <button type="button" onClick={() => setSumario((v) => !v)} className="inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm hover:bg-white/10" aria-expanded={sumario}>
-          <LayoutList className="h-4 w-4" aria-hidden />
-          <span className="hidden sm:inline">Seções</span>
-        </button>
-        <button type="button" onClick={alternarTelaCheia} className="hidden h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm hover:bg-white/10 sm:inline-flex" aria-label={cheia ? "Sair da tela cheia" : "Tela cheia"}>
-          {cheia ? <Minimize className="h-4 w-4" aria-hidden /> : <Maximize className="h-4 w-4" aria-hidden />}
-          <span className="hidden md:inline">{cheia ? "Sair da tela cheia" : "Tela cheia"}</span>
-        </button>
-        <Link href={p.hrefVoltar} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-white/10 px-3 text-sm font-medium hover:bg-white/20">
-          <X className="h-4 w-4" aria-hidden /> <span className="hidden sm:inline">Voltar ao GRR</span>
-        </Link>
-      </header>
-
-      {/* sumário: acesso direto a uma seção */}
-      {sumario && (
-        <nav aria-label="Seções da apresentação" className="absolute right-3 top-14 z-30 w-72 rounded-2xl border bg-white p-2 shadow-xl sm:right-24">
-          <ol>
-            {SECOES.map((s, i) => (
-              <li key={s.chave}>
-                <button type="button" onClick={() => ir(i)} className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100", i === atual && "bg-interlig-azul/10 font-semibold text-interlig-azul")}>
-                  <span className="w-5 text-right tabular-nums text-slate-400">{i + 1}</span> {s.titulo}
-                </button>
-              </li>
-            ))}
-          </ol>
-        </nav>
-      )}
-
-      {/* tela atual */}
-      <main ref={conteudo} className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto h-full w-full max-w-[96rem] px-4 py-5 sm:px-8 xl:px-12 xl:py-8">{telas[atual]}</div>
-      </main>
-
-      {/* navegação */}
-      <footer className="flex shrink-0 items-center gap-2 border-t bg-white px-3 py-2 sm:px-5">
-        <button type="button" onClick={() => ir(atual - 1)} disabled={atual === 0} className="inline-flex h-10 items-center gap-1 rounded-lg border px-3 text-sm font-medium hover:border-interlig-ceu disabled:opacity-40">
-          <ChevronLeft className="h-4 w-4" aria-hidden /> <span className="hidden sm:inline">Anterior</span>
-        </button>
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-3">
-          <ol className="hidden items-center gap-1.5 md:flex" aria-label="Etapas">
-            {SECOES.map((s, i) => (
-              <li key={s.chave}>
-                <button type="button" onClick={() => ir(i)} aria-label={`${i + 1}. ${s.titulo}`} aria-current={i === atual ? "step" : undefined} className={cn("block h-2.5 rounded-full transition-all", i === atual ? "w-8 bg-interlig-azul" : "w-2.5 bg-slate-300 hover:bg-slate-400")} />
-              </li>
-            ))}
-          </ol>
-          <p className="truncate text-sm font-medium tabular-nums text-slate-700">
-            {atual + 1} de {total} · {SECOES[atual].titulo}
-          </p>
-        </div>
-        <button type="button" onClick={() => ir(atual + 1)} disabled={atual === total - 1} className="inline-flex h-10 items-center gap-1 rounded-lg bg-interlig-azul px-3 text-sm font-semibold text-white hover:bg-interlig-azul/90 disabled:opacity-40">
-          <span className="hidden sm:inline">Próximo</span> <ChevronRight className="h-4 w-4" aria-hidden />
-        </button>
-      </footer>
-
-      {/* detalhamento por cima da apresentação */}
-      {detalhe === "agentes" && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/50 p-3 sm:p-8" role="dialog" aria-modal="true" aria-label="Dados por agente" onClick={() => setDetalhe(null)}>
-          <div className="max-h-full w-full max-w-6xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="text-xl font-semibold">Dados por agente · semana de {p.semana.rotulo}</h3>
-              <button type="button" onClick={() => setDetalhe(null)} className="inline-flex h-9 items-center gap-1 rounded-lg border px-3 text-sm hover:border-interlig-ceu" autoFocus>
-                <X className="h-4 w-4" aria-hidden /> Fechar
-              </button>
-            </div>
+    <Moldura
+      titulo={`GRR Comercial · ${p.escopoRotulo}`}
+      subtitulo={`Semana de ${p.semana.rotulo} · ${foto ? `congelada (v${foto.versao})` : "números de agora"}`}
+      secoes={SECOES}
+      telas={telas}
+      hrefVoltar={p.hrefVoltar}
+      atual={atual}
+      ir={ir}
+      sobreposicao={
+        detalhe === "agentes" ? (
+          <Sobreposicao titulo={`Dados por agente · semana de ${p.semana.rotulo}`} aoFechar={() => setDetalhe(null)}>
             <TabelaAgentes linhas={porVendas} />
-          </div>
-        </div>
-      )}
-    </div>
+          </Sobreposicao>
+        ) : null
+      }
+      aoFecharSobreposicao={() => setDetalhe(null)}
+    />
   );
 }

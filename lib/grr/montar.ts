@@ -102,6 +102,19 @@ export type CartaoGrr = {
   metaNumero?: number | null;
 };
 
+/** números do dia a dia de um agente ou equipe (reunião de equipe); vêm das mesmas listas do painel */
+export type Operacional = {
+  aguardandoInstalacao: number;
+  paradasMais7Dias: number;
+  semAssinar: number;
+  semAssinar48h: number;
+  retornosVencidos: number;
+  retornosPendentes: number;
+  motivos: { motivo: string; quantidade: number }[];
+  /** semana anterior, para a evolução individual */
+  anterior: { vendas: number; conversaoSafra: number | null; atendidos: number; ticket: number | null; perdidos: number };
+};
+
 export type LinhaQuebra = {
   id: string;
   nome: string;
@@ -123,6 +136,7 @@ export type LinhaQuebra = {
   safraAtendidos: number;
   safraConvertidos: number;
   safraTaxa: number | null;
+  operacional?: Operacional;
 };
 
 export type PontoSemana = {
@@ -547,6 +561,34 @@ export function montarGrr(
     })
     .filter((l) => temNumero(l) || escopo.agentesDisponiveis.some((v) => v.id === l.id))
     .sort((a, b) => b.vendas - a.vendas || b.vendasMes - a.vendasMes || a.nome.localeCompare(b.nome, "pt-BR"));
+  // números do dia a dia por agente e por equipe (reunião de equipe), das mesmas listas do painel
+  const operacionalDe = (f: (x: { vendedor_id: string | null }) => boolean): Operacional => {
+    const r = cortar(f);
+    const ant = medir(r, anterior, anterior, trechoMes);
+    const seus = aguardando.filter((i) => f(i.contrato));
+    const semAssinarSeus = semAssinarDaSemana.filter((p) => f(p.contrato as ContratoGrr));
+    const acoesSeus = acoes.filter((x) => x.concluida_em === null && x.ticketAberto && f(x)).map((x) => diaSantarem(x.quando));
+    const motivosSeus = new Map<string, number>();
+    for (const t of naoConvertidos.perdidos.filter((t) => f(t as TicketGrr))) {
+      const nome = t.motivos_nao_conversao?.nome ?? "Sem motivo";
+      motivosSeus.set(nome, (motivosSeus.get(nome) ?? 0) + 1);
+    }
+    return {
+      aguardandoInstalacao: seus.filter((i) => i.contrato.data_venda >= somarDias(hoje, -60)).length,
+      paradasMais7Dias: seus.filter((i) => paradaMais7Dias(i, hoje)).length,
+      semAssinar: semAssinarSeus.length,
+      semAssinar48h: semAssinarSeus.filter((p) => p.idadeDias >= ALERTA_ASSINATURA_DIAS).length,
+      retornosVencidos: r.abertos.filter((t) => (diaRetorno(t) ?? "9") < hoje).length + acoesSeus.filter((d) => d < hoje).length,
+      retornosPendentes: r.abertos.filter((t) => (diaRetorno(t) ?? "") >= hoje).length + acoesSeus.filter((d) => d >= hoje).length,
+      motivos: [...motivosSeus.entries()].map(([motivo, quantidade]) => ({ motivo, quantidade })).sort((a, b) => b.quantidade - a.quantidade),
+      anterior: { vendas: ant.vendas, conversaoSafra: ant.safra.taxa, atendidos: ant.safra.atendidos, ticket: ant.ticket, perdidos: ant.perdidos },
+    };
+  };
+  for (const l of porAgente) l.operacional = operacionalDe((x) => x.vendedor_id === l.id);
+  for (const l of porEquipe) {
+    const ids = new Set(cadastro.equipes.find((e) => e.coordenadorId === l.id)?.vendedorIds ?? []);
+    l.operacional = operacionalDe((x) => !!x.vendedor_id && ids.has(x.vendedor_id));
+  }
   const semAgente = linha("sem-agente", "Sem agente", null, cortar((x) => x.vendedor_id === null), null);
   if (temNumero(semAgente)) porAgente.push(semAgente);
   const agentesDoTime = porAgente.filter((l) => escopo.agentesDisponiveis.some((v) => v.id === l.id));

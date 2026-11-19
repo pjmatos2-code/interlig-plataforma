@@ -1022,3 +1022,11 @@ O Paulo pediu um módulo novo para a diretoria e as lideranças acompanharem res
 - Detalhes em `docs/grr/redesign-e-apresentacao.md`.
 
 - Fechamento automático do GRR toda segunda às 07:00 de Santarém (decisão da gestão em 19/11/2026); semana já congelada não ganha nova versão.
+
+### GRR: Reunião Semanal da Equipe Comercial (19/11/2026)
+
+- Segunda modalidade de reunião, da coordenação com os agentes (sábado); a reunião da diretoria não muda.
+- Uma tabela de reuniões para as modalidades, no esquema `grr`; compromissos operacionais (coordenação) e gerenciais (aprovação da diretoria).
+- Reunião encerrada guarda a foto dos indicadores e não muda; correções à parte.
+- Agentes sem acesso até decisão sobre a mudança de permissão.
+- Detalhes em `docs/grr/reuniao-de-equipe.md`.

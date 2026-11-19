@@ -145,6 +145,16 @@ describe("montagem do GRR Comercial", () => {
     expect(d.perdas.primeiraRespostaMin).toBe(20);
   });
 
+  it("números do dia a dia por agente somam os do painel (reunião de equipe)", () => {
+    const soma = (k: "retornosVencidos" | "semAssinar48h") => d.porAgente.reduce((t, l) => t + (l.operacional?.[k] ?? 0), 0);
+    expect(soma("retornosVencidos")).toBe(d.perdas.retornosVencidos);
+    expect(soma("semAssinar48h")).toBe(d.ativacoes.acima48hDaSemana);
+    const motivos = d.porAgente.flatMap((l) => l.operacional?.motivos ?? []);
+    expect(motivos.reduce((t, m) => t + m.quantidade, 0)).toBe(d.perdas.perdidos);
+    expect(d.porAgente.every((l) => l.operacional?.anterior.vendas === l.vendasAnterior)).toBe(true);
+    expect(d.porEquipe[0].operacional?.retornosVencidos).toBeGreaterThanOrEqual(0);
+  });
+
   it("ativações contam só as vendas do comercial", () => {
     expect(d.ativacoes.semana).toBe(2); // as duas da Ana; a da Prefeitura fica fora
     expect(d.ativacoes.receitaAtivada).toBe(230);
