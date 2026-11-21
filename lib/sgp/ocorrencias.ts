@@ -48,6 +48,7 @@ export async function atualizarOcorrencias(
       criada_em: dataHora(l["Criada"]),
       encerrada_em: dataHora(l["Encerrada"]),
       usuario: l["Usuário"] || null,
+      responsavel: l["Responsável"] || null,
       pop: l["POP"] || null,
       sgp_os_id: l["OS"]?.match(/^(\d+)/)?.[1] ?? null,
       lido_em: agora,

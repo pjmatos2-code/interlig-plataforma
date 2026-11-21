@@ -1138,3 +1138,11 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 - Leitura própria nas rotinas do sync (`operacao`): OS dos últimos 31 dias e uma fatia das ocorrências dos últimos 30 dias, a cada 15 min no expediente e 1 h fora. A leitura da Prevenção relê só 3 dias, então o status de ocorrências mais antigas ficava desatualizado no espelho.
 - Fase 2 (cadastro de equipes e sugestão de roteiro no mapa) fica para depois, por decisão da gestão.
 - Período e botão (21/11/2026): o quadro filtra por Hoje, Esta semana (segunda a domingo), Últimos 7 dias, Este mês, Últimos 30 dias ou datas escolhidas, contando pela data de abertura ou de agendamento. O botão "Atualizar agora" lê do SGP em quatro passos curtos (`/api/operacao/atualizar`: OS e três fatias de ocorrências), só leitura. Agendada com a data já passada aparece como "Agendamento vencido".
+
+### Prazo real de instalação: direcionamento ao gestor técnico (21/11/2026)
+
+- Decisão da gestão: o prazo de instalação conta do momento em que a ocorrência de instalação é direcionada ao gestor técnico (o "Usuário responsável" passa a ser o gestor da unidade, depois das assinaturas) até o contrato passar de inativo para ativo. Meta de 48 h.
+- A hora do direcionamento só existe no registro de alterações da página da ocorrência no SGP. Uma leitura nas rotinas (`lib/sgp/direcionamento.ts`) abre cada ocorrência de instalação ainda sem a hora, uma vez só, e grava a primeira vez que o responsável virou um gestor técnico (`GESTORES_TECNICOS` em `lib/operacao/direcionamento.ts`). Só leitura no SGP.
+- Escopo inicial: ocorrências criadas a partir de 01/11/2026 (`DIRECIONAMENTO_DESDE`), por decisão da gestão, para não pesar no SGP. Meses anteriores sobem depois, mudando essa data.
+- Mudança de endereço não recebe o gestor no responsável (ensaio de 21/11), então fica fora dessa leitura; o marco de início dela é decisão pendente.
+- Hora da ativação: a migração 0138 carimba `contratos.ativado_em` quando o status sai de aguardando ativação / pendente de assinatura para ativo. Contratos ativados antes de 21/11/2026 só têm o dia (`data_ativacao`).

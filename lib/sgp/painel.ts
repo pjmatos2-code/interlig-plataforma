@@ -204,7 +204,7 @@ export class PainelSgp {
     const vistas = new Set<string>();
     for (let pagina = 1; pagina <= 20; pagina++) {
       const q = new URLSearchParams({ data_cadastro_inicial: de, data_cadastro_final: ate, paginate_by: "5000", page: String(pagina) });
-      for (const c of ["id", "clientecontrato", "tipo", "metodo", "status", "criada", "encerrada", "usuario", "pop", "os"]) {
+      for (const c of ["id", "clientecontrato", "tipo", "metodo", "status", "criada", "encerrada", "responsavel", "usuario", "pop", "os"]) {
         q.append("exibir_colunas", c);
       }
       const res = await this.pegar(`/admin/atendimento/relatorios/ocorrencia/?${q}`, { signal: AbortSignal.timeout(150_000) });
@@ -231,6 +231,18 @@ export class PainelSgp {
       if (linhas.length < 5000 || novas === 0) break;
     }
     return todas;
+  }
+
+  /**
+   * Página de uma ocorrência (só leitura). Traz o registro de alterações — de
+   * onde sai a hora em que o "Usuário responsável" foi preenchido.
+   */
+  async paginaOcorrencia(sgpOcorrenciaId: string): Promise<string> {
+    if (!this.logado) await this.login();
+    if (!/^\d+$/.test(sgpOcorrenciaId)) throw new Error("id de ocorrência inválido");
+    const res = await this.pegar(`/admin/atendimento/ocorrencia/${sgpOcorrenciaId}/edit/`, { signal: AbortSignal.timeout(60_000) });
+    if (res.status !== 200) throw new Error(`ocorrência ${sgpOcorrenciaId} respondeu ${res.status}`);
+    return res.text();
   }
 
   private async servicoDoContrato(

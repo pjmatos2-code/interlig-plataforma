@@ -218,6 +218,18 @@ export async function rodarRotinas(orcamentoMs = 172_000) {
     const erros = [os.ok ? null : `OS: ${os.erro ?? "falhou"}`, oc.ok ? null : `ocorrências: ${oc.erro ?? "falhou"}`].filter(Boolean);
     await registrar(admin, "operacao", ini, { ok: erros.length === 0, registros: os.lidas + oc.lidas, erro: erros.join("; ") || null });
     medir("operacao", ini);
+
+    // hora do direcionamento ao gestor técnico (21/11/2026): uma página do SGP
+    // por ocorrência de instalação/mudança ainda sem a hora; só o mês atual
+    if (restante() > 30_000) {
+      const iniD = Date.now();
+      const { lerDirecionamentos } = await import("@/lib/sgp/direcionamento");
+      const d = await lerDirecionamentos(admin, { limite: 30, orcamentoMs: Math.min(45_000, restante() - 20_000) }).catch((e) => ({
+        ok: false, abertas: 0, gravadas: 0, erro: String(e),
+      }));
+      if (d.abertas > 0 || !d.ok) await registrar(admin, "direcionamento", iniD, { ok: d.ok, registros: d.gravadas, erro: d.ok ? null : d.erro ?? "falhou" });
+      medir("direcionamento", iniD);
+    }
   }
 
   // fidelidade da base (01/10/2026): relatório pesado no SGP (~70s para as
