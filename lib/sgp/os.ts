@@ -179,6 +179,17 @@ export type ResultadoSyncOs = { ok: boolean; lidas: number; gravadas: number; er
 
 /** Busca as OS do mês no painel e espelha em os_tecnicas (upsert por sgp_os_id). */
 export async function sincronizarOs(mesIso: string): Promise<ResultadoSyncOs> {
+  const [ano, mes] = mesIso.slice(0, 7).split("-");
+  const ultimo = new Date(Date.UTC(Number(ano), Number(mes), 0)).getUTCDate();
+  return sincronizarOsJanela(`${ano}-${mes}-01`, `${ano}-${mes}-${String(ultimo).padStart(2, "0")}`);
+}
+
+/**
+ * OS cadastradas entre dois dias (aaaa-mm-dd, os dois inclusos), qualquer
+ * status. A Operação Técnica (21/11/2026) relê assim os últimos 31 dias para o
+ * quadro acompanhar agendamento, execução e encerramento.
+ */
+export async function sincronizarOsJanela(deIso: string, ateIso: string): Promise<ResultadoSyncOs> {
   const admin = criarClienteAdmin();
   const { data: cfgRow } = await admin
     .from("integracoes_config")
@@ -191,10 +202,9 @@ export async function sincronizarOs(mesIso: string): Promise<ResultadoSyncOs> {
   }
   const base = String(cfg.base_url ?? "").replace(/\/+$/, "").replace(/\/admin$/, "");
 
-  const [ano, mes] = mesIso.slice(0, 7).split("-");
-  const ultimo = new Date(Date.UTC(Number(ano), Number(mes), 0)).getUTCDate();
-  const deBr = `01/${mes}/${ano}`;
-  const ateBr = `${String(ultimo).padStart(2, "0")}/${mes}/${ano}`;
+  const br = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+  const deBr = br(deIso);
+  const ateBr = br(ateIso);
 
   try {
     const linhas = await new PainelOs(base, cfg.painel_usuario, cfg.painel_senha).listar(deBr, ateBr);

@@ -7,6 +7,9 @@ import {
   meuDiaNaVez,
   noExpediente,
   ocorrenciasNaVez,
+  operacaoNaVez,
+  fatiaOcorrenciasOperacao,
+  janelaOsOperacao,
   relogioSantarem,
   retencaoNaVez,
   roboComercialNaVez,
@@ -188,6 +191,33 @@ export async function rodarRotinas(orcamentoMs = 172_000) {
     const o = await lerTrechoOcorrencias(admin);
     if (!o.ok && !o.ocupado) console.error("ocorrências falharam:", o.erro);
     medir("ocorrencias", ini);
+  }
+
+  // Operação Técnica (21/11/2026): quadro de ocorrências de campo. Relê as OS
+  // dos últimos 31 dias e uma fatia das ocorrências dos últimos 30 (ver
+  // fatiaOcorrenciasOperacao) — só leitura do SGP. ~40 s por vez.
+  operacao: {
+    if (restante() < 90_000) break operacao;
+    const { data: cfgSgpRow } = await admin.from("integracoes_config").select("config").eq("sistema", "sgp").maybeSingle();
+    const cfgSgp = (cfgSgpRow?.config ?? {}) as Record<string, unknown>;
+    if (!operacaoNaVez(Date.now(), cfgSgp.operacao_lida_em as string | undefined)) break operacao;
+    const { estadoLeituras } = await import("@/lib/sgp/leituras-prevencao");
+    if ((await estadoLeituras(admin)).lendoDesde) break operacao; // o botão da Prevenção está lendo agora
+    const ini = Date.now();
+    const fatia = fatiaOcorrenciasOperacao(ini, cfgSgp.operacao_fatia);
+    // marca ANTES de rodar para não empilhar execuções concorrentes
+    await admin.rpc("mesclar_config", { p_sistema: "sgp", p_patch: { operacao_lida_em: new Date(ini).toISOString(), operacao_fatia: fatia.proximo } });
+    const janela = janelaOsOperacao(ini);
+    const { sincronizarOsJanela } = await import("@/lib/sgp/os");
+    const { atualizarOcorrencias } = await import("@/lib/sgp/ocorrencias");
+    const os = await sincronizarOsJanela(janela.de, janela.ate).catch((e) => ({ ok: false, lidas: 0, gravadas: 0, erro: String(e) }));
+    const oc =
+      restante() > 40_000
+        ? await atualizarOcorrencias(fatia.de, fatia.ateExclusivo).catch((e) => ({ ok: false, lidas: 0, erro: String(e) }))
+        : { ok: false, lidas: 0, erro: "sem tempo para as ocorrências" };
+    const erros = [os.ok ? null : `OS: ${os.erro ?? "falhou"}`, oc.ok ? null : `ocorrências: ${oc.erro ?? "falhou"}`].filter(Boolean);
+    await registrar(admin, "operacao", ini, { ok: erros.length === 0, registros: os.lidas + oc.lidas, erro: erros.join("; ") || null });
+    medir("operacao", ini);
   }
 
   // fidelidade da base (01/10/2026): relatório pesado no SGP (~70s para as

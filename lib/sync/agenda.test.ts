@@ -7,6 +7,9 @@ import {
   meuDiaNaVez,
   noExpediente,
   ocorrenciasNaVez,
+  operacaoNaVez,
+  fatiaOcorrenciasOperacao,
+  janelaOsOperacao,
   relogioSantarem,
   retencaoNaVez,
   roboComercialNaVez,
@@ -171,5 +174,30 @@ describe("cancelamentos recentes (botão da Prevenção)", () => {
   it("nunca antes do 1º dia do mês anterior (a rotina de 6 h relê o resto)", () => {
     expect(janelaCancelamentosRecentes(MANHA, undefined)).toEqual({ de: "2026-09-01", ate: "2026-10-24" });
     expect(janelaCancelamentosRecentes(MANHA, "2026-07-01T12:00:00Z")).toEqual({ de: "2026-09-01", ate: "2026-10-24" });
+  });
+});
+
+describe("operação técnica", () => {
+  it("a cada 15 min no expediente e 1 h fora", () => {
+    expect(operacaoNaVez(MANHA, antes(MANHA, 14 * MIN))).toBe(false);
+    expect(operacaoNaVez(MANHA, antes(MANHA, 15 * MIN))).toBe(true);
+    expect(operacaoNaVez(NOITE, antes(NOITE, 59 * MIN))).toBe(false);
+    expect(operacaoNaVez(NOITE, antes(NOITE, HORA))).toBe(true);
+    expect(operacaoNaVez(MANHA, null)).toBe(true);
+  });
+  it("fatias cobrem os últimos 31 dias, a recente a cada duas vezes", () => {
+    const f = [0, 1, 2, 3].map((i) => fatiaOcorrenciasOperacao(MANHA, i));
+    expect(f.map((x) => [x.de, x.ateExclusivo])).toEqual([
+      ["2026-10-15", "2026-10-25"],
+      ["2026-10-05", "2026-10-15"],
+      ["2026-10-15", "2026-10-25"],
+      ["2026-09-23", "2026-10-05"],
+    ]);
+    expect(f.map((x) => x.proximo)).toEqual([1, 2, 3, 0]);
+    expect(fatiaOcorrenciasOperacao(MANHA, "lixo").de).toBe("2026-10-15");
+    expect(fatiaOcorrenciasOperacao(MANHA, 7).proximo).toBe(0);
+  });
+  it("janela de OS: 31 dias até hoje", () => {
+    expect(janelaOsOperacao(MANHA)).toEqual({ de: "2026-09-23", ate: "2026-10-24" });
   });
 });

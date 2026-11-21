@@ -138,3 +138,39 @@ export function janelaCancelamentosRecentes(
 export function fidelidadeNaVez(agora: number, maisAntigaIso: string | null | undefined): boolean {
   return !noExpediente(agora) && desde(agora, maisAntigaIso) >= 20 * HORA;
 }
+
+/**
+ * Operação Técnica (21/11/2026): o quadro precisa do status de hoje das OS e
+ * das ocorrências dos últimos 30 dias — a leitura da Prevenção só relê os
+ * últimos 3 dias, então uma ocorrência de 10 dias atrás fechada ontem ficava
+ * "aberta" no espelho. Medido em 21/11: 31 dias de OS ~20 s; 30 dias de
+ * ocorrências ~55 s. Cada vez lê as OS da janela inteira e UMA fatia de
+ * ocorrências: a recente a cada duas vezes, as antigas alternando.
+ * A cada 15 min no expediente (07h–20h) e 1 h fora.
+ */
+export function operacaoNaVez(agora: number, ultimaIso: string | null | undefined): boolean {
+  return desde(agora, ultimaIso) >= (noExpediente(agora) ? 15 : 60) * MIN;
+}
+
+export const DIAS_JANELA_OS_OPERACAO = 31;
+/** Ordem das fatias: recente, meio, recente, antiga. */
+const FATIAS_OPERACAO: [number, number][] = [
+  [-9, 1],
+  [-19, -9],
+  [-9, 1],
+  [-31, -19],
+];
+
+/** Fatia de ocorrências (fim exclusivo, como o relatório do SGP pede) e o índice da próxima vez. */
+export function fatiaOcorrenciasOperacao(agora: number, indice: unknown): { de: string; ateExclusivo: string; proximo: number } {
+  const i = typeof indice === "number" && Number.isInteger(indice) && indice >= 0 ? indice % FATIAS_OPERACAO.length : 0;
+  const hoje = relogioSantarem(agora).dia;
+  const [a, b] = FATIAS_OPERACAO[i];
+  return { de: somarDias(hoje, a), ateExclusivo: somarDias(hoje, b), proximo: (i + 1) % FATIAS_OPERACAO.length };
+}
+
+/** Janela de OS da Operação (os dois dias inclusos). */
+export function janelaOsOperacao(agora: number): { de: string; ate: string } {
+  const hoje = relogioSantarem(agora).dia;
+  return { de: somarDias(hoje, -DIAS_JANELA_OS_OPERACAO), ate: hoje };
+}

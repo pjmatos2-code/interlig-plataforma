@@ -1,0 +1,102 @@
+/**
+ * Operação Técnica (21/11/2026): quadro das ocorrências de campo do SGP, só de
+ * leitura. Regras puras — o servidor junta ocorrência, OS e contrato e estas
+ * funções decidem tipo, coluna e prioridade.
+ *
+ * Decisões do gestor (21/11/2026):
+ *  - só ocorrências criadas nos últimos 30 dias;
+ *  - tipos: Instalação, Mudança de endereço e Suporte (todo o resto de suporte
+ *    e infraestrutura junto); recolhimento fica fora (vai para outro módulo),
+ *    assim como cobrança, financeiro e cancelamento;
+ *  - CNPJ ou plano corporativo sobe para o topo, com selo;
+ *  - a plataforma não altera nada no SGP: agendar, executar e fechar seguem lá.
+ */
+
+import type { Perfil } from "@/lib/tipos";
+
+/** Quem vê a Operação Técnica: coordenação técnica, gestão e diretoria. */
+export const PERFIS_OPERACAO: Perfil[] = ["gestor", "gestor_tecnico", "direcao"];
+
+export const DIAS_QUADRO = 30;
+/** Encerradas aparecem só as recentes, para a coluna não engolir o quadro. */
+export const DIAS_ENCERRADAS = 7;
+
+export type TipoServico = "instalacao" | "mudanca" | "suporte";
+export type Coluna = "aberta" | "agendada" | "execucao" | "validar" | "encerrada";
+
+export const COLUNAS: { chave: Coluna; rotulo: string; ajuda: string }[] = [
+  { chave: "aberta", rotulo: "Aberta", ajuda: "Ocorrência aberta, ainda sem agendamento." },
+  { chave: "agendada", rotulo: "Agendada", ajuda: "OS com data marcada, técnico ainda não começou." },
+  { chave: "execucao", rotulo: "Em execução", ajuda: "Técnico em atendimento (check-in feito)." },
+  { chave: "validar", rotulo: "Falta validar", ajuda: "O técnico já encerrou a OS, mas a ocorrência segue aberta no SGP: conferir o serviço e fechar." },
+  { chave: "encerrada", rotulo: "Encerrada", ajuda: `Ocorrências fechadas nos últimos ${DIAS_ENCERRADAS} dias.` },
+];
+
+export const ROTULO_TIPO: Record<TipoServico, string> = {
+  instalacao: "Instalação",
+  mudanca: "Mudança de endereço",
+  suporte: "Suporte",
+};
+
+/** Tipo da ocorrência do SGP → tipo de serviço de campo (null: fora do quadro). */
+export function tipoServico(tipo: string | null | undefined): TipoServico | null {
+  const t = (tipo ?? "").trim();
+  if (!t) return null;
+  if (/mudan[cç]a de endere[cç]o/i.test(t)) return "mudanca";
+  if (/^operacional\s*-\s*instala[cç][aã]o/i.test(t)) return "instalacao";
+  if (/recolh|cancelamento|cobran[cç]a|financeiro|promessa|reten[cç][aã]o|downgrade|upgrade/i.test(t)) return null;
+  if (/^(suporte|infraestrutura|operacional)\b/i.test(t) || /chamado fortics/i.test(t)) return "suporte";
+  return null;
+}
+
+export const encerradaNoSgp = (status: string | null | undefined) => /encerrad/i.test(status ?? "");
+export const emExecucaoNoSgp = (status: string | null | undefined) => /execu[cç][aã]o/i.test(status ?? "");
+export const pendenteNoSgp = (status: string | null | undefined) => /pendente/i.test(status ?? "");
+
+export type OcorrenciaBase = { status: string | null; encerrada_em?: string | null };
+export type OsBase = { status: string | null; agendamento: string | null } | null | undefined;
+
+/**
+ * Coluna do cartão. A ocorrência manda no fechamento; a OS diz em que pé está
+ * o serviço. OS encerrada com ocorrência aberta é a pendência de validação.
+ */
+export function colunaDa(oc: OcorrenciaBase, os: OsBase): Coluna {
+  if (encerradaNoSgp(oc.status)) return "encerrada";
+  if (os && encerradaNoSgp(os.status)) return "validar";
+  if ((os && emExecucaoNoSgp(os.status)) || emExecucaoNoSgp(oc.status)) return "execucao";
+  if (os && os.agendamento) return "agendada";
+  return "aberta";
+}
+
+const PLANO_CORPORATIVO = /CORPORATE|\bPJ\b|DEDICADO|EMPRESARIAL|COMERCIAL/i;
+
+/** Mesma régua da Prevenção: documento com 14 dígitos (CNPJ) ou plano corporativo. */
+export function ehCorporativo(doc: string | null | undefined, plano: string | null | undefined, planoMarcado = false): boolean {
+  return planoMarcado || (doc ?? "").replace(/\D/g, "").length === 14 || PLANO_CORPORATIVO.test(plano ?? "");
+}
+
+export type CartaoOrdenavel = { coluna: Coluna; corporativo: boolean; criadaEm: string; agendamento: string | null; encerradaEm: string | null };
+
+/**
+ * Ordem dentro da coluna: corporativo primeiro; depois quem espera há mais
+ * tempo. Agendada segue a agenda; encerrada mostra a mais recente no topo.
+ */
+export function compararCartoes(a: CartaoOrdenavel, b: CartaoOrdenavel): number {
+  if (a.coluna === "encerrada" && b.coluna === "encerrada") return (b.encerradaEm ?? "").localeCompare(a.encerradaEm ?? "");
+  if (a.corporativo !== b.corporativo) return a.corporativo ? -1 : 1;
+  if (a.coluna === "agendada" && b.coluna === "agendada") return (a.agendamento ?? "").localeCompare(b.agendamento ?? "");
+  return a.criadaEm.localeCompare(b.criadaEm);
+}
+
+/** "3 d 4 h", "5 h", "40 min" — tempo de espera no cartão. */
+export function tempoDesde(iso: string | null | undefined, agora: number): string {
+  const t = iso ? Date.parse(iso) : NaN;
+  if (!Number.isFinite(t)) return "—";
+  const min = Math.max(0, Math.floor((agora - t) / 60_000));
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} h`;
+  const d = Math.floor(h / 24);
+  const resto = h % 24;
+  return resto ? `${d} d ${resto} h` : `${d} d`;
+}

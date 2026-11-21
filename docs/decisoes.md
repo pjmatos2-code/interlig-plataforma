@@ -1128,3 +1128,12 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 ### Modo Apresentação para TV (21/11/2026)
 
 - Telas ocupam a largura e a altura inteiras; letras e números crescem com a tela (de notebook a TV Full HD); quadros com borda, sombra e faixa de cor no topo (cor da situação nos indicadores).
+
+### Operação Técnica — Fase 1 (21/11/2026)
+
+- Novo módulo `/operacao` (gestor, gestor técnico e diretoria): quadro das ocorrências de campo do SGP criadas nos últimos 30 dias, em cinco colunas — Aberta, Agendada, Em execução, Falta validar (OS encerrada pelo técnico com a ocorrência ainda aberta) e Encerrada (últimos 7 dias). Regras em `lib/operacao/regras.ts`.
+- Tipos: Instalação, Mudança de endereço e Suporte (suporte e infraestrutura juntos). Recolhimento fica fora (vai para um módulo próprio, junto da Retenção), assim como cobrança, financeiro e cancelamento.
+- CNPJ, plano corporativo ou POP corporativo sobem para o topo de cada coluna, com selo.
+- Só leitura: a plataforma nunca altera o SGP; agendar, executar e fechar continuam lá.
+- Leitura própria nas rotinas do sync (`operacao`): OS dos últimos 31 dias e uma fatia das ocorrências dos últimos 30 dias, a cada 15 min no expediente e 1 h fora. A leitura da Prevenção relê só 3 dias, então o status de ocorrências mais antigas ficava desatualizado no espelho.
+- Fase 2 (cadastro de equipes e sugestão de roteiro no mapa) fica para depois, por decisão da gestão.
