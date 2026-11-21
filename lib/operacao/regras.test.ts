@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { colunaDa, compararCartoes, ehCorporativo, tempoDesde, tipoServico, type CartaoOrdenavel } from "./regras";
+import { colunaDa, compararCartoes, diaSantarem, ehCorporativo, fatiaAtualizar, intervaloPeriodo, noPeriodo, tempoDesde, tipoServico, type CartaoOrdenavel } from "./regras";
 
 describe("tipoServico", () => {
   it("separa instalação, mudança de endereço e suporte", () => {
@@ -67,5 +67,38 @@ describe("tempoDesde", () => {
     expect(tempoDesde("2026-11-18T08:00:00Z", agora)).toBe("3 d 4 h");
     expect(tempoDesde("2026-11-19T12:00:00Z", agora)).toBe("2 d");
     expect(tempoDesde(null, agora)).toBe("—");
+  });
+});
+
+describe("período", () => {
+  it("dia em Santarém", () => {
+    expect(diaSantarem("2026-11-22T02:30:00Z")).toBe("2026-11-21");
+    expect(diaSantarem(null)).toBeNull();
+  });
+  it("intervalos", () => {
+    const hoje = "2026-11-21"; // sábado
+    expect(intervaloPeriodo("hoje", hoje)).toEqual({ de: hoje, ate: hoje });
+    expect(intervaloPeriodo("semana", hoje)).toEqual({ de: "2026-11-16", ate: "2026-11-22" });
+    expect(intervaloPeriodo("semana", "2026-11-22")).toEqual({ de: "2026-11-16", ate: "2026-11-22" }); // domingo
+    expect(intervaloPeriodo("semana", "2026-11-23")).toEqual({ de: "2026-11-23", ate: "2026-11-29" });
+    expect(intervaloPeriodo("7d", hoje)).toEqual({ de: "2026-11-15", ate: hoje });
+    expect(intervaloPeriodo("mes", hoje)).toEqual({ de: "2026-11-01", ate: hoje });
+    expect(intervaloPeriodo("30d", hoje)).toEqual({ de: "2026-10-22", ate: hoje });
+    expect(intervaloPeriodo("personalizado", hoje, { de: "2026-11-20", ate: "2026-11-10" })).toEqual({ de: "2026-11-10", ate: "2026-11-20" });
+  });
+  it("cartão no período, por abertura ou agendamento", () => {
+    const c = { criadaEm: "2026-11-18T13:00:00Z", agendamento: "2026-11-21T11:00:00Z" };
+    const sem = { de: "2026-11-21", ate: "2026-11-21" };
+    expect(noPeriodo(c, "abertura", sem)).toBe(false);
+    expect(noPeriodo(c, "agendamento", sem)).toBe(true);
+    expect(noPeriodo({ ...c, agendamento: null }, "agendamento", sem)).toBe(false);
+  });
+  it("fatias do botão cobrem os 31 dias sem buraco", () => {
+    expect([0, 1, 2, 3].map((i) => fatiaAtualizar("2026-11-21", i))).toEqual([
+      { de: "2026-11-12", ateExclusivo: "2026-11-22" },
+      { de: "2026-11-02", ateExclusivo: "2026-11-12" },
+      { de: "2026-10-21", ateExclusivo: "2026-11-02" },
+      null,
+    ]);
   });
 });

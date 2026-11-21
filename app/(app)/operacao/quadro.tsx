@@ -1,16 +1,31 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Building2, ExternalLink, PauseCircle, Search, UserRound, Wrench } from "lucide-react";
+import { Building2, CalendarDays, ExternalLink, PauseCircle, Search, UserRound, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { aplicarLinkSgp } from "@/lib/sgp/links";
 import { formatarDataHora, haQuantoTempo } from "@/lib/format";
 import type { CartaoOperacao, DadosOperacao } from "@/lib/operacao/dados";
-import { COLUNAS, ROTULO_TIPO, tempoDesde, type Coluna, type TipoServico } from "@/lib/operacao/regras";
+import {
+  COLUNAS,
+  DIAS_QUADRO,
+  PERIODOS,
+  ROTULO_TIPO,
+  diaSantarem,
+  intervaloPeriodo,
+  noPeriodo,
+  tempoDesde,
+  type BaseData,
+  type Coluna,
+  type Periodo,
+  type TipoServico,
+} from "@/lib/operacao/regras";
+import { AtualizarOperacao } from "./atualizar";
 
 const UNIDADES = ["Altamira", "Vitória do Xingu", "Brasil Novo"];
 const TIPOS: TipoServico[] = ["instalacao", "mudanca", "suporte"];
 const POR_COLUNA = 40;
+const diaMes = (dia: string) => `${dia.slice(8, 10)}/${dia.slice(5, 7)}`;
 
 const COR_TIPO: Record<TipoServico, string> = {
   instalacao: "bg-sky-100 text-sky-800 ring-sky-200",
@@ -25,10 +40,13 @@ const COR_COLUNA: Record<Coluna, string> = {
   encerrada: "border-t-farol-verde",
 };
 
+/** Agendada com a data já passada e o técnico sem check-in. */
+const vencida = (c: CartaoOperacao, agora: number) => c.coluna === "agendada" && Boolean(c.agendamento) && Date.parse(c.agendamento!) < agora;
+
 function textoTempo(c: CartaoOperacao, agora: number): string {
   switch (c.coluna) {
     case "agendada":
-      return `Agendada para ${formatarDataHora(c.agendamento)}`;
+      return vencida(c, agora) ? `Agendamento vencido: era ${formatarDataHora(c.agendamento)}` : `Agendada para ${formatarDataHora(c.agendamento)}`;
     case "execucao":
       return c.checkin ? `Em atendimento há ${tempoDesde(c.checkin, agora)}` : `Aberta há ${tempoDesde(c.criadaEm, agora)}`;
     case "validar":
@@ -69,7 +87,7 @@ function Cartao({ c, agora, linkTemplate }: { c: CartaoOperacao; agora: number; 
         {c.bairro ? ` · ${c.bairro}` : ""}
       </p>
       {c.tipo === "suporte" && <p className="mt-1 text-xs text-muted-foreground">{c.tipoSgp.replace(/^Suporte\s*-\s*/i, "")}</p>}
-      <p className={cn("mt-2 text-xs font-medium", c.coluna === "validar" ? "text-farol-vermelho" : "text-foreground")}>{textoTempo(c, agora)}</p>
+      <p className={cn("mt-2 text-xs font-medium", c.coluna === "validar" || vencida(c, agora) ? "text-farol-vermelho" : "text-foreground")}>{textoTempo(c, agora)}</p>
       {equipe && (
         <p className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
           <Wrench className="mt-0.5 h-3 w-3 shrink-0" aria-hidden /> {equipe}
@@ -101,19 +119,27 @@ export function QuadroOperacao({ dados, linkTemplate, agora }: { dados: DadosOpe
   const [tipos, setTipos] = useState<TipoServico[]>(TIPOS);
   const [soCorporativo, setSoCorporativo] = useState(false);
   const [busca, setBusca] = useState("");
+  const [periodo, setPeriodo] = useState<Periodo>("30d");
+  const [base, setBase] = useState<BaseData>("abertura");
+  const hoje = diaSantarem(agora)!;
+  const minimo = diaSantarem(agora - DIAS_QUADRO * 86_400_000)!;
+  const [escolhido, setEscolhido] = useState<{ de: string; ate: string }>({ de: minimo, ate: hoje });
+  const intervalo = intervaloPeriodo(periodo, hoje, escolhido);
+  const { de: iDe, ate: iAte } = intervalo;
   const [abertas, setAbertas] = useState<Record<Coluna, number>>({ aberta: POR_COLUNA, agendada: POR_COLUNA, execucao: POR_COLUNA, validar: POR_COLUNA, encerrada: POR_COLUNA });
 
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return dados.cartoes.filter(
       (c) =>
+        (periodo === "30d" && base === "abertura" ? true : noPeriodo(c, base, { de: iDe, ate: iAte })) &&
         (unidade === "todas" || c.unidade === unidade) &&
         tipos.includes(c.tipo) &&
         (!soCorporativo || c.corporativo) &&
         (!q ||
           [c.cliente, c.bairro, c.tecnico, c.auxiliares, c.ocorrenciaId, c.osId, c.sgpContratoId].some((v) => (v ?? "").toLowerCase().includes(q)))
     );
-  }, [dados.cartoes, unidade, tipos, soCorporativo, busca]);
+  }, [dados.cartoes, unidade, tipos, soCorporativo, busca, periodo, base, iDe, iAte]);
 
   const porColuna = useMemo(() => {
     const m = Object.fromEntries(COLUNAS.map((c) => [c.chave, [] as CartaoOperacao[]])) as Record<Coluna, CartaoOperacao[]>;
@@ -127,6 +153,76 @@ export function QuadroOperacao({ dados, linkTemplate, agora }: { dados: DadosOpe
 
   return (
     <div className="space-y-4">
+      {/* período e atualização */}
+      <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+            <CalendarDays className="h-3.5 w-3.5" aria-hidden /> Período
+          </p>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Período">
+            {PERIODOS.map((p) => (
+              <button
+                key={p.chave}
+                type="button"
+                onClick={() => setPeriodo(p.chave)}
+                aria-pressed={periodo === p.chave}
+                className={cn("rounded-full border px-3 py-1 text-xs font-medium", periodo === p.chave ? "border-interlig-azul bg-interlig-azul text-white" : "bg-background hover:bg-muted")}
+              >
+                {p.rotulo}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Contar pela data de</span>
+            <div className="inline-flex rounded-md border p-0.5" role="group" aria-label="Data usada no período">
+              {(["abertura", "agendamento"] as BaseData[]).map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  onClick={() => setBase(b)}
+                  aria-pressed={base === b}
+                  className={cn("rounded px-2.5 py-1 font-medium", base === b ? "bg-interlig-azul text-white" : "text-muted-foreground hover:bg-muted")}
+                >
+                  {b === "abertura" ? "abertura" : "agendamento"}
+                </button>
+              ))}
+            </div>
+            {periodo === "personalizado" ? (
+              <span className="flex flex-wrap items-center gap-1.5">
+                <label className="sr-only" htmlFor="op-de">De</label>
+                <input
+                  id="op-de"
+                  type="date"
+                  value={escolhido.de}
+                  min={base === "abertura" ? minimo : undefined}
+                  onChange={(e) => setEscolhido((x) => ({ ...x, de: e.target.value }))}
+                  className="h-8 rounded-md border bg-background px-2 text-xs"
+                />
+                <span className="text-muted-foreground">até</span>
+                <label className="sr-only" htmlFor="op-ate">Até</label>
+                <input
+                  id="op-ate"
+                  type="date"
+                  value={escolhido.ate}
+                  min={base === "abertura" ? minimo : undefined}
+                  onChange={(e) => setEscolhido((x) => ({ ...x, ate: e.target.value }))}
+                  className="h-8 rounded-md border bg-background px-2 text-xs"
+                />
+              </span>
+            ) : (
+              <span className="font-medium tabular-nums">
+                {intervalo.de === intervalo.ate ? diaMes(intervalo.de) : `${diaMes(intervalo.de)} a ${diaMes(intervalo.ate)}`}
+              </span>
+            )}
+          </div>
+          {base === "abertura" && intervalo.de < minimo && (
+            <p className="text-[11px] text-muted-foreground">O quadro guarda só os últimos {DIAS_QUADRO} dias: antes de {diaMes(minimo)} não aparece nada.</p>
+          )}
+          {base === "agendamento" && <p className="text-[11px] text-muted-foreground">Por agendamento, só entram ocorrências com OS agendada.</p>}
+        </div>
+        <AtualizarOperacao />
+      </div>
+
       {/* resumo */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
         {COLUNAS.filter((c) => c.chave !== "encerrada").map((col) => (

@@ -100,3 +100,73 @@ export function tempoDesde(iso: string | null | undefined, agora: number): strin
   const resto = h % 24;
   return resto ? `${d} d ${resto} h` : `${d} d`;
 }
+
+/* ---------- período (calendário do quadro, 21/11/2026) ---------- */
+
+export type Periodo = "hoje" | "semana" | "7d" | "mes" | "30d" | "personalizado";
+export type BaseData = "abertura" | "agendamento";
+
+export const PERIODOS: { chave: Periodo; rotulo: string }[] = [
+  { chave: "hoje", rotulo: "Hoje" },
+  { chave: "semana", rotulo: "Esta semana" },
+  { chave: "7d", rotulo: "Últimos 7 dias" },
+  { chave: "mes", rotulo: "Este mês" },
+  { chave: "30d", rotulo: `Últimos ${DIAS_QUADRO} dias` },
+  { chave: "personalizado", rotulo: "Escolher datas" },
+];
+
+/** Dia (aaaa-mm-dd) em Santarém (UTC−3, sem horário de verão). */
+export function diaSantarem(iso: string | number | null | undefined): string | null {
+  const t = typeof iso === "number" ? iso : iso ? Date.parse(iso) : NaN;
+  return Number.isFinite(t) ? new Date(t - 3 * 3_600_000).toISOString().slice(0, 10) : null;
+}
+
+const somar = (dia: string, n: number) => {
+  const d = new Date(`${dia}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+/**
+ * Intervalo do período (dias inclusos). Semana de segunda a domingo, como no
+ * GRR. "Personalizado" usa as datas escolhidas (trocadas se vierem invertidas).
+ */
+export function intervaloPeriodo(p: Periodo, hoje: string, escolhido?: { de?: string; ate?: string }): { de: string; ate: string } {
+  switch (p) {
+    case "hoje":
+      return { de: hoje, ate: hoje };
+    case "semana": {
+      const dow = new Date(`${hoje}T12:00:00Z`).getUTCDay(); // 0 = domingo
+      const seg = somar(hoje, dow === 0 ? -6 : 1 - dow);
+      return { de: seg, ate: somar(seg, 6) };
+    }
+    case "7d":
+      return { de: somar(hoje, -6), ate: hoje };
+    case "mes":
+      return { de: `${hoje.slice(0, 7)}-01`, ate: hoje };
+    case "personalizado": {
+      const de = escolhido?.de || somar(hoje, -(DIAS_QUADRO - 1));
+      const ate = escolhido?.ate || hoje;
+      return de <= ate ? { de, ate } : { de: ate, ate: de };
+    }
+    default:
+      return { de: somar(hoje, -DIAS_QUADRO), ate: hoje };
+  }
+}
+
+/** O cartão entra no período? Por agendamento, quem não tem data fica de fora. */
+export function noPeriodo(c: { criadaEm: string; agendamento: string | null }, base: BaseData, intervalo: { de: string; ate: string }): boolean {
+  const dia = diaSantarem(base === "abertura" ? c.criadaEm : c.agendamento);
+  return dia !== null && dia >= intervalo.de && dia <= intervalo.ate;
+}
+
+/** Fatias de ocorrências que o botão "Atualizar" lê, em ordem (fim exclusivo, em dias a partir de hoje). */
+export const FATIAS_ATUALIZAR: [number, number][] = [
+  [-9, 1],
+  [-19, -9],
+  [-31, -19],
+];
+export function fatiaAtualizar(hoje: string, i: number): { de: string; ateExclusivo: string } | null {
+  const f = FATIAS_ATUALIZAR[i];
+  return f ? { de: somar(hoje, f[0]), ateExclusivo: somar(hoje, f[1]) } : null;
+}

@@ -1137,3 +1137,4 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 - Só leitura: a plataforma nunca altera o SGP; agendar, executar e fechar continuam lá.
 - Leitura própria nas rotinas do sync (`operacao`): OS dos últimos 31 dias e uma fatia das ocorrências dos últimos 30 dias, a cada 15 min no expediente e 1 h fora. A leitura da Prevenção relê só 3 dias, então o status de ocorrências mais antigas ficava desatualizado no espelho.
 - Fase 2 (cadastro de equipes e sugestão de roteiro no mapa) fica para depois, por decisão da gestão.
+- Período e botão (21/11/2026): o quadro filtra por Hoje, Esta semana (segunda a domingo), Últimos 7 dias, Este mês, Últimos 30 dias ou datas escolhidas, contando pela data de abertura ou de agendamento. O botão "Atualizar agora" lê do SGP em quatro passos curtos (`/api/operacao/atualizar`: OS e três fatias de ocorrências), só leitura. Agendada com a data já passada aparece como "Agendamento vencido".
