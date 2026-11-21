@@ -16,30 +16,48 @@ export const dataHora = (iso: string) => {
 };
 
 
+/**
+ * Tamanhos para TV: letras e números crescem com a largura da tela (vw), com
+ * piso para notebook e teto para TV grande. Os quadros têm borda forte,
+ * sombra e uma faixa de cor no topo, para aparecerem de longe.
+ */
+export const TV = {
+  titulo: "text-[clamp(1.75rem,2.3vw,3.1rem)]",
+  sub: "text-[clamp(1rem,1.15vw,1.6rem)]",
+  rotulo: "text-[clamp(1rem,1.25vw,1.75rem)]",
+  valor: "text-[clamp(2.5rem,4.1vw,6.25rem)]",
+  valorMedio: "text-[clamp(2rem,3vw,4.5rem)]",
+  detalhe: "text-[clamp(0.9rem,1.05vw,1.45rem)]",
+  corpo: "text-[clamp(1rem,1.2vw,1.7rem)]",
+  quadro: "rounded-2xl border-2 border-slate-300 bg-white shadow-[0_4px_18px_rgba(10,22,56,0.10)] p-[clamp(0.9rem,1.3vw,2.2rem)]",
+} as const;
+
+const FAIXA_STATUS = { ok: "border-t-farol-verde", atencao: "border-t-farol-amarelo", critico: "border-t-farol-vermelho", sem_meta: "border-t-interlig-azul" } as const;
+
 export function Titulo({ children, sub }: { children: React.ReactNode; sub?: React.ReactNode }) {
   return (
-    <div className="mb-5">
-      <h2 className="text-2xl font-bold tracking-tight text-interlig-marinho sm:text-3xl xl:text-4xl">{children}</h2>
-      {sub && <p className="mt-1 text-base text-slate-600 xl:text-lg">{sub}</p>}
+    <div className="shrink-0">
+      <h2 className={cn("font-extrabold leading-tight tracking-tight text-interlig-marinho", TV.titulo)}>{children}</h2>
+      {sub && <p className={cn("mt-1 text-slate-600", TV.sub)}>{sub}</p>}
     </div>
   );
 }
 
 export function Caixa({ children, className, titulo }: { children: React.ReactNode; className?: string; titulo?: string }) {
   return (
-    <section className={cn("min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm", className)} aria-label={titulo}>
-      {titulo && <h3 className="mb-3 text-lg font-semibold text-slate-800 xl:text-xl">{titulo}</h3>}
-      {children}
+    <section className={cn("min-w-0 border-t-[6px] border-t-interlig-azul", TV.quadro, className)} aria-label={titulo}>
+      {titulo && <h3 className={cn("mb-[1.2vh] font-bold text-slate-800", TV.rotulo)}>{titulo}</h3>}
+      <div className={TV.corpo}>{children}</div>
     </section>
   );
 }
 
-export function Numero({ rotulo, valor, detalhe, destaque }: { rotulo: string; valor: string; detalhe?: React.ReactNode; destaque?: boolean }) {
+export function Numero({ rotulo, valor, detalhe, destaque, medio = false }: { rotulo: string; valor: string; detalhe?: React.ReactNode; destaque?: boolean; medio?: boolean }) {
   return (
-    <div className={cn("min-w-0 rounded-2xl border bg-white p-5 shadow-sm", destaque ? "border-interlig-azul/30" : "border-slate-200")}>
-      <p className="text-sm font-medium text-slate-600 xl:text-base">{rotulo}</p>
-      <p className="mt-1 text-4xl font-bold tabular-nums tracking-tight text-slate-900 xl:text-5xl">{valor}</p>
-      {detalhe && <div className="mt-1 text-sm text-slate-600 xl:text-base">{detalhe}</div>}
+    <div className={cn("flex min-w-0 flex-col justify-center border-t-[6px]", TV.quadro, destaque ? "border-t-interlig-ceu bg-sky-50" : "border-t-interlig-azul")}>
+      <p className={cn("font-semibold text-slate-600", TV.rotulo)}>{rotulo}</p>
+      <p className={cn("mt-[0.6vh] whitespace-nowrap font-extrabold leading-none tabular-nums tracking-tight text-slate-900", medio || valor.length > 7 ? TV.valorMedio : TV.valor)}>{valor}</p>
+      {detalhe && <div className={cn("mt-[1vh] text-slate-600", TV.detalhe)}>{detalhe}</div>}
     </div>
   );
 }
@@ -47,24 +65,26 @@ export function Numero({ rotulo, valor, detalhe, destaque }: { rotulo: string; v
 export function CartaoGrande({ c }: { c: CartaoPainel }) {
   const Icone = ICONE_DO_GRUPO[c.grupo];
   return (
-    <div className="flex min-w-0 flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
+    <div className={cn("flex min-w-0 flex-col justify-between gap-[1.2vh] border-t-[6px]", TV.quadro, FAIXA_STATUS[c.status])}>
+      <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="flex items-center gap-2 text-base font-semibold text-slate-700 xl:text-lg">
-            <Icone className="h-5 w-5 shrink-0 text-interlig-azul" aria-hidden /> {c.rotulo}
+          <p className={cn("flex items-center gap-2 font-semibold text-slate-700", TV.rotulo)}>
+            <Icone className="h-[1.1em] w-[1.1em] shrink-0 text-interlig-azul" aria-hidden /> {c.rotulo}
           </p>
-          <p className="mt-2 flex flex-wrap items-baseline gap-x-2 tabular-nums">
-            <span className="text-4xl font-bold tracking-tight xl:text-5xl">{c.valor}</span>
-            {c.metaNumero != null && c.meta && <span className="text-xl font-medium text-slate-500">/ {c.meta.replace(/^meta /, "")}</span>}
+          <p className="mt-[0.8vh] flex flex-wrap items-baseline gap-x-3 tabular-nums">
+            <span className={cn("whitespace-nowrap font-extrabold leading-none tracking-tight", c.valor.length > 6 ? TV.valorMedio : TV.valor)}>{c.valor}</span>
+            {c.metaNumero != null && c.meta && <span className={cn("font-semibold text-slate-500", TV.rotulo)}>/ {c.meta.replace(/^meta /, "")}</span>}
           </p>
         </div>
         {c.atingimento != null ? (
-          <AnelMeta atingimento={c.atingimento} status={c.status} tamanho={84} />
+          <div className="shrink-0">
+            <AnelMeta atingimento={c.atingimento} status={c.status} tamanho={128} />
+          </div>
         ) : (
-          <span className={cn("shrink-0 rounded-full border px-3 py-1 text-sm font-medium", SELO_STATUS[c.status])}>{ROTULO_STATUS[c.status]}</span>
+          <span className={cn("shrink-0 rounded-full border px-3 py-1 font-semibold", TV.detalhe, SELO_STATUS[c.status])}>{ROTULO_STATUS[c.status]}</span>
         )}
       </div>
-      <div className="text-sm xl:text-base">
+      <div className={TV.detalhe}>
         <Evolucao evolucao={c.evolucao} />
         {c.contexto && <p className="mt-0.5 text-slate-600">{c.contexto}</p>}
       </div>
@@ -72,21 +92,21 @@ export function CartaoGrande({ c }: { c: CartaoPainel }) {
   );
 }
 
-/** barras horizontais simples (rótulo, barra e valor), legíveis de longe */
+/** barras horizontais (rótulo, barra e valor), legíveis de longe */
 export function Barras({ itens, formato = n0, vazio = "Sem dados no período." }: { itens: { nome: string; valor: number; extra?: string }[]; formato?: (v: number) => string; vazio?: string }) {
   if (!itens.length) return <p className="text-slate-500">{vazio}</p>;
   const max = Math.max(1, ...itens.map((i) => i.valor));
   return (
-    <ul className="space-y-2.5">
+    <ul className={cn("space-y-[1.3vh]", TV.corpo)}>
       {itens.map((i) => (
-        <li key={i.nome} className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_auto] items-center gap-3 text-sm xl:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto] xl:text-base">
-          <span className="truncate font-medium">{i.nome}</span>
-          <span className="h-3 rounded-r bg-slate-100">
-            <span className="block h-3 rounded-r bg-interlig-ceu" style={{ width: `${(i.valor / max) * 100}%` }} />
+        <li key={i.nome} className="grid grid-cols-[minmax(0,clamp(8rem,15vw,22rem))_minmax(0,1fr)_auto] items-center gap-[1vw]">
+          <span className="truncate font-semibold">{i.nome}</span>
+          <span className="h-[clamp(0.8rem,1.2vw,1.6rem)] rounded-r bg-slate-200">
+            <span className="block h-full rounded-r bg-interlig-azul" style={{ width: `${(i.valor / max) * 100}%` }} />
           </span>
-          <span className="text-right font-semibold tabular-nums">
+          <span className="text-right font-bold tabular-nums">
             {formato(i.valor)}
-            {i.extra && <span className="ml-1 font-normal text-slate-500">{i.extra}</span>}
+            {i.extra && <span className={cn("ml-2 font-normal text-slate-500", TV.detalhe)}>{i.extra}</span>}
           </span>
         </li>
       ))}
@@ -96,9 +116,9 @@ export function Barras({ itens, formato = n0, vazio = "Sem dados no período." }
 
 export function Pendente({ etapa, children }: { etapa: number | string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-5 text-slate-600">
-      <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Previsto na Etapa {etapa}</p>
-      <p className="mt-1 text-base">{children}</p>
+    <div className={cn("border-dashed text-slate-600", TV.quadro, "bg-white/70")}>
+      <p className={cn("font-semibold uppercase tracking-wide text-slate-500", TV.detalhe)}>Previsto na Etapa {etapa}</p>
+      <p className={cn("mt-1", TV.corpo)}>{children}</p>
     </div>
   );
 }

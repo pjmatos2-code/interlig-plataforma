@@ -8,6 +8,7 @@ import {
   projecaoFechamento,
   farolProjecao,
   ativacoesPendentes,
+  osContaComoAguardando,
   pendentesAssinatura,
   mediaUltimosNDiasUteis,
   type ContratoIndicador,
@@ -230,7 +231,7 @@ export async function carregarDashboard(
   // aguardando instalação: OS abertas ∪ assinados sem ativação (D9)
   type OsAberta = { contrato_id: string; contratos: { id: string; data_venda: string; status: string } };
   const osAbertas = ((osAbertasBrutas ?? []) as unknown as OsAberta[]).filter(
-    (o) => o.contratos && o.contratos.status !== "cancelado"
+    (o) => o.contratos && osContaComoAguardando(o.contratos.status)
   );
   const diasDesde = (de: string) =>
     Math.round((Date.parse(`${hoje}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000);

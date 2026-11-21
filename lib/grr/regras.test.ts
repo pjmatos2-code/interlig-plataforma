@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aguardandoInstalacao,
+  osAbertasParaBaixar,
   dataRefTicket,
   evolucao,
   metaDoEscopo,
@@ -119,11 +120,19 @@ describe("quem aguarda instalação (D9)", () => {
   const HOJE = "2026-11-18";
 
   it("junta OS aberta com assinado sem ativação, sem contar o mesmo contrato duas vezes", () => {
-    const comOs = contrato("c1", { status: "ativo", data_ativacao: "2026-11-10" });
+    const comOs = contrato("c1");
     const pendente = contrato("c2");
     const itens = aguardandoInstalacao([comOs, pendente], [pendente], HOJE);
     expect(itens.map((i) => i.contrato.id).sort()).toEqual(["c1", "c2"]);
     expect(itens.find((i) => i.contrato.id === "c1")!.idadeDias).toBe(8);
+  });
+
+  it("contrato já em serviço com OS aberta não aguarda: é OS para baixar no SGP (21/11/2026)", () => {
+    const ativo = contrato("c6", { status: "ativo", data_ativacao: "2026-11-10" });
+    const suspenso = contrato("c7", { status: "suspenso", data_ativacao: "2026-11-01" });
+    const esperando = contrato("c8");
+    expect(aguardandoInstalacao([ativo, suspenso, esperando], [], HOJE).map((i) => i.contrato.id)).toEqual(["c8"]);
+    expect(osAbertasParaBaixar([ativo, suspenso, esperando, ativo]).map((c) => c.id)).toEqual(["c6", "c7"]);
   });
 
   it("contrato cancelado com OS aberta não aguarda instalação", () => {

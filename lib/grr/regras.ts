@@ -1,4 +1,4 @@
-import { ALERTA_ATIVACAO_DIAS, ativacoesPendentes, type ContratoIndicador } from "@/lib/indicadores/regras";
+import { ALERTA_ATIVACAO_DIAS, ativacoesPendentes, type ContratoIndicador, osContaComoAguardando, osParaBaixar } from "@/lib/indicadores/regras";
 import { LIMITES } from "@/lib/relatorio-semanal/placar";
 import type { Status } from "@/lib/relatorio-semanal/tipos";
 import { diasEntre, somarDias, type Semana } from "@/lib/relatorio-semanal/periodo";
@@ -97,7 +97,8 @@ export type ItemAguardando<T> = { contrato: T; idadeDias: number };
 export function aguardandoInstalacao<T extends ContratoIndicador & { id: string }>(osAbertas: T[], pendencias: T[], hoje: string): ItemAguardando<T>[] {
   const itens = new Map<string, ItemAguardando<T>>();
   for (const c of osAbertas) {
-    if (c.status === "cancelado") continue;
+    // contrato já em serviço com a OS aberta não espera instalação (OS para baixar)
+    if (!osContaComoAguardando(c.status)) continue;
     itens.set(c.id, { contrato: c, idadeDias: diasEntre(c.data_venda, hoje) });
   }
   for (const p of ativacoesPendentes(pendencias, hoje)) {
@@ -105,6 +106,13 @@ export function aguardandoInstalacao<T extends ContratoIndicador & { id: string 
     if (!itens.has(c.id)) itens.set(c.id, { contrato: c, idadeDias: p.idadeDias });
   }
   return [...itens.values()];
+}
+
+/** OS de instalação aberta de contrato já em serviço (baixar no SGP), uma por contrato */
+export function osAbertasParaBaixar<T extends ContratoIndicador & { id: string }>(osAbertas: T[]): T[] {
+  const vistos = new Map<string, T>();
+  for (const c of osAbertas) if (osParaBaixar(c.status) && !vistos.has(c.id)) vistos.set(c.id, c);
+  return [...vistos.values()];
 }
 
 /** instalação parada: venda dos últimos 60 dias aguardando há mais de 7 dias */

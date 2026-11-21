@@ -1,14 +1,5 @@
 import { criarClienteServidor } from "@/lib/supabase/server";
-import {
-  vendasDoPeriodo,
-  ativacoesPendentes,
-  pendentesAssinatura,
-  taxaInstalacaoEfetiva,
-  tempoMedioVendaAtivacao,
-  ALERTA_ATIVACAO_DIAS,
-  ALERTA_ASSINATURA_DIAS,
-  type ContratoIndicador,
-} from "@/lib/indicadores/regras";
+import { vendasDoPeriodo, ativacoesPendentes, pendentesAssinatura, taxaInstalacaoEfetiva, tempoMedioVendaAtivacao, ALERTA_ATIVACAO_DIAS, ALERTA_ASSINATURA_DIAS, type ContratoIndicador, osContaComoAguardando, osParaBaixar } from "@/lib/indicadores/regras";
 import { hojeIso, type Periodo } from "@/lib/datas";
 
 export type ItemEsteira = {
@@ -52,6 +43,8 @@ export type DadosEsteira = {
   tempoPorVendedora: { nome: string; dias: number; ativacoes: number }[];
   // assinaturas pendentes agrupadas por vendedora (ajuste do gestor)
   assinaturaPorVendedora: { vendedora: string; total: number; emAlerta: number }[];
+  /** OS de instalação abertas no SGP de contratos já em serviço (ativo ou suspenso): baixar no SGP; não contam como aguardando */
+  osParaBaixar: ItemEsteira[];
   /** pendências de vendas ANTERIORES ao período filtrado (não somem da vista) */
   foraDoPeriodo: { assinatura: number; instalacao: number };
 };
@@ -171,9 +164,20 @@ export async function carregarEsteira(
   type OsBruta = { sgp_os_id: string; responsavel: string | null; agendamento: string | null; contratos: Bruto };
   const osAbertas = (osBrutas ?? []) as unknown as OsBruta[];
   const comOs = new Map<string, ItemEsteira>();
+  const paraBaixar = new Map<string, ItemEsteira>();
   for (const os of osAbertas) {
     const c = os.contratos;
     if (!c) continue;
+    // 5.7 (21/11/2026): contrato já em serviço com a OS aberta não espera instalação
+    if (osParaBaixar(c.status)) {
+      const item = paraItem(c, dias(c.data_venda, hoje), false);
+      item.temOs = true;
+      item.agendamento = os.agendamento;
+      item.responsavel = os.responsavel;
+      paraBaixar.set(c.id, item);
+      continue;
+    }
+    if (!osContaComoAguardando(c.status)) continue;
     const idade = dias(c.data_venda, hoje);
     const item = paraItem(c, idade, idade > ALERTA_ATIVACAO_DIAS);
     item.temOs = true;
@@ -273,6 +277,7 @@ export async function carregarEsteira(
       aguardandoInstalacao: semAtivacao,
       instaladas,
     },
+    osParaBaixar: [...paraBaixar.values()].sort((a, b) => b.idadeDias - a.idadeDias),
     tempoPorPop: agrupar((c) => c.pops?.nome ?? "—"),
     tempoPorVendedora: agrupar((c) => c.vendedores?.nome ?? "Não atribuída"),
     foraDoPeriodo: {

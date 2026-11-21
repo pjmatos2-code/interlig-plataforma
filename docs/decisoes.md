@@ -1119,3 +1119,12 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 - O cursor anda por posição, com o recuo de 200. O cadastro repetido só ocupa uma das 800 posições da rodada.
 - Quando a lista recua (cliente apagado, unificado ou renomeado para depois do ponto de leitura), um cliente pode ficar fora daquela passada e entra na seguinte. Cadastro novo continua entrando pelo caçador (`cadastros_novos`).
 - Planos nunca tiveram o problema: a lista já é montada por código do plano.
+
+### Aguardando instalação: contrato já em serviço não conta (21/11/2026)
+
+- Regra 5.7 ajustada pela gestão: OS de instalação aberta só conta como "aguardando instalação" quando o contrato ainda não está em serviço. Contrato ativo ou suspenso com a OS aberta é OS não baixada no SGP e aparece à parte, como "OS para baixar no SGP" (Esteira, aviso no GRR, Conferência dos dados). Vale na Esteira, no Dashboard, no GRR e no Relatório da diretoria (`osContaComoAguardando` em `lib/indicadores/regras.ts`).
+- Semanas já congeladas no GRR mantêm os números com a regra antiga.
+
+### Modo Apresentação para TV (21/11/2026)
+
+- Telas ocupam a largura e a altura inteiras; letras e números crescem com a tela (de notebook a TV Full HD); quadros com borda, sombra e faixa de cor no topo (cor da situação nos indicadores).

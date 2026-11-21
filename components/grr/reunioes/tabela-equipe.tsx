@@ -23,10 +23,10 @@ function Seta({ agora, antes, menorEMelhor = false }: { agora: number | null; an
 }
 
 export function TabelaEquipe({ linhas, grande = false }: { linhas: LinhaQuebra[]; grande?: boolean }) {
-  const th = cn("py-2 font-medium text-slate-500", grande ? "text-sm" : "text-xs");
+  const th = cn("py-2 font-medium text-slate-500", grande ? "text-[clamp(0.9rem,1.1vw,1.5rem)]" : "text-xs");
   return (
     <div className="overflow-x-auto">
-      <table className={cn("w-full tabular-nums", grande ? "min-w-[64rem] text-base" : "min-w-[60rem] text-sm")}>
+      <table className={cn("w-full tabular-nums", grande ? "min-w-[64rem] text-[clamp(1.05rem,1.35vw,1.9rem)]" : "min-w-[60rem] text-sm")}>
         <thead>
           <tr className="border-b text-left">
             <th className={th}>Agente</th>

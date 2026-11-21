@@ -127,7 +127,7 @@ export function Moldura({
   }, [atual, aberta, sumario, irPara, total, alternarTelaCheia, aoFecharSobreposicao]);
 
   return (
-    <div ref={raiz} className="flex h-dvh flex-col bg-slate-100">
+    <div ref={raiz} className="flex h-dvh flex-col bg-slate-200">
       {/* barra superior */}
       <header className="flex shrink-0 items-center gap-3 bg-interlig-marinho px-3 py-2 text-white sm:px-5">
         <Image src="/marca/logo-fundo-escuro.png" alt="Interlig" width={120} height={36} className="hidden h-7 w-auto sm:block" />
@@ -167,7 +167,7 @@ export function Moldura({
 
       {/* tela atual */}
       <main ref={conteudo} className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto h-full w-full max-w-[96rem] px-4 py-5 sm:px-8 xl:px-12 xl:py-8">{telas[atual]}</div>
+        <div className="h-full w-full px-[clamp(1rem,2.4vw,3.5rem)] py-[clamp(0.9rem,2.2vh,2.5rem)] [&>*]:min-h-full">{telas[atual]}</div>
       </main>
 
       {/* navegação */}

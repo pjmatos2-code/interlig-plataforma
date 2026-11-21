@@ -149,9 +149,9 @@ export function ApresentacaoGrr(p: Props) {
     </div>,
 
     // 2. Resumo executivo
-    <div key="resumo">
+    <div key="resumo" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub={`Semana de ${p.semana.rotulo}, comparada à semana anterior.`}>Resumo executivo</Titulo>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] md:grid-cols-2 xl:grid-cols-3">
         {p.destaques.slice(0, 2).map((c) => (
           <CartaoGrande key={c.chave} c={c} />
         ))}
@@ -168,11 +168,11 @@ export function ApresentacaoGrr(p: Props) {
               <li key={a.titulo} className={cn("flex gap-2 rounded-xl border px-4 py-3", a.nivel === "critico" ? "border-farol-vermelho/30 bg-farol-vermelho/[0.07]" : "border-farol-amarelo/40 bg-farol-amarelo/[0.1]")}>
                 <AlertTriangle className={cn("mt-1 h-5 w-5 shrink-0", a.nivel === "critico" ? "text-farol-vermelho" : "text-farol-amarelo")} aria-hidden />
                 <div>
-                  <p className="text-base font-semibold">
+                  <p className="text-[clamp(1.05rem,1.35vw,1.9rem)] font-semibold">
                     <span className="sr-only">{a.nivel === "critico" ? "Crítico: " : "Atenção: "}</span>
                     {a.titulo}
                   </p>
-                  {a.texto && <p className="text-sm text-slate-600">{a.texto}</p>}
+                  {a.texto && <p className="text-[clamp(0.95rem,1.2vw,1.7rem)] text-slate-600">{a.texto}</p>}
                 </div>
               </li>
             ))}
@@ -184,26 +184,24 @@ export function ApresentacaoGrr(p: Props) {
     </div>,
 
     // 3. Vendas e ativações
-    <div key="vendas">
+    <div key="vendas" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub="Evolução, meta, resultado por unidade e por agente, ativações e pendências.">Vendas e ativações</Titulo>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <div className="grid flex-1 gap-[clamp(0.8rem,1.3vw,2rem)] xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
         <Caixa titulo="Evolução das vendas (8 semanas)">
-          <GraficoEvolucaoVendas dados={p.pontos} altura={270} grande />
-          <p className="mt-1 text-sm text-slate-500">Barra escura: semana analisada{p.semana.emAndamento ? " (em andamento, mais clara)" : ""}. Traço laranja: meta da semana.</p>
+          <GraficoEvolucaoVendas dados={p.pontos} altura={260} grande />
+          <p className="mt-1 text-[clamp(0.95rem,1.2vw,1.7rem)] text-slate-500">Barra escura: semana analisada{p.semana.emAndamento ? " (em andamento, mais clara)" : ""}. Traço laranja: meta da semana.</p>
         </Caixa>
-        <div className="grid content-start gap-4 sm:grid-cols-3 xl:grid-cols-1">
-          <Numero rotulo="Ativações na semana" valor={n0(dados.ativacoes.semana)} detalhe={`semana anterior: ${n0(dados.ativacoes.anterior)}`} />
-          <Numero rotulo="Instalações paradas há mais de 7 dias" valor={n0(dados.ativacoes.paradasMais7Dias)} detalhe={`${n0(dados.ativacoes.aguardandoRecentes)} aguardando instalação hoje`} />
-          <Numero rotulo="Sem assinar há 48h ou mais" valor={n0(dados.ativacoes.acima48hDaSemana)} detalhe={`${n0(dados.ativacoes.semAssinarDaSemana)} da semana sem assinar`} />
-        </div>
-      </div>
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Caixa titulo="Vendas por unidade">
           <Barras itens={dados.porUnidade.map((l) => ({ nome: l.nome, valor: l.vendas, extra: l.metaMes ? `· mês ${n0(l.vendasMes)}/${n0(l.metaMes)}` : undefined }))} />
         </Caixa>
+      </div>
+      <div className="grid flex-1 gap-[clamp(0.8rem,1.3vw,2rem)] md:grid-cols-3 xl:grid-cols-[repeat(3,minmax(0,1fr))_minmax(0,1.6fr)]">
+        <Numero rotulo="Ativações na semana" medio valor={n0(dados.ativacoes.semana)} detalhe={`semana anterior: ${n0(dados.ativacoes.anterior)}`} />
+        <Numero rotulo="Instalações paradas há mais de 7 dias" medio valor={n0(dados.ativacoes.paradasMais7Dias)} detalhe={`${n0(dados.ativacoes.aguardandoRecentes)} aguardando instalação hoje`} />
+        <Numero rotulo="Sem assinar há 48h ou mais" medio valor={n0(dados.ativacoes.acima48hDaSemana)} detalhe={`${n0(dados.ativacoes.semAssinarDaSemana)} da semana sem assinar`} />
         <Caixa titulo="Vendas por agente">
-          <Barras itens={porVendas.slice(0, 7).map((l) => ({ nome: l.nome, valor: l.vendas }))} />
-          <button type="button" onClick={() => setDetalhe("agentes")} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-interlig-azul hover:underline">
+          <Barras itens={porVendas.slice(0, 5).map((l) => ({ nome: l.nome, valor: l.vendas }))} />
+          <button type="button" onClick={() => setDetalhe("agentes")} className="mt-3 inline-flex items-center gap-1.5 text-[clamp(0.95rem,1.2vw,1.7rem)] font-semibold text-interlig-azul hover:underline">
             <Table2 className="h-4 w-4" aria-hidden /> Ver todos os agentes
           </button>
         </Caixa>
@@ -211,94 +209,94 @@ export function ApresentacaoGrr(p: Props) {
     </div>,
 
     // 4. Leads e conversão
-    <div key="conversao">
+    <div key="conversao" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub="Tickets comerciais do CRM (alimentados pelo SZ Chat), reconciliados com as vendas do SGP.">Leads e conversão</Titulo>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] sm:grid-cols-2 xl:grid-cols-4">
         <Numero rotulo="Leads recebidos" valor={n0(dados.conversao.safra.leads)} detalhe={`${n0(dados.conversao.recebidos)} tickets abertos no trecho`} />
         <Numero rotulo="Leads atendidos" valor={n0(dados.conversao.safra.atendidos)} detalhe={`${n0(dados.conversao.safra.emNegociacao)} ainda em negociação`} />
         <Numero rotulo="Viraram venda" valor={n0(dados.conversao.safra.convertidos)} detalhe={`conversão por safra: ${pct(dados.conversao.safra.taxa)}`} destaque />
         <Numero rotulo="Conversão do CRM" valor={pct(dados.conversao.taxa)} detalhe={`${n0(dados.conversao.convertidos)} de ${n0(dados.conversao.fechados)} tickets fechados`} />
       </div>
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] lg:grid-cols-2">
         <Caixa titulo="Conversão por safra, por agente">
           <Barras itens={porConversao.slice(0, 8).map((l) => ({ nome: l.nome, valor: Math.round((l.safraTaxa ?? 0) * 100), extra: `(${l.safraConvertidos} de ${l.safraAtendidos})` }))} formato={(v) => `${v}%`} vazio="Nenhum lead atendido no período." />
-          <button type="button" onClick={() => setDetalhe("agentes")} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-interlig-azul hover:underline">
+          <button type="button" onClick={() => setDetalhe("agentes")} className="mt-3 inline-flex items-center gap-1.5 text-[clamp(0.95rem,1.2vw,1.7rem)] font-semibold text-interlig-azul hover:underline">
             <Table2 className="h-4 w-4" aria-hidden /> Ver a produtividade de todos
           </button>
         </Caixa>
         <Caixa titulo="Motivos de perda">
           <Barras itens={dados.perdas.motivos.slice(0, 6).map((m) => ({ nome: m.motivo, valor: m.quantidade }))} vazio="Nenhuma perda registrada no período." />
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="mt-3 text-[clamp(0.95rem,1.2vw,1.7rem)] text-slate-600">
             Follow-up: <b>{n0(dados.perdas.retornosVencidos)}</b> retornos vencidos · <b>{n0(dados.perdas.retornosHoje)}</b> para hoje · <b>{n0(dados.perdas.retornosFeitosSemana)}</b> feitos na semana
           </p>
         </Caixa>
       </div>
-      <p className="mt-4 rounded-xl bg-white/70 px-4 py-3 text-sm text-slate-600">
+      <p className="mt-4 rounded-xl bg-white/70 px-4 py-3 text-[clamp(0.95rem,1.2vw,1.7rem)] text-slate-600">
         Limites da atribuição: {n0(dados.conversao.convertidasSemLead)} vendas da semana foram lançadas direto no SGP, sem atendimento no CRM (contam só na conversão do CRM);{" "}
         {n0(dados.conversao.safra.repetidos)} tickets repetidos do mesmo lead foram juntados na conta por safra. A quantidade de mensagens não é usada como quantidade de leads.
       </p>
     </div>,
 
     // 5. Receita e qualidade da venda
-    <div key="receita">
+    <div key="receita" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub="Mensalidade dos contratos novos e ticket médio.">Receita</Titulo>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] sm:grid-cols-2 xl:grid-cols-4">
         <Numero rotulo="Receita nova da semana" valor={reais(dados.receita.semana)} detalhe={`semana anterior: ${reais(dados.receita.anterior)}`} destaque />
         <Numero rotulo="Ticket médio da semana" valor={reais(dados.receita.ticket)} detalhe={`semana anterior: ${reais(dados.receita.ticketAnterior)}`} />
         <Numero rotulo={`Receita nova de ${dados.mes.nome}`} valor={reais(dados.receita.mes)} />
         <Numero rotulo={`Ticket médio de ${dados.mes.nome}`} valor={reais(dados.receita.ticketMes)} />
       </div>
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] lg:grid-cols-2">
         <Caixa titulo="Ticket médio por agente">
           <Barras itens={porVendas.filter((l) => l.ticket != null).slice(0, 8).map((l) => ({ nome: l.nome, valor: Math.round(l.ticket!), extra: `(${l.vendas} vendas)` }))} formato={(v) => reais(v)} />
         </Caixa>
         <div className="grid content-start gap-4">
-          <p className="text-sm text-slate-500">Mix de planos: ainda não calculado no GRR.</p>
+          <p className="text-[clamp(0.95rem,1.2vw,1.7rem)] text-slate-500">Mix de planos: ainda não calculado no GRR.</p>
         </div>
       </div>
     </div>,
 
     // 6. Diagnóstico dos desvios
-    <div key="desvios">
+    <div key="desvios" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub="Indicadores em atenção ou críticos no período.">Diagnóstico dos desvios</Titulo>
       {p.desvios.length === 0 ? (
         <Caixa>
-          <p className="text-lg text-slate-600">Nenhum indicador em atenção ou crítico nesta semana.</p>
+          <p className="text-[clamp(1.15rem,1.55vw,2.15rem)] text-slate-600">Nenhum indicador em atenção ou crítico nesta semana.</p>
         </Caixa>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] lg:grid-cols-2">
           {p.desvios.map((c) => (
             <Caixa key={c.chave}>
               <div className="flex items-start justify-between gap-3">
-                <h3 className="text-lg font-semibold xl:text-xl">{c.rotulo}</h3>
-                <span className={cn("shrink-0 rounded-full border px-3 py-1 text-sm font-medium", SELO_STATUS[c.status])}>{ROTULO_STATUS[c.status]}</span>
+                <h3 className="text-[clamp(1.15rem,1.55vw,2.15rem)] font-semibold ">{c.rotulo}</h3>
+                <span className={cn("shrink-0 rounded-full border px-3 py-1 text-[clamp(0.95rem,1.2vw,1.7rem)] font-medium", SELO_STATUS[c.status])}>{ROTULO_STATUS[c.status]}</span>
               </div>
               <dl className="mt-3 grid grid-cols-3 gap-3 text-center">
                 <div className="rounded-xl bg-slate-50 py-2">
-                  <dt className="text-xs uppercase tracking-wide text-slate-500">Realizado</dt>
-                  <dd className="text-2xl font-bold tabular-nums">{c.valor}</dd>
+                  <dt className="text-[clamp(0.85rem,1vw,1.4rem)] uppercase tracking-wide text-slate-500">Realizado</dt>
+                  <dd className="text-[clamp(1.9rem,3vw,4.25rem)] font-bold tabular-nums">{c.valor}</dd>
                 </div>
                 <div className="rounded-xl bg-slate-50 py-2">
-                  <dt className="text-xs uppercase tracking-wide text-slate-500">Meta</dt>
-                  <dd className="text-2xl font-bold tabular-nums">{c.meta ? c.meta.replace(/^meta /, "") : "—"}</dd>
+                  <dt className="text-[clamp(0.85rem,1vw,1.4rem)] uppercase tracking-wide text-slate-500">Meta</dt>
+                  <dd className="text-[clamp(1.9rem,3vw,4.25rem)] font-bold tabular-nums">{c.meta ? c.meta.replace(/^meta /, "") : "—"}</dd>
                 </div>
                 <div className="rounded-xl bg-slate-50 py-2">
-                  <dt className="text-xs uppercase tracking-wide text-slate-500">Desvio</dt>
-                  <dd className="text-2xl font-bold tabular-nums">
+                  <dt className="text-[clamp(0.85rem,1vw,1.4rem)] uppercase tracking-wide text-slate-500">Desvio</dt>
+                  <dd className="text-[clamp(1.9rem,3vw,4.25rem)] font-bold tabular-nums">
                     {c.atingimento != null ? `${Math.round((c.atingimento - 1) * 100)}%` : c.metaNumero != null && c.numero != null ? `${c.numero > c.metaNumero ? "+" : ""}${n0(c.numero - c.metaNumero)}` : "—"}
                   </dd>
                 </div>
               </dl>
-              {c.contexto && <p className="mt-3 text-sm text-slate-600">{c.contexto}</p>}
+              {c.contexto && <p className="mt-3 text-[clamp(0.95rem,1.2vw,1.7rem)] text-slate-600">{c.contexto}</p>}
               <div className="mt-3 space-y-2">
                 {p.diagnosticos.filter((d) => d.indicador === c.chave).length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">Sem diagnóstico registrado pela coordenação.</p>
+                  <p className="rounded-xl border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-[clamp(0.95rem,1.2vw,1.7rem)] text-amber-900">Sem diagnóstico registrado pela coordenação.</p>
                 ) : (
                   p.diagnosticos
                     .filter((d) => d.indicador === c.chave)
                     .map((d) => (
-                      <div key={d.id} className="rounded-xl bg-slate-50 px-3 py-2 text-sm">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{d.escopo_rotulo}</p>
+                      <div key={d.id} className="rounded-xl bg-slate-50 px-3 py-2 text-[clamp(0.95rem,1.2vw,1.7rem)]">
+                        <p className="text-[clamp(0.85rem,1vw,1.4rem)] font-semibold uppercase tracking-wide text-slate-500">{d.escopo_rotulo}</p>
                         <p><b>Causa:</b> {d.causa}</p>
                         <p><b>Evidências:</b> {d.evidencias || <span className="text-amber-700">sem evidência (hipótese)</span>}</p>
                         {d.providencias && <p><b>Providências:</b> {d.providencias}</p>}
@@ -311,7 +309,7 @@ export function ApresentacaoGrr(p: Props) {
           ))}
         </div>
       )}
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] lg:grid-cols-2">
         <Caixa titulo="Motivo real do desvio (registro da reunião)">
           {reuniao ? (
             <div className={CAMPOS}>
@@ -325,7 +323,7 @@ export function ApresentacaoGrr(p: Props) {
           {p.diagnosticos.filter((d) => !p.desvios.some((c) => c.chave === d.indicador)).length === 0 ? (
             <p className="text-slate-500">Nenhum.</p>
           ) : (
-            <ul className="space-y-2 text-sm">
+            <ul className="space-y-2 text-[clamp(0.95rem,1.2vw,1.7rem)]">
               {p.diagnosticos
                 .filter((d) => !p.desvios.some((c) => c.chave === d.indicador))
                 .map((d) => (
@@ -337,15 +335,15 @@ export function ApresentacaoGrr(p: Props) {
           )}
         </Caixa>
       </div>
-      <button type="button" onClick={() => setDetalhe("agentes")} className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-interlig-azul hover:underline">
+      <button type="button" onClick={() => setDetalhe("agentes")} className="mt-4 inline-flex items-center gap-1.5 text-[clamp(0.95rem,1.2vw,1.7rem)] font-semibold text-interlig-azul hover:underline">
         <Table2 className="h-4 w-4" aria-hidden /> Ver os dados por agente
       </button>
     </div>,
 
     // 7. Planos de ação
-    <div key="planos">
+    <div key="planos" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub="Conferência do que foi combinado e as ações que saem desta reunião.">Planos de ação</Titulo>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Caixa titulo="Combinado na reunião anterior: o que foi feito?">
           {!reuniao ? (
             <p className="text-slate-500">Sem registro de reunião para esta semana (o relatório da semana não foi gerado ou o perfil não tem acesso).</p>
@@ -361,7 +359,7 @@ export function ApresentacaoGrr(p: Props) {
                     <div key={n} className="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[minmax(0,1fr)_10rem] [&_input]:!mt-0 [&_select]:!mt-0">
                       <div className="min-w-0">
                         <CampoReuniao id={reuniao.relatorioId} campo={`w${n}a`} inicial={r[`w${n}a`] || a?.acao || ""} podeEditar={p.podeEditarReuniao} ariaLabel={`Combinado ${n}`} />
-                        <p className="mt-1 text-sm text-slate-600">
+                        <p className="mt-1 text-[clamp(0.95rem,1.2vw,1.7rem)] text-slate-600">
                           {r[`w${n}r`] || a?.responsavel || "sem responsável"}
                           {a?.prazo ? ` · até ${a.prazo}` : ""}
                           {a?.prova ? ` · prova: ${a.prova}` : ""}
@@ -371,7 +369,7 @@ export function ApresentacaoGrr(p: Props) {
                     </div>
                   );
                 })}
-              <p className="text-sm text-slate-500">A situação (Feito, Parcial, Não feito) se salva no registro da reunião, a mesma conferência da página do relatório.</p>
+              <p className="text-[clamp(0.95rem,1.2vw,1.7rem)] text-slate-500">A situação (Feito, Parcial, Não feito) se salva no registro da reunião, a mesma conferência da página do relatório.</p>
             </div>
           )}
         </Caixa>
@@ -388,8 +386,8 @@ export function ApresentacaoGrr(p: Props) {
                   .filter((x) => x.aprovacao === "aguardando")
                   .map((x) => (
                     <li key={x.id} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                      <p className="text-base font-semibold">{x.descricao}</p>
-                      <p className="text-sm text-slate-600">
+                      <p className="text-[clamp(1.05rem,1.35vw,1.9rem)] font-semibold">{x.descricao}</p>
+                      <p className="text-[clamp(0.95rem,1.2vw,1.7rem)] text-slate-600">
                         {x.escopo_rotulo} · {x.responsavel_nome} · {x.prazo ? `até ${dataBr(x.prazo)}` : "sem prazo"}
                         {x.resultado_esperado ? ` · espera: ${x.resultado_esperado}` : ""}
                       </p>
@@ -417,21 +415,21 @@ export function ApresentacaoGrr(p: Props) {
                 <li key={x.id} className="flex flex-wrap items-start justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{x.descricao}</p>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-[clamp(0.95rem,1.2vw,1.7rem)] text-slate-600">
                       {x.escopo_rotulo} · {x.responsavel_nome} · {x.prazo ? `até ${dataBr(x.prazo)}` : "sem prazo"}
                     </p>
                   </div>
-                  <SeloSituacao s={situacaoExibida(x, p.hoje)} className="text-sm" />
+                  <SeloSituacao s={situacaoExibida(x, p.hoje)} className="text-[clamp(0.95rem,1.2vw,1.7rem)]" />
                 </li>
               ))}
           </ul>
         )}
-        <p className="mt-2 text-sm text-slate-500">Validar e concluir, registrar evidências e ver o histórico: em Planos de ação, no GRR.</p>
+        <p className="mt-2 text-[clamp(0.95rem,1.2vw,1.7rem)] text-slate-500">Validar e concluir, registrar evidências e ver o histórico: em Planos de ação, no GRR.</p>
       </Caixa>
     </div>,
 
     // 8. Rotinas das lideranças
-    <div key="rotinas">
+    <div key="rotinas" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub={`Semana de ${p.semana.rotulo}: o que cada líder cumpriu do roteiro da semana.`}>Rotinas das lideranças</Titulo>
       {p.rotinas.length === 0 ? (
         <Caixa>
@@ -447,9 +445,9 @@ export function ApresentacaoGrr(p: Props) {
     </div>,
 
     // 9. Encerramento
-    <div key="encerramento">
+    <div key="encerramento" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub="Resumo, decisões e o fechamento oficial da semana.">Encerramento</Titulo>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+      <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <div className="grid content-start gap-4">
           <Caixa titulo="Situação dos indicadores">
             <RoscaSituacao situacao={p.situacao} gruposSemDados={p.gruposSemDados} />
@@ -457,35 +455,35 @@ export function ApresentacaoGrr(p: Props) {
           {g ? (
             <Caixa titulo="Fechamento oficial">
               {!g.aberta ? (
-                <p className="text-base">Reunião encerrada em {g.encerradaEm ? dataHora(g.encerradaEm) : "—"}. A ata, os números e as decisões estão guardados; o relatório em PDF está na página da reunião.</p>
+                <p className="text-[clamp(1.05rem,1.35vw,1.9rem)]">Reunião encerrada em {g.encerradaEm ? dataHora(g.encerradaEm) : "—"}. A ata, os números e as decisões estão guardados; o relatório em PDF está na página da reunião.</p>
               ) : p.diretoria ? (
                 <div className="space-y-2">
-                  <p className="text-base text-slate-600">Encerrar congela a semana (se ainda não estiver) e guarda a ata da reunião.</p>
+                  <p className="text-[clamp(1.05rem,1.35vw,1.9rem)] text-slate-600">Encerrar congela a semana (se ainda não estiver) e guarda a ata da reunião.</p>
                   <FormEncerrarDiretoria id={g.id} grande />
                 </div>
               ) : (
-                <p className="text-base text-slate-600">Só a diretoria encerra a reunião de resultados.</p>
+                <p className="text-[clamp(1.05rem,1.35vw,1.9rem)] text-slate-600">Só a diretoria encerra a reunião de resultados.</p>
               )}
             </Caixa>
           ) : (
           <Caixa titulo="Fechamento oficial">
               {foto ? (
-                <p className="text-base">
+                <p className="text-[clamp(1.05rem,1.35vw,1.9rem)]">
                   Semana congelada na versão {foto.versao}, em {dataHora(foto.congeladoEm)}. Os números desta apresentação estão preservados; correções criam nova versão com motivo.
                 </p>
               ) : p.congelamento.aoVivo && p.congelamento.foto ? (
-                <p className="text-base">Esta semana já está congelada (versão {p.congelamento.foto.versao}). A apresentação está mostrando os números de agora.</p>
+                <p className="text-[clamp(1.05rem,1.35vw,1.9rem)]">Esta semana já está congelada (versão {p.congelamento.foto.versao}). A apresentação está mostrando os números de agora.</p>
               ) : !p.semana.completa ? (
-                <p className="text-base text-slate-600">A semana ainda está em andamento. O encerramento oficial congela só semana completa.</p>
+                <p className="text-[clamp(1.05rem,1.35vw,1.9rem)] text-slate-600">A semana ainda está em andamento. O encerramento oficial congela só semana completa.</p>
               ) : !p.congelamento.disponivel ? (
-                <p className="text-base text-slate-600">As tabelas do GRR não estão disponíveis; não é possível congelar.</p>
+                <p className="text-[clamp(1.05rem,1.35vw,1.9rem)] text-slate-600">As tabelas do GRR não estão disponíveis; não é possível congelar.</p>
               ) : p.congelamento.podeCongelar ? (
                 <div className="space-y-2">
-                  <p className="text-base text-slate-600">Encerrar congela os números da semana em todos os recortes. As decisões ao lado continuam editáveis.</p>
+                  <p className="text-[clamp(1.05rem,1.35vw,1.9rem)] text-slate-600">Encerrar congela os números da semana em todos os recortes. As decisões ao lado continuam editáveis.</p>
                   <BotaoEncerrar semana={p.semana.inicio} />
                 </div>
               ) : (
-                <p className="text-base text-slate-600">O encerramento oficial é feito pela diretoria.</p>
+                <p className="text-[clamp(1.05rem,1.35vw,1.9rem)] text-slate-600">O encerramento oficial é feito pela diretoria.</p>
               )}
             </Caixa>
           )}
@@ -495,7 +493,7 @@ export function ApresentacaoGrr(p: Props) {
             {g.ata.decisoes.length === 0 ? (
               <p className="text-slate-500">Nenhuma decisão registrada ainda.</p>
             ) : (
-              <ol className="list-decimal space-y-2 pl-6 text-base">
+              <ol className="list-decimal space-y-2 pl-6 text-[clamp(1.05rem,1.35vw,1.9rem)]">
                 {g.ata.decisoes.map((d) => (
                   <li key={d.id}>
                     <b>{d.texto}</b>
@@ -516,21 +514,21 @@ export function ApresentacaoGrr(p: Props) {
             {reuniao ? (
               <div className={cn("space-y-4", CAMPOS)}>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block text-sm font-medium text-slate-600">
+                  <label className="block text-[clamp(0.95rem,1.2vw,1.7rem)] font-medium text-slate-600">
                     Data da reunião
                     <CampoReuniao id={reuniao.relatorioId} campo="reuniao-data" inicial={r["reuniao-data"] ?? ""} tipo="date" podeEditar={p.podeEditarReuniao} ariaLabel="Data da reunião" />
                   </label>
-                  <label className="block text-sm font-medium text-slate-600">
+                  <label className="block text-[clamp(0.95rem,1.2vw,1.7rem)] font-medium text-slate-600">
                     Participantes
                     <CampoReuniao id={reuniao.relatorioId} campo="reuniao-quem" inicial={r["reuniao-quem"] ?? ""} placeholder="Quem participou" podeEditar={p.podeEditarReuniao} ariaLabel="Participantes" />
                   </label>
                 </div>
-                <label className="block text-sm font-medium text-slate-600">
+                <label className="block text-[clamp(0.95rem,1.2vw,1.7rem)] font-medium text-slate-600">
                   O que foi entregue contra a meta?
                   <CampoReuniao id={reuniao.relatorioId} campo="a1" inicial={r.a1 ?? ""} placeholder="Vendas, receita, assinaturas, time e origem." podeEditar={p.podeEditarReuniao} multilinha ariaLabel="O que foi entregue contra a meta" />
                 </label>
                 <div>
-                  <p className="mb-2 text-sm font-medium text-slate-600">Ações combinadas para a próxima semana (ação, responsável e prazo)</p>
+                  <p className="mb-2 text-[clamp(0.95rem,1.2vw,1.7rem)] font-medium text-slate-600">Ações combinadas para a próxima semana (ação, responsável e prazo)</p>
                   <div className="space-y-2">
                     {[1, 2, 3, 4, 5].map((n) => (
                       <div key={n} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_11rem_9rem] [&_input]:!mt-0">
@@ -541,7 +539,7 @@ export function ApresentacaoGrr(p: Props) {
                     ))}
                   </div>
                 </div>
-                <p className="text-xs text-slate-500">Cada campo se salva sozinho no registro da reunião do Relatório da diretoria (os mesmos campos da página do relatório).</p>
+                <p className="text-[clamp(0.85rem,1vw,1.4rem)] text-slate-500">Cada campo se salva sozinho no registro da reunião do Relatório da diretoria (os mesmos campos da página do relatório).</p>
               </div>
             ) : (
               <p className="text-slate-500">

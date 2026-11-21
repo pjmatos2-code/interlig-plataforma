@@ -409,3 +409,13 @@ describe("5.13 — streak de meta diária", () => {
     expect(streakDiasUteis(new Map(), dias, 0, "2026-08-20")).toBe(0);
   });
 });
+
+import { osContaComoAguardando, osParaBaixar } from "./regras";
+describe("5.7 — OS aberta conta como aguardando só sem serviço (21/11/2026)", () => {
+  it("separa aguardando, para baixar e cancelado", () => {
+    expect(["aguardando_ativacao", "pendente_assinatura"].every(osContaComoAguardando)).toBe(true);
+    expect(["ativo", "suspenso", "cancelado"].some(osContaComoAguardando)).toBe(false);
+    expect(["ativo", "suspenso"].every(osParaBaixar)).toBe(true);
+    expect(osParaBaixar("cancelado")).toBe(false);
+  });
+});

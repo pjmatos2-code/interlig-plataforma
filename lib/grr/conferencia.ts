@@ -136,6 +136,14 @@ export function conferirSemana(d: DadosGrr, x: ExtrasConferencia): Verificacao[]
     valor: n(x.convertidosSemContrato),
     detalhe: "Tickets fechados como venda que ainda não foram reconciliados com um contrato do SGP.",
   });
+  v.push({
+    chave: "os_para_baixar",
+    grupo: "vendas",
+    titulo: "OS abertas de contratos já em serviço",
+    status: (d.ativacoes.osParaBaixar ?? 0) > 0 ? "atencao" : "ok",
+    valor: d.ativacoes.osParaBaixar == null ? "—" : n(d.ativacoes.osParaBaixar),
+    detalhe: "OS de instalação que continuam abertas no SGP com o contrato já ativo ou suspenso. Não contam como aguardando instalação; precisam ser baixadas no SGP.",
+  });
   const avisoAtivacao = d.avisos.find((a) => a.startsWith("Ativações:"));
   v.push({
     chave: "data_ativacao",

@@ -15,23 +15,7 @@ import { dec1, num, pct, reais, reais2 } from "@/lib/relatorio-semanal/formato";
 import type { Status } from "@/lib/relatorio-semanal/tipos";
 import type { GrupoGrr } from "./catalogo";
 import { noEscopo, type CadastroGrr, type EscopoGrr } from "./escopo";
-import {
-  aguardandoInstalacao,
-  dataRefTicket,
-  diaSantarem,
-  evolucao,
-  metaDoEscopo,
-  metaDoTrecho,
-  paradaMais7Dias,
-  statusAssinatura,
-  statusEsteira,
-  statusMesFechado,
-  statusRitmo,
-  trechosDaSemana,
-  type Evolucao,
-  type MetaLinha,
-  type Trecho,
-} from "./regras";
+import { aguardandoInstalacao, dataRefTicket, diaSantarem, evolucao, metaDoEscopo, metaDoTrecho, paradaMais7Dias, statusAssinatura, statusEsteira, statusMesFechado, statusRitmo, trechosDaSemana, type Evolucao, type MetaLinha, type Trecho, osAbertasParaBaixar } from "./regras";
 import { conversaoPorSafra } from "./safra";
 import { semanasAte } from "./semana";
 
@@ -106,6 +90,8 @@ export type CartaoGrr = {
 export type Operacional = {
   aguardandoInstalacao: number;
   paradasMais7Dias: number;
+  /** OS de instalação aberta de contrato já em serviço: baixar no SGP (não conta como aguardando) */
+  osParaBaixar?: number;
   semAssinar: number;
   semAssinar48h: number;
   retornosVencidos: number;
@@ -195,6 +181,8 @@ export type DadosGrr = {
     receitaAtivada: number;
     aguardando: number;
     aguardandoRecentes: number;
+    /** OS de instalação abertas de contratos já em serviço (baixar no SGP); fotos antigas não têm */
+    osParaBaixar?: number;
     aguardandoDaSemana: number;
     paradasMais7Dias: number;
     antigasAguardando: number;
@@ -330,6 +318,7 @@ export function montarGrr(
   const acima48h = semAssinarDaSemana.filter((p) => p.idadeDias >= ALERTA_ASSINATURA_DIAS).length;
   const antigasSemAssinar = pendentesAssinatura(pendencias.filter((c) => c.data_venda < semana.inicio), hoje).length;
   const aguardando = aguardandoInstalacao(dentro(base.osAbertas).filter((c) => !c.fora), pendencias, hoje);
+  const paraBaixar = osAbertasParaBaixar(dentro(base.osAbertas).filter((c) => !c.fora));
   const paradas = aguardando.filter((i) => paradaMais7Dias(i, hoje)).length;
   const antigasAguardando = aguardando.filter((i) => i.contrato.data_venda < semana.inicio).length;
   const aguardandoRecentes = aguardando.filter((i) => i.contrato.data_venda >= somarDias(hoje, -60)).length;
@@ -575,6 +564,7 @@ export function montarGrr(
     }
     return {
       aguardandoInstalacao: seus.filter((i) => i.contrato.data_venda >= somarDias(hoje, -60)).length,
+      osParaBaixar: paraBaixar.filter((c) => f(c)).length,
       paradasMais7Dias: seus.filter((i) => paradaMais7Dias(i, hoje)).length,
       semAssinar: semAssinarSeus.length,
       semAssinar48h: semAssinarSeus.filter((p) => p.idadeDias >= ALERTA_ASSINATURA_DIAS).length,
@@ -640,6 +630,7 @@ export function montarGrr(
   if (foraSemana + foraMes > 0) avisos.push(`Fora da conta de vendas, pela régua do Relatório da diretoria: ${num(foraSemana)} na semana e ${num(foraMes)} em ${mes.nome}, de Prefeitura e rede neutra, que o Dashboard soma.`);
   if (ativacaoAproximada)
     avisos.push(`Ativações: em ${num(ativNoDiaDaVenda)} de ${num(ativSemana.length)} contratos a data de ativação gravada é a mesma da venda. O cartão mostra vendas do trecho que já estão ativas, não instalações feitas no trecho, e o prazo da venda à ativação não é confiável.`);
+  if (paraBaixar.length > 0) avisos.push(`${num(paraBaixar.length)} OS de instalação seguem abertas no SGP de contratos que já estão em serviço: não contam como aguardando instalação; baixar no SGP.`);
   if (metaMes == null) avisos.push(`Sem meta de vendas cadastrada para ${mes.nome} neste recorte: os cartões de vendas ficam sem farol.`);
   if (convertidasSemLead > 0) avisos.push(`${num(convertidasSemLead)} das ${num(m.convertidos)} convertidas da semana vieram de venda lançada direto no SGP, sem atendimento no CRM. Elas entram na conversão do CRM e ficam fora da conversão por safra.`);
 
@@ -669,6 +660,7 @@ export function montarGrr(
       receitaAtivada: receitaContratada(ativSemana),
       aguardando: aguardando.length,
       aguardandoRecentes,
+      osParaBaixar: paraBaixar.length,
       aguardandoDaSemana: aguardando.filter((i) => entre(i.contrato.data_venda, atual)).length,
       paradasMais7Dias: paradas,
       antigasAguardando,

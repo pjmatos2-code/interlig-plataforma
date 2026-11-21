@@ -127,6 +127,22 @@ export function ativacoesPendentes(
     });
 }
 
+/**
+ * 5.7 — OS de instalação aberta (D9) só conta como "aguardando instalação"
+ * quando o contrato ainda não está em serviço (decisão da gestão, 21/11/2026).
+ * Contrato ativo ou suspenso com a OS aberta já foi instalado: é OS que não
+ * foi baixada no SGP e aparece à parte, como "OS para baixar". Cancelado
+ * também não conta.
+ */
+export function osContaComoAguardando(status: string): boolean {
+  return status !== "cancelado" && status !== "ativo" && status !== "suspenso";
+}
+
+/** OS de instalação aberta de contrato já em serviço: baixar no SGP */
+export function osParaBaixar(status: string): boolean {
+  return status === "ativo" || status === "suspenso";
+}
+
 /** 5.8 — vendidos sem assinatura registrada; alerta ≥ 48h. */
 export function pendentesAssinatura(
   contratos: ContratoIndicador[],

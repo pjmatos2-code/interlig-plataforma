@@ -5,6 +5,7 @@ import { carregarDiasUteis } from "./dias-uteis";
 import {
   ALERTA_ATIVACAO_DIAS,
   ativacoesPendentes,
+  osContaComoAguardando,
   ehVendaContavel,
   pendentesAssinatura,
   tempoMedioVendaAtivacao,
@@ -209,7 +210,7 @@ export async function montarDados(semana: Semana, anterior: DadosRelatorio | nul
   const aguardando = new Map<string, { c: Bruto; idade: number }>();
   for (const os of osAbertas) {
     const c = os.contratos;
-    if (!c || fora(c)) continue;
+    if (!c || fora(c) || !osContaComoAguardando(c.status)) continue;
     aguardando.set(c.id, { c, idade: diasEntre(c.data_venda, hoje) });
   }
   for (const p of ativacoesPendentes(pendenciasComercial, hoje)) {

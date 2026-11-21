@@ -119,19 +119,19 @@ export function ApresentacaoEquipe(p: Props) {
       <p className="mt-6 text-sm text-white/70">{r.aberta ? "Reunião aberta" : "Reunião encerrada"} · {status}</p>
     </div>,
 
-    <div key="equipe">
+    <div key="equipe" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub={`Período ${r.periodo}, comparado à semana anterior.`}>A equipe na semana</Titulo>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] md:grid-cols-2 xl:grid-cols-3">
         {cartao("vendas_semana") && <CartaoGrande c={cartao("vendas_semana")!} />}
         {cartao("conversao_safra") && <CartaoGrande c={cartao("conversao_safra")!} />}
         {cartao("ticket") && <CartaoGrande c={cartao("ticket")!} />}
         <Numero rotulo="Leads recebidos / atendidos" valor={`${n0(dados.conversao.recebidos)} / ${n0(dados.conversao.atendidos)}`} detalhe={`${n0(dados.conversao.emNegociacao)} em negociação hoje`} />
-        <Numero rotulo="Vendas ativadas" valor={n0(dados.ativacoes.semana)} detalhe={`${n0(soma((l) => op(l)?.semAssinar ?? 0))} sem assinar · ${n0(soma((l) => op(l)?.aguardandoInstalacao ?? 0))} aguardando instalação`} />
+        <Numero rotulo="Vendas ativadas" valor={n0(dados.ativacoes.semana)} detalhe={`${n0(soma((l) => op(l)?.semAssinar ?? 0))} sem assinar · ${n0(soma((l) => op(l)?.aguardandoInstalacao ?? 0))} aguardando instalação${soma((l) => op(l)?.osParaBaixar ?? 0) ? ` · ${n0(soma((l) => op(l)?.osParaBaixar ?? 0))} OS para baixar no SGP` : ""}`} />
         <Numero rotulo="Follow-ups vencidos" valor={n0(dados.perdas.retornosVencidos)} detalhe={`${n0(dados.perdas.retornosHoje)} para hoje · ${n0(dados.perdas.retornosFeitosSemana)} feitos na semana`} />
       </div>
     </div>,
 
-    <div key="vendas">
+    <div key="vendas" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub="Vendas da semana; ao lado, o mês contra a meta individual.">Vendas por agente</Titulo>
       <Caixa>
         <Barras itens={porVendas.map((l) => ({ nome: l.nome, valor: l.vendas, extra: l.metaMes ? `· mês ${n0(l.vendasMes)}/${n0(l.metaMes)}` : `· mês ${n0(l.vendasMes)}` }))} vazio="Nenhum agente no recorte." />
@@ -139,9 +139,9 @@ export function ApresentacaoEquipe(p: Props) {
       </Caixa>
     </div>,
 
-    <div key="conversao">
+    <div key="conversao" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub="Leads que chegaram na semana e foram atendidos: quantos viraram venda.">Leads e conversão</Titulo>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] lg:grid-cols-2">
         <Caixa titulo="Conversão por safra">
           <Barras itens={porConversao.map((l) => ({ nome: l.nome, valor: Math.round((l.safraTaxa ?? 0) * 100), extra: `(${l.safraConvertidos} de ${l.safraAtendidos})` }))} formato={(v) => `${v}%`} vazio="Nenhum lead atendido no período." />
         </Caixa>
@@ -151,9 +151,9 @@ export function ApresentacaoEquipe(p: Props) {
       </div>
     </div>,
 
-    <div key="pendencias">
+    <div key="pendencias" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub="O que está parado com cada agente hoje.">Pendências e follow-ups</Titulo>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] lg:grid-cols-3">
         <Caixa titulo="Follow-ups vencidos">
           <Barras itens={agentes.map((l) => ({ nome: l.nome, valor: op(l)?.retornosVencidos ?? 0, extra: `· ${op(l)?.retornosPendentes ?? 0} a fazer` })).sort((a, b) => b.valor - a.valor)} />
         </Caixa>
@@ -161,19 +161,19 @@ export function ApresentacaoEquipe(p: Props) {
           <Barras itens={agentes.map((l) => ({ nome: l.nome, valor: op(l)?.semAssinar ?? 0, extra: op(l)?.semAssinar48h ? `· ${op(l)!.semAssinar48h} há 48h+` : undefined })).sort((a, b) => b.valor - a.valor)} />
         </Caixa>
         <Caixa titulo="Aguardando instalação">
-          <Barras itens={agentes.map((l) => ({ nome: l.nome, valor: op(l)?.aguardandoInstalacao ?? 0, extra: op(l)?.paradasMais7Dias ? `· ${op(l)!.paradasMais7Dias} paradas 7d+` : undefined })).sort((a, b) => b.valor - a.valor)} />
+          <Barras itens={agentes.map((l) => ({ nome: l.nome, valor: op(l)?.aguardandoInstalacao ?? 0, extra: [op(l)?.paradasMais7Dias ? `${op(l)!.paradasMais7Dias} paradas 7d+` : "", op(l)?.osParaBaixar ? `${op(l)!.osParaBaixar} OS para baixar` : ""].filter(Boolean).map((x) => `· ${x}`).join(" ") || undefined })).sort((a, b) => b.valor - a.valor)} />
         </Caixa>
       </div>
     </div>,
 
-    <div key="perdas">
+    <div key="perdas" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub="Negociações fechadas sem venda na semana.">Motivos de perda</Titulo>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] lg:grid-cols-2">
         <Caixa titulo="Da equipe">
           <Barras itens={dados.perdas.motivos.slice(0, 8).map((m) => ({ nome: m.motivo, valor: m.quantidade }))} vazio="Nenhuma perda registrada." />
         </Caixa>
         <Caixa titulo="Principal motivo de cada agente">
-          <ul className="space-y-2 text-base">
+          <ul className="space-y-2 text-[clamp(1.05rem,1.35vw,1.9rem)]">
             {agentes.filter((l) => l.perdidos > 0).length === 0 && <li className="text-slate-500">Nenhuma perda registrada.</li>}
             {agentes
               .filter((l) => l.perdidos > 0)
@@ -191,14 +191,14 @@ export function ApresentacaoEquipe(p: Props) {
       </div>
     </div>,
 
-    <div key="evolucao">
+    <div key="evolucao" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub="Semana anterior → esta semana.">Evolução individual</Titulo>
       <Caixa>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[48rem] text-base">
+          <table className="w-full min-w-[48rem] text-[clamp(1.05rem,1.35vw,1.9rem)]">
             <thead>
-              <tr className="border-b text-left text-sm text-slate-500">
-                <th className="py-2 font-medium">Agente</th>
+              <tr className="border-b text-left text-[clamp(0.95rem,1.2vw,1.7rem)] text-slate-500">
+                <th className="py-[1.2vh] font-medium">Agente</th>
                 <th className="text-right font-medium">Vendas</th>
                 <th className="text-right font-medium">Leads atendidos</th>
                 <th className="text-right font-medium">Conversão</th>
@@ -211,7 +211,7 @@ export function ApresentacaoEquipe(p: Props) {
                 const a = op(l)?.anterior;
                 return (
                   <tr key={l.id} className="border-b last:border-0">
-                    <td className="py-2.5 font-medium">{l.nome}</td>
+                    <td className="py-[1.4vh] font-medium">{l.nome}</td>
                     <td className="text-right"><Variacao antes={a?.vendas ?? null} agora={l.vendas} formato={(v) => (v == null ? "—" : n0(v))} /></td>
                     <td className="text-right"><Variacao antes={a?.atendidos ?? null} agora={l.safraAtendidos} formato={(v) => (v == null ? "—" : n0(v))} /></td>
                     <td className="text-right"><Variacao antes={a?.conversaoSafra ?? null} agora={l.safraTaxa} formato={pct} /></td>
@@ -223,13 +223,13 @@ export function ApresentacaoEquipe(p: Props) {
             </tbody>
           </table>
         </div>
-        {dados.trechos.emAndamento && <p className="mt-2 text-sm text-slate-500">Semana em andamento: a comparação é com o mesmo trecho da semana anterior.</p>}
+        {dados.trechos.emAndamento && <p className="mt-2 text-[clamp(0.95rem,1.2vw,1.7rem)] text-slate-500">Semana em andamento: a comparação é com o mesmo trecho da semana anterior.</p>}
       </Caixa>
     </div>,
 
-    <div key="compromissos">
+    <div key="compromissos" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub="Conferir o combinado e assumir os compromissos da próxima semana.">Compromissos</Titulo>
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] xl:grid-cols-2">
         <Caixa titulo="Da reunião anterior">
           <ListaCompromissos lista={p.anteriores} reuniaoId={r.id} pode={p.pode && r.aberta} vazio="Não há compromissos da reunião anterior." />
         </Caixa>
@@ -244,24 +244,24 @@ export function ApresentacaoEquipe(p: Props) {
       </div>
     </div>,
 
-    <div key="encerramento">
+    <div key="encerramento" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
       <Titulo sub="O que fica registrado desta reunião.">Encerramento</Titulo>
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid flex-1 auto-rows-fr gap-[clamp(0.8rem,1.3vw,2rem)] xl:grid-cols-2">
         <Caixa titulo="Observações e boas práticas">
-          <p className="whitespace-pre-line text-base">{r.observacoes || <span className="text-slate-500">Sem observações registradas.</span>}</p>
-          {r.boasPraticas && <p className="mt-3 whitespace-pre-line text-base"><b>Boas práticas:</b> {r.boasPraticas}</p>}
-          <p className="mt-3 text-sm text-slate-500">Participantes, observações e boas práticas são editados na página da reunião.</p>
+          <p className="whitespace-pre-line text-[clamp(1.05rem,1.35vw,1.9rem)]">{r.observacoes || <span className="text-slate-500">Sem observações registradas.</span>}</p>
+          {r.boasPraticas && <p className="mt-3 whitespace-pre-line text-[clamp(1.05rem,1.35vw,1.9rem)]"><b>Boas práticas:</b> {r.boasPraticas}</p>}
+          <p className="mt-3 text-[clamp(0.95rem,1.2vw,1.7rem)] text-slate-500">Participantes, observações e boas práticas são editados na página da reunião.</p>
         </Caixa>
         <Caixa titulo="Fechamento">
-          <p className="mb-3 text-base">
+          <p className="mb-3 text-[clamp(1.05rem,1.35vw,1.9rem)]">
             {p.compromissos.length} compromissos nesta reunião · {p.anteriores.filter((c) => c.situacao === "concluido").length} de {p.anteriores.length} da anterior concluídos.
           </p>
           {!r.aberta ? (
-            <p className="text-base">Reunião encerrada em {r.encerradaEm ? dataHora(r.encerradaEm) : "—"}. Indicadores, participantes e compromissos estão guardados.</p>
+            <p className="text-[clamp(1.05rem,1.35vw,1.9rem)]">Reunião encerrada em {r.encerradaEm ? dataHora(r.encerradaEm) : "—"}. Indicadores, participantes e compromissos estão guardados.</p>
           ) : p.pode ? (
             <FormEncerrar id={r.id} />
           ) : (
-            <p className="text-base text-slate-600">Quem encerra é a coordenação desta equipe, a administração ou a direção.</p>
+            <p className="text-[clamp(1.05rem,1.35vw,1.9rem)] text-slate-600">Quem encerra é a coordenação desta equipe, a administração ou a direção.</p>
           )}
         </Caixa>
       </div>

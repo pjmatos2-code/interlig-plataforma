@@ -111,6 +111,7 @@ export default async function EsteiraPage({
     d.colunas.pendenteAssinatura = d.colunas.pendenteAssinatura.filter(casa);
     d.colunas.aguardandoInstalacao = d.colunas.aguardandoInstalacao.filter(casa);
     d.colunas.instaladas = d.colunas.instaladas.filter(casa);
+    d.osParaBaixar = d.osParaBaixar.filter(casa);
   }
 
   return (
@@ -257,6 +258,57 @@ export default async function EsteiraPage({
           linkTemplate={linkTemplate}
         />
       </div>
+
+      {/* 21/11/2026: OS ainda aberta no SGP de contrato que já está em serviço */}
+      {d.osParaBaixar.length > 0 && (
+        <Card className="mb-6 border-amber-300/70">
+          <CardHeader className="pb-2">
+            <CardTitle>OS para baixar no SGP ({formatarNumero(d.osParaBaixar.length)})</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Contratos que o SGP já mostra em serviço (ativo ou suspenso) com a OS de instalação ainda aberta. Não contam como aguardando instalação; a OS precisa ser baixada no SGP.
+            </p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="max-h-96 overflow-auto">
+              <table className="w-full min-w-[40rem] text-sm">
+                <thead className="sticky top-0 bg-card">
+                  <tr className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+                    <th className="px-4 py-2 font-medium">Contrato</th>
+                    <th className="px-3 py-2 font-medium">Cliente</th>
+                    <th className="px-3 py-2 font-medium">Vendedora</th>
+                    {ehGestorSemFiltro && <th className="px-3 py-2 font-medium">Unidade</th>}
+                    <th className="px-3 py-2 font-medium">Venda</th>
+                    <th className="px-3 py-2 font-medium">Técnico da OS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.osParaBaixar.map((i) => (
+                    <tr key={i.id} className="border-b last:border-0">
+                      <td className="px-4 py-2 tabular-nums">
+                        {(() => {
+                          const link = aplicarLinkSgp(linkTemplate, { clienteId: i.sgpClienteId, contratoId: i.sgpContratoId, cpf: i.cpf });
+                          return link ? (
+                            <a href={link} target="_blank" rel="noopener" className="text-interlig-azul hover:underline">
+                              {i.sgpContratoId ?? "—"}
+                            </a>
+                          ) : (
+                            i.sgpContratoId ?? "—"
+                          );
+                        })()}
+                      </td>
+                      <td className="px-3 py-2">{i.cliente}</td>
+                      <td className="px-3 py-2">{i.vendedora}</td>
+                      {ehGestorSemFiltro && <td className="px-3 py-2">{i.pop}</td>}
+                      <td className="px-3 py-2 tabular-nums">{formatarData(i.dataVenda)}</td>
+                      <td className="px-3 py-2">{i.responsavel || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Assinaturas pendentes: resumo por vendedor + lista com ID clicável no SGP */}
       <div className="mb-6 grid gap-4 xl:grid-cols-3">
