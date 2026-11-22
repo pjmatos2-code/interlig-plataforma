@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MonitorPlay, Snowflake } from "lucide-react";
+import { CalendarCheck, ClipboardCheck, MonitorPlay, Settings, Snowflake } from "lucide-react";
 import { exigirPerfil } from "@/lib/auth";
 import { AreasGrr } from "@/components/grr/areas";
 import { CartaoIndicador } from "@/components/grr/cartao-indicador";
@@ -70,6 +70,17 @@ export default async function GrrTecnicoPage({ searchParams }: { searchParams: {
           >
             <MonitorPlay className="h-4 w-4" aria-hidden /> Modo apresentação
           </Link>
+          <Link href="/grr/tecnico/reunioes" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:border-interlig-ceu">
+            <CalendarCheck className="h-4 w-4" aria-hidden /> Reunião de terça
+          </Link>
+          <Link href="/grr/tecnico/conferencia" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:border-interlig-ceu">
+            <ClipboardCheck className="h-4 w-4" aria-hidden /> Conferência
+          </Link>
+          {usuario.perfil === "gestor" && (
+            <Link href="/grr/tecnico/configuracao" className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:border-interlig-ceu">
+              <Settings className="h-4 w-4" aria-hidden /> Metas
+            </Link>
+          )}
         </div>
       </div>
 

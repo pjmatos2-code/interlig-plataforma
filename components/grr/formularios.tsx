@@ -113,18 +113,25 @@ export function FormMeta({
   maiorEMelhor,
   escopos,
   semanaPadrao,
+  setor,
+  metaMensal = false,
 }: {
   indicador: string;
   unidade: "numero" | "moeda" | "percentual";
   maiorEMelhor: boolean;
   escopos: { valor: string; rotulo: string }[];
   semanaPadrao: string;
+  /** "tecnico" grava no setor técnico; vazio = comercial */
+  setor?: "tecnico";
+  /** a meta digitada é do mês (a semana recebe a parte dos dias úteis) */
+  metaMensal?: boolean;
 }) {
   const [estado, acao] = useFormState(incluirMetaAcao, {});
   const sufixo = unidade === "percentual" ? " (%)" : unidade === "moeda" ? " (R$)" : "";
   return (
     <form action={acao} className="space-y-2">
       <input type="hidden" name="indicador" value={indicador} />
+      {setor && <input type="hidden" name="setor" value={setor} />}
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <label className="grid gap-1 text-xs text-muted-foreground">
           Recorte
@@ -137,7 +144,7 @@ export function FormMeta({
           </select>
         </label>
         <label className="grid gap-1 text-xs text-muted-foreground">
-          Meta{sufixo}
+          {metaMensal ? "Meta do mês" : "Meta"}{sufixo}
           <input name="meta" inputMode="decimal" placeholder={unidade === "percentual" ? "35" : "0"} className={campo} />
         </label>
         <label className="grid gap-1 text-xs text-muted-foreground">

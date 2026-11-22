@@ -10,7 +10,7 @@ import { resolverEscopo, type CadastroGrr, type EscopoGrr } from "./escopo";
 
 export type Modalidade = "equipe" | "diretoria";
 export type EscopoReuniao = { tipo: "equipe" | "unidade" | "empresa"; ref: string | null; rotulo: string };
-export type Participante = { id: string; nome: string; papel: "agente" | "coordenacao" | "diretoria" | "convidado" };
+export type Participante = { id: string; nome: string; papel: "agente" | "coordenacao" | "diretoria" | "convidado" | "tecnico" };
 
 export type ReuniaoGrr = {
   id: string;

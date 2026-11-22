@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { exigirPerfil } from "@/lib/auth";
 import { indicadorPorChave } from "@/lib/grr/catalogo";
+import { SETOR_TECNICO, indicadorTecnico } from "@/lib/grr/tecnico/catalogo";
 import { numeroBr, validarMeta } from "@/lib/grr/config";
 import { EMPRESA_GRR, SETOR_GRR } from "@/lib/grr/config-dados";
 import { congelarSemana } from "@/lib/grr/fotos-dados";
@@ -76,12 +77,15 @@ export async function salvarIndicadorAcao(_estado: EstadoGrr, dados: FormData): 
  */
 export async function incluirMetaAcao(_estado: EstadoGrr, dados: FormData): Promise<EstadoGrr> {
   const usuario = await exigirPerfil(["gestor"]);
-  const def = indicadorPorChave(texto(dados, "indicador"));
-  if (!def || def.metaOrigem !== "grr") return { erro: "Este indicador não tem meta configurável no GRR." };
+  // setor técnico (21/11/2026): mesmas regras, catálogo próprio e só empresa ou unidade
+  const tecnico = texto(dados, "setor") === SETOR_TECNICO;
+  const def = tecnico ? indicadorTecnico(texto(dados, "indicador")) : indicadorPorChave(texto(dados, "indicador"));
+  if (!def || (!tecnico && (def as { metaOrigem?: string }).metaOrigem !== "grr")) return { erro: "Este indicador não tem meta configurável no GRR." };
   const desde = texto(dados, "desde");
   if (!ehData(desde)) return { erro: "Informe a data em que a meta começa a valer." };
   const [tipo, ref] = texto(dados, "escopo").split(":");
-  if (!["empresa", "unidade", "equipe", "agente"].includes(tipo) || (tipo === "empresa") !== !ref) return { erro: "Recorte inválido." };
+  const tipos = tecnico ? ["empresa", "unidade"] : ["empresa", "unidade", "equipe", "agente"];
+  if (!tipos.includes(tipo) || (tipo === "empresa") !== !ref) return { erro: "Recorte inválido." };
 
   const encerrar = dados.get("encerrar") === "on";
   let meta: number | null = null;
@@ -98,7 +102,7 @@ export async function incluirMetaAcao(_estado: EstadoGrr, dados: FormData): Prom
   }
   const { error } = await criarClienteServidor().from("grr_metas").insert({
     empresa: EMPRESA_GRR,
-    setor: SETOR_GRR,
+    setor: tecnico ? SETOR_TECNICO : SETOR_GRR,
     indicador: def.chave,
     escopo_tipo: tipo,
     escopo_ref: ref || null,

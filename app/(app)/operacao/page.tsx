@@ -4,6 +4,7 @@ import { dadosOperacao } from "@/lib/operacao/dados";
 import { DIAS_QUADRO, PERFIS_OPERACAO } from "@/lib/operacao/regras";
 import { templateLinkSgp } from "@/lib/sgp/links-server";
 import { QuadroOperacao } from "./quadro";
+import { AbasOperacao } from "./abas";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function OperacaoPage() {
         titulo="Operação Técnica"
         descricao={`Ocorrências de instalação, mudança de endereço e suporte abertas nos últimos ${DIAS_QUADRO} dias, lidas do SGP. Agendar, executar e fechar continuam no SGP.`}
       />
+      <AbasOperacao ativa="quadro" />
       <QuadroOperacao dados={dados} linkTemplate={linkTemplate} agora={Date.now()} />
     </div>
   );

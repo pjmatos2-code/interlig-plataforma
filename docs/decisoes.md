@@ -1154,3 +1154,14 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 - O fechamento automático de segunda às 07:00 congela também o setor técnico (empresa e unidades); a falha de um setor não impede o outro.
 - Modo Apresentação para a reunião operacional de terça (`/apresentacao/grr-tecnico`).
 - Ficam para a Etapa 2: edição das metas técnicas na Configuração, registro e ata da reunião de terça, conferência dos dados do setor técnico e recorte por técnico (depende da Fase 2 da Operação Técnica).
+
+### Calendário da Operação Técnica (21/11/2026)
+
+- Aba "Calendário" em `/operacao/calendario`: por dia, só dois estados, como decidiu a gestão — agendado (OS com data marcada, ainda não encerrada, no dia do agendamento; vencida em vermelho) e concluído (OS encerrada, no dia do encerramento). Filtros de unidade, tipo e só corporativo; agenda do dia ao clicar. Entram instalação, mudança de endereço e suporte de campo; ficam fora recolhimento, cobrança, financeiro e atendimento pelo Fortics (`lib/operacao/calendario.ts`).
+
+### GRR Técnico — Etapa 2 (21/11/2026)
+
+- Metas técnicas editáveis em `/grr/tecnico/configuracao` (só a administração), com a mesma regra do comercial: cada mudança é uma linha nova a partir de uma semana.
+- Reunião operacional de terça em `/grr/tecnico/reunioes`: mesma tabela das reuniões do comercial com setor `tecnico` e modalidade `operacional` (migração 0140); participantes pelo cadastro de técnicos, ata, compromissos (com os em aberto das reuniões anteriores) e encerramento que guarda os indicadores. Reunião encerrada não muda.
+- Conferência dos dados do setor técnico em `/grr/tecnico/conferencia`: leitura do SGP, hora do direcionamento, cobertura das 48 h, OS sem técnico responsável, hora da ativação, metas e fechamento da semana.
+- A lista de reuniões do comercial passa a mostrar só o setor comercial.

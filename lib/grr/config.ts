@@ -76,7 +76,7 @@ export function formatarValorDoIndicador(valor: number, unidade: DefinicaoIndica
 }
 
 /** confere meta e faixa antes de gravar; devolve a mensagem do erro ou null */
-export function validarMeta(def: DefinicaoIndicador, meta: number, limiteAtencao: number): string | null {
+export function validarMeta(def: Pick<DefinicaoIndicador, "unidade" | "polaridade">, meta: number, limiteAtencao: number): string | null {
   if (!Number.isFinite(meta) || !Number.isFinite(limiteAtencao)) return "Informe a meta e o limite de atenção em números.";
   if (meta < 0 || limiteAtencao < 0) return "Meta e limite não podem ser negativos.";
   if (def.unidade === "percentual" && (meta > 1 || limiteAtencao > 1)) return "Percentual vai de 0 a 100.";

@@ -35,7 +35,8 @@ const CAMPOS = "id, modalidade, escopo_tipo, escopo_ref, escopo_rotulo, responsa
 const CAMPOS_COMPROMISSO = "id, reuniao_id, tipo, agente_id, responsavel_nome, descricao, prazo, situacao, aprovacao, conferido_em, criado_em";
 
 export async function listarReunioes(): Promise<{ disponivel: boolean; reunioes: Omit<ReuniaoGrr, "dados">[] }> {
-  const { data, error } = await criarClienteServidor().from("grr_reunioes").select(CAMPOS).order("data_reuniao", { ascending: false }).order("criada_em", { ascending: false }).limit(60);
+  // só as do comercial: a reunião operacional do setor técnico tem tela própria (/grr/tecnico/reunioes)
+  const { data, error } = await criarClienteServidor().from("grr_reunioes").select(CAMPOS).eq("setor", "comercial").order("data_reuniao", { ascending: false }).order("criada_em", { ascending: false }).limit(60);
   if (error) return { disponivel: false, reunioes: [] };
   return { disponivel: true, reunioes: (data ?? []) as unknown as Omit<ReuniaoGrr, "dados">[] };
 }
