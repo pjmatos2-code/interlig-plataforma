@@ -4,7 +4,7 @@ import { hojeSantarem, rotuloSemana } from "@/lib/relatorio-semanal/periodo";
 import { resolverSemana, semanasVizinhas, type SemanaGrr } from "../semana";
 import { expedienteDaSemana, lerBaseTecnico, lerMetasTecnico, recortesTecnico } from "./dados";
 import { lerFotoTecnico, type FotoTecnico } from "./fotos";
-import { montarTecnico, type CartaoTecnico, type LinhaAgendaTecnico, type RecorteTecnico } from "./regras";
+import { montarTecnico, type CartaoTecnico, type LinhaAgendaTecnico, type RecorteTecnico, type TurmaInstalacao } from "./regras";
 
 /** perfis que veem o GRR Técnico (decisão 21/11/2026) */
 export const PERFIS_GRR_TECNICO = ["gestor", "direcao", "gestor_tecnico"] as const;
@@ -18,10 +18,12 @@ export type TelaTecnico = {
   recortes: RecorteTecnico[];
   recorte: RecorteTecnico;
   /** cartões de cada recorte (empresa primeiro), da foto quando a semana está congelada */
-  porRecorte: { recorte: RecorteTecnico; cartoes: CartaoTecnico[]; porTecnico: LinhaAgendaTecnico[] }[];
+  porRecorte: { recorte: RecorteTecnico; cartoes: CartaoTecnico[]; porTecnico: LinhaAgendaTecnico[]; turmas: TurmaInstalacao[] }[];
   cartoes: CartaoTecnico[];
   /** agenda por técnico do recorte escolhido (fotos antigas não têm: lista vazia) */
   porTecnico: LinhaAgendaTecnico[];
+  /** turmas de OS de instalação do recorte escolhido (fotos antigas não têm: lista vazia) */
+  turmas: TurmaInstalacao[];
   foto: Pick<FotoTecnico, "versao" | "origem" | "congelado_em"> | null;
   metasDisponiveis: boolean;
 };
@@ -44,7 +46,7 @@ export async function carregarTelaTecnico(params: { semana?: string; unidade?: s
   let emAndamento = semana.fim > hoje;
   let metasDisponiveis = true;
   if (fotos[0]) {
-    porRecorte = recortes.map((r, i) => ({ recorte: r, cartoes: fotos[i]?.dados.cartoes ?? [], porTecnico: fotos[i]?.dados.porTecnico ?? [] }));
+    porRecorte = recortes.map((r, i) => ({ recorte: r, cartoes: fotos[i]?.dados.cartoes ?? [], porTecnico: fotos[i]?.dados.porTecnico ?? [], turmas: fotos[i]?.dados.turmas ?? [] }));
     foto = { versao: fotos[0].versao, origem: fotos[0].origem, congelado_em: fotos[0].congelado_em };
     emAndamento = false;
   } else {
@@ -52,7 +54,7 @@ export async function carregarTelaTecnico(params: { semana?: string; unidade?: s
     metasDisponiveis = metas.disponivel && metas.metas.length > 0;
     porRecorte = recortes.map((r) => {
       const m = montarTecnico({ base, semana, hoje, recorte: r, metas: metas.metas, expediente });
-      return { recorte: r, cartoes: m.cartoes, porTecnico: m.porTecnico };
+      return { recorte: r, cartoes: m.cartoes, porTecnico: m.porTecnico, turmas: m.turmas };
     });
   }
   return {
@@ -66,6 +68,7 @@ export async function carregarTelaTecnico(params: { semana?: string; unidade?: s
     porRecorte,
     cartoes: porRecorte.find((x) => x.recorte === recorte)?.cartoes ?? [],
     porTecnico: porRecorte.find((x) => x.recorte === recorte)?.porTecnico ?? [],
+    turmas: porRecorte.find((x) => x.recorte === recorte)?.turmas ?? [],
     foto,
     metasDisponiveis,
   };

@@ -106,6 +106,39 @@ export default async function GrrTecnicoPage({ searchParams }: { searchParams: {
           );
         })}
 
+        <section aria-labelledby="turmas">
+          <h2 id="turmas" className="text-base font-semibold">Turmas de instalação</h2>
+          <p className="mb-2 text-sm text-muted-foreground">OS de instalação criadas em cada semana e quantas ainda não viraram contrato ativo até o fim do período: os clientes deixados para trás.</p>
+          {t.turmas.length === 0 ? (
+            <p className="rounded-lg border border-dashed bg-card p-3 text-sm text-muted-foreground">Esta semana foi congelada antes desta tabela existir.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border bg-card">
+              <table className="w-full min-w-[480px] text-sm tabular-nums">
+                <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">Semana da OS</th>
+                    <th className="px-3 py-2 text-right font-medium">Criadas</th>
+                    <th className="px-3 py-2 text-right font-medium">Ativadas</th>
+                    <th className="px-3 py-2 text-right font-medium">Canceladas</th>
+                    <th className="px-3 py-2 text-right font-medium">Deixados para trás</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...t.turmas].reverse().map((tu) => (
+                    <tr key={tu.inicio} className="border-t">
+                      <td className="px-3 py-2">{tu.inicio.slice(8, 10)}/{tu.inicio.slice(5, 7)}{tu.inicio === t.semana.inicio ? " (esta semana)" : ""}</td>
+                      <td className="px-3 py-2 text-right">{tu.criadas}</td>
+                      <td className="px-3 py-2 text-right">{tu.ativadas}</td>
+                      <td className="px-3 py-2 text-right text-muted-foreground">{tu.canceladas}</td>
+                      <td className={cn("px-3 py-2 text-right font-semibold", tu.pendentes > 0 && tu.inicio !== t.semana.inicio && "text-farol-vermelho")}>{tu.pendentes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
         <section aria-labelledby="agenda-tecnico">
           <h2 id="agenda-tecnico" className="text-base font-semibold">Agenda por técnico</h2>
           <p className="mb-2 text-sm text-muted-foreground">

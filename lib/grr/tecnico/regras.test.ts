@@ -139,3 +139,30 @@ describe("agenda cumprida", () => {
     ]);
   });
 });
+
+describe("turmas de instalação", () => {
+  it("OS da semana instaladas na semana (a mesma OS), deixados para trás e a tabela das turmas", () => {
+    const os = (criadaDia: string, ativacaoDia: string | null, cancelamentoDia: string | null = null) => ({ unidade: "Altamira" as const, criadaDia, ativacaoDia, cancelamentoDia });
+    const osInstalacao = [
+      os("2026-11-16", "2026-11-17"),
+      os("2026-11-17", "2026-11-20"),
+      os("2026-11-18", null),
+      os("2026-11-20", "2026-11-24"), // instalada só na semana seguinte: ficou
+      os("2026-11-09", null), // turma anterior, ainda pendente: deixado para trás
+      os("2026-11-10", "2026-11-18"), // turma anterior, ativada nesta semana
+      os("2026-11-11", null, "2026-11-19"), // cancelada: não conta
+      os("2026-09-01", null), // fora das 8 semanas
+    ];
+    const metas = [...METAS, meta("tec_instalacoes_vs_os", 0.8, 0.65), meta("tec_deixados_para_tras", 10, 20)];
+    const r = montarTecnico({ base: { ...base(), osInstalacao }, semana: SEMANA, hoje: "2026-11-22", recorte: EMPRESA, metas, expediente: EXP });
+    const c = Object.fromEntries(r.cartoes.map((x) => [x.chave, x]));
+    expect(c.tec_instalacoes_vs_os.numero).toBe(0.5);
+    expect(c.tec_instalacoes_vs_os.status).toBe("critico");
+    expect(c.tec_deixados_para_tras.numero).toBe(1);
+    expect(c.tec_deixados_para_tras.status).toBe("ok");
+    const t = Object.fromEntries(r.turmas.map((x) => [x.inicio, x]));
+    expect(t["2026-11-16"]).toEqual({ inicio: "2026-11-16", criadas: 4, ativadas: 2, canceladas: 0, pendentes: 2 });
+    expect(t["2026-11-09"]).toEqual({ inicio: "2026-11-09", criadas: 3, ativadas: 1, canceladas: 1, pendentes: 1 });
+    expect(r.turmas).toHaveLength(9);
+  });
+});

@@ -31,6 +31,8 @@ export type BaseTecnico = {
   servicos: { unidade: UnidadeTecnico | null; atendidaEm: string; retornou: boolean }[];
   /** estoques medidos agora (null em semana antiga: o número só existe na foto do fechamento) */
   estoques: { agendamentosVencidos: Contagem; faltaValidar: Contagem; osParaBaixar: Contagem; medidoEm: string } | null;
+  /** OS de instalação (uma por contrato, a primeira) criadas desde 9 semanas antes, com a ativação e o cancelamento do contrato */
+  osInstalacao?: { unidade: UnidadeTecnico | null; criadaDia: string; ativacaoDia: string | null; cancelamentoDia: string | null }[];
   /** OS de campo agendadas desde a segunda da semana anterior, com o técnico designado (agenda cumprida) */
   agendadas?: { unidade: UnidadeTecnico | null; tecnico: string | null; agendamento: string; checkin: string | null; status: string | null }[];
 };
@@ -70,6 +72,10 @@ export function situacaoAgenda(os: { agendamento: string; checkin: string | null
 export type LinhaAgendaTecnico = { tecnico: string; agendadas: number; cumpridas: number; atrasadas: number; semRegistro: number; taxa: number | null; status: Status };
 /** técnico com menos de 10 OS avaliadas na semana fica sem farol (amostra pequena) */
 export const MINIMO_FAROL_TECNICO = 10;
+
+/** semanas de turmas que contam para os clientes deixados para trás */
+export const SEMANAS_TURMAS = 8;
+export type TurmaInstalacao = { inicio: string; criadas: number; ativadas: number; canceladas: number; pendentes: number };
 
 export type RecorteTecnico = { tipo: "empresa" | "unidade"; unidade: UnidadeTecnico | null; chave: ChaveEscopo; rotulo: string };
 
@@ -121,6 +127,9 @@ type Medidas = {
   mudanca: { ok: number; n: number };
   retorno: { voltou: number; n: number };
   agenda: { cumpridas: number; atrasadas: number; semRegistro: number };
+  osCriadas: number;
+  osInstaladas: number;
+  deixados: number;
   porUnidade: Contagem;
 };
 
@@ -140,6 +149,12 @@ function medir(base: BaseTecnico, t: TrechoTecnico, un: UnidadeTecnico | null, h
   const de7 = somarDias(t.de, -7);
   const ate7 = somarDias(t.ate, -7);
   const serv = base.servicos.filter((s) => daUn(s.unidade) && entre(diaSantarem(s.atendidaEm), de7, ate7));
+  const osDaUn = (base.osInstalacao ?? []).filter((o) => daUn(o.unidade));
+  const daSemana = osDaUn.filter((o) => entre(o.criadaDia, t.de, t.ate));
+  const osCriadas = daSemana.length;
+  // a mesma OS: o contrato do cliente da OS ativado até o fim do período (decisão de 21/11/2026)
+  const osInstaladas = daSemana.filter((o) => o.ativacaoDia && o.ativacaoDia <= t.ate).length;
+  const deixados = osDaUn.filter((o) => entre(o.criadaDia, somarDias(t.de, -7 * SEMANAS_TURMAS), somarDias(t.de, -1)) && !(o.ativacaoDia && o.ativacaoDia <= t.ate) && !(o.cancelamentoDia && o.cancelamentoDia <= t.ate)).length;
   const ag = (base.agendadas ?? []).filter((x) => daUn(x.unidade) && entre(diaSantarem(x.agendamento), t.de, t.ate)).map((x) => situacaoAgenda(x, hoje));
   return {
     instalacoes: ativ.length,
@@ -148,6 +163,9 @@ function medir(base: BaseTecnico, t: TrechoTecnico, un: UnidadeTecnico | null, h
     corporativo: { ok: corp.filter((s) => dentro(s, 4)).length, n: corp.length },
     mudanca: { ok: mud.filter(mudancaNoPrazo).length, n: mud.length },
     retorno: { voltou: serv.filter((s) => s.retornou).length, n: serv.length },
+    osCriadas,
+    osInstaladas,
+    deixados,
     agenda: { cumpridas: ag.filter((x) => x === "cumprida").length, atrasadas: ag.filter((x) => x === "atrasada").length, semRegistro: ag.filter((x) => x === "sem_registro").length },
     porUnidade,
   };
@@ -176,7 +194,7 @@ export type ParametrosMontagem = {
 };
 
 /** os cartões do GRR Técnico num recorte e numa semana */
-export function montarTecnico(p: ParametrosMontagem): { cartoes: CartaoTecnico[]; emAndamento: boolean; trecho: TrechoTecnico; porTecnico: LinhaAgendaTecnico[] } {
+export function montarTecnico(p: ParametrosMontagem): { cartoes: CartaoTecnico[]; emAndamento: boolean; trecho: TrechoTecnico; porTecnico: LinhaAgendaTecnico[]; turmas: TurmaInstalacao[] } {
   const { base, semana, hoje, recorte, metas, expediente } = p;
   const tr = trechosTecnico(semana, hoje);
   const un = recorte.unidade;
@@ -229,6 +247,13 @@ export function montarTecnico(p: ParametrosMontagem): { cartoes: CartaoTecnico[]
   const cartoes: CartaoTecnico[] = [
     cartao("tec_instalacoes", m.instalacoes, `${un ? "" : `${porUnidadeTxt(m.porUnidade)} · `}${rotuloTrecho}`, evolucao(m.instalacoes, a.instalacoes)),
     cartao(
+      "tec_instalacoes_vs_os",
+      taxa(m.osInstaladas, m.osCriadas),
+      m.osCriadas ? `${num(m.osInstaladas)} de ${num(m.osCriadas)} OS de instalação criadas na semana já instaladas · ${num(m.osCriadas - m.osInstaladas)} ficaram · ${rotuloTrecho}` : "nenhuma OS de instalação criada no período",
+      evolucaoPp(taxa(m.osInstaladas, m.osCriadas), taxa(a.osInstaladas, a.osCriadas))
+    ),
+    cartao("tec_deixados_para_tras", m.deixados, `OS das ${SEMANAS_TURMAS} semanas anteriores ainda sem ativação no fim do período`, evolucao(m.deixados, a.deixados, { menorEMelhor: true })),
+    cartao(
       "tec_instalacao_48h",
       t48,
       m.inst48.n || m.inst48.semHora ? `${num(m.inst48.ok)} de ${num(m.inst48.n)} instalações${m.inst48.semHora ? ` · ${num(m.inst48.semHora)} sem a hora do direcionamento, fora da conta` : ""}` : "nenhuma instalação no período",
@@ -273,5 +298,15 @@ export function montarTecnico(p: ParametrosMontagem): { cartoes: CartaoTecnico[]
       return { ...l, taxa: tx, status };
     })
     .sort((x, y) => y.atrasadas - x.atrasadas || (x.taxa ?? 1) - (y.taxa ?? 1) || x.tecnico.localeCompare(y.tecnico));
-  return { cartoes, emAndamento: tr.emAndamento, trecho: tr.atual, porTecnico };
+  // turmas de instalação: a semana atual e as 8 anteriores, com o que ficou para trás até o fim do período
+  const turmas: TurmaInstalacao[] = [];
+  for (let i = SEMANAS_TURMAS; i >= 0; i--) {
+    const ini = somarDias(semana.inicio, -7 * i);
+    const fim = somarDias(ini, 6);
+    const daTurma = (base.osInstalacao ?? []).filter((o) => (!un || o.unidade === un) && entre(o.criadaDia, ini, fim < tr.atual.ate ? fim : tr.atual.ate));
+    const ativadas = daTurma.filter((o) => o.ativacaoDia && o.ativacaoDia <= tr.atual.ate).length;
+    const canceladas = daTurma.filter((o) => !(o.ativacaoDia && o.ativacaoDia <= tr.atual.ate) && o.cancelamentoDia && o.cancelamentoDia <= tr.atual.ate).length;
+    turmas.push({ inicio: ini, criadas: daTurma.length, ativadas, canceladas, pendentes: daTurma.length - ativadas - canceladas });
+  }
+  return { cartoes, emAndamento: tr.emAndamento, trecho: tr.atual, porTecnico, turmas };
 }

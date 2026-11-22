@@ -169,7 +169,25 @@ export async function lerBaseTecnico(semana: Semana, hoje: string, admin: Admin 
       .range(de, a)
   );
 
+  // turmas de instalação: a primeira OS de instalação de cada contrato, criada desde 9 semanas antes
+  const ini63 = somarDias(semana.inicio, -7 * 9);
+  const osInst = await paginado<{ sgp_contrato_id: string | null; criada_em: string; pop: string | null }>((de, a) =>
+    admin.from("os_tecnicas").select("sgp_contrato_id, criada_em, pop").eq("motivo", "Instalação de equipamento").gte("criada_em", inicioDoDia(ini63)).lte("criada_em", fimDoDia(ate)).order("criada_em").range(de, a)
+  );
+  const primeira = new Map<string, { criada_em: string; pop: string | null }>();
+  for (const o of osInst) if (o.sgp_contrato_id && !primeira.has(o.sgp_contrato_id)) primeira.set(o.sgp_contrato_id, o);
+  const contratosInst = new Map(
+    (await emLotes<{ sgp_contrato_id: string; data_ativacao: string | null; data_cancelamento: string | null; pops: { nome: string | null } | null }>([...primeira.keys()], (lote) =>
+      admin.from("contratos").select("sgp_contrato_id, data_ativacao, data_cancelamento, pops(nome)").in("sgp_contrato_id", lote)
+    )).map((c) => [String(c.sgp_contrato_id), c])
+  );
+  const diaSantaremIso = (iso: string) => new Date(Date.parse(iso) - 3 * 3_600_000).toISOString().slice(0, 10);
+
   return {
+    osInstalacao: [...primeira.entries()].map(([id, o]) => {
+      const c = contratosInst.get(id);
+      return { unidade: unidadeDoPop(c?.pops?.nome) ?? unidadeDoPop(o.pop), criadaDia: diaSantaremIso(o.criada_em), ativacaoDia: c?.data_ativacao ? String(c.data_ativacao).slice(0, 10) : null, cancelamentoDia: c?.data_cancelamento ? String(c.data_cancelamento).slice(0, 10) : null };
+    }),
     agendadas: agendadas.map((x) => ({ unidade: unidadeDoPop(x.pop), tecnico: x.responsavel, agendamento: x.agendamento, checkin: x.checkin, status: x.status })),
     ativacoes: ativados.map((c) => ({ dia: String(c.data_ativacao).slice(0, 10), unidade: unidadeDoPop(c.pops?.nome) })),
     instalacoes: ativados.map((c) => ({

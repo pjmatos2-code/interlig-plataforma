@@ -1186,3 +1186,9 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 - Indicador "Agendamentos cumpridos no dia" (migração 0141, meta 95%, atenção a partir de 90%, aprovadas em 21/11): das OS agendadas para a semana e já vencidas, quantas tiveram o técnico no local (check-in) até o fim do dia marcado. Atrasada: chegou em dia posterior, ficou pendente ou o dia passou sem check-in com a OS aberta. Encerrada sem check-in fica fora (falha de registro). O SGP guarda só a última data agendada; a leitura dos reagendamentos fica para depois, por decisão da gestão.
 - Quadro "Agenda por técnico" (técnico designado na OS) na tela do GRR Técnico e na apresentação da reunião de terça, com os nomes (decisão da gestão). Técnico com menos de 10 OS avaliadas na semana fica sem farol. O quadro entra na foto do fechamento e na ata da reunião.
 - Calendário e GRR Técnico (21/11/2026, à noite): OS encerrada sem check-in e sem agendamento não conta como serviço de campo (em novembro, 57 casos, todos sem técnico designado: OS aberta e baixada pelo atendimento). Antes elas entravam no dia da baixa e inflavam alguns dias.
+
+### GRR Técnico: turmas de instalação (21/11/2026)
+
+- "OS da semana instaladas na semana" (pedido da gestão): das OS de instalação criadas na semana (de segunda a domingo), quantas tiveram o contrato do mesmo cliente ativado até o fim da semana — cruzando a OS com o cliente, não o total de instalações. Meta 80%, atenção a partir de 65% (migração 0142). Base das semanas fechadas de 12/10 a 09/11: de 54% a 95%.
+- "Clientes deixados para trás": OS de instalação das 8 semanas anteriores ainda sem ativação nem cancelamento no fim da semana. Meta até 10, atenção até 20, só da empresa. Em 21/11: 29.
+- Tabela "Turmas de instalação" (criadas, ativadas, canceladas, deixados por semana) na tela e num slide da apresentação de terça; entra na foto e na ata. Conta uma OS por contrato (a primeira).

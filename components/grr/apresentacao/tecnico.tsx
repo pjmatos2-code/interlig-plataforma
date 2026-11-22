@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { MINIMO_FAROL_TECNICO, type CartaoTecnico, type LinhaAgendaTecnico, type RecorteTecnico } from "@/lib/grr/tecnico/regras";
+import { MINIMO_FAROL_TECNICO, type CartaoTecnico, type LinhaAgendaTecnico, type RecorteTecnico, type TurmaInstalacao } from "@/lib/grr/tecnico/regras";
 import { Moldura, useSecao } from "./moldura";
 import { Numero, TV, Titulo } from "./pecas";
 
@@ -13,6 +13,7 @@ import { Numero, TV, Titulo } from "./pecas";
 
 const SECOES = [
   { chave: "instalacoes", titulo: "Instalações da semana" },
+  { chave: "turmas", titulo: "Turmas de instalação" },
   { chave: "prazos", titulo: "Prazos de atendimento" },
   { chave: "agenda", titulo: "Agenda por técnico" },
   { chave: "processo", titulo: "Qualidade e processo" },
@@ -52,14 +53,16 @@ export function ApresentacaoTecnico(p: {
   rotuloSemana: string;
   status: string;
   hrefVoltar: string;
-  porRecorte: { recorte: RecorteTecnico; cartoes: CartaoTecnico[]; porTecnico?: LinhaAgendaTecnico[] }[];
+  porRecorte: { recorte: RecorteTecnico; cartoes: CartaoTecnico[]; porTecnico?: LinhaAgendaTecnico[]; turmas?: TurmaInstalacao[] }[];
 }) {
   const { atual, ir } = useSecao(SECOES);
   const empresa = p.porRecorte[0]?.cartoes ?? [];
   const k = (chave: string, cartoes = empresa) => cartoes.find((c) => c.chave === chave);
   const unidades = p.porRecorte.slice(1);
   const agenda = p.porRecorte[0]?.porTecnico ?? [];
-  const linhas = ["tec_instalacoes", "tec_instalacao_48h", "tec_agenda_no_dia", "tec_suporte_24h", "tec_corporativo_4h", "tec_mudanca_24h", "tec_retorno_7d", "tec_agendamentos_vencidos", "tec_falta_validar", "tec_os_para_baixar"];
+  const turmas = [...(p.porRecorte[0]?.turmas ?? [])].reverse();
+  const semanaAtual = turmas[0]?.inicio;
+  const linhas = ["tec_instalacoes", "tec_instalacoes_vs_os", "tec_deixados_para_tras", "tec_instalacao_48h", "tec_agenda_no_dia", "tec_suporte_24h", "tec_corporativo_4h", "tec_mudanca_24h", "tec_retorno_7d", "tec_agendamentos_vencidos", "tec_falta_validar", "tec_os_para_baixar"];
 
   const telas = [
     <div key="i" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
@@ -73,9 +76,42 @@ export function ApresentacaoTecnico(p: {
           return <Numero key={u.recorte.rotulo} rotulo={u.recorte.rotulo} valor={c?.valor ?? "—"} detalhe={c?.meta ?? undefined} />;
         })}
       </div>
-      <div className="grid gap-[clamp(0.7rem,1.2vw,1.75rem)] lg:grid-cols-2">
+      <div className="grid gap-[clamp(0.7rem,1.2vw,1.75rem)] lg:grid-cols-3">
+        <Indicador c={k("tec_instalacoes_vs_os")} />
+        <Indicador c={k("tec_deixados_para_tras")} />
         <Indicador c={k("tec_instalacao_48h")} />
-        <Indicador c={k("tec_os_para_baixar")} />
+      </div>
+    </div>,
+    <div key="t" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
+      <Titulo sub="OS de instalação criadas em cada semana e quantas ainda não viraram contrato ativo">Turmas de instalação</Titulo>
+      <div className="grid gap-[clamp(0.7rem,1.2vw,1.75rem)] lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <Indicador c={k("tec_deixados_para_tras")} />
+        <div className={cn("overflow-x-auto border-t-[6px] border-t-interlig-azul", TV.quadro)}>
+          {turmas.length === 0 ? (
+            <p className={cn("text-slate-600", TV.corpo)}>Esta semana foi congelada antes desta tabela existir.</p>
+          ) : (
+            <table className={cn("w-full tabular-nums", TV.corpo)}>
+              <thead>
+                <tr className="text-left text-slate-500">
+                  <th className="py-[0.5vh] pr-4 font-semibold">Semana da OS</th>
+                  <th className="py-[0.5vh] pl-4 text-right font-semibold">Criadas</th>
+                  <th className="py-[0.5vh] pl-4 text-right font-semibold">Ativadas</th>
+                  <th className="py-[0.5vh] pl-4 text-right font-semibold">Deixados</th>
+                </tr>
+              </thead>
+              <tbody>
+                {turmas.map((tu) => (
+                  <tr key={tu.inicio} className="border-t-2 border-slate-200">
+                    <td className="py-[0.55vh] pr-4 font-medium text-slate-700">{tu.inicio.slice(8, 10)}/{tu.inicio.slice(5, 7)}{tu.inicio === semanaAtual ? " (esta)" : ""}</td>
+                    <td className="py-[0.55vh] pl-4 text-right">{tu.criadas}</td>
+                    <td className="py-[0.55vh] pl-4 text-right">{tu.ativadas}</td>
+                    <td className={cn("py-[0.55vh] pl-4 text-right font-bold", tu.pendentes > 0 && tu.inicio !== semanaAtual ? "text-farol-vermelho" : "text-slate-500")}>{tu.pendentes}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>,
     <div key="p" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">

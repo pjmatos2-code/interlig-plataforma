@@ -38,6 +38,14 @@ export const INDICADORES_TECNICO: IndicadorTecnico[] = [
     calculo: "Contratos que passaram de inativo para ativo na semana. A meta cadastrada é do mês; a semana recebe a parte dos dias úteis.",
   },
   {
+    chave: "tec_instalacoes_vs_os", grupo: "instalacoes", nome: "OS da semana instaladas na semana", unidade: "percentual", polaridade: "maior_melhor", herdaMeta: true,
+    calculo: "Das OS de instalação criadas na semana (de segunda a domingo), quantas tiveram o contrato do mesmo cliente ativado até o fim da semana. As que ficarem passam para os clientes deixados para trás.",
+  },
+  {
+    chave: "tec_deixados_para_tras", grupo: "instalacoes", nome: "Clientes deixados para trás", unidade: "numero", polaridade: "menor_melhor", herdaMeta: false,
+    calculo: "OS de instalação criadas nas 8 semanas anteriores que, no fim da semana, ainda não viraram contrato ativo (nem foram canceladas). A tabela das turmas mostra quantos ficaram de cada semana.",
+  },
+  {
     chave: "tec_instalacao_48h", grupo: "prazos", nome: "Instalação em até 48 h", unidade: "percentual", polaridade: "maior_melhor", herdaMeta: true,
     calculo: "Das instalações ativadas na semana, quantas ficaram ativas até 48 h depois de a ocorrência ir para o gestor técnico.",
   },
