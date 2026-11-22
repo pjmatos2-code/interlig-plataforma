@@ -1,7 +1,11 @@
 /**
  * Calendário da Operação Técnica (21/11/2026): por dia, o que está AGENDADO
  * (OS com data marcada, ainda não encerrada — fica no dia do agendamento) e o
- * que foi CONCLUÍDO (OS encerrada pelo técnico — fica no dia do encerramento).
+ * que foi CONCLUÍDO (OS encerrada — fica no dia em que o técnico esteve no
+ * local, pelo check-in). A baixa da OS no SGP é feita depois, por outra pessoa
+ * (em 21/11/2026 nenhuma OS de campo foi fechada pelo próprio técnico e 41 das
+ * 42 baixadas no dia tinham sido feitas antes); por isso o dia da baixa só vale
+ * quando não há check-in nem agendamento.
  * Decisão do gestor: só esses dois estados. Funções puras.
  *
  * Entram as OS de campo: instalação, mudança de endereço e suporte. Ficam fora
@@ -38,8 +42,12 @@ export type OsCalendario = {
   estado: EstadoCalendario;
   /** dia (aaaa-mm-dd, Santarém) em que a OS aparece: agendamento ou encerramento */
   dia: string;
-  /** hora do agendamento ou do encerramento (ISO) */
+  /** hora do agendamento, do check-in ou da baixa (ISO) */
   quando: string;
+  /** de onde veio o dia da conclusão */
+  fonte: "agendamento" | "checkin" | "baixa";
+  /** quando a OS foi baixada no SGP (só nas concluídas) */
+  baixadaEm: string | null;
   vencido: boolean;
   tipo: TipoServico;
   motivo: string;
@@ -62,15 +70,18 @@ export const diaSantarem = (iso: string) => new Date(Date.parse(iso) - 3 * HORA)
  * se a hora já passou); aberta sem agendamento → não entra.
  */
 export function posicaoNoCalendario(
-  os: { status: string | null; agendamento: string | null; encerradaEm: string | null },
+  os: { status: string | null; agendamento: string | null; checkin?: string | null; encerradaEm: string | null },
   agora: number
-): { estado: EstadoCalendario; dia: string; quando: string; vencido: boolean } | null {
+): { estado: EstadoCalendario; dia: string; quando: string; vencido: boolean; fonte: OsCalendario["fonte"]; baixadaEm: string | null } | null {
   if (/encerrad/i.test(os.status ?? "")) {
-    return os.encerradaEm ? { estado: "concluido", dia: diaSantarem(os.encerradaEm), quando: os.encerradaEm, vencido: false } : null;
+    const quando = os.checkin ?? os.agendamento ?? os.encerradaEm;
+    if (!quando) return null;
+    const fonte = os.checkin ? "checkin" : os.agendamento ? "agendamento" : "baixa";
+    return { estado: "concluido", dia: diaSantarem(quando), quando, vencido: false, fonte, baixadaEm: os.encerradaEm };
   }
   if (!os.agendamento) return null;
   const emExecucao = /execu/i.test(os.status ?? "");
-  return { estado: "agendado", dia: diaSantarem(os.agendamento), quando: os.agendamento, vencido: !emExecucao && Date.parse(os.agendamento) < agora };
+  return { estado: "agendado", dia: diaSantarem(os.agendamento), quando: os.agendamento, vencido: !emExecucao && Date.parse(os.agendamento) < agora, fonte: "agendamento", baixadaEm: null };
 }
 
 const somar = (dia: string, n: number) => {

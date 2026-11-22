@@ -10,10 +10,14 @@ describe("calendário", () => {
     for (const m of ["Recolher equipamento do cliente", "Cobrança", "Financeiro", null]) expect(tipoDoMotivo(m)).toBeNull();
     expect(tipoDoMotivo("Atendimento Fortics")).toBe("suporte"); // a leitura confere se foi para o gestor
   });
-  it("encerrada é concluída no dia do encerramento", () => {
-    expect(posicaoNoCalendario({ status: "Encerrada", agendamento: "2026-11-18T09:00:00-03:00", encerradaEm: "2026-11-20T22:30:00-03:00" }, agora)).toEqual({
-      estado: "concluido", dia: "2026-11-20", quando: "2026-11-20T22:30:00-03:00", vencido: false,
+  it("encerrada é concluída no dia do check-in do técnico, não no dia da baixa", () => {
+    expect(posicaoNoCalendario({ status: "Encerrada", agendamento: "2026-11-18T09:00:00-03:00", checkin: "2026-11-18T10:15:00-03:00", encerradaEm: "2026-11-21T16:30:00-03:00" }, agora)).toEqual({
+      estado: "concluido", dia: "2026-11-18", quando: "2026-11-18T10:15:00-03:00", vencido: false, fonte: "checkin", baixadaEm: "2026-11-21T16:30:00-03:00",
     });
+  });
+  it("sem check-in vale o agendamento; sem os dois, a baixa", () => {
+    expect(posicaoNoCalendario({ status: "Encerrada", agendamento: "2026-11-17T08:00:00-03:00", checkin: null, encerradaEm: "2026-11-21T16:30:00-03:00" }, agora)).toMatchObject({ dia: "2026-11-17", fonte: "agendamento" });
+    expect(posicaoNoCalendario({ status: "Encerrada", agendamento: null, checkin: null, encerradaEm: "2026-11-21T16:30:00-03:00" }, agora)).toMatchObject({ dia: "2026-11-21", fonte: "baixa" });
   });
   it("aberta com agendamento é agendada; vencida se passou e não está em execução", () => {
     expect(posicaoNoCalendario({ status: "Aberta Online", agendamento: "2026-11-20T09:00:00-03:00", encerradaEm: null }, agora)?.vencido).toBe(true);

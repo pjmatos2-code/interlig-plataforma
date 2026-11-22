@@ -19,6 +19,7 @@ type LinhaOs = {
   motivo: string | null;
   status: string | null;
   agendamento: string | null;
+  checkin: string | null;
   encerrada_em: string | null;
   responsavel: string | null;
   importado_em: string | null;
@@ -41,9 +42,9 @@ export async function dadosCalendario(mes: string, agora = Date.now()): Promise<
   for (let i = 0; ; i += 1000) {
     const { data, error } = await admin
       .from("os_tecnicas")
-      .select("sgp_os_id, sgp_contrato_id, cliente_nome, pop, bairro, motivo, status, agendamento, encerrada_em, responsavel, importado_em")
+      .select("sgp_os_id, sgp_contrato_id, cliente_nome, pop, bairro, motivo, status, agendamento, checkin, encerrada_em, responsavel, importado_em")
       .in("motivo", MOTIVOS_CALENDARIO)
-      .or(`and(agendamento.gte.${ini},agendamento.lte.${fim}),and(encerrada_em.gte.${ini},encerrada_em.lte.${fim})`)
+      .or(`and(agendamento.gte.${ini},agendamento.lte.${fim}),and(checkin.gte.${ini},checkin.lte.${fim}),and(encerrada_em.gte.${ini},encerrada_em.lte.${fim})`)
       .order("sgp_os_id")
       .range(i, i + 999);
     if (error) throw new Error(error.message);
@@ -85,7 +86,7 @@ export async function dadosCalendario(mes: string, agora = Date.now()): Promise<
     const tipo = tipoDoMotivo(l.motivo);
     const oc = respFortics.get(l.sgp_os_id);
     if (!forticsConta(l.motivo, oc?.tipo, oc?.responsavel)) continue;
-    const pos = posicaoNoCalendario({ status: l.status, agendamento: l.agendamento, encerradaEm: l.encerrada_em }, agora);
+    const pos = posicaoNoCalendario({ status: l.status, agendamento: l.agendamento, checkin: l.checkin, encerradaEm: l.encerrada_em }, agora);
     if (!tipo || !pos || pos.dia < de || pos.dia > ate) continue;
     const ct = l.sgp_contrato_id ? contratos.get(l.sgp_contrato_id) : undefined;
     itens.push({

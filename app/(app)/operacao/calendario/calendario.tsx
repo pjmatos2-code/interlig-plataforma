@@ -6,7 +6,7 @@ import { Building2, CheckCircle2, ChevronLeft, ChevronRight, Clock, ExternalLink
 import { cn } from "@/lib/utils";
 import { aplicarLinkSgp } from "@/lib/sgp/links";
 import { haQuantoTempo } from "@/lib/format";
-import type { OsCalendario } from "@/lib/operacao/calendario";
+import { diaSantarem, type OsCalendario } from "@/lib/operacao/calendario";
 import { ROTULO_TIPO, type TipoServico } from "@/lib/operacao/regras";
 
 const UNIDADES = ["Altamira", "Vitória do Xingu", "Brasil Novo"];
@@ -32,7 +32,7 @@ function Item({ o, linkTemplate }: { o: OsCalendario; linkTemplate: string | nul
       <div className="flex flex-wrap items-center gap-1.5">
         <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold", o.estado === "concluido" ? "bg-farol-verde/15 text-farol-verde" : o.vencido ? "bg-farol-vermelho/15 text-farol-vermelho" : "bg-interlig-ceu/15 text-interlig-azul")}>
           {o.estado === "concluido" ? <CheckCircle2 className="h-3 w-3" aria-hidden /> : <Clock className="h-3 w-3" aria-hidden />}
-          {o.estado === "concluido" ? `Concluída ${hora(o.quando)}` : o.vencido ? `Vencida · era ${hora(o.quando)}` : `Agendada ${hora(o.quando)}`}
+          {o.estado === "concluido" ? (o.fonte === "checkin" ? `Técnico no local ${hora(o.quando)}` : o.fonte === "agendamento" ? `Concluída · agendada ${hora(o.quando)}` : `Baixada ${hora(o.quando)}`) : o.vencido ? `Vencida · era ${hora(o.quando)}` : `Agendada ${hora(o.quando)}`}
         </span>
         <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1", COR_TIPO[o.tipo])}>{ROTULO_TIPO[o.tipo]}</span>
         {o.corporativo && (
@@ -50,6 +50,7 @@ function Item({ o, linkTemplate }: { o: OsCalendario; linkTemplate: string | nul
       <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1">
           <Wrench className="h-3 w-3" aria-hidden /> {o.tecnico ?? "sem técnico no SGP"} · OS {o.osId}
+          {o.estado === "concluido" && o.baixadaEm && o.fonte !== "baixa" && diaSantarem(o.baixadaEm) !== o.dia && ` · baixada no SGP em ${diaSantarem(o.baixadaEm).slice(8, 10)}/${diaSantarem(o.baixadaEm).slice(5, 7)}`}
         </span>
         {link && (
           <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-interlig-ceu hover:underline">
@@ -214,7 +215,7 @@ export function CalendarioOperacao(p: {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        OS lidas do SGP {haQuantoTempo(p.atualizadoEm)}. As OS dos últimos 31 dias são relidas a cada ~15 min no expediente; meses mais antigos mostram o último status lido.
+        Concluída conta no dia em que o técnico esteve no local (check-in); a baixa da OS no SGP costuma ser feita depois. OS lidas do SGP {haQuantoTempo(p.atualizadoEm)}. As OS dos últimos 31 dias são relidas a cada ~15 min no expediente; meses mais antigos mostram o último status lido.
       </p>
     </div>
   );

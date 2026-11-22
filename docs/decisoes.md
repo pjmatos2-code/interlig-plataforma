@@ -1173,3 +1173,4 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 ### GRR: escolha do setor (21/11/2026)
 
 - O menu "GRR, Gestão de Resultados" abre em `/grr/setores`, onde a pessoa escolhe o setor (comercial ou técnico) antes de ver os números. Quem só tem um setor vai direto para ele (coordenação comercial → comercial; gestor técnico → técnico). No topo de cada setor, uma faixa mostra o setor atual e troca de setor. Setores novos entram em `lib/grr/setores.ts`.
+- Calendário (21/11/2026, à noite): a conclusão passa a contar no dia em que o técnico esteve no local (check-in da OS); sem check-in, no dia agendado; sem os dois, no dia da baixa. A baixa no SGP é feita depois por outra pessoa (nenhuma OS de campo foi fechada pelo próprio técnico desde 19/10; das 42 baixadas em 21/11, só 1 tinha sido feita nesse dia). O cartão mostra a data da baixa quando é outro dia.
