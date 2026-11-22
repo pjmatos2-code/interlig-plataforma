@@ -108,7 +108,12 @@ export default async function GrrTecnicoPage({ searchParams }: { searchParams: {
 
         <section aria-labelledby="turmas">
           <h2 id="turmas" className="text-base font-semibold">Turmas de instalação</h2>
-          <p className="mb-2 text-sm text-muted-foreground">OS de instalação criadas em cada semana e quantas ainda não viraram contrato ativo até o fim do período: os clientes deixados para trás.</p>
+          <p className="mb-2 text-sm text-muted-foreground">
+            OS de instalação criadas em cada semana e quantas ainda não viraram contrato ativo até o fim do período: os clientes deixados para trás.{" "}
+            <Link href="/operacao/deixados" className="font-medium text-interlig-azul hover:underline">
+              Ver a lista com os nomes →
+            </Link>
+          </p>
           {t.turmas.length === 0 ? (
             <p className="rounded-lg border border-dashed bg-card p-3 text-sm text-muted-foreground">Esta semana foi congelada antes desta tabela existir.</p>
           ) : (

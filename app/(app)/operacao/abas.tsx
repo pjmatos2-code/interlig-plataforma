@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { CalendarDays, KanbanSquare } from "lucide-react";
+import { CalendarDays, KanbanSquare, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/** Abas da Operação Técnica: quadro de ocorrências e calendário. */
-export function AbasOperacao({ ativa }: { ativa: "quadro" | "calendario" }) {
-  const aba = (chave: "quadro" | "calendario", href: string, rotulo: string, Icone: typeof KanbanSquare) => (
+/** Abas da Operação Técnica: quadro de ocorrências, calendário e clientes deixados para trás. */
+export function AbasOperacao({ ativa }: { ativa: "quadro" | "calendario" | "deixados" }) {
+  const aba = (chave: "quadro" | "calendario" | "deixados", href: string, rotulo: string, Icone: typeof KanbanSquare) => (
     <Link
       href={href}
       aria-current={ativa === chave ? "page" : undefined}
@@ -20,6 +20,7 @@ export function AbasOperacao({ ativa }: { ativa: "quadro" | "calendario" }) {
     <nav aria-label="Visões da Operação Técnica" className="mb-4 flex flex-wrap gap-2">
       {aba("quadro", "/operacao", "Quadro de ocorrências", KanbanSquare)}
       {aba("calendario", "/operacao/calendario", "Calendário", CalendarDays)}
+      {aba("deixados", "/operacao/deixados", "Deixados para trás", UserX)}
     </nav>
   );
 }
