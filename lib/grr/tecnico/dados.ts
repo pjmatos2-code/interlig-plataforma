@@ -99,7 +99,8 @@ export async function lerBaseTecnico(semana: Semana, hoje: string, admin: Admin 
       .range(de, a)
   );
   const osEncerradasTodas = lidas
-    .filter((o) => servicoFeito(o))
+    // sem check-in e sem agendamento não houve visita (OS baixada pelo atendimento)
+    .filter((o) => servicoFeito(o) && Boolean(o.checkin || o.agendamento))
     .map((o) => ({ ...o, encerrada_em: (o.checkin ?? o.encerrada_em)! }));
   const ocorrencias = await emLotes<{ sgp_os_id: string; tipo: string | null; criada_em: string; pop: string | null; responsavel: string | null }>(
     osEncerradasTodas.map((o) => o.sgp_os_id),

@@ -21,9 +21,9 @@ describe("calendário", () => {
     });
     expect(posicaoNoCalendario({ status: "Em execução Online", agendamento: "2026-11-21T08:20:00-03:00", checkin: "2026-11-21T08:42:00-03:00", encerradaEm: null, servicoPrestado: null }, agora)?.estado).toBe("agendado");
   });
-  it("sem check-in vale o agendamento; sem os dois, a baixa", () => {
+  it("sem check-in vale o agendamento; sem os dois, não houve visita e fica fora", () => {
     expect(posicaoNoCalendario({ status: "Encerrada", agendamento: "2026-11-17T08:00:00-03:00", checkin: null, encerradaEm: "2026-11-21T16:30:00-03:00" }, agora)).toMatchObject({ dia: "2026-11-17", fonte: "agendamento" });
-    expect(posicaoNoCalendario({ status: "Encerrada", agendamento: null, checkin: null, encerradaEm: "2026-11-21T16:30:00-03:00" }, agora)).toMatchObject({ dia: "2026-11-21", fonte: "baixa" });
+    expect(posicaoNoCalendario({ status: "Encerrada", agendamento: null, checkin: null, encerradaEm: "2026-11-21T16:30:00-03:00" }, agora)).toBeNull();
   });
   it("aberta com agendamento é agendada; vencida se passou e não está em execução", () => {
     expect(posicaoNoCalendario({ status: "Aberta Online", agendamento: "2026-11-20T09:00:00-03:00", encerradaEm: null }, agora)?.vencido).toBe(true);

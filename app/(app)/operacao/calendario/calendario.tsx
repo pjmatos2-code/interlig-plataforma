@@ -32,7 +32,7 @@ function Item({ o, linkTemplate }: { o: OsCalendario; linkTemplate: string | nul
       <div className="flex flex-wrap items-center gap-1.5">
         <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold", o.estado === "concluido" ? "bg-farol-verde/15 text-farol-verde" : o.vencido ? "bg-farol-vermelho/15 text-farol-vermelho" : "bg-interlig-ceu/15 text-interlig-azul")}>
           {o.estado === "concluido" ? <CheckCircle2 className="h-3 w-3" aria-hidden /> : <Clock className="h-3 w-3" aria-hidden />}
-          {o.estado === "concluido" ? (o.fonte === "checkin" ? `Técnico no local ${hora(o.quando)}` : o.fonte === "agendamento" ? `Concluída · agendada ${hora(o.quando)}` : `Baixada ${hora(o.quando)}`) : o.vencido ? `Vencida · era ${hora(o.quando)}` : `Agendada ${hora(o.quando)}`}
+          {o.estado === "concluido" ? (o.fonte === "checkin" ? `Técnico no local ${hora(o.quando)}` : o.fonte === "agendamento" ? `Concluída · agendada ${hora(o.quando)}` : `Concluída ${hora(o.quando)}`) : o.vencido ? `Vencida · era ${hora(o.quando)}` : `Agendada ${hora(o.quando)}`}
         </span>
         <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1", COR_TIPO[o.tipo])}>{ROTULO_TIPO[o.tipo]}</span>
         {o.corporativo && (
@@ -216,7 +216,7 @@ export function CalendarioOperacao(p: {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Concluída = serviço feito pelo técnico (check-in e serviço prestado na OS), no dia do check-in, mesmo que a OS ainda não tenha sido baixada no SGP. OS lidas do SGP {haQuantoTempo(p.atualizadoEm)}. As OS dos últimos 31 dias são relidas a cada ~15 min no expediente; meses mais antigos mostram o último status lido.
+        Concluída = serviço feito pelo técnico (check-in e serviço prestado na OS), no dia do check-in, mesmo que a OS ainda não tenha sido baixada no SGP. OS baixada sem check-in e sem agendamento não entra (não houve visita). OS lidas do SGP {haQuantoTempo(p.atualizadoEm)}. As OS dos últimos 31 dias são relidas a cada ~15 min no expediente; meses mais antigos mostram o último status lido.
       </p>
     </div>
   );

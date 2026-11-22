@@ -79,9 +79,11 @@ export function posicaoNoCalendario(
     return { estado: "concluido", dia: diaSantarem(os.checkin), quando: os.checkin, vencido: false, fonte: "checkin", baixadaEm: null };
   }
   if (/encerrad/i.test(os.status ?? "")) {
-    const quando = os.checkin ?? os.agendamento ?? os.encerradaEm;
+    // sem check-in e sem agendamento não houve visita: OS aberta e baixada pelo
+    // atendimento (em novembro/2026, 57 casos, todos sem técnico designado)
+    const quando = os.checkin ?? os.agendamento;
     if (!quando) return null;
-    const fonte = os.checkin ? "checkin" : os.agendamento ? "agendamento" : "baixa";
+    const fonte = os.checkin ? "checkin" : "agendamento";
     return { estado: "concluido", dia: diaSantarem(quando), quando, vencido: false, fonte, baixadaEm: os.encerradaEm };
   }
   if (!os.agendamento) return null;
