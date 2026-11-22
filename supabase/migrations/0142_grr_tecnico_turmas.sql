@@ -13,6 +13,6 @@ insert into grr.metas (empresa, setor, indicador, escopo_tipo, escopo_ref, vigen
 select 'interlig', 'tecnico', m.indicador, 'empresa', null, date '2026-11-16', m.meta, m.limite, m.obs
 from (values
   ('tec_instalacoes_vs_os', 0.80::numeric, 0.65::numeric, 'Aprovada em 21/11/2026.'),
-  ('tec_deixados_para_tras', 10, 20, 'Menor é melhor; meta só da empresa. Aprovada em 21/11/2026.')
+  ('tec_deixados_para_tras', 0, 0, 'Meta zero: qualquer cliente deixado para trás fica vermelho (decisão da gestão). Só da empresa. Aprovada em 21/11/2026.')
 ) as m(indicador, meta, limite, obs)
 where not exists (select 1 from grr.metas x where x.empresa = 'interlig' and x.setor = 'tecnico' and x.indicador = m.indicador and x.escopo_tipo = 'empresa');

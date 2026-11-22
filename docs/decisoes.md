@@ -1190,5 +1190,5 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 ### GRR Técnico: turmas de instalação (21/11/2026)
 
 - "OS da semana instaladas na semana" (pedido da gestão): das OS de instalação criadas na semana (de segunda a domingo), quantas tiveram o contrato do mesmo cliente ativado até o fim da semana — cruzando a OS com o cliente, não o total de instalações. Meta 80%, atenção a partir de 65% (migração 0142). Base das semanas fechadas de 12/10 a 09/11: de 54% a 95%.
-- "Clientes deixados para trás": OS de instalação das 8 semanas anteriores ainda sem ativação nem cancelamento no fim da semana. Meta até 10, atenção até 20, só da empresa. Em 21/11: 29.
+- "Clientes deixados para trás": OS de instalação das 8 semanas anteriores ainda sem ativação nem cancelamento no fim da semana. Meta zero, sem faixa de atenção: qualquer cliente deixado para trás fica vermelho, para não se perder ninguém (decisão da gestão). Só da empresa. Em 21/11: 29.
 - Tabela "Turmas de instalação" (criadas, ativadas, canceladas, deixados por semana) na tela e num slide da apresentação de terça; entra na foto e na ata. Conta uma OS por contrato (a primeira).
