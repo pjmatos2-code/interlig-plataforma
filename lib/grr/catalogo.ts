@@ -90,6 +90,7 @@ export const INDICADORES_GRR: DefinicaoIndicador[] = [
   { chave: "ativacoes_semana", grupo: "ativacoes", nome: "Ativações na semana", unidade: "numero", polaridade: "maior_melhor", metaOrigem: "grr", herdaMeta: false },
   { chave: "instalacoes_paradas", grupo: "ativacoes", nome: "Instalações paradas há mais de 7 dias", unidade: "numero", polaridade: "menor_melhor", metaOrigem: "plataforma", herdaMeta: false, regraDaMeta: "Limites do Relatório da diretoria: zero paradas; atenção até 5." },
   { chave: "assinatura_48h", grupo: "ativacoes", nome: "Sem assinar há 48h ou mais", unidade: "numero", polaridade: "menor_melhor", metaOrigem: "plataforma", herdaMeta: false, regraDaMeta: "Limites do Relatório da diretoria: zero acima de 48h; atenção até 3." },
+  { chave: "clientes_sem_assinatura", grupo: "ativacoes", nome: "Clientes deixados para trás por falta de assinatura", unidade: "numero", polaridade: "menor_melhor", metaOrigem: "grr", herdaMeta: false },
   { chave: "conversao", grupo: "conversao", nome: "Conversão do CRM", unidade: "percentual", polaridade: "maior_melhor", metaOrigem: "grr", herdaMeta: true },
   { chave: "conversao_safra", grupo: "conversao", nome: "Conversão por safra de leads", unidade: "percentual", polaridade: "maior_melhor", metaOrigem: "grr", herdaMeta: true },
   { chave: "leads", grupo: "conversao", nome: "Leads recebidos", unidade: "numero", polaridade: "maior_melhor", metaOrigem: "grr", herdaMeta: false },

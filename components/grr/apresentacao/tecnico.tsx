@@ -83,7 +83,7 @@ export function ApresentacaoTecnico(p: {
       </div>
     </div>,
     <div key="t" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
-      <Titulo sub="OS de instalação criadas em cada semana e quantas ainda não viraram contrato ativo">Turmas de instalação</Titulo>
+      <Titulo sub="OS de instalação de cada semana: deixados = já assinados e sem ativação (técnico) · sem assinatura = com o comercial">Turmas de instalação</Titulo>
       <div className="grid gap-[clamp(0.7rem,1.2vw,1.75rem)] lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
         <Indicador c={k("tec_deixados_para_tras")} />
         <div className={cn("overflow-x-auto border-t-[6px] border-t-interlig-azul", TV.quadro)}>
@@ -97,6 +97,7 @@ export function ApresentacaoTecnico(p: {
                   <th className="py-[0.5vh] pl-4 text-right font-semibold">Criadas</th>
                   <th className="py-[0.5vh] pl-4 text-right font-semibold">Ativadas</th>
                   <th className="py-[0.5vh] pl-4 text-right font-semibold">Deixados</th>
+                  <th className="py-[0.5vh] pl-4 text-right font-semibold">Sem assinatura</th>
                 </tr>
               </thead>
               <tbody>
@@ -106,6 +107,7 @@ export function ApresentacaoTecnico(p: {
                     <td className="py-[0.55vh] pl-4 text-right">{tu.criadas}</td>
                     <td className="py-[0.55vh] pl-4 text-right">{tu.ativadas}</td>
                     <td className={cn("py-[0.55vh] pl-4 text-right font-bold", tu.pendentes > 0 && tu.inicio !== semanaAtual ? "text-farol-vermelho" : "text-slate-500")}>{tu.pendentes}</td>
+                    <td className="py-[0.55vh] pl-4 text-right text-slate-500">{tu.aguardandoAssinatura ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>

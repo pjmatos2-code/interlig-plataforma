@@ -54,11 +54,11 @@ export async function listarDeixados(agora = Date.now()): Promise<{ lista: Clien
   for (const o of os) if (o.sgp_contrato_id && !porContrato.has(o.sgp_contrato_id)) porContrato.set(o.sgp_contrato_id, o);
 
   const ids = [...porContrato.keys()];
-  const contratos = new Map<string, { status: string; data_ativacao: string | null; data_cancelamento: string | null; data_assinatura: string | null; cliente: string | null; cpf: string | null; sgpClienteId: string | null; pop: string | null; vendedora: string | null }>();
+  const contratos = new Map<string, { status: string; data_ativacao: string | null; data_cancelamento: string | null; data_assinatura: string | null; desistencia: boolean; cliente: string | null; cpf: string | null; sgpClienteId: string | null; pop: string | null; vendedora: string | null }>();
   for (let i = 0; i < ids.length; i += 300) {
     const { data, error } = await admin
       .from("contratos")
-      .select("sgp_contrato_id, status, data_ativacao, data_cancelamento, data_assinatura, clientes(nome, cpf, sgp_cliente_id), pops(nome), vendedores(nome)")
+      .select("sgp_contrato_id, status, data_ativacao, data_cancelamento, data_assinatura, assinatura_dispensada, desistencia_em, clientes(nome, cpf, sgp_cliente_id), pops(nome), vendedores(nome)")
       .in("sgp_contrato_id", ids.slice(i, i + 300));
     if (error) throw new Error(error.message);
     for (const c of data ?? []) {
@@ -67,7 +67,8 @@ export async function listarDeixados(agora = Date.now()): Promise<{ lista: Clien
         status: String(c.status),
         data_ativacao: (c.data_ativacao as string | null) ?? null,
         data_cancelamento: (c.data_cancelamento as string | null) ?? null,
-        data_assinatura: (c.data_assinatura as string | null) ?? null,
+        data_assinatura: c.assinatura_dispensada ? "dispensada" : ((c.data_assinatura as string | null) ?? null),
+        desistencia: Boolean(c.desistencia_em),
         cliente: cli?.nome ?? null,
         cpf: cli?.cpf ?? null,
         sgpClienteId: cli?.sgp_cliente_id ? String(cli.sgp_cliente_id) : null,
@@ -80,7 +81,7 @@ export async function listarDeixados(agora = Date.now()): Promise<{ lista: Clien
   const lista: ClienteDeixado[] = [];
   for (const [id, o] of porContrato) {
     const c = contratos.get(id);
-    if (!c || c.data_ativacao || c.data_cancelamento || c.status === "cancelado") continue;
+    if (!c || c.data_ativacao || c.data_cancelamento || c.desistencia || c.status === "cancelado") continue;
     const criadaDia = new Date(Date.parse(o.criada_em) - 3 * 3_600_000).toISOString().slice(0, 10);
     const dow = new Date(`${criadaDia}T12:00:00Z`).getUTCDay();
     const semanaDaOs = new Date(Date.parse(`${criadaDia}T12:00:00Z`) - ((dow + 6) % 7) * 86_400_000).toISOString().slice(0, 10);

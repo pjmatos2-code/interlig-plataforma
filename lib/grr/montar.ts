@@ -317,6 +317,11 @@ export function montarGrr(
   const semAssinarDaSemana = pendentesAssinatura(m.vSemana, hoje);
   const acima48h = semAssinarDaSemana.filter((p) => p.idadeDias >= ALERTA_ASSINATURA_DIAS).length;
   const antigasSemAssinar = pendentesAssinatura(pendencias.filter((c) => c.data_venda < semana.inicio), hoje).length;
+  // clientes deixados para trás por falta de assinatura (21/11/2026): vendas das 8 semanas
+  // anteriores ainda sem assinar — a instalação não anda; o GRR Técnico conta só os aptos
+  const inicio8 = somarDias(semana.inicio, -56);
+  // só quem ainda não foi ativado: contrato ativo sem assinatura não trava a instalação
+  const deixadosSemAssinatura = pendentesAssinatura(pendencias.filter((c) => c.data_venda >= inicio8 && c.data_venda < semana.inicio && !c.data_ativacao), hoje).length;
   const aguardando = aguardandoInstalacao(dentro(base.osAbertas).filter((c) => !c.fora), pendencias, hoje);
   const paraBaixar = osAbertasParaBaixar(dentro(base.osAbertas).filter((c) => !c.fora));
   const paradas = aguardando.filter((i) => paradaMais7Dias(i, hoje)).length;
@@ -416,6 +421,17 @@ export function montarGrr(
       contexto: `${num(semAssinarDaSemana.length)} da semana sem assinar · ${num(antigasSemAssinar)} de vendas antigas`,
       evolucao: null,
       status: statusAssinatura(acima48h),
+    },
+    {
+      chave: "clientes_sem_assinatura",
+      grupo: "ativacoes",
+      rotulo: "Clientes deixados para trás por falta de assinatura",
+      valor: num(deixadosSemAssinatura),
+      numero: deixadosSemAssinatura,
+      meta: null,
+      contexto: "vendas das 8 semanas anteriores, ainda sem ativação, esperando a assinatura do cliente para instalar",
+      evolucao: null,
+      status: "sem_meta",
     },
     {
       chave: "conversao",

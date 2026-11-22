@@ -161,8 +161,18 @@ describe("turmas de instalação", () => {
     expect(c.tec_deixados_para_tras.numero).toBe(1);
     expect(c.tec_deixados_para_tras.status).toBe("ok");
     const t = Object.fromEntries(r.turmas.map((x) => [x.inicio, x]));
-    expect(t["2026-11-16"]).toEqual({ inicio: "2026-11-16", criadas: 4, ativadas: 2, canceladas: 0, pendentes: 2 });
-    expect(t["2026-11-09"]).toEqual({ inicio: "2026-11-09", criadas: 3, ativadas: 1, canceladas: 1, pendentes: 1 });
+    expect(t["2026-11-16"]).toEqual({ inicio: "2026-11-16", criadas: 4, ativadas: 2, canceladas: 0, pendentes: 2, aguardandoAssinatura: 0 });
+    expect(t["2026-11-09"]).toEqual({ inicio: "2026-11-09", criadas: 3, ativadas: 1, canceladas: 1, pendentes: 1, aguardandoAssinatura: 0 });
     expect(r.turmas).toHaveLength(9);
+  });
+});
+
+describe("deixados: técnico só responde pelos aptos", () => {
+  it("cliente sem assinatura sai da conta do técnico e aparece na turma como esperando assinatura", () => {
+    const os = (criadaDia: string, assinaturaDia: string | null) => ({ unidade: "Altamira" as const, criadaDia, ativacaoDia: null, cancelamentoDia: null, assinaturaDia });
+    const osInstalacao = [os("2026-11-09", "2026-11-10"), os("2026-11-10", null), os("2026-11-11", "2026-11-25")];
+    const r = montarTecnico({ base: { ...base(), osInstalacao }, semana: SEMANA, hoje: "2026-11-22", recorte: EMPRESA, metas: METAS, expediente: EXP });
+    expect(r.cartoes.find((x) => x.chave === "tec_deixados_para_tras")!.numero).toBe(1);
+    expect(r.turmas.find((x) => x.inicio === "2026-11-09")).toMatchObject({ pendentes: 1, aguardandoAssinatura: 2 });
   });
 });

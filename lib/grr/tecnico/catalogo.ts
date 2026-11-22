@@ -43,7 +43,7 @@ export const INDICADORES_TECNICO: IndicadorTecnico[] = [
   },
   {
     chave: "tec_deixados_para_tras", grupo: "instalacoes", nome: "Clientes deixados para trás", unidade: "numero", polaridade: "menor_melhor", herdaMeta: false,
-    calculo: "OS de instalação criadas nas 8 semanas anteriores que, no fim da semana, ainda não viraram contrato ativo (nem foram canceladas). A tabela das turmas mostra quantos ficaram de cada semana.",
+    calculo: "OS de instalação criadas nas 8 semanas anteriores, com o contrato já assinado (aptas para o técnico), que no fim da semana ainda não viraram contrato ativo nem foram canceladas. Os que esperam assinatura ficam no indicador do setor comercial.",
   },
   {
     chave: "tec_instalacao_48h", grupo: "prazos", nome: "Instalação em até 48 h", unidade: "percentual", polaridade: "maior_melhor", herdaMeta: true,

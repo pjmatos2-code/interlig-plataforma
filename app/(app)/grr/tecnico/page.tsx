@@ -109,7 +109,7 @@ export default async function GrrTecnicoPage({ searchParams }: { searchParams: {
         <section aria-labelledby="turmas">
           <h2 id="turmas" className="text-base font-semibold">Turmas de instalação</h2>
           <p className="mb-2 text-sm text-muted-foreground">
-            OS de instalação criadas em cada semana e quantas ainda não viraram contrato ativo até o fim do período: os clientes deixados para trás.{" "}
+            OS de instalação criadas em cada semana e quantas ainda não viraram contrato ativo até o fim do período. O técnico responde pelos clientes já aptos (contrato assinado); os que esperam assinatura ficam com o comercial.{" "}
             <Link href="/operacao/deixados" className="font-medium text-interlig-azul hover:underline">
               Ver a lista com os nomes →
             </Link>
@@ -125,7 +125,8 @@ export default async function GrrTecnicoPage({ searchParams }: { searchParams: {
                     <th className="px-3 py-2 text-right font-medium">Criadas</th>
                     <th className="px-3 py-2 text-right font-medium">Ativadas</th>
                     <th className="px-3 py-2 text-right font-medium">Canceladas</th>
-                    <th className="px-3 py-2 text-right font-medium">Deixados para trás</th>
+                    <th className="px-3 py-2 text-right font-medium">Deixados (técnico)</th>
+                    <th className="px-3 py-2 text-right font-medium">Esperando assinatura</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -136,6 +137,7 @@ export default async function GrrTecnicoPage({ searchParams }: { searchParams: {
                       <td className="px-3 py-2 text-right">{tu.ativadas}</td>
                       <td className="px-3 py-2 text-right text-muted-foreground">{tu.canceladas}</td>
                       <td className={cn("px-3 py-2 text-right font-semibold", tu.pendentes > 0 && tu.inicio !== t.semana.inicio && "text-farol-vermelho")}>{tu.pendentes}</td>
+                      <td className="px-3 py-2 text-right text-muted-foreground">{tu.aguardandoAssinatura ?? "—"}</td>
                     </tr>
                   ))}
                 </tbody>

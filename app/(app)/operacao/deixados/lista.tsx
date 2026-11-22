@@ -23,6 +23,7 @@ const dataBr = (iso: string) => {
 };
 
 export function ListaDeixados({ lista, janela, linkTemplate, agora }: { lista: ClienteDeixado[]; janela: { de: string; ate: string }; linkTemplate: string | null; agora: number }) {
+  const [grupo, setGrupo] = useState<"tecnico" | "assinatura">("tecnico");
   const [unidade, setUnidade] = useState("todas");
   const [situacao, setSituacao] = useState<SituacaoDeixado | "todas">("todas");
   const [busca, setBusca] = useState("");
@@ -30,26 +31,46 @@ export function ListaDeixados({ lista, janela, linkTemplate, agora }: { lista: C
     const q = busca.trim().toLowerCase();
     return lista.filter(
       (c) =>
+        (grupo === "assinatura" ? c.situacao === "falta_assinatura" : c.situacao !== "falta_assinatura") &&
         (unidade === "todas" || c.unidade === unidade) &&
         (situacao === "todas" || c.situacao === situacao) &&
         (!q || [c.cliente, c.bairro, c.tecnico, c.vendedora, c.osId, c.sgpContratoId].some((v) => (v ?? "").toLowerCase().includes(q)))
     );
-  }, [lista, unidade, situacao, busca]);
+  }, [lista, unidade, situacao, busca, grupo]);
   const contagem = useMemo(() => {
     const m = new Map<SituacaoDeixado, number>();
-    for (const c of lista.filter((x) => unidade === "todas" || x.unidade === unidade)) m.set(c.situacao, (m.get(c.situacao) ?? 0) + 1);
+    for (const c of lista.filter((x) => (unidade === "todas" || x.unidade === unidade) && x.situacao !== "falta_assinatura")) m.set(c.situacao, (m.get(c.situacao) ?? 0) + 1);
     return m;
   }, [lista, unidade]);
-  const situacoes = (Object.keys(ROTULO_SITUACAO_DEIXADO) as SituacaoDeixado[]).filter((s) => contagem.get(s));
+  const situacoes = grupo === "tecnico" ? (Object.keys(ROTULO_SITUACAO_DEIXADO) as SituacaoDeixado[]).filter((s) => contagem.get(s)) : [];
+  const tecnico = lista.filter((c) => c.situacao !== "falta_assinatura" && (unidade === "todas" || c.unidade === unidade));
+  const assinatura = lista.filter((c) => c.situacao === "falta_assinatura" && (unidade === "todas" || c.unidade === unidade));
   const fmt = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
   void agora;
 
   return (
     <div className="space-y-4">
-      <div className={cn("rounded-xl border-2 p-4", lista.length ? "border-farol-vermelho/50 bg-farol-vermelho/5" : "border-farol-verde/50 bg-farol-verde/5")}>
-        <p className="text-sm font-medium text-muted-foreground">Deixados para trás · OS criadas de {fmt(janela.de)} a {fmt(janela.ate)}</p>
-        <p className={cn("text-3xl font-semibold tabular-nums", lista.length ? "text-farol-vermelho" : "text-farol-verde")}>{lista.length}</p>
-        <p className="text-xs text-muted-foreground">{lista.length ? "Meta zero: cada cliente desta lista precisa de uma ação." : "Nenhum cliente ficou para trás."}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => { setGrupo("tecnico"); setSituacao("todas"); }}
+          aria-pressed={grupo === "tecnico"}
+          className={cn("rounded-xl border-2 p-4 text-left transition", tecnico.length ? "border-farol-vermelho/50 bg-farol-vermelho/5" : "border-farol-verde/50 bg-farol-verde/5", grupo === "tecnico" && "ring-2 ring-interlig-azul")}
+        >
+          <p className="text-sm font-medium text-muted-foreground">Com o técnico · já aptos (contrato assinado)</p>
+          <p className={cn("text-3xl font-semibold tabular-nums", tecnico.length ? "text-farol-vermelho" : "text-farol-verde")}>{tecnico.length}</p>
+          <p className="text-xs text-muted-foreground">Indicador do GRR Técnico · OS criadas de {fmt(janela.de)} a {fmt(janela.ate)} · meta zero</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => { setGrupo("assinatura"); setSituacao("todas"); }}
+          aria-pressed={grupo === "assinatura"}
+          className={cn("rounded-xl border-2 p-4 text-left transition", assinatura.length ? "border-amber-300 bg-amber-50" : "border-farol-verde/50 bg-farol-verde/5", grupo === "assinatura" && "ring-2 ring-interlig-azul")}
+        >
+          <p className="text-sm font-medium text-muted-foreground">Esperando a assinatura do cliente</p>
+          <p className={cn("text-3xl font-semibold tabular-nums", assinatura.length ? "text-amber-700" : "text-farol-verde")}>{assinatura.length}</p>
+          <p className="text-xs text-muted-foreground">Com o comercial · indicador do GRR Comercial</p>
+        </button>
       </div>
 
       <div className="flex flex-col gap-2 rounded-lg border bg-card p-3 lg:flex-row lg:items-center lg:justify-between">

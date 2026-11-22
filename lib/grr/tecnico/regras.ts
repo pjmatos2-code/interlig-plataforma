@@ -32,7 +32,7 @@ export type BaseTecnico = {
   /** estoques medidos agora (null em semana antiga: o número só existe na foto do fechamento) */
   estoques: { agendamentosVencidos: Contagem; faltaValidar: Contagem; osParaBaixar: Contagem; medidoEm: string } | null;
   /** OS de instalação (uma por contrato, a primeira) criadas desde 9 semanas antes, com a ativação e o cancelamento do contrato */
-  osInstalacao?: { unidade: UnidadeTecnico | null; criadaDia: string; ativacaoDia: string | null; cancelamentoDia: string | null }[];
+  osInstalacao?: { unidade: UnidadeTecnico | null; criadaDia: string; ativacaoDia: string | null; cancelamentoDia: string | null; assinaturaDia?: string | null }[];
   /** OS de campo agendadas desde a segunda da semana anterior, com o técnico designado (agenda cumprida) */
   agendadas?: { unidade: UnidadeTecnico | null; tecnico: string | null; agendamento: string; checkin: string | null; status: string | null }[];
 };
@@ -75,7 +75,11 @@ export const MINIMO_FAROL_TECNICO = 10;
 
 /** semanas de turmas que contam para os clientes deixados para trás */
 export const SEMANAS_TURMAS = 8;
-export type TurmaInstalacao = { inicio: string; criadas: number; ativadas: number; canceladas: number; pendentes: number };
+/** pendentes = deixados pelo técnico (contrato assinado); aguardandoAssinatura = com o comercial (decisão de 21/11/2026) */
+export type TurmaInstalacao = { inicio: string; criadas: number; ativadas: number; canceladas: number; pendentes: number; aguardandoAssinatura?: number };
+
+/** a OS já estava apta para o técnico (contrato assinado) no fim do período? Sem a informação (fotos antigas), conta como apta. */
+const apta = (o: { assinaturaDia?: string | null }, ate: string) => o.assinaturaDia === undefined || (o.assinaturaDia !== null && o.assinaturaDia <= ate);
 
 export type RecorteTecnico = { tipo: "empresa" | "unidade"; unidade: UnidadeTecnico | null; chave: ChaveEscopo; rotulo: string };
 
@@ -154,7 +158,8 @@ function medir(base: BaseTecnico, t: TrechoTecnico, un: UnidadeTecnico | null, h
   const osCriadas = daSemana.length;
   // a mesma OS: o contrato do cliente da OS ativado até o fim do período (decisão de 21/11/2026)
   const osInstaladas = daSemana.filter((o) => o.ativacaoDia && o.ativacaoDia <= t.ate).length;
-  const deixados = osDaUn.filter((o) => entre(o.criadaDia, somarDias(t.de, -7 * SEMANAS_TURMAS), somarDias(t.de, -1)) && !(o.ativacaoDia && o.ativacaoDia <= t.ate) && !(o.cancelamentoDia && o.cancelamentoDia <= t.ate)).length;
+  // o técnico responde só pelos clientes já aptos (contrato assinado); os que esperam assinatura vão para o comercial
+  const deixados = osDaUn.filter((o) => entre(o.criadaDia, somarDias(t.de, -7 * SEMANAS_TURMAS), somarDias(t.de, -1)) && !(o.ativacaoDia && o.ativacaoDia <= t.ate) && !(o.cancelamentoDia && o.cancelamentoDia <= t.ate) && apta(o, t.ate)).length;
   const ag = (base.agendadas ?? []).filter((x) => daUn(x.unidade) && entre(diaSantarem(x.agendamento), t.de, t.ate)).map((x) => situacaoAgenda(x, hoje));
   return {
     instalacoes: ativ.length,
@@ -252,7 +257,7 @@ export function montarTecnico(p: ParametrosMontagem): { cartoes: CartaoTecnico[]
       m.osCriadas ? `${num(m.osInstaladas)} de ${num(m.osCriadas)} OS de instalação criadas na semana já instaladas · ${num(m.osCriadas - m.osInstaladas)} ficaram · ${rotuloTrecho}` : "nenhuma OS de instalação criada no período",
       evolucaoPp(taxa(m.osInstaladas, m.osCriadas), taxa(a.osInstaladas, a.osCriadas))
     ),
-    cartao("tec_deixados_para_tras", m.deixados, `OS das ${SEMANAS_TURMAS} semanas anteriores ainda sem ativação no fim do período`, evolucao(m.deixados, a.deixados, { menorEMelhor: true })),
+    cartao("tec_deixados_para_tras", m.deixados, `Clientes já aptos (contrato assinado) das ${SEMANAS_TURMAS} semanas anteriores ainda sem ativação · os que esperam assinatura ficam com o comercial`, evolucao(m.deixados, a.deixados, { menorEMelhor: true })),
     cartao(
       "tec_instalacao_48h",
       t48,
@@ -306,7 +311,9 @@ export function montarTecnico(p: ParametrosMontagem): { cartoes: CartaoTecnico[]
     const daTurma = (base.osInstalacao ?? []).filter((o) => (!un || o.unidade === un) && entre(o.criadaDia, ini, fim < tr.atual.ate ? fim : tr.atual.ate));
     const ativadas = daTurma.filter((o) => o.ativacaoDia && o.ativacaoDia <= tr.atual.ate).length;
     const canceladas = daTurma.filter((o) => !(o.ativacaoDia && o.ativacaoDia <= tr.atual.ate) && o.cancelamentoDia && o.cancelamentoDia <= tr.atual.ate).length;
-    turmas.push({ inicio: ini, criadas: daTurma.length, ativadas, canceladas, pendentes: daTurma.length - ativadas - canceladas });
+    const abertas = daTurma.filter((o) => !(o.ativacaoDia && o.ativacaoDia <= tr.atual.ate) && !(o.cancelamentoDia && o.cancelamentoDia <= tr.atual.ate));
+    const semAssinatura = abertas.filter((o) => !apta(o, tr.atual.ate)).length;
+    turmas.push({ inicio: ini, criadas: daTurma.length, ativadas, canceladas, pendentes: abertas.length - semAssinatura, aguardandoAssinatura: semAssinatura });
   }
   return { cartoes, emAndamento: tr.emAndamento, trecho: tr.atual, porTecnico, turmas };
 }
