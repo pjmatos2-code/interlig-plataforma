@@ -52,7 +52,9 @@ export function AppShell({
     <nav className="flex flex-col gap-1">
       {itens.map((item) => {
         const Icone = ICONES[item.icone] ?? LayoutDashboard;
-        const ativo = caminho === item.href || caminho.startsWith(item.href + "/");
+        const casa = (href: string) => caminho === href || caminho.startsWith(href + "/");
+        // o item mais específico ganha (GRR Técnico dentro do GRR)
+        const ativo = casa(item.href) && !itens.some((o) => o.href.length > item.href.length && o.href.startsWith(item.href + "/") && casa(o.href));
         return (
           <Link
             key={item.href}

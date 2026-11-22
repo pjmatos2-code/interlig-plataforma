@@ -52,7 +52,7 @@ function linhaDoRecorte(metas: MetaGrr[], indicador: string, chave: ChaveEscopo,
  * recente que já começou. Sem meta no próprio recorte (ou com ela
  * encerrada), taxas e médias herdam a meta da empresa; volumes, não.
  */
-export function metaVigente(metas: MetaGrr[], def: DefinicaoIndicador, chave: ChaveEscopo, dia: string): MetaGrr | null {
+export function metaVigente(metas: MetaGrr[], def: Pick<DefinicaoIndicador, "chave" | "herdaMeta">, chave: ChaveEscopo, dia: string): MetaGrr | null {
   const doRecorte = linhaDoRecorte(metas, def.chave, chave, dia);
   if (doRecorte && doRecorte.meta != null && doRecorte.limite_atencao != null) return doRecorte;
   if (chave.tipo !== "empresa" && def.herdaMeta) {

@@ -8,7 +8,7 @@ const ROTULO_STATUS: Record<CartaoGrr["status"], string> = { ok: "No ritmo", ate
 const VARIANTE = { ok: "verde", atencao: "amarelo", critico: "vermelho", sem_meta: "outline" } as const;
 
 /** Cartão do resumo do GRR: realizado, meta, evolução e farol. Abre o detalhe do grupo. */
-export function CartaoIndicador({ cartao, href }: { cartao: CartaoGrr; href: string }) {
+export function CartaoIndicador({ cartao, href }: { cartao: Omit<CartaoGrr, "grupo">; href: string }) {
   const { status } = cartao;
   return (
     <Link href={href} className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">

@@ -1146,3 +1146,11 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 - Escopo inicial: ocorrências criadas a partir de 01/11/2026 (`DIRECIONAMENTO_DESDE`), por decisão da gestão, para não pesar no SGP. Meses anteriores sobem depois, mudando essa data.
 - Mudança de endereço não recebe o gestor no responsável (ensaio de 21/11), então fica fora dessa leitura; o marco de início dela é decisão pendente.
 - Hora da ativação: a migração 0138 carimba `contratos.ativado_em` quando o status sai de aguardando ativação / pendente de assinatura para ativo. Contratos ativados antes de 21/11/2026 só têm o dia (`data_ativacao`).
+
+### GRR Técnico — Etapa 1 (21/11/2026)
+
+- Setor técnico no GRR (`/grr/tecnico`, para gestor, direção e gestor técnico) com os nove indicadores aprovados em 21/11/2026: instalações realizadas (estrela-guia, meta mensal por unidade proporcional aos dias úteis: Altamira 248, Vitória do Xingu 30, Brasil Novo 30), instalação em até 48 h (direcionamento ao gestor técnico até contrato ativo), suporte em até 24 h, corporativo em até 4 h, mudança de endereço em até 24 h do agendamento, retorno em 7 dias e três estoques medidos no fechamento (agendamentos vencidos, falta validar há mais de 24 h, OS de instalação para baixar). Contas em `lib/grr/tecnico/regras.ts`.
+- Metas e catálogo na migração 0139 (mesmas tabelas do comercial, setor `tecnico`), valendo a partir da semana de 16/11/2026. Taxas das unidades herdam a meta da empresa; estoques têm meta só na empresa. Degraus de corporativo e mudança são revistos todo mês pela diretoria.
+- O fechamento automático de segunda às 07:00 congela também o setor técnico (empresa e unidades); a falha de um setor não impede o outro.
+- Modo Apresentação para a reunião operacional de terça (`/apresentacao/grr-tecnico`).
+- Ficam para a Etapa 2: edição das metas técnicas na Configuração, registro e ata da reunião de terça, conferência dos dados do setor técnico e recorte por técnico (depende da Fase 2 da Operação Técnica).
