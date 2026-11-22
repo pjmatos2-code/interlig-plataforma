@@ -3,7 +3,7 @@ import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { carregarDiasUteis } from "@/lib/relatorio-semanal/dias-uteis";
 import { mesDeReferencia, type Semana } from "@/lib/relatorio-semanal/periodo";
 import { dadosOperacao } from "@/lib/operacao/dados";
-import { ehCorporativo, tipoServico } from "@/lib/operacao/regras";
+import { ehCorporativo, servicoFeito, tipoServico } from "@/lib/operacao/regras";
 import { forticsConta } from "@/lib/operacao/direcionamento";
 import { EMPRESA_GRR } from "../config-dados";
 import type { MetaGrr } from "../config";
@@ -87,18 +87,20 @@ export async function lerBaseTecnico(semana: Semana, hoje: string, admin: Admin 
     if (!atual || d.direcionada_em < atual) direcionamento.set(d.sgp_contrato_id, d.direcionada_em);
   }
 
-  // OS de campo encerradas desde duas semanas antes, com a ocorrência de origem
-  const osEncerradasTodas = await paginado<{ sgp_os_id: string; sgp_contrato_id: string | null; pop: string | null; motivo: string | null; agendamento: string | null; encerrada_em: string }>((de, a) =>
+  // serviços de campo feitos desde duas semanas antes (check-in do técnico; sem check-in, a baixa da OS), com a ocorrência de origem
+  type LinhaServico = { sgp_os_id: string; sgp_contrato_id: string | null; pop: string | null; motivo: string | null; status: string | null; agendamento: string | null; checkin: string | null; servico_prestado: string | null; encerrada_em: string | null };
+  const lidas = await paginado<LinhaServico>((de, a) =>
     admin
       .from("os_tecnicas")
-      .select("sgp_os_id, sgp_contrato_id, pop, motivo, agendamento, encerrada_em")
-      .eq("status", "Encerrada")
+      .select("sgp_os_id, sgp_contrato_id, pop, motivo, status, agendamento, checkin, servico_prestado, encerrada_em")
       .in("motivo", MOTIVOS_CAMPO)
-      .gte("encerrada_em", inicioDoDia(ini14))
-      .lte("encerrada_em", fimDoDia(ate))
+      .or(`and(checkin.gte.${inicioDoDia(ini14)},checkin.lte.${fimDoDia(ate)}),and(checkin.is.null,status.eq.Encerrada,encerrada_em.gte.${inicioDoDia(ini14)},encerrada_em.lte.${fimDoDia(ate)})`)
       .order("sgp_os_id")
       .range(de, a)
   );
+  const osEncerradasTodas = lidas
+    .filter((o) => servicoFeito(o))
+    .map((o) => ({ ...o, encerrada_em: (o.checkin ?? o.encerrada_em)! }));
   const ocorrencias = await emLotes<{ sgp_os_id: string; tipo: string | null; criada_em: string; pop: string | null; responsavel: string | null }>(
     osEncerradasTodas.map((o) => o.sgp_os_id),
     (lote) => admin.from("ocorrencias_sgp").select("sgp_os_id, tipo, criada_em, pop, responsavel").in("sgp_os_id", lote)
@@ -114,21 +116,21 @@ export async function lerBaseTecnico(semana: Semana, hoje: string, admin: Admin 
   const suporte: BaseTecnico["suporte"] = [];
   const mudancas: BaseTecnico["mudancas"] = [];
   for (const os of osEncerradas) {
-    if (os.encerrada_em < inicioDoDia(ini7)) continue;
+    if (Date.parse(os.encerrada_em) < Date.parse(inicioDoDia(ini7))) continue;
     const oc = ocPorOs.get(String(os.sgp_os_id));
     if (!oc) continue;
     const tipo = tipoServico(oc.tipo);
     const ct = os.sgp_contrato_id ? contratos.get(os.sgp_contrato_id) : undefined;
     const unidade = ct?.unidade ?? unidadeDoPop(oc.pop) ?? unidadeDoPop(os.pop);
     if (tipo === "suporte" && Date.parse(os.encerrada_em) >= Date.parse(oc.criada_em)) {
-      suporte.push({ unidade, abertaEm: oc.criada_em, encerradaEm: os.encerrada_em, corporativo: Boolean(ct?.corporativo) || /corporativo/i.test(`${oc.pop ?? ""} ${os.pop ?? ""}`) });
+      suporte.push({ unidade, abertaEm: oc.criada_em, atendidaEm: os.encerrada_em, corporativo: Boolean(ct?.corporativo) || /corporativo/i.test(`${oc.pop ?? ""} ${os.pop ?? ""}`) });
     } else if (tipo === "mudanca") {
-      mudancas.push({ unidade, abertaEm: oc.criada_em, agendamento: os.agendamento, encerradaEm: os.encerrada_em });
+      mudancas.push({ unidade, abertaEm: oc.criada_em, agendamento: os.agendamento, atendidaEm: os.encerrada_em });
     }
   }
 
   // retorno em 7 dias: nova OS de suporte do mesmo contrato depois do serviço
-  const servicosBase = osEncerradas.filter((o) => o.sgp_contrato_id && o.encerrada_em <= fimDoDia(somarDias(ate, -7)));
+  const servicosBase = osEncerradas.filter((o) => o.sgp_contrato_id && Date.parse(o.encerrada_em) <= Date.parse(fimDoDia(somarDias(ate, -7))));
   const novasTodas = await emLotes<{ sgp_os_id: string; sgp_contrato_id: string; criada_em: string; motivo: string | null }>(
     [...new Set(servicosBase.map((o) => o.sgp_contrato_id!))],
     (lote) => admin.from("os_tecnicas").select("sgp_os_id, sgp_contrato_id, criada_em, motivo").in("motivo", MOTIVOS_SUPORTE).gte("criada_em", inicioDoDia(ini14)).in("sgp_contrato_id", lote)
@@ -151,7 +153,7 @@ export async function lerBaseTecnico(semana: Semana, hoje: string, admin: Admin 
   const servicos: BaseTecnico["servicos"] = servicosBase.map((o) => {
     const fim = Date.parse(o.encerrada_em);
     const voltou = (suportePorContrato.get(o.sgp_contrato_id!) ?? []).some((n) => n.id !== String(o.sgp_os_id) && n.criada > fim && n.criada <= fim + 7 * 86_400_000);
-    return { unidade: contratos.get(o.sgp_contrato_id!)?.unidade ?? unidadeDoPop(o.pop), encerradaEm: o.encerrada_em, retornou: voltou };
+    return { unidade: contratos.get(o.sgp_contrato_id!)?.unidade ?? unidadeDoPop(o.pop), atendidaEm: o.encerrada_em, retornou: voltou };
   });
 
   return {
@@ -181,7 +183,8 @@ export async function lerEstoques(admin: Admin = criarClienteAdmin()): Promise<N
   };
   for (const c of quadro.cartoes) {
     if (c.coluna === "agendada" && c.agendamento && Date.parse(c.agendamento) < agora) contar(agendamentosVencidos, c.unidade);
-    if (c.coluna === "validar" && c.osEncerradaEm && Date.parse(c.osEncerradaEm) < agora - 86_400_000) contar(faltaValidar, c.unidade);
+    const feitoEm = c.osEncerradaEm ?? c.checkin;
+    if (c.coluna === "validar" && feitoEm && Date.parse(feitoEm) < agora - 86_400_000) contar(faltaValidar, c.unidade);
   }
   const abertas = await paginado<{ contrato_id: string; contratos: { status: string; pops: { nome: string | null } | null } | null }>((de, a) =>
     admin.from("os_instalacao").select("contrato_id, contratos!inner(status, pops(nome))").eq("situacao", "aberta").in("contratos.status", ["ativo", "suspenso"]).order("contrato_id").range(de, a)

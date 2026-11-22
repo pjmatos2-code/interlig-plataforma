@@ -35,15 +35,15 @@ const base = (): BaseTecnico => ({
     { unidade: "Altamira", diaAtivacao: "2026-11-18", ativadoEm: null, direcionadaEm: null }, // sem hora
   ],
   suporte: [
-    { unidade: "Altamira", abertaEm: "2026-11-17T08:00:00-03:00", encerradaEm: "2026-11-17T15:00:00-03:00", corporativo: true },
-    { unidade: "Altamira", abertaEm: "2026-11-15T08:00:00-03:00", encerradaEm: "2026-11-17T15:00:00-03:00", corporativo: false },
+    { unidade: "Altamira", abertaEm: "2026-11-17T08:00:00-03:00", atendidaEm: "2026-11-17T15:00:00-03:00", corporativo: true },
+    { unidade: "Altamira", abertaEm: "2026-11-15T08:00:00-03:00", atendidaEm: "2026-11-17T15:00:00-03:00", corporativo: false },
   ],
-  mudancas: [{ unidade: "Altamira", abertaEm: "2026-11-01T08:00:00-03:00", agendamento: "2026-11-18T08:00:00-03:00", encerradaEm: "2026-11-18T17:00:00-03:00" }],
+  mudancas: [{ unidade: "Altamira", abertaEm: "2026-11-01T08:00:00-03:00", agendamento: "2026-11-18T08:00:00-03:00", atendidaEm: "2026-11-18T17:00:00-03:00" }],
   servicos: [
-    { unidade: "Altamira", encerradaEm: "2026-11-10T10:00:00-03:00", retornou: true },
-    { unidade: "Altamira", encerradaEm: "2026-11-11T10:00:00-03:00", retornou: false },
-    { unidade: "Vitória do Xingu", encerradaEm: "2026-11-12T10:00:00-03:00", retornou: false },
-    { unidade: "Altamira", encerradaEm: "2026-11-18T10:00:00-03:00", retornou: true }, // semana atual: entra só na próxima
+    { unidade: "Altamira", atendidaEm: "2026-11-10T10:00:00-03:00", retornou: true },
+    { unidade: "Altamira", atendidaEm: "2026-11-11T10:00:00-03:00", retornou: false },
+    { unidade: "Vitória do Xingu", atendidaEm: "2026-11-12T10:00:00-03:00", retornou: false },
+    { unidade: "Altamira", atendidaEm: "2026-11-18T10:00:00-03:00", retornou: true }, // semana atual: entra só na próxima
   ],
   estoques: { agendamentosVencidos: { Altamira: 9, "Vitória do Xingu": 16 }, faltaValidar: { Altamira: 100 }, osParaBaixar: { Altamira: 44, "Brasil Novo": 4 }, medidoEm: "21/11 18:00" },
 });
@@ -57,8 +57,8 @@ describe("prazos", () => {
     expect(instalacaoNoPrazo({ diaAtivacao: "2026-11-17", ativadoEm: "2026-11-17T11:00:00-03:00", direcionadaEm: "2026-11-15T10:00:00-03:00" })).toBe(false);
   });
   it("mudança: 24 h da data agendada; sem agendamento, da abertura", () => {
-    expect(mudancaNoPrazo({ abertaEm: "2026-11-01T08:00:00Z", agendamento: "2026-11-10T08:00:00Z", encerradaEm: "2026-11-11T07:00:00Z" })).toBe(true);
-    expect(mudancaNoPrazo({ abertaEm: "2026-11-01T08:00:00Z", agendamento: null, encerradaEm: "2026-11-03T08:00:00Z" })).toBe(false);
+    expect(mudancaNoPrazo({ abertaEm: "2026-11-01T08:00:00Z", agendamento: "2026-11-10T08:00:00Z", atendidaEm: "2026-11-11T07:00:00Z" })).toBe(true);
+    expect(mudancaNoPrazo({ abertaEm: "2026-11-01T08:00:00Z", agendamento: null, atendidaEm: "2026-11-03T08:00:00Z" })).toBe(false);
   });
   it("trechos: semana em andamento compara com o mesmo número de dias", () => {
     expect(trechosTecnico(SEMANA, "2026-11-19")).toEqual({ atual: { de: "2026-11-16", ate: "2026-11-19" }, anterior: { de: "2026-11-09", ate: "2026-11-12" }, emAndamento: true });

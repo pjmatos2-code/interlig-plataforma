@@ -24,6 +24,11 @@ describe("colunaDa", () => {
   it("OS encerrada com ocorrência aberta é Falta validar", () => {
     expect(colunaDa({ status: "Em execução Online" }, { status: "Encerrada", agendamento: "2026-11-20T09:00:00-03:00" })).toBe("validar");
   });
+  it("serviço feito pelo técnico com a OS ainda em execução também é Falta validar", () => {
+    expect(colunaDa({ status: "Em execução Online" }, { status: "Em execução Online", agendamento: "2026-11-21T08:20:00-03:00", checkin: "2026-11-21T08:42:00-03:00", servico_prestado: "[21/11, 09:36] Tipo ATIVAÇÃO" })).toBe("validar");
+    expect(colunaDa({ status: "Em execução Online" }, { status: "Em execução Online", agendamento: null, checkin: "2026-11-21T08:42:00-03:00", servico_prestado: null })).toBe("execucao");
+    expect(colunaDa({ status: "Aberta" }, { status: "Pendente Online", agendamento: null, checkin: "2026-11-21T08:42:00-03:00", servico_prestado: "não concluído" })).toBe("aberta");
+  });
   it("execução pela OS ou pela própria ocorrência", () => {
     expect(colunaDa({ status: "Aberta Online" }, { status: "Em execução Offline", agendamento: null })).toBe("execucao");
     expect(colunaDa({ status: "Em execução" }, null)).toBe("execucao");

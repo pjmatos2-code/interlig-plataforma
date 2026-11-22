@@ -19,12 +19,16 @@ export type BaseTecnico = {
   ativacoes: { dia: string; unidade: UnidadeTecnico | null }[];
   /** instalações ativadas no mesmo intervalo; direcionadaEm null = sem a hora do direcionamento */
   instalacoes: { unidade: UnidadeTecnico | null; diaAtivacao: string; ativadoEm: string | null; direcionadaEm: string | null }[];
-  /** OS de suporte encerradas no intervalo, com a abertura da ocorrência */
-  suporte: { unidade: UnidadeTecnico | null; abertaEm: string; encerradaEm: string; corporativo: boolean }[];
-  /** OS de mudança de endereço encerradas no intervalo */
-  mudancas: { unidade: UnidadeTecnico | null; abertaEm: string; agendamento: string | null; encerradaEm: string }[];
-  /** serviços de campo encerrados desde a segunda de duas semanas atrás, com o retorno em 7 dias */
-  servicos: { unidade: UnidadeTecnico | null; encerradaEm: string; retornou: boolean }[];
+  /**
+   * Serviços de suporte feitos no intervalo, com a abertura da ocorrência.
+   * atendidaEm = check-in do técnico no local (sem check-in, a baixa da OS):
+   * a baixa no SGP é feita depois, por outra pessoa (decisão de 21/11/2026).
+   */
+  suporte: { unidade: UnidadeTecnico | null; abertaEm: string; atendidaEm: string; corporativo: boolean }[];
+  /** mudanças de endereço feitas no intervalo (atendidaEm como no suporte) */
+  mudancas: { unidade: UnidadeTecnico | null; abertaEm: string; agendamento: string | null; atendidaEm: string }[];
+  /** serviços de campo feitos desde a segunda de duas semanas atrás, com o retorno em 7 dias */
+  servicos: { unidade: UnidadeTecnico | null; atendidaEm: string; retornou: boolean }[];
   /** estoques medidos agora (null em semana antiga: o número só existe na foto do fechamento) */
   estoques: { agendamentosVencidos: Contagem; faltaValidar: Contagem; osParaBaixar: Contagem; medidoEm: string } | null;
 };
@@ -62,9 +66,9 @@ export function instalacaoNoPrazo(i: { diaAtivacao: string; ativadoEm: string | 
   return dias <= 2;
 }
 
-/** mudança no prazo: OS encerrada até 24 h depois da data agendada (sem agendamento, da abertura) */
-export function mudancaNoPrazo(m: { abertaEm: string; agendamento: string | null; encerradaEm: string }): boolean {
-  return Date.parse(m.encerradaEm) - Date.parse(m.agendamento ?? m.abertaEm) <= 24 * HORA;
+/** mudança no prazo: técnico no local até 24 h depois da data agendada (sem agendamento, da abertura) */
+export function mudancaNoPrazo(m: { abertaEm: string; agendamento: string | null; atendidaEm: string }): boolean {
+  return Date.parse(m.atendidaEm) - Date.parse(m.agendamento ?? m.abertaEm) <= 24 * HORA;
 }
 
 const taxa = (ok: number, n: number) => (n > 0 ? ok / n : null);
@@ -104,18 +108,18 @@ function medir(base: BaseTecnico, t: TrechoTecnico, un: UnidadeTecnico | null): 
   for (const a of ativ) if (a.unidade) porUnidade[a.unidade] = (porUnidade[a.unidade] ?? 0) + 1;
   const inst = base.instalacoes.filter((i) => daUn(i.unidade) && entre(i.diaAtivacao, t.de, t.ate));
   const comHora = inst.filter((i): i is typeof i & { direcionadaEm: string } => Boolean(i.direcionadaEm));
-  const sup = base.suporte.filter((s) => daUn(s.unidade) && noTrecho(s.encerradaEm));
+  const sup = base.suporte.filter((s) => daUn(s.unidade) && noTrecho(s.atendidaEm));
   const corp = sup.filter((s) => s.corporativo);
-  const dentro = (s: { abertaEm: string; encerradaEm: string }, h: number) => Date.parse(s.encerradaEm) - Date.parse(s.abertaEm) <= h * HORA;
-  const mud = base.mudancas.filter((m) => daUn(m.unidade) && noTrecho(m.encerradaEm));
+  const dentro = (s: { abertaEm: string; atendidaEm: string }, h: number) => Date.parse(s.atendidaEm) - Date.parse(s.abertaEm) <= h * HORA;
+  const mud = base.mudancas.filter((m) => daUn(m.unidade) && noTrecho(m.atendidaEm));
   // retorno: serviços encerrados na semana anterior ao trecho (já com os 7 dias completos)
   const de7 = somarDias(t.de, -7);
   const ate7 = somarDias(t.ate, -7);
-  const serv = base.servicos.filter((s) => daUn(s.unidade) && entre(diaSantarem(s.encerradaEm), de7, ate7));
+  const serv = base.servicos.filter((s) => daUn(s.unidade) && entre(diaSantarem(s.atendidaEm), de7, ate7));
   return {
     instalacoes: ativ.length,
     inst48: { ok: comHora.filter(instalacaoNoPrazo).length, n: comHora.length, semHora: inst.length - comHora.length },
-    suporte: { ok: sup.filter((s) => dentro(s, 24)).length, n: sup.length, medianaH: mediana(sup.map((s) => (Date.parse(s.encerradaEm) - Date.parse(s.abertaEm)) / HORA)) },
+    suporte: { ok: sup.filter((s) => dentro(s, 24)).length, n: sup.length, medianaH: mediana(sup.map((s) => (Date.parse(s.atendidaEm) - Date.parse(s.abertaEm)) / HORA)) },
     corporativo: { ok: corp.filter((s) => dentro(s, 4)).length, n: corp.length },
     mudanca: { ok: mud.filter(mudancaNoPrazo).length, n: mud.length },
     retorno: { voltou: serv.filter((s) => s.retornou).length, n: serv.length },

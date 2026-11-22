@@ -28,7 +28,7 @@ export const COLUNAS: { chave: Coluna; rotulo: string; ajuda: string }[] = [
   { chave: "aberta", rotulo: "Aberta", ajuda: "Ocorrência aberta, ainda sem agendamento." },
   { chave: "agendada", rotulo: "Agendada", ajuda: "OS com data marcada, técnico ainda não começou." },
   { chave: "execucao", rotulo: "Em execução", ajuda: "Técnico em atendimento (check-in feito)." },
-  { chave: "validar", rotulo: "Falta validar", ajuda: "O técnico já encerrou a OS, mas a ocorrência segue aberta no SGP: conferir o serviço e fechar." },
+  { chave: "validar", rotulo: "Falta validar", ajuda: "O técnico já fez o serviço (check-in e serviço prestado na OS), mas a OS ou a ocorrência segue aberta no SGP: conferir e dar baixa." },
   { chave: "encerrada", rotulo: "Encerrada", ajuda: `Ocorrências fechadas nos últimos ${DIAS_ENCERRADAS} dias.` },
 ];
 
@@ -54,15 +54,29 @@ export const emExecucaoNoSgp = (status: string | null | undefined) => /execu[cç
 export const pendenteNoSgp = (status: string | null | undefined) => /pendente/i.test(status ?? "");
 
 export type OcorrenciaBase = { status: string | null; encerrada_em?: string | null };
-export type OsBase = { status: string | null; agendamento: string | null } | null | undefined;
+export type OsBase = { status: string | null; agendamento: string | null; checkin?: string | null; servico_prestado?: string | null } | null | undefined;
+
+/**
+ * O técnico fez o serviço (21/11/2026): check-in no local e "serviço prestado"
+ * registrado na OS, sem estar como pendente. No SGP a OS só fica "Encerrada"
+ * quando a pessoa da baixa finaliza (caso real: instalação feita às 09:36, com
+ * fotos e assinatura, e a OS seguia "Em execução" à noite). Encerrada no SGP
+ * também conta como serviço feito.
+ */
+export function servicoFeito(os: { status: string | null; checkin?: string | null; servico_prestado?: string | null } | null | undefined): boolean {
+  if (!os) return false;
+  if (encerradaNoSgp(os.status)) return true;
+  return Boolean(os.checkin) && !pendenteNoSgp(os.status) && /[A-Za-z0-9]/.test(os.servico_prestado ?? "");
+}
 
 /**
  * Coluna do cartão. A ocorrência manda no fechamento; a OS diz em que pé está
- * o serviço. OS encerrada com ocorrência aberta é a pendência de validação.
+ * o serviço. Serviço feito pelo técnico (OS encerrada, ou com check-in e
+ * serviço prestado registrado) com a ocorrência aberta é a pendência de baixa.
  */
 export function colunaDa(oc: OcorrenciaBase, os: OsBase): Coluna {
   if (encerradaNoSgp(oc.status)) return "encerrada";
-  if (os && encerradaNoSgp(os.status)) return "validar";
+  if (servicoFeito(os)) return "validar";
   if ((os && emExecucaoNoSgp(os.status)) || emExecucaoNoSgp(oc.status)) return "execucao";
   if (os && os.agendamento) return "agendada";
   return "aberta";

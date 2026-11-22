@@ -43,19 +43,19 @@ export const INDICADORES_TECNICO: IndicadorTecnico[] = [
   },
   {
     chave: "tec_suporte_24h", grupo: "prazos", nome: "Suporte em até 24 h", unidade: "percentual", polaridade: "maior_melhor", herdaMeta: true,
-    calculo: "Das OS de suporte encerradas na semana, quantas foram encerradas até 24 h depois da abertura da ocorrência.",
+    calculo: "Dos atendimentos de suporte feitos na semana, quantos tiveram o técnico no local (check-in) até 24 h depois da abertura da ocorrência. A baixa da OS no SGP não entra na conta.",
   },
   {
     chave: "tec_corporativo_4h", grupo: "prazos", nome: "Corporativo em até 4 h", unidade: "percentual", polaridade: "maior_melhor", herdaMeta: true,
-    calculo: "Mesma conta do suporte, para clientes CNPJ, plano ou POP corporativo, com prazo de 4 h.",
+    calculo: "Mesma conta do suporte (abertura até o técnico no local), para clientes CNPJ, plano ou POP corporativo, com prazo de 4 h.",
   },
   {
     chave: "tec_mudanca_24h", grupo: "prazos", nome: "Mudança de endereço em até 24 h do agendamento", unidade: "percentual", polaridade: "maior_melhor", herdaMeta: true,
-    calculo: "Das mudanças de endereço encerradas na semana, quantas tiveram a OS encerrada até 24 h depois da data agendada (sem agendamento, conta da abertura).",
+    calculo: "Das mudanças de endereço feitas na semana, quantas tiveram o técnico no local (check-in) até 24 h depois da data agendada (sem agendamento, conta da abertura).",
   },
   {
     chave: "tec_retorno_7d", grupo: "qualidade", nome: "Retorno em 7 dias", unidade: "percentual", polaridade: "menor_melhor", herdaMeta: true,
-    calculo: "Dos serviços encerrados na semana anterior (instalação, mudança, suporte), quantos voltaram com nova OS de suporte do mesmo contrato em até 7 dias.",
+    calculo: "Dos serviços feitos na semana anterior (instalação, mudança, suporte), quantos voltaram com nova OS de suporte do mesmo contrato em até 7 dias.",
   },
   {
     chave: "tec_agendamentos_vencidos", grupo: "processo", nome: "Agendamentos vencidos", unidade: "numero", polaridade: "menor_melhor", herdaMeta: false, estoque: true,
@@ -63,7 +63,7 @@ export const INDICADORES_TECNICO: IndicadorTecnico[] = [
   },
   {
     chave: "tec_falta_validar", grupo: "processo", nome: "Falta validar há mais de 24 h", unidade: "numero", polaridade: "menor_melhor", herdaMeta: false, estoque: true,
-    calculo: "No fechamento: OS encerrada pelo técnico há mais de 24 h com a ocorrência ainda aberta no SGP.",
+    calculo: "No fechamento: serviço feito pelo técnico (OS encerrada, ou check-in e serviço prestado registrado) há mais de 24 h com a OS ou a ocorrência ainda aberta no SGP.",
   },
   {
     chave: "tec_os_para_baixar", grupo: "processo", nome: "OS de instalação para baixar", unidade: "numero", polaridade: "menor_melhor", herdaMeta: false, estoque: true,

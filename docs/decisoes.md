@@ -1174,3 +1174,9 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 
 - O menu "GRR, Gestão de Resultados" abre em `/grr/setores`, onde a pessoa escolhe o setor (comercial ou técnico) antes de ver os números. Quem só tem um setor vai direto para ele (coordenação comercial → comercial; gestor técnico → técnico). No topo de cada setor, uma faixa mostra o setor atual e troca de setor. Setores novos entram em `lib/grr/setores.ts`.
 - Calendário (21/11/2026, à noite): a conclusão passa a contar no dia em que o técnico esteve no local (check-in da OS); sem check-in, no dia agendado; sem os dois, no dia da baixa. A baixa no SGP é feita depois por outra pessoa (nenhuma OS de campo foi fechada pelo próprio técnico desde 19/10; das 42 baixadas em 21/11, só 1 tinha sido feita nesse dia). O cartão mostra a data da baixa quando é outro dia.
+
+### Serviço feito pelo técnico ≠ baixa no SGP (21/11/2026)
+
+- Caso real mostrado pela gestão: instalação feita às 09:36, com serviço prestado, fotos e assinatura do cliente, e à noite a OS e a ocorrência seguiam "Em execução". No SGP quem encerra a OS é quase sempre a pessoa da baixa (39 das 42 OS encerradas em 21/11).
+- Serviço feito = OS encerrada, ou OS com check-in do técnico e "serviço prestado" registrado, sem estar pendente (`servicoFeito` em `lib/operacao/regras.ts`).
+- Quadro: serviço feito com OS ou ocorrência aberta vai para "Falta validar". Calendário: concluído no dia do check-in, com "OS ainda não baixada". GRR Técnico: suporte, corporativo e mudança contam o prazo até o técnico no local (check-in; sem check-in, a baixa); retorno em 7 dias parte dos serviços feitos; "Falta validar há mais de 24 h" conta do serviço feito.

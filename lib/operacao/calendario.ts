@@ -1,7 +1,8 @@
 /**
  * Calendário da Operação Técnica (21/11/2026): por dia, o que está AGENDADO
  * (OS com data marcada, ainda não encerrada — fica no dia do agendamento) e o
- * que foi CONCLUÍDO (OS encerrada — fica no dia em que o técnico esteve no
+ * que foi CONCLUÍDO (serviço feito pelo técnico: OS encerrada, ou com check-in
+ * e serviço prestado registrado — fica no dia em que o técnico esteve no
  * local, pelo check-in). A baixa da OS no SGP é feita depois, por outra pessoa
  * (em 21/11/2026 nenhuma OS de campo foi fechada pelo próprio técnico e 41 das
  * 42 baixadas no dia tinham sido feitas antes); por isso o dia da baixa só vale
@@ -13,7 +14,7 @@
  * Fortics só entra quando a ocorrência foi para um gestor técnico.
  */
 
-import type { TipoServico } from "./regras";
+import { servicoFeito, type TipoServico } from "./regras";
 
 const MOTIVOS: Record<string, TipoServico> = {
   "Instalação de equipamento": "instalacao",
@@ -46,7 +47,7 @@ export type OsCalendario = {
   quando: string;
   /** de onde veio o dia da conclusão */
   fonte: "agendamento" | "checkin" | "baixa";
-  /** quando a OS foi baixada no SGP (só nas concluídas) */
+  /** quando a OS foi baixada no SGP (só nas concluídas; null = ainda não baixada) */
   baixadaEm: string | null;
   vencido: boolean;
   tipo: TipoServico;
@@ -70,9 +71,13 @@ export const diaSantarem = (iso: string) => new Date(Date.parse(iso) - 3 * HORA)
  * se a hora já passou); aberta sem agendamento → não entra.
  */
 export function posicaoNoCalendario(
-  os: { status: string | null; agendamento: string | null; checkin?: string | null; encerradaEm: string | null },
+  os: { status: string | null; agendamento: string | null; checkin?: string | null; encerradaEm: string | null; servicoPrestado?: string | null },
   agora: number
 ): { estado: EstadoCalendario; dia: string; quando: string; vencido: boolean; fonte: OsCalendario["fonte"]; baixadaEm: string | null } | null {
+  // serviço feito pelo técnico com a OS ainda aberta: concluído no dia do check-in, aguardando a baixa
+  if (!/encerrad/i.test(os.status ?? "") && os.checkin && servicoFeito({ status: os.status, checkin: os.checkin, servico_prestado: os.servicoPrestado })) {
+    return { estado: "concluido", dia: diaSantarem(os.checkin), quando: os.checkin, vencido: false, fonte: "checkin", baixadaEm: null };
+  }
   if (/encerrad/i.test(os.status ?? "")) {
     const quando = os.checkin ?? os.agendamento ?? os.encerradaEm;
     if (!quando) return null;

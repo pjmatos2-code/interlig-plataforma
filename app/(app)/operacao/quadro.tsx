@@ -50,7 +50,7 @@ function textoTempo(c: CartaoOperacao, agora: number): string {
     case "execucao":
       return c.checkin ? `Em atendimento há ${tempoDesde(c.checkin, agora)}` : `Aberta há ${tempoDesde(c.criadaEm, agora)}`;
     case "validar":
-      return `OS encerrada há ${tempoDesde(c.osEncerradaEm, agora)}`;
+      return c.osEncerradaEm ? `OS encerrada há ${tempoDesde(c.osEncerradaEm, agora)}` : `Técnico atendeu há ${tempoDesde(c.checkin, agora)} · OS ainda não baixada`;
     case "encerrada":
       return `Fechada em ${formatarDataHora(c.encerradaEm)}`;
     default:
@@ -148,7 +148,10 @@ export function QuadroOperacao({ dados, linkTemplate, agora }: { dados: DadosOpe
   }, [filtrados]);
 
   const corporativosAbertos = filtrados.filter((c) => c.corporativo && c.coluna !== "encerrada").length;
-  const validarMaisAntiga = porColuna.validar.reduce<string | null>((m, c) => (c.osEncerradaEm && (!m || c.osEncerradaEm < m) ? c.osEncerradaEm : m), null);
+  const validarMaisAntiga = porColuna.validar.reduce<string | null>((m, c) => {
+    const ref = c.osEncerradaEm ?? c.checkin;
+    return ref && (!m || ref < m) ? ref : m;
+  }, null);
   const alternarTipo = (t: TipoServico) => setTipos((xs) => (xs.includes(t) ? (xs.length > 1 ? xs.filter((x) => x !== t) : xs) : [...xs, t]));
 
   return (

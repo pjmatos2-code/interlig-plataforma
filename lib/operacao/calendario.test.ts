@@ -15,6 +15,12 @@ describe("calendário", () => {
       estado: "concluido", dia: "2026-11-18", quando: "2026-11-18T10:15:00-03:00", vencido: false, fonte: "checkin", baixadaEm: "2026-11-21T16:30:00-03:00",
     });
   });
+  it("serviço feito com a OS ainda em execução é concluído no dia do check-in, sem baixa", () => {
+    expect(posicaoNoCalendario({ status: "Em execução Online", agendamento: "2026-11-21T08:20:00-03:00", checkin: "2026-11-21T08:42:00-03:00", encerradaEm: null, servicoPrestado: "[21/11, 09:36] Tipo ATIVAÇÃO" }, agora)).toEqual({
+      estado: "concluido", dia: "2026-11-21", quando: "2026-11-21T08:42:00-03:00", vencido: false, fonte: "checkin", baixadaEm: null,
+    });
+    expect(posicaoNoCalendario({ status: "Em execução Online", agendamento: "2026-11-21T08:20:00-03:00", checkin: "2026-11-21T08:42:00-03:00", encerradaEm: null, servicoPrestado: null }, agora)?.estado).toBe("agendado");
+  });
   it("sem check-in vale o agendamento; sem os dois, a baixa", () => {
     expect(posicaoNoCalendario({ status: "Encerrada", agendamento: "2026-11-17T08:00:00-03:00", checkin: null, encerradaEm: "2026-11-21T16:30:00-03:00" }, agora)).toMatchObject({ dia: "2026-11-17", fonte: "agendamento" });
     expect(posicaoNoCalendario({ status: "Encerrada", agendamento: null, checkin: null, encerradaEm: "2026-11-21T16:30:00-03:00" }, agora)).toMatchObject({ dia: "2026-11-21", fonte: "baixa" });

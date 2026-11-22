@@ -51,6 +51,7 @@ function Item({ o, linkTemplate }: { o: OsCalendario; linkTemplate: string | nul
         <span className="inline-flex items-center gap-1">
           <Wrench className="h-3 w-3" aria-hidden /> {o.tecnico ?? "sem técnico no SGP"} · OS {o.osId}
           {o.estado === "concluido" && o.baixadaEm && o.fonte !== "baixa" && diaSantarem(o.baixadaEm) !== o.dia && ` · baixada no SGP em ${diaSantarem(o.baixadaEm).slice(8, 10)}/${diaSantarem(o.baixadaEm).slice(5, 7)}`}
+          {o.estado === "concluido" && !o.baixadaEm && " · OS ainda não baixada"}
         </span>
         {link && (
           <a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-interlig-ceu hover:underline">
@@ -215,7 +216,7 @@ export function CalendarioOperacao(p: {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Concluída conta no dia em que o técnico esteve no local (check-in); a baixa da OS no SGP costuma ser feita depois. OS lidas do SGP {haQuantoTempo(p.atualizadoEm)}. As OS dos últimos 31 dias são relidas a cada ~15 min no expediente; meses mais antigos mostram o último status lido.
+        Concluída = serviço feito pelo técnico (check-in e serviço prestado na OS), no dia do check-in, mesmo que a OS ainda não tenha sido baixada no SGP. OS lidas do SGP {haQuantoTempo(p.atualizadoEm)}. As OS dos últimos 31 dias são relidas a cada ~15 min no expediente; meses mais antigos mostram o último status lido.
       </p>
     </div>
   );
