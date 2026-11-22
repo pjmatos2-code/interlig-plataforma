@@ -31,6 +31,8 @@ export type BaseTecnico = {
   servicos: { unidade: UnidadeTecnico | null; atendidaEm: string; retornou: boolean }[];
   /** estoques medidos agora (null em semana antiga: o número só existe na foto do fechamento) */
   estoques: { agendamentosVencidos: Contagem; faltaValidar: Contagem; osParaBaixar: Contagem; medidoEm: string } | null;
+  /** OS de campo agendadas desde a segunda da semana anterior, com o técnico designado (agenda cumprida) */
+  agendadas?: { unidade: UnidadeTecnico | null; tecnico: string | null; agendamento: string; checkin: string | null; status: string | null }[];
 };
 export type Contagem = Partial<Record<UnidadeTecnico, number>>;
 
@@ -47,6 +49,27 @@ export type CartaoTecnico = {
   status: Status;
   calculo: string;
 };
+
+export type SituacaoAgenda = "cumprida" | "atrasada" | "sem_registro" | "a_vencer";
+
+/**
+ * Agenda cumprida (decisão de 21/11/2026): a OS agendada conta como cumprida
+ * quando o técnico fez check-in até o fim do dia marcado. Atrasada: chegou em
+ * dia posterior, ficou pendente, ou o dia passou sem check-in com a OS aberta.
+ * Encerrada sem check-in não dá para avaliar (falha de registro). OS de hoje
+ * ou futura sem check-in ainda não venceu.
+ */
+export function situacaoAgenda(os: { agendamento: string; checkin: string | null; status: string | null }, hoje: string): SituacaoAgenda {
+  const diaAg = diaSantarem(os.agendamento);
+  if (/pendente/i.test(os.status ?? "")) return "atrasada";
+  if (os.checkin) return diaSantarem(os.checkin) <= diaAg ? "cumprida" : "atrasada";
+  if (/encerrad/i.test(os.status ?? "")) return "sem_registro";
+  return diaAg < hoje ? "atrasada" : "a_vencer";
+}
+
+export type LinhaAgendaTecnico = { tecnico: string; agendadas: number; cumpridas: number; atrasadas: number; semRegistro: number; taxa: number | null; status: Status };
+/** técnico com menos de 10 OS avaliadas na semana fica sem farol (amostra pequena) */
+export const MINIMO_FAROL_TECNICO = 10;
 
 export type RecorteTecnico = { tipo: "empresa" | "unidade"; unidade: UnidadeTecnico | null; chave: ChaveEscopo; rotulo: string };
 
@@ -97,10 +120,11 @@ type Medidas = {
   corporativo: { ok: number; n: number };
   mudanca: { ok: number; n: number };
   retorno: { voltou: number; n: number };
+  agenda: { cumpridas: number; atrasadas: number; semRegistro: number };
   porUnidade: Contagem;
 };
 
-function medir(base: BaseTecnico, t: TrechoTecnico, un: UnidadeTecnico | null): Medidas {
+function medir(base: BaseTecnico, t: TrechoTecnico, un: UnidadeTecnico | null, hoje: string): Medidas {
   const daUn = (u: UnidadeTecnico | null) => un == null || u === un;
   const noTrecho = (iso: string) => entre(diaSantarem(iso), t.de, t.ate);
   const ativ = base.ativacoes.filter((a) => daUn(a.unidade) && entre(a.dia, t.de, t.ate));
@@ -116,6 +140,7 @@ function medir(base: BaseTecnico, t: TrechoTecnico, un: UnidadeTecnico | null): 
   const de7 = somarDias(t.de, -7);
   const ate7 = somarDias(t.ate, -7);
   const serv = base.servicos.filter((s) => daUn(s.unidade) && entre(diaSantarem(s.atendidaEm), de7, ate7));
+  const ag = (base.agendadas ?? []).filter((x) => daUn(x.unidade) && entre(diaSantarem(x.agendamento), t.de, t.ate)).map((x) => situacaoAgenda(x, hoje));
   return {
     instalacoes: ativ.length,
     inst48: { ok: comHora.filter(instalacaoNoPrazo).length, n: comHora.length, semHora: inst.length - comHora.length },
@@ -123,6 +148,7 @@ function medir(base: BaseTecnico, t: TrechoTecnico, un: UnidadeTecnico | null): 
     corporativo: { ok: corp.filter((s) => dentro(s, 4)).length, n: corp.length },
     mudanca: { ok: mud.filter(mudancaNoPrazo).length, n: mud.length },
     retorno: { voltou: serv.filter((s) => s.retornou).length, n: serv.length },
+    agenda: { cumpridas: ag.filter((x) => x === "cumprida").length, atrasadas: ag.filter((x) => x === "atrasada").length, semRegistro: ag.filter((x) => x === "sem_registro").length },
     porUnidade,
   };
 }
@@ -150,12 +176,13 @@ export type ParametrosMontagem = {
 };
 
 /** os cartões do GRR Técnico num recorte e numa semana */
-export function montarTecnico(p: ParametrosMontagem): { cartoes: CartaoTecnico[]; emAndamento: boolean; trecho: TrechoTecnico } {
+export function montarTecnico(p: ParametrosMontagem): { cartoes: CartaoTecnico[]; emAndamento: boolean; trecho: TrechoTecnico; porTecnico: LinhaAgendaTecnico[] } {
   const { base, semana, hoje, recorte, metas, expediente } = p;
   const tr = trechosTecnico(semana, hoje);
   const un = recorte.unidade;
-  const m = medir(base, tr.atual, un);
-  const a = medir(base, tr.anterior, un);
+  const m = medir(base, tr.atual, un, hoje);
+  // a semana anterior já passou inteira: nenhuma OS dela está "a vencer"
+  const a = medir(base, tr.anterior, un, tr.atual.de);
   const rotuloTrecho = tr.emAndamento ? `até ${tr.atual.ate.slice(8, 10)}/${tr.atual.ate.slice(5, 7)}` : "semana completa";
 
   const def = (chave: string) => INDICADORES_TECNICO.find((i) => i.chave === chave)!;
@@ -209,11 +236,42 @@ export function montarTecnico(p: ParametrosMontagem): { cartoes: CartaoTecnico[]
     ),
     cartao("tec_suporte_24h", tSup, m.suporte.n ? `${num(m.suporte.ok)} de ${num(m.suporte.n)} OS · metade em até ${horasTxt(m.suporte.medianaH)}` : "nenhuma OS de suporte encerrada", evolucaoPp(tSup, taxa(a.suporte.ok, a.suporte.n))),
     cartao("tec_corporativo_4h", tCorp, m.corporativo.n ? `${num(m.corporativo.ok)} de ${num(m.corporativo.n)} OS corporativas` : "nenhuma OS corporativa encerrada", evolucaoPp(tCorp, taxa(a.corporativo.ok, a.corporativo.n))),
+    cartao(
+      "tec_agenda_no_dia",
+      taxa(m.agenda.cumpridas, m.agenda.cumpridas + m.agenda.atrasadas),
+      m.agenda.cumpridas + m.agenda.atrasadas
+        ? `${num(m.agenda.cumpridas)} de ${num(m.agenda.cumpridas + m.agenda.atrasadas)} OS no dia marcado · ${num(m.agenda.atrasadas)} atrasada${m.agenda.atrasadas === 1 ? "" : "s"}${m.agenda.semRegistro ? ` · ${num(m.agenda.semRegistro)} encerrada${m.agenda.semRegistro === 1 ? "" : "s"} sem check-in` : ""}`
+        : "nenhuma OS agendada vencida no período",
+      evolucaoPp(taxa(m.agenda.cumpridas, m.agenda.cumpridas + m.agenda.atrasadas), taxa(a.agenda.cumpridas, a.agenda.cumpridas + a.agenda.atrasadas))
+    ),
     cartao("tec_mudanca_24h", tMud, m.mudanca.n ? `${num(m.mudanca.ok)} de ${num(m.mudanca.n)} mudanças` : "nenhuma mudança encerrada", evolucaoPp(tMud, taxa(a.mudanca.ok, a.mudanca.n))),
     cartao("tec_retorno_7d", tRet, m.retorno.n ? `${num(m.retorno.voltou)} de ${num(m.retorno.n)} serviços da semana anterior voltaram` : "sem serviços na semana anterior", evolucaoPp(tRet, taxa(a.retorno.voltou, a.retorno.n), true)),
     cartao("tec_agendamentos_vencidos", est ? somaContagem(est.agendamentosVencidos, un) : null, `${!un && est ? `${porUnidadeTxt(est.agendamentosVencidos)} · ` : ""}${estTxt}`, null),
     cartao("tec_falta_validar", est ? somaContagem(est.faltaValidar, un) : null, `${!un && est ? `${porUnidadeTxt(est.faltaValidar)} · ` : ""}${estTxt}`, null),
     cartao("tec_os_para_baixar", est ? somaContagem(est.osParaBaixar, un) : null, `${!un && est ? `${porUnidadeTxt(est.osParaBaixar)} · ` : ""}${estTxt}`, null),
   ];
-  return { cartoes, emAndamento: tr.emAndamento, trecho: tr.atual };
+  // agenda por técnico (apresentação da reunião de terça): mesma régua, sem farol abaixo de 10 OS
+  const metaAgenda = metaVigente(metas, def("tec_agenda_no_dia"), recorte.chave, semana.inicio);
+  const porNome = new Map<string, LinhaAgendaTecnico>();
+  for (const x of base.agendadas ?? []) {
+    if ((un && x.unidade !== un) || !entre(diaSantarem(x.agendamento), tr.atual.de, tr.atual.ate)) continue;
+    const sit = situacaoAgenda(x, hoje);
+    if (sit === "a_vencer") continue;
+    const nome = x.tecnico?.trim() || "Sem técnico designado";
+    const l = porNome.get(nome) ?? { tecnico: nome, agendadas: 0, cumpridas: 0, atrasadas: 0, semRegistro: 0, taxa: null, status: "sem_meta" as Status };
+    l.agendadas++;
+    if (sit === "cumprida") l.cumpridas++;
+    else if (sit === "atrasada") l.atrasadas++;
+    else l.semRegistro++;
+    porNome.set(nome, l);
+  }
+  const porTecnico = [...porNome.values()]
+    .map((l) => {
+      const avaliadas = l.cumpridas + l.atrasadas;
+      const tx = avaliadas ? l.cumpridas / avaliadas : null;
+      const status: Status = metaAgenda && metaAgenda.meta != null && metaAgenda.limite_atencao != null && avaliadas >= MINIMO_FAROL_TECNICO ? statusPorFaixa(tx, metaAgenda.meta, metaAgenda.limite_atencao, "maior_melhor") : "sem_meta";
+      return { ...l, taxa: tx, status };
+    })
+    .sort((x, y) => y.atrasadas - x.atrasadas || (x.taxa ?? 1) - (y.taxa ?? 1) || x.tecnico.localeCompare(y.tecnico));
+  return { cartoes, emAndamento: tr.emAndamento, trecho: tr.atual, porTecnico };
 }

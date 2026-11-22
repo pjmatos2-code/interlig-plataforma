@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { CartaoTecnico, RecorteTecnico } from "@/lib/grr/tecnico/regras";
+import { MINIMO_FAROL_TECNICO, type CartaoTecnico, type LinhaAgendaTecnico, type RecorteTecnico } from "@/lib/grr/tecnico/regras";
 import { Moldura, useSecao } from "./moldura";
 import { Numero, TV, Titulo } from "./pecas";
 
@@ -14,6 +14,7 @@ import { Numero, TV, Titulo } from "./pecas";
 const SECOES = [
   { chave: "instalacoes", titulo: "Instalações da semana" },
   { chave: "prazos", titulo: "Prazos de atendimento" },
+  { chave: "agenda", titulo: "Agenda por técnico" },
   { chave: "processo", titulo: "Qualidade e processo" },
   { chave: "unidades", titulo: "Por unidade" },
 ] as const;
@@ -51,13 +52,14 @@ export function ApresentacaoTecnico(p: {
   rotuloSemana: string;
   status: string;
   hrefVoltar: string;
-  porRecorte: { recorte: RecorteTecnico; cartoes: CartaoTecnico[] }[];
+  porRecorte: { recorte: RecorteTecnico; cartoes: CartaoTecnico[]; porTecnico?: LinhaAgendaTecnico[] }[];
 }) {
   const { atual, ir } = useSecao(SECOES);
   const empresa = p.porRecorte[0]?.cartoes ?? [];
   const k = (chave: string, cartoes = empresa) => cartoes.find((c) => c.chave === chave);
   const unidades = p.porRecorte.slice(1);
-  const linhas = ["tec_instalacoes", "tec_instalacao_48h", "tec_suporte_24h", "tec_corporativo_4h", "tec_mudanca_24h", "tec_retorno_7d", "tec_agendamentos_vencidos", "tec_falta_validar", "tec_os_para_baixar"];
+  const agenda = p.porRecorte[0]?.porTecnico ?? [];
+  const linhas = ["tec_instalacoes", "tec_instalacao_48h", "tec_agenda_no_dia", "tec_suporte_24h", "tec_corporativo_4h", "tec_mudanca_24h", "tec_retorno_7d", "tec_agendamentos_vencidos", "tec_falta_validar", "tec_os_para_baixar"];
 
   const telas = [
     <div key="i" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
@@ -83,6 +85,40 @@ export function ApresentacaoTecnico(p: {
         <Indicador c={k("tec_suporte_24h")} />
         <Indicador c={k("tec_corporativo_4h")} />
         <Indicador c={k("tec_mudanca_24h")} />
+      </div>
+    </div>,
+    <div key="a" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
+      <Titulo sub={`OS agendadas e vencidas na semana · atrasada: chegou depois do dia, ficou pendente ou não houve check-in · menos de ${MINIMO_FAROL_TECNICO} OS fica sem farol`}>Agenda por técnico</Titulo>
+      <div className="grid gap-[clamp(0.7rem,1.2vw,1.75rem)] lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <Indicador c={k("tec_agenda_no_dia")} />
+        <div className={cn("overflow-x-auto border-t-[6px] border-t-interlig-azul", TV.quadro)}>
+          {agenda.length === 0 ? (
+            <p className={cn("text-slate-600", TV.corpo)}>Sem OS agendadas vencidas nesta semana{p.status.includes("fechamento") ? " (ou semana congelada antes deste quadro existir)" : ""}.</p>
+          ) : (
+            <table className={cn("w-full tabular-nums", TV.corpo)}>
+              <thead>
+                <tr className="text-left text-slate-500">
+                  <th className="py-[0.6vh] pr-4 font-semibold">Técnico</th>
+                  <th className="py-[0.6vh] pl-4 text-right font-semibold">Agendadas</th>
+                  <th className="py-[0.6vh] pl-4 text-right font-semibold">No dia</th>
+                  <th className="py-[0.6vh] pl-4 text-right font-semibold">Atrasadas</th>
+                  <th className="py-[0.6vh] pl-4 text-right font-semibold">%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agenda.slice(0, 12).map((l) => (
+                  <tr key={l.tecnico} className="border-t-2 border-slate-200">
+                    <td className="py-[0.7vh] pr-4 font-medium text-slate-700">{l.tecnico}</td>
+                    <td className="py-[0.7vh] pl-4 text-right">{l.agendadas}</td>
+                    <td className="py-[0.7vh] pl-4 text-right">{l.cumpridas}</td>
+                    <td className={cn("py-[0.7vh] pl-4 text-right font-bold", l.atrasadas > 0 ? "text-farol-vermelho" : "text-slate-500")}>{l.atrasadas}</td>
+                    <td className={cn("py-[0.7vh] pl-4 text-right font-bold", COR[l.status])}>{l.taxa == null ? "—" : `${Math.round(l.taxa * 100)}%`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>,
     <div key="q" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">

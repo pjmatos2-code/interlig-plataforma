@@ -50,6 +50,10 @@ export const INDICADORES_TECNICO: IndicadorTecnico[] = [
     calculo: "Mesma conta do suporte (abertura até o técnico no local), para clientes CNPJ, plano ou POP corporativo, com prazo de 4 h.",
   },
   {
+    chave: "tec_agenda_no_dia", grupo: "prazos", nome: "Agendamentos cumpridos no dia", unidade: "percentual", polaridade: "maior_melhor", herdaMeta: true,
+    calculo: "Das OS agendadas para a semana (já vencidas), quantas tiveram o técnico no local (check-in) até o fim do dia marcado. Atrasada: chegou depois, ficou pendente ou o dia passou sem check-in. Encerrada sem check-in fica fora (falha de registro). O SGP guarda só a última data agendada: OS reagendada conta pela data nova.",
+  },
+  {
     chave: "tec_mudanca_24h", grupo: "prazos", nome: "Mudança de endereço em até 24 h do agendamento", unidade: "percentual", polaridade: "maior_melhor", herdaMeta: true,
     calculo: "Das mudanças de endereço feitas na semana, quantas tiveram o técnico no local (check-in) até 24 h depois da data agendada (sem agendamento, conta da abertura).",
   },

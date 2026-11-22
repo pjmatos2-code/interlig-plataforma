@@ -6,7 +6,7 @@ import { CartaoIndicador } from "@/components/grr/cartao-indicador";
 import { SeletorSemana } from "@/components/grr/painel/controles";
 import { GRUPOS_TECNICO, INDICADORES_TECNICO } from "@/lib/grr/tecnico/catalogo";
 import { carregarTelaTecnico, PERFIS_GRR_TECNICO } from "@/lib/grr/tecnico/tela";
-import type { CartaoTecnico } from "@/lib/grr/tecnico/regras";
+import { MINIMO_FAROL_TECNICO, type CartaoTecnico } from "@/lib/grr/tecnico/regras";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -105,6 +105,43 @@ export default async function GrrTecnicoPage({ searchParams }: { searchParams: {
             </section>
           );
         })}
+
+        <section aria-labelledby="agenda-tecnico">
+          <h2 id="agenda-tecnico" className="text-base font-semibold">Agenda por técnico</h2>
+          <p className="mb-2 text-sm text-muted-foreground">
+            OS agendadas para a semana e já vencidas, pelo técnico designado. Atrasada: chegou depois do dia marcado, ficou pendente ou o dia passou sem check-in. Técnico com menos de {MINIMO_FAROL_TECNICO} OS fica sem farol.
+          </p>
+          {t.porTecnico.length === 0 ? (
+            <p className="rounded-lg border border-dashed bg-card p-3 text-sm text-muted-foreground">{t.foto ? "Esta semana foi congelada antes deste quadro existir." : "Nenhuma OS agendada vencida na semana."}</p>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border bg-card">
+              <table className="w-full min-w-[560px] text-sm tabular-nums">
+                <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">Técnico</th>
+                    <th className="px-3 py-2 text-right font-medium">Agendadas</th>
+                    <th className="px-3 py-2 text-right font-medium">No dia</th>
+                    <th className="px-3 py-2 text-right font-medium">Atrasadas</th>
+                    <th className="px-3 py-2 text-right font-medium">Sem check-in</th>
+                    <th className="px-3 py-2 text-right font-medium">Cumpridas no dia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {t.porTecnico.map((l) => (
+                    <tr key={l.tecnico} className="border-t">
+                      <td className="px-3 py-2">{l.tecnico}</td>
+                      <td className="px-3 py-2 text-right">{l.agendadas}</td>
+                      <td className="px-3 py-2 text-right">{l.cumpridas}</td>
+                      <td className={cn("px-3 py-2 text-right font-semibold", l.atrasadas > 0 && "text-farol-vermelho")}>{l.atrasadas}</td>
+                      <td className="px-3 py-2 text-right text-muted-foreground">{l.semRegistro}</td>
+                      <td className={cn("px-3 py-2 text-right font-semibold", COR_STATUS[l.status])}>{l.taxa == null ? "—" : `${Math.round(l.taxa * 100)}%`}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
         <section aria-labelledby="por-unidade">
           <h2 id="por-unidade" className="text-base font-semibold">Por unidade</h2>

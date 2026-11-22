@@ -119,7 +119,7 @@ export async function encerrarReuniaoTecnicoAcao(_e: EstadoReuniaoTecnico, dados
   const agora = new Date().toISOString();
   const { error } = await admin
     .from("grr_reunioes")
-    .update({ situacao: "encerrada", dados: { cartoes: tela.cartoes, porRecorte: tela.porRecorte.map((x) => ({ rotulo: x.recorte.rotulo, cartoes: x.cartoes })), encerradaEm: agora, foto: tela.foto }, corte_em: agora, encerrada_em: agora, encerrada_por: usuario.id })
+    .update({ situacao: "encerrada", dados: { cartoes: tela.cartoes, porTecnico: tela.porTecnico, porRecorte: tela.porRecorte.map((x) => ({ rotulo: x.recorte.rotulo, cartoes: x.cartoes })), encerradaEm: agora, foto: tela.foto }, corte_em: agora, encerrada_em: agora, encerrada_por: usuario.id })
     .eq("id", id)
     .eq("situacao", "aberta");
   if (error) return { erro: error.message };

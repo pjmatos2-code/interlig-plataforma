@@ -1180,3 +1180,8 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 - Caso real mostrado pela gestão: instalação feita às 09:36, com serviço prestado, fotos e assinatura do cliente, e à noite a OS e a ocorrência seguiam "Em execução". No SGP quem encerra a OS é quase sempre a pessoa da baixa (39 das 42 OS encerradas em 21/11).
 - Serviço feito = OS encerrada, ou OS com check-in do técnico e "serviço prestado" registrado, sem estar pendente (`servicoFeito` em `lib/operacao/regras.ts`).
 - Quadro: serviço feito com OS ou ocorrência aberta vai para "Falta validar". Calendário: concluído no dia do check-in, com "OS ainda não baixada". GRR Técnico: suporte, corporativo e mudança contam o prazo até o técnico no local (check-in; sem check-in, a baixa); retorno em 7 dias parte dos serviços feitos; "Falta validar há mais de 24 h" conta do serviço feito.
+
+### GRR Técnico: agenda cumprida e OS atrasadas por técnico (21/11/2026)
+
+- Indicador "Agendamentos cumpridos no dia" (migração 0141, meta 95%, atenção a partir de 90%, aprovadas em 21/11): das OS agendadas para a semana e já vencidas, quantas tiveram o técnico no local (check-in) até o fim do dia marcado. Atrasada: chegou em dia posterior, ficou pendente ou o dia passou sem check-in com a OS aberta. Encerrada sem check-in fica fora (falha de registro). O SGP guarda só a última data agendada; a leitura dos reagendamentos fica para depois, por decisão da gestão.
+- Quadro "Agenda por técnico" (técnico designado na OS) na tela do GRR Técnico e na apresentação da reunião de terça, com os nomes (decisão da gestão). Técnico com menos de 10 OS avaliadas na semana fica sem farol. O quadro entra na foto do fechamento e na ata da reunião.

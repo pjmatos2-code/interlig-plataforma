@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MetaGrr } from "../config";
 import { unidadeDoPop } from "./catalogo";
-import { instalacaoNoPrazo, montarTecnico, mudancaNoPrazo, trechosTecnico, type BaseTecnico, type RecorteTecnico } from "./regras";
+import { instalacaoNoPrazo, montarTecnico, mudancaNoPrazo, situacaoAgenda, trechosTecnico, type BaseTecnico, type RecorteTecnico } from "./regras";
 
 const meta = (indicador: string, valor: number, limite: number, escopo: Partial<MetaGrr> = {}): MetaGrr => ({
   id: indicador, indicador, escopo_tipo: "empresa", escopo_ref: null, vigente_desde: "2026-11-16", meta: valor, limite_atencao: limite, observacao: null, criado_em: "2026-11-21T12:00:00Z", criado_por: null, ...escopo,
@@ -105,5 +105,37 @@ describe("montarTecnico", () => {
     const c = porChave(montarTecnico({ base: { ...base(), estoques: null }, semana: SEMANA, hoje: "2026-11-30", recorte: EMPRESA, metas: METAS, expediente: EXP }));
     expect(c.tec_falta_validar.valor).toBe("—");
     expect(c.tec_falta_validar.status).toBe("sem_meta");
+  });
+});
+
+describe("agenda cumprida", () => {
+  const hoje = "2026-11-21";
+  it("situação de cada OS agendada", () => {
+    expect(situacaoAgenda({ agendamento: "2026-11-18T08:00:00-03:00", checkin: "2026-11-18T15:00:00-03:00", status: "Encerrada" }, hoje)).toBe("cumprida");
+    expect(situacaoAgenda({ agendamento: "2026-11-18T08:00:00-03:00", checkin: "2026-11-19T09:00:00-03:00", status: "Encerrada" }, hoje)).toBe("atrasada");
+    expect(situacaoAgenda({ agendamento: "2026-11-18T08:00:00-03:00", checkin: "2026-11-18T09:00:00-03:00", status: "Pendente Online" }, hoje)).toBe("atrasada");
+    expect(situacaoAgenda({ agendamento: "2026-11-19T08:00:00-03:00", checkin: null, status: "Aberta Online" }, hoje)).toBe("atrasada");
+    expect(situacaoAgenda({ agendamento: "2026-11-19T08:00:00-03:00", checkin: null, status: "Encerrada" }, hoje)).toBe("sem_registro");
+    expect(situacaoAgenda({ agendamento: "2026-11-21T16:00:00-03:00", checkin: null, status: "Aberta Online" }, hoje)).toBe("a_vencer");
+  });
+  it("indicador da equipe e quadro por técnico (sem farol abaixo de 10 OS)", () => {
+    const ag = (tecnico: string, dia: string, checkin: string | null, status = "Encerrada") => ({ unidade: "Altamira" as const, tecnico, agendamento: `${dia}T08:00:00-03:00`, checkin: checkin ? `${checkin}T10:00:00-03:00` : null, status });
+    const agendadas = [
+      ...Array.from({ length: 10 }, () => ag("Técnico A", "2026-11-17", "2026-11-17")),
+      ag("Técnico A", "2026-11-17", "2026-11-18"),
+      ag("Técnico A", "2026-11-18", null, "Aberta Online"),
+      ag("Técnico B", "2026-11-18", "2026-11-18"),
+      ag("Técnico B", "2026-11-19", null, "Encerrada"),
+      ag("Técnico B", "2026-11-21", null, "Aberta Online"), // hoje: ainda não venceu
+    ];
+    const metas = [...METAS, meta("tec_agenda_no_dia", 0.95, 0.9)];
+    const r = montarTecnico({ base: { ...base(), agendadas }, semana: SEMANA, hoje: "2026-11-21", recorte: EMPRESA, metas, expediente: EXP });
+    const c = r.cartoes.find((x) => x.chave === "tec_agenda_no_dia")!;
+    expect(c.numero).toBeCloseTo(11 / 13);
+    expect(c.status).toBe("critico");
+    expect(r.porTecnico.map((l) => [l.tecnico, l.agendadas, l.cumpridas, l.atrasadas, l.semRegistro, l.status])).toEqual([
+      ["Técnico A", 12, 10, 2, 0, "critico"],
+      ["Técnico B", 2, 1, 0, 1, "sem_meta"],
+    ]);
   });
 });

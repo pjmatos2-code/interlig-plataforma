@@ -4,7 +4,7 @@ import { hojeSantarem, ultimaSemanaCompleta, type Semana } from "@/lib/relatorio
 import { EMPRESA_GRR } from "../config-dados";
 import { SETOR_TECNICO } from "./catalogo";
 import { expedienteDaSemana, lerBaseTecnico, lerMetasTecnico, recortesTecnico } from "./dados";
-import { montarTecnico, type CartaoTecnico, type RecorteTecnico } from "./regras";
+import { montarTecnico, type CartaoTecnico, type LinhaAgendaTecnico, type RecorteTecnico } from "./regras";
 
 /**
  * Fotos do GRR Técnico (Etapa 1, 21/11/2026): a semana congelada guarda os
@@ -12,7 +12,7 @@ import { montarTecnico, type CartaoTecnico, type RecorteTecnico } from "./regras
  * estoques medidos no fechamento. Mesma tabela do comercial, setor "tecnico".
  */
 
-export type DadosFotoTecnico = { cartoes: CartaoTecnico[]; trecho: { de: string; ate: string }; geradoEm: string };
+export type DadosFotoTecnico = { cartoes: CartaoTecnico[]; trecho: { de: string; ate: string }; geradoEm: string; porTecnico?: LinhaAgendaTecnico[] };
 export type FotoTecnico = { versao: number; origem: string; congelado_em: string; dados: DadosFotoTecnico };
 
 type Admin = ReturnType<typeof criarClienteAdmin>;
@@ -51,7 +51,7 @@ export async function congelarSemanaTecnico(semana: Semana, opcoes: { usuarioId:
   const geradoEm = new Date().toISOString();
   const linhas = recortes.map((recorte) => {
     const r = montarTecnico({ base, semana, hoje, recorte, metas, expediente });
-    const dados: DadosFotoTecnico = { cartoes: r.cartoes, trecho: r.trecho, geradoEm };
+    const dados: DadosFotoTecnico = { cartoes: r.cartoes, trecho: r.trecho, geradoEm, porTecnico: r.porTecnico };
     return {
       empresa: EMPRESA_GRR,
       setor: SETOR_TECNICO,

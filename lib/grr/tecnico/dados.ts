@@ -156,7 +156,20 @@ export async function lerBaseTecnico(semana: Semana, hoje: string, admin: Admin 
     return { unidade: contratos.get(o.sgp_contrato_id!)?.unidade ?? unidadeDoPop(o.pop), atendidaEm: o.encerrada_em, retornou: voltou };
   });
 
+  // agenda: OS de campo agendadas na semana e na anterior, com o técnico designado (sem o atendimento pelo Fortics)
+  const agendadas = await paginado<{ responsavel: string | null; pop: string | null; agendamento: string; checkin: string | null; status: string | null }>((de, a) =>
+    admin
+      .from("os_tecnicas")
+      .select("responsavel, pop, agendamento, checkin, status")
+      .in("motivo", MOTIVOS_CAMPO.filter((m) => m !== "Atendimento Fortics"))
+      .gte("agendamento", inicioDoDia(ini7))
+      .lte("agendamento", fimDoDia(ate))
+      .order("agendamento")
+      .range(de, a)
+  );
+
   return {
+    agendadas: agendadas.map((x) => ({ unidade: unidadeDoPop(x.pop), tecnico: x.responsavel, agendamento: x.agendamento, checkin: x.checkin, status: x.status })),
     ativacoes: ativados.map((c) => ({ dia: String(c.data_ativacao).slice(0, 10), unidade: unidadeDoPop(c.pops?.nome) })),
     instalacoes: ativados.map((c) => ({
       unidade: unidadeDoPop(c.pops?.nome),
