@@ -54,7 +54,7 @@ export function AppShell({
         const Icone = ICONES[item.icone] ?? LayoutDashboard;
         const casa = (href: string) => caminho === href || caminho.startsWith(href + "/");
         // o item mais específico ganha (GRR Técnico dentro do GRR)
-        const ativo = casa(item.href) && !itens.some((o) => o.href.length > item.href.length && o.href.startsWith(item.href + "/") && casa(o.href));
+        const ativo = (casa(item.href) || (item.ativoEm ? casa(item.ativoEm) : false)) && !itens.some((o) => o.href.length > item.href.length && o.href.startsWith(item.href + "/") && casa(o.href));
         return (
           <Link
             key={item.href}

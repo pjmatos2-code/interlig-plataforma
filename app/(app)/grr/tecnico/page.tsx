@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CalendarCheck, ClipboardCheck, MonitorPlay, Settings, Snowflake } from "lucide-react";
 import { exigirPerfil } from "@/lib/auth";
-import { AreasGrr } from "@/components/grr/areas";
+import { SeletorSetor } from "@/components/grr/seletor-setor";
 import { CartaoIndicador } from "@/components/grr/cartao-indicador";
 import { SeletorSemana } from "@/components/grr/painel/controles";
 import { GRUPOS_TECNICO, INDICADORES_TECNICO } from "@/lib/grr/tecnico/catalogo";
@@ -47,7 +47,7 @@ export default async function GrrTecnicoPage({ searchParams }: { searchParams: {
         <h1 className="text-xl font-semibold tracking-tight lg:text-2xl">GRR Técnico</h1>
         <p className="mt-1 text-sm text-muted-foreground">Instalações, prazos, qualidade e processo do setor técnico, com as metas aprovadas em 21/11/2026. Lido do SGP; nada aqui altera o SGP.</p>
       </div>
-      {usuario.perfil === "gestor" && <AreasGrr ativa="tecnico" parametros="" gestor />}
+      <SeletorSetor atual="tecnico" />
 
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="lg:max-w-md lg:flex-1">

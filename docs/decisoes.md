@@ -1169,3 +1169,7 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 ### Fortics só quando vai para o gestor técnico (21/11/2026)
 
 - O atendimento pelo Fortics (OS "Atendimento Fortics", ligada a ocorrências de suporte, ou ocorrência "Chamado Fortics") só conta na operação técnica quando a ocorrência foi direcionada a um gestor técnico (`forticsConta` em `lib/operacao/direcionamento.ts`). Vale no quadro e no calendário da Operação Técnica e no GRR Técnico (suporte, corporativo e retorno em 7 dias). Em 21/11 nenhuma tinha ido para gestor: eram cerca de dois terços das OS de suporte encerradas e deixavam o "suporte em até 24 h" perto de 60%, quando o campo fica perto de 30%.
+
+### GRR: escolha do setor (21/11/2026)
+
+- O menu "GRR, Gestão de Resultados" abre em `/grr/setores`, onde a pessoa escolhe o setor (comercial ou técnico) antes de ver os números. Quem só tem um setor vai direto para ele (coordenação comercial → comercial; gestor técnico → técnico). No topo de cada setor, uma faixa mostra o setor atual e troca de setor. Setores novos entram em `lib/grr/setores.ts`.
