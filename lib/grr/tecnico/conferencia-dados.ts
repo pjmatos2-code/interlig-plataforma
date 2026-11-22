@@ -5,7 +5,7 @@ import { hojeSantarem, ultimaSemanaCompleta } from "@/lib/relatorio-semanal/peri
 import { metaVigente } from "../config";
 import { semanaAtual } from "../semana";
 import { DIRECIONAMENTO_DESDE } from "@/lib/operacao/direcionamento";
-import { MOTIVOS_CALENDARIO } from "@/lib/operacao/calendario";
+import { MOTIVOS_CAMPO } from "@/lib/operacao/calendario";
 import { INDICADORES_TECNICO } from "./catalogo";
 import { lerMetasTecnico, recortesTecnico } from "./dados";
 import { lerFotoTecnico } from "./fotos";
@@ -28,8 +28,8 @@ export async function carregarConferenciaTecnico(): Promise<ItemConferencia[]> {
     conta(admin.from("ocorrencias_sgp").select("sgp_ocorrencia_id", { count: "exact", head: true }).eq("tipo", "Operacional - Instalação equipamento").gte("criada_em", `${DIRECIONAMENTO_DESDE}T00:00:00-03:00`).is("direcionada_em", null).not("responsavel", "is", null)),
     conta(admin.from("contratos").select("id", { count: "exact", head: true }).gte("data_ativacao", semana.inicio).lte("data_ativacao", hoje)),
     admin.from("contratos").select("sgp_contrato_id").gte("data_ativacao", semana.inicio).lte("data_ativacao", hoje).limit(2000),
-    conta(admin.from("os_tecnicas").select("sgp_os_id", { count: "exact", head: true }).eq("status", "Encerrada").in("motivo", MOTIVOS_CALENDARIO).gte("encerrada_em", seteDias)),
-    conta(admin.from("os_tecnicas").select("sgp_os_id", { count: "exact", head: true }).eq("status", "Encerrada").in("motivo", MOTIVOS_CALENDARIO).gte("encerrada_em", seteDias).is("responsavel", null)),
+    conta(admin.from("os_tecnicas").select("sgp_os_id", { count: "exact", head: true }).eq("status", "Encerrada").in("motivo", MOTIVOS_CAMPO).gte("encerrada_em", seteDias)),
+    conta(admin.from("os_tecnicas").select("sgp_os_id", { count: "exact", head: true }).eq("status", "Encerrada").in("motivo", MOTIVOS_CAMPO).gte("encerrada_em", seteDias).is("responsavel", null)),
     conta(admin.from("contratos").select("id", { count: "exact", head: true }).gte("data_ativacao", "2026-11-22")),
     conta(admin.from("contratos").select("id", { count: "exact", head: true }).gte("data_ativacao", "2026-11-22").is("ativado_em", null)),
     lerMetasTecnico(admin),

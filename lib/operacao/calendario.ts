@@ -5,8 +5,8 @@
  * Decisão do gestor: só esses dois estados. Funções puras.
  *
  * Entram as OS de campo: instalação, mudança de endereço e suporte. Ficam fora
- * recolhimento (módulo próprio), cobrança, financeiro e o atendimento pelo
- * Fortics (quase nunca tem visita agendada).
+ * recolhimento (módulo próprio), cobrança e financeiro. O atendimento pelo
+ * Fortics só entra quando a ocorrência foi para um gestor técnico.
  */
 
 import type { TipoServico } from "./regras";
@@ -21,8 +21,12 @@ const MOTIVOS: Record<string, TipoServico> = {
   "Troca de equipamento": "suporte",
   "Instalação de roteador adicional": "suporte",
   "Mudança de Comodo": "suporte",
+  // só quando a ocorrência foi para um gestor técnico (forticsConta, conferido na leitura)
+  "Atendimento Fortics": "suporte",
 };
 export const MOTIVOS_CALENDARIO = Object.keys(MOTIVOS);
+/** OS de campo sem o atendimento pelo Fortics (para contar técnico responsável vazio etc.) */
+export const MOTIVOS_CAMPO = MOTIVOS_CALENDARIO.filter((m) => m !== "Atendimento Fortics");
 
 /** motivo da OS → tipo de serviço do calendário (null: fora) */
 export const tipoDoMotivo = (motivo: string | null | undefined): TipoServico | null => MOTIVOS[(motivo ?? "").trim()] ?? null;

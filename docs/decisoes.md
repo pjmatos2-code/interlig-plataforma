@@ -1165,3 +1165,7 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 - Reunião operacional de terça em `/grr/tecnico/reunioes`: mesma tabela das reuniões do comercial com setor `tecnico` e modalidade `operacional` (migração 0140); participantes pelo cadastro de técnicos, ata, compromissos (com os em aberto das reuniões anteriores) e encerramento que guarda os indicadores. Reunião encerrada não muda.
 - Conferência dos dados do setor técnico em `/grr/tecnico/conferencia`: leitura do SGP, hora do direcionamento, cobertura das 48 h, OS sem técnico responsável, hora da ativação, metas e fechamento da semana.
 - A lista de reuniões do comercial passa a mostrar só o setor comercial.
+
+### Fortics só quando vai para o gestor técnico (21/11/2026)
+
+- O atendimento pelo Fortics (OS "Atendimento Fortics", ligada a ocorrências de suporte, ou ocorrência "Chamado Fortics") só conta na operação técnica quando a ocorrência foi direcionada a um gestor técnico (`forticsConta` em `lib/operacao/direcionamento.ts`). Vale no quadro e no calendário da Operação Técnica e no GRR Técnico (suporte, corporativo e retorno em 7 dias). Em 21/11 nenhuma tinha ido para gestor: eram cerca de dois terços das OS de suporte encerradas e deixavam o "suporte em até 24 h" perto de 60%, quando o campo fica perto de 30%.

@@ -50,3 +50,14 @@ describe("direcionamentoDaPagina", () => {
     expect(direcionamentoDaPagina(pagina([]), { ...fallback, responsavel: null })).toBeNull();
   });
 });
+
+import { forticsConta } from "./direcionamento";
+describe("Fortics", () => {
+  it("só conta quando a ocorrência foi para um gestor técnico", () => {
+    expect(forticsConta("Atendimento Fortics", "Suporte - Outros", "werick.gabriel")).toBe(false);
+    expect(forticsConta("Atendimento Fortics", "Suporte - Outros", null)).toBe(false);
+    expect(forticsConta("Atendimento Fortics", "Suporte - Outros", "jose.galdino")).toBe(true);
+    expect(forticsConta(null, "Chamado Fortics", null)).toBe(false);
+    expect(forticsConta("LOS", "Suporte - Link Loss", null)).toBe(true);
+  });
+});

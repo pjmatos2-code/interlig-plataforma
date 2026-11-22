@@ -4,6 +4,7 @@ import { carregarDiasUteis } from "@/lib/relatorio-semanal/dias-uteis";
 import { mesDeReferencia, type Semana } from "@/lib/relatorio-semanal/periodo";
 import { dadosOperacao } from "@/lib/operacao/dados";
 import { ehCorporativo, tipoServico } from "@/lib/operacao/regras";
+import { forticsConta } from "@/lib/operacao/direcionamento";
 import { EMPRESA_GRR } from "../config-dados";
 import type { MetaGrr } from "../config";
 import { SETOR_TECNICO, UNIDADES_TECNICO, unidadeDoPop, type UnidadeTecnico } from "./catalogo";
@@ -87,7 +88,7 @@ export async function lerBaseTecnico(semana: Semana, hoje: string, admin: Admin 
   }
 
   // OS de campo encerradas desde duas semanas antes, com a ocorrência de origem
-  const osEncerradas = await paginado<{ sgp_os_id: string; sgp_contrato_id: string | null; pop: string | null; motivo: string | null; agendamento: string | null; encerrada_em: string }>((de, a) =>
+  const osEncerradasTodas = await paginado<{ sgp_os_id: string; sgp_contrato_id: string | null; pop: string | null; motivo: string | null; agendamento: string | null; encerrada_em: string }>((de, a) =>
     admin
       .from("os_tecnicas")
       .select("sgp_os_id, sgp_contrato_id, pop, motivo, agendamento, encerrada_em")
@@ -98,11 +99,16 @@ export async function lerBaseTecnico(semana: Semana, hoje: string, admin: Admin 
       .order("sgp_os_id")
       .range(de, a)
   );
-  const ocorrencias = await emLotes<{ sgp_os_id: string; tipo: string | null; criada_em: string; pop: string | null }>(
-    osEncerradas.map((o) => o.sgp_os_id),
-    (lote) => admin.from("ocorrencias_sgp").select("sgp_os_id, tipo, criada_em, pop").in("sgp_os_id", lote)
+  const ocorrencias = await emLotes<{ sgp_os_id: string; tipo: string | null; criada_em: string; pop: string | null; responsavel: string | null }>(
+    osEncerradasTodas.map((o) => o.sgp_os_id),
+    (lote) => admin.from("ocorrencias_sgp").select("sgp_os_id, tipo, criada_em, pop, responsavel").in("sgp_os_id", lote)
   );
   const ocPorOs = new Map(ocorrencias.map((o) => [String(o.sgp_os_id), o]));
+  // Fortics só conta quando a ocorrência foi para um gestor técnico (decisão de 21/11/2026)
+  const osEncerradas = osEncerradasTodas.filter((o) => {
+    const oc = ocPorOs.get(String(o.sgp_os_id));
+    return forticsConta(o.motivo, oc?.tipo, oc?.responsavel);
+  });
   const contratos = await infoContratos(admin, osEncerradas.map((o) => o.sgp_contrato_id).filter((x): x is string => Boolean(x)));
 
   const suporte: BaseTecnico["suporte"] = [];
@@ -123,10 +129,19 @@ export async function lerBaseTecnico(semana: Semana, hoje: string, admin: Admin 
 
   // retorno em 7 dias: nova OS de suporte do mesmo contrato depois do serviço
   const servicosBase = osEncerradas.filter((o) => o.sgp_contrato_id && o.encerrada_em <= fimDoDia(somarDias(ate, -7)));
-  const novasSuporte = await emLotes<{ sgp_os_id: string; sgp_contrato_id: string; criada_em: string }>(
+  const novasTodas = await emLotes<{ sgp_os_id: string; sgp_contrato_id: string; criada_em: string; motivo: string | null }>(
     [...new Set(servicosBase.map((o) => o.sgp_contrato_id!))],
-    (lote) => admin.from("os_tecnicas").select("sgp_os_id, sgp_contrato_id, criada_em").in("motivo", MOTIVOS_SUPORTE).gte("criada_em", inicioDoDia(ini14)).in("sgp_contrato_id", lote)
+    (lote) => admin.from("os_tecnicas").select("sgp_os_id, sgp_contrato_id, criada_em, motivo").in("motivo", MOTIVOS_SUPORTE).gte("criada_em", inicioDoDia(ini14)).in("sgp_contrato_id", lote)
   );
+  // o retorno pelo Fortics também só conta se a ocorrência foi para um gestor técnico
+  const forticsNovas = novasTodas.filter((n) => /fortics/i.test(n.motivo ?? "")).map((n) => String(n.sgp_os_id));
+  const ocNovas = new Map(
+    (await emLotes<{ sgp_os_id: string; tipo: string | null; responsavel: string | null }>(forticsNovas, (lote) => admin.from("ocorrencias_sgp").select("sgp_os_id, tipo, responsavel").in("sgp_os_id", lote))).map((o) => [String(o.sgp_os_id), o])
+  );
+  const novasSuporte = novasTodas.filter((n) => {
+    const oc = ocNovas.get(String(n.sgp_os_id));
+    return forticsConta(n.motivo, oc?.tipo, oc?.responsavel);
+  });
   const suportePorContrato = new Map<string, { id: string; criada: number }[]>();
   for (const n of novasSuporte) {
     const l = suportePorContrato.get(n.sgp_contrato_id) ?? [];

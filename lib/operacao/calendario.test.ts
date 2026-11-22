@@ -3,11 +3,12 @@ import { gradeDoMes, mesVizinho, posicaoNoCalendario, resolverMes, rotuloMes, ti
 
 describe("calendário", () => {
   const agora = Date.parse("2026-11-21T15:00:00-03:00");
-  it("tipo pelo motivo da OS, sem recolhimento, cobrança e Fortics", () => {
+  it("tipo pelo motivo da OS, sem recolhimento e cobrança", () => {
     expect(tipoDoMotivo("Instalação de equipamento")).toBe("instalacao");
     expect(tipoDoMotivo("Mudança Endereço")).toBe("mudanca");
     expect(tipoDoMotivo("LOS")).toBe("suporte");
-    for (const m of ["Recolher equipamento do cliente", "Cobrança", "Financeiro", "Atendimento Fortics", null]) expect(tipoDoMotivo(m)).toBeNull();
+    for (const m of ["Recolher equipamento do cliente", "Cobrança", "Financeiro", null]) expect(tipoDoMotivo(m)).toBeNull();
+    expect(tipoDoMotivo("Atendimento Fortics")).toBe("suporte"); // a leitura confere se foi para o gestor
   });
   it("encerrada é concluída no dia do encerramento", () => {
     expect(posicaoNoCalendario({ status: "Encerrada", agendamento: "2026-11-18T09:00:00-03:00", encerradaEm: "2026-11-20T22:30:00-03:00" }, agora)).toEqual({

@@ -1,5 +1,6 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
+import { forticsConta } from "./direcionamento";
 import {
   DIAS_ENCERRADAS,
   DIAS_QUADRO,
@@ -67,9 +68,11 @@ type LinhaOc = {
   pop: string | null;
   sgp_os_id: string | null;
   lido_em: string | null;
+  responsavel: string | null;
 };
 type LinhaOs = {
   sgp_os_id: string;
+  motivo: string | null;
   cliente_nome: string | null;
   bairro: string | null;
   pop: string | null;
@@ -116,7 +119,7 @@ export async function dadosOperacao(agora = Date.now()): Promise<DadosOperacao> 
     await paginado<LinhaOc>((de, ate) =>
       admin
         .from("ocorrencias_sgp")
-        .select("sgp_ocorrencia_id, sgp_contrato_id, sgp_cliente_id, tipo, status, criada_em, encerrada_em, usuario, pop, sgp_os_id, lido_em")
+        .select("sgp_ocorrencia_id, sgp_contrato_id, sgp_cliente_id, tipo, status, criada_em, encerrada_em, usuario, pop, sgp_os_id, lido_em, responsavel")
         .gte("criada_em", desde)
         .order("sgp_ocorrencia_id")
         .range(de, ate)
@@ -130,7 +133,7 @@ export async function dadosOperacao(agora = Date.now()): Promise<DadosOperacao> 
   for (let i = 0; i < idsOs.length; i += 300) {
     const { data, error } = await admin
       .from("os_tecnicas")
-      .select("sgp_os_id, cliente_nome, bairro, pop, status, agendamento, checkin, encerrada_em, responsavel, auxiliares, servico_prestado, importado_em")
+      .select("sgp_os_id, motivo, cliente_nome, bairro, pop, status, agendamento, checkin, encerrada_em, responsavel, auxiliares, servico_prestado, importado_em")
       .in("sgp_os_id", idsOs.slice(i, i + 300));
     if (error) throw new Error(error.message);
     for (const o of (data ?? []) as LinhaOs[]) os.set(o.sgp_os_id, o);
@@ -161,6 +164,7 @@ export async function dadosOperacao(agora = Date.now()): Promise<DadosOperacao> 
   const cartoes: CartaoOperacao[] = [];
   for (const oc of ocorrencias) {
     const o = oc.sgp_os_id ? os.get(oc.sgp_os_id) : undefined;
+    if (!forticsConta(o?.motivo, oc.tipo, oc.responsavel)) continue;
     const coluna = colunaDa(oc, o);
     if (coluna === "encerrada" && !(oc.encerrada_em && Date.parse(oc.encerrada_em) >= desdeEncerradas)) continue;
     const ct = oc.sgp_contrato_id ? contratos.get(oc.sgp_contrato_id) : undefined;

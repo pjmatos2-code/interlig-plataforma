@@ -26,7 +26,19 @@ export const TIPOS_DIRECIONAMENTO = ["Operacional - Instalação equipamento"];
  * ensaio, algumas passaram antes por outro usuário.
  */
 export const GESTORES_TECNICOS = ["jose.galdino", "railson.costa", "aline.moraes"];
-const ehGestor = (u: string | null | undefined) => GESTORES_TECNICOS.includes((u ?? "").trim().toLowerCase());
+export const ehGestorTecnico = (u: string | null | undefined) => GESTORES_TECNICOS.includes((u ?? "").trim().toLowerCase());
+const ehGestor = ehGestorTecnico;
+
+/**
+ * Fortics (decisão de 21/11/2026): o atendimento pelo Fortics (OS "Atendimento
+ * Fortics" ou ocorrência "Chamado Fortics") só conta na operação técnica quando
+ * a ocorrência foi direcionada a um gestor técnico. As demais são resolvidas
+ * pelo atendimento, a distância, e não entram no quadro, no calendário nem no GRR.
+ */
+export function forticsConta(motivoOs: string | null | undefined, tipoOcorrencia: string | null | undefined, responsavel: string | null | undefined): boolean {
+  const ehFortics = /fortics/i.test(motivoOs ?? "") || /fortics/i.test(tipoOcorrencia ?? "");
+  return !ehFortics || ehGestorTecnico(responsavel);
+}
 
 const ENTIDADES: Record<string, string> = {
   "&aacute;": "á", "&eacute;": "é", "&iacute;": "í", "&oacute;": "ó", "&uacute;": "ú",
