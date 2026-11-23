@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { Bell } from "lucide-react";
-import { listarNotificacoes, marcarLidas, type Notificacao } from "@/lib/notificacoes/acoes";
+import { adiarAviso, confirmarAviso, listarNotificacoes, marcarLidas, type AvisoConfirmar, type Notificacao } from "@/lib/notificacoes/acoes";
 import { cn } from "@/lib/utils";
 
 const INTERVALO_MS = 15_000;
@@ -78,17 +80,26 @@ export function SinoNotificacoes() {
   const [naoLidas, setNaoLidas] = useState(0);
   const [aberto, setAberto] = useState(false);
   const [toasts, setToasts] = useState<Notificacao[]>([]);
+  const [aConfirmar, setAConfirmar] = useState<AvisoConfirmar[]>([]);
+  const avisosVistos = useRef<Set<string>>(new Set());
   const vistos = useRef<Set<string> | null>(null); // null = ainda não carregou a 1ª vez
   const box = useRef<HTMLDivElement>(null);
 
   const puxar = useCallback(async () => {
     try {
-      const { itens, naoLidas } = await listarNotificacoes();
+      const { itens, naoLidas, aConfirmar } = await listarNotificacoes();
       setItens(itens);
       setNaoLidas(naoLidas);
+      setAConfirmar(aConfirmar);
+      // aviso fixo novo (ou que voltou do adiamento): toca a campainha
+      const avisoNovo = aConfirmar.some((a) => !avisosVistos.current.has(a.id));
+      avisosVistos.current = new Set(aConfirmar.map((a) => a.id));
+      if (avisoNovo) tocarCampainha();
+      const fixos = new Set(aConfirmar.map((a) => a.id));
       // toast só para o que chegou DEPOIS do 1º carregamento
       if (vistos.current) {
-        const novos = itens.filter((n) => !vistos.current!.has(n.id) && !n.lida);
+        // o que já abre como aviso fixo não vira toast
+        const novos = itens.filter((n) => !vistos.current!.has(n.id) && !n.lida && !fixos.has(n.id));
         if (novos.length > 0) {
           setToasts((t) => [...novos.slice(0, 3), ...t].slice(0, 4));
           novos.forEach((n) =>
@@ -205,6 +216,14 @@ export function SinoNotificacoes() {
         )}
       </div>
 
+      {aConfirmar.length > 0 && (
+        <AvisoFixo
+          aviso={aConfirmar[0]}
+          restantes={aConfirmar.length - 1}
+          aoResolver={(id) => setAConfirmar((xs) => xs.filter((x) => x.id !== id))}
+        />
+      )}
+
       {/* toasts flutuantes para o que acabou de chegar */}
       <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2">
         {toasts.map((n) => {
@@ -224,5 +243,75 @@ export function SinoNotificacoes() {
         })}
       </div>
     </>
+  );
+}
+
+/**
+ * Aviso fixo do lembrete do CRM (23/11/2026): fica na tela até a pessoa
+ * confirmar ("Ciente") ou adiar 10 minutos. Não fecha clicando fora nem com
+ * Esc; se a página recarregar, volta — a pendência mora no banco.
+ */
+function AvisoFixo({ aviso, restantes, aoResolver }: { aviso: AvisoConfirmar; restantes: number; aoResolver: (id: string) => void }) {
+  const router = useRouter();
+  const [enviando, setEnviando] = useState<"" | "ciente" | "adiar">("");
+  const botao = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    botao.current?.focus();
+    setEnviando("");
+  }, [aviso.id]);
+
+  const hora = new Date(aviso.criado_em).toLocaleTimeString("pt-BR", { timeZone: "America/Santarem", hour: "2-digit", minute: "2-digit" });
+
+  async function ciente() {
+    setEnviando("ciente");
+    await confirmarAviso(aviso.id);
+    aoResolver(aviso.id);
+    if (aviso.link) router.push(aviso.link);
+  }
+  async function adiar() {
+    setEnviando("adiar");
+    await adiarAviso(aviso.id);
+    aoResolver(aviso.id);
+  }
+
+  // portal no body: o cabeçalho cria uma camada própria e prenderia o aviso
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4" role="presentation">
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="aviso-fixo-titulo"
+        aria-describedby="aviso-fixo-texto"
+        className="w-full max-w-sm rounded-2xl bg-white p-5 text-slate-900 shadow-2xl"
+      >
+        <p className="text-xs font-semibold uppercase tracking-wide text-interlig-azul">Lembrete do CRM · {hora}</p>
+        <h2 id="aviso-fixo-titulo" className="mt-1 text-lg font-bold">
+          {aviso.titulo}
+        </h2>
+        <p id="aviso-fixo-texto" className="mt-2 break-words text-sm text-slate-600">
+          {aviso.descricao}
+        </p>
+        <p className="mt-3 text-xs text-slate-500">Confirme que viu. A confirmação fica registrada no ticket.</p>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row-reverse">
+          <button
+            ref={botao}
+            onClick={ciente}
+            disabled={enviando !== ""}
+            className="h-11 rounded-lg sm:flex-1 bg-interlig-azul px-4 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-interlig-azul disabled:opacity-60"
+          >
+            {enviando === "ciente" ? "Confirmando…" : aviso.link ? "Ciente · abrir o ticket" : "Ciente"}
+          </button>
+          <button
+            onClick={adiar}
+            disabled={enviando !== ""}
+            className="h-11 rounded-lg sm:flex-1 border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 disabled:opacity-60"
+          >
+            {enviando === "adiar" ? "Adiando…" : "Lembrar em 10 min"}
+          </button>
+        </div>
+        {restantes > 0 && <p className="mt-3 text-center text-xs text-slate-500">Mais {restantes} {restantes === 1 ? "lembrete" : "lembretes"} na fila</p>}
+      </div>
+    </div>,
+    document.body
   );
 }

@@ -12,7 +12,24 @@ export type AcaoAgendada = {
   quando: string; // ISO
   concluida_em: string | null;
   notificado_em: string | null;
+  confirmada_em?: string | null;
+  confirmador?: { nome: string | null } | { nome: string | null }[] | null;
 };
+
+function horaDe(iso: string): string {
+  return new Date(iso).toLocaleTimeString("pt-BR", { timeZone: "America/Santarem", hour: "2-digit", minute: "2-digit" });
+}
+
+/** recibo do aviso fixo (23/11/2026): quem confirmou e quando */
+function Recibo({ a }: { a: AcaoAgendada }) {
+  if (!a.notificado_em) return null;
+  if (a.confirmada_em) {
+    const c = Array.isArray(a.confirmador) ? a.confirmador[0] : a.confirmador;
+    const quem = c?.nome?.split(" ")[0];
+    return <span className="block text-[11px] font-medium text-emerald-700">✓ Aviso confirmado{quem ? ` por ${quem}` : ""} às {horaDe(a.confirmada_em)}</span>;
+  }
+  return <span className="block text-[11px] font-medium text-amber-700">Aviso ainda não confirmado</span>;
+}
 
 function fmt(iso: string): string {
   return new Date(iso).toLocaleString("pt-BR", {
@@ -84,7 +101,7 @@ export function AcoesAgendadas({ ticketId, acoes }: { ticketId: string; acoes: A
         </div>
         {erro && <p className="text-xs text-destructive">{erro}</p>}
         <p className="text-[11px] text-muted-foreground">
-          No horário marcado, o lembrete chega no sino 🔔 da responsável, do coordenador e do admin.
+          No horário marcado, a responsável recebe um aviso na tela e confirma que viu. O coordenador e o admin recebem no sino 🔔.
         </p>
       </div>
 
@@ -106,6 +123,7 @@ export function AcoesAgendadas({ ticketId, acoes }: { ticketId: string; acoes: A
                   <span className={"ml-2 text-xs tabular-nums " + (atrasada ? "font-bold text-rose-600" : "text-muted-foreground")}>
                     {fmt(a.quando)}{atrasada ? " · atrasada" : a.notificado_em ? " · 🔔 avisada" : ""}
                   </span>
+                  <Recibo a={a} />
                 </span>
                 <button
                   onClick={async () => {
@@ -128,6 +146,7 @@ export function AcoesAgendadas({ ticketId, acoes }: { ticketId: string; acoes: A
           {feitas.slice(0, 3).map((a) => (
             <li key={a.id} className="text-xs text-muted-foreground line-through">
               {a.descricao} · {fmt(a.quando)}
+              {a.confirmada_em && <span className="ml-1 no-underline">· aviso confirmado às {horaDe(a.confirmada_em)}</span>}
             </li>
           ))}
         </ul>

@@ -99,7 +99,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
   // ações agendadas do ticket (lembretes)
   const { data: acoesAgendadas } = await supabase
     .from("ticket_acoes")
-    .select("id, descricao, quando, concluida_em, notificado_em")
+    .select("id, descricao, quando, concluida_em, notificado_em, confirmada_em, confirmador:usuarios!ticket_acoes_confirmada_por_fkey(nome)")
     .eq("ticket_id", t.id)
     .order("quando", { ascending: true })
     .limit(30);
@@ -404,7 +404,7 @@ export default async function TicketPage({ params }: { params: { id: string } })
         </div>
         <div className="md:border-l md:pl-5">
           <p className="mb-2 text-sm font-semibold">Ações agendadas ⏰</p>
-          <AcoesAgendadas ticketId={t.id} acoes={(acoesAgendadas ?? []) as AcaoAgendada[]} />
+          <AcoesAgendadas ticketId={t.id} acoes={(acoesAgendadas ?? []) as unknown as AcaoAgendada[]} />
         </div>
       </div>
     </div>

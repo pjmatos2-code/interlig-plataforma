@@ -5,7 +5,7 @@ import { criarClienteAdmin } from "@/lib/supabase/admin";
  * Despacha os lembretes das ações agendadas do ticket ("ligar amanhã às
  * 10:00"): quando chega a hora, cria a notificação (sino) para a vendedora
  * responsável, o coordenador da equipe e o administrador — o mesmo fan-out
- * das demais notificações. Chamado pelas rotinas do CRM e pelo polling do
+ * das demais notificações. A responsável recebe com confirmação de leitura. Chamado pelas rotinas do CRM e pelo polling do
  * sino (15s), então o lembrete dispara em segundos quando há alguém online.
  */
 export async function despacharLembretes(): Promise<number> {
@@ -13,7 +13,7 @@ export async function despacharLembretes(): Promise<number> {
 
   const { data: devidas } = await admin
     .from("ticket_acoes")
-    .select("id, ticket_id, descricao, quando, tickets(cliente_nome, vendedor_id)")
+    .select("id, ticket_id, descricao, quando, criado_por, tickets(cliente_nome, vendedor_id)")
     .is("notificado_em", null)
     .is("concluida_em", null)
     .lte("quando", new Date().toISOString())
@@ -46,11 +46,19 @@ export async function despacharLembretes(): Promise<number> {
     const vendedorId = t?.vendedor_id ?? null;
     const coordenadorId = vendedorId ? (coordDe.get(vendedorId) ?? null) : null;
 
+    // Aviso fixo com confirmação (23/11/2026): vai para a vendedora
+    // responsável; sem vendedora no ticket, para quem agendou a ação. Os
+    // demais recebem só no sino e veem no ticket se foi confirmado.
+    const responsaveis = (usuarios ?? []).filter((u) => vendedorId && u.vendedor_id === vendedorId).map((u) => u.id);
+    const criador = (a as { criado_por: string | null }).criado_por;
+    const confirma = new Set(responsaveis.length > 0 ? responsaveis : criador ? [criador] : []);
+
     const destinatarios = (usuarios ?? []).filter(
       (u) =>
         u.perfil === "gestor" ||
         (vendedorId && u.vendedor_id === vendedorId) ||
-        (coordenadorId && u.id === coordenadorId)
+        (coordenadorId && u.id === coordenadorId) ||
+        confirma.has(u.id)
     );
 
     const hora = new Date(a.quando as string).toLocaleTimeString("pt-BR", {
@@ -65,6 +73,8 @@ export async function despacharLembretes(): Promise<number> {
         titulo: "⏰ Lembrete de ação",
         descricao: `${a.descricao} · ${t?.cliente_nome ?? "cliente"} · ${hora}`,
         link: `/crm/${a.ticket_id}`,
+        ref_id: a.id,
+        confirmar: confirma.has(u.id),
       });
     }
     disparados += 1;
