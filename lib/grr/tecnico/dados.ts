@@ -3,7 +3,7 @@ import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { carregarDiasUteis } from "@/lib/relatorio-semanal/dias-uteis";
 import { mesDeReferencia, type Semana } from "@/lib/relatorio-semanal/periodo";
 import { dadosOperacao } from "@/lib/operacao/dados";
-import { ehCorporativo, servicoFeito, tipoServico } from "@/lib/operacao/regras";
+import { CONTRATO_INFRAESTRUTURA, ehCorporativo, ehInfraestrutura, servicoFeito, tipoServico } from "@/lib/operacao/regras";
 import { forticsConta } from "@/lib/operacao/direcionamento";
 import { EMPRESA_GRR } from "../config-dados";
 import type { MetaGrr } from "../config";
@@ -102,14 +102,16 @@ export async function lerBaseTecnico(semana: Semana, hoje: string, admin: Admin 
     // sem check-in e sem agendamento não houve visita (OS baixada pelo atendimento)
     .filter((o) => servicoFeito(o) && Boolean(o.checkin || o.agendamento))
     .map((o) => ({ ...o, encerrada_em: (o.checkin ?? o.encerrada_em)! }));
-  const ocorrencias = await emLotes<{ sgp_os_id: string; tipo: string | null; criada_em: string; pop: string | null; responsavel: string | null }>(
+  const ocorrencias = await emLotes<{ sgp_os_id: string; tipo: string | null; criada_em: string; pop: string | null; responsavel: string | null; setor_sgp: string | null }>(
     osEncerradasTodas.map((o) => o.sgp_os_id),
-    (lote) => admin.from("ocorrencias_sgp").select("sgp_os_id, tipo, criada_em, pop, responsavel").in("sgp_os_id", lote)
+    (lote) => admin.from("ocorrencias_sgp").select("sgp_os_id, tipo, criada_em, pop, responsavel, setor_sgp").in("sgp_os_id", lote)
   );
   const ocPorOs = new Map(ocorrencias.map((o) => [String(o.sgp_os_id), o]));
   // Fortics só conta quando a ocorrência foi para um gestor técnico (decisão de 21/11/2026)
   const osEncerradas = osEncerradasTodas.filter((o) => {
     const oc = ocPorOs.get(String(o.sgp_os_id));
+    // a infraestrutura da rede tem módulo próprio e não entra no GRR Técnico (23/11/2026)
+    if (ehInfraestrutura({ sgpContratoId: o.sgp_contrato_id, tipo: oc?.tipo, setorSgp: oc?.setor_sgp })) return false;
     return forticsConta(o.motivo, oc?.tipo, oc?.responsavel);
   });
   const contratos = await infoContratos(admin, osEncerradas.map((o) => o.sgp_contrato_id).filter((x): x is string => Boolean(x)));
@@ -158,10 +160,10 @@ export async function lerBaseTecnico(semana: Semana, hoje: string, admin: Admin 
   });
 
   // agenda: OS de campo agendadas na semana e na anterior, com o técnico designado (sem o atendimento pelo Fortics)
-  const agendadas = await paginado<{ responsavel: string | null; pop: string | null; agendamento: string; checkin: string | null; status: string | null }>((de, a) =>
+  const agendadas = await paginado<{ sgp_contrato_id: string | null; responsavel: string | null; pop: string | null; agendamento: string; checkin: string | null; status: string | null }>((de, a) =>
     admin
       .from("os_tecnicas")
-      .select("responsavel, pop, agendamento, checkin, status")
+      .select("sgp_contrato_id, responsavel, pop, agendamento, checkin, status")
       .in("motivo", MOTIVOS_CAMPO.filter((m) => m !== "Atendimento Fortics"))
       .gte("agendamento", inicioDoDia(ini7))
       .lte("agendamento", fimDoDia(ate))
@@ -197,7 +199,7 @@ export async function lerBaseTecnico(semana: Semana, hoje: string, admin: Admin 
         assinaturaDia: c?.assinatura_dispensada ? criadaDia : c?.data_assinatura ? String(c.data_assinatura).slice(0, 10) : null,
       };
     }),
-    agendadas: agendadas.map((x) => ({ unidade: unidadeDoPop(x.pop), tecnico: x.responsavel, agendamento: x.agendamento, checkin: x.checkin, status: x.status })),
+    agendadas: agendadas.filter((x) => x.sgp_contrato_id !== CONTRATO_INFRAESTRUTURA).map((x) => ({ unidade: unidadeDoPop(x.pop), tecnico: x.responsavel, agendamento: x.agendamento, checkin: x.checkin, status: x.status })),
     ativacoes: ativados.map((c) => ({ dia: String(c.data_ativacao).slice(0, 10), unidade: unidadeDoPop(c.pops?.nome) })),
     instalacoes: ativados.map((c) => ({
       unidade: unidadeDoPop(c.pops?.nome),

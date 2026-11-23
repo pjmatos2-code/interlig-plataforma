@@ -20,7 +20,8 @@ export const maxDuration = 120;
  */
 export async function POST(request: Request) {
   const usuario = await exigirUsuario();
-  if (!(await moduloDoUsuario(usuario, "operacao"))) return NextResponse.json({ erro: "Sem permissão." }, { status: 403 });
+  // o mesmo botão serve à Operação Técnica e à Infraestrutura (mesma leitura do SGP)
+  if (!(await moduloDoUsuario(usuario, "operacao")) && !(await moduloDoUsuario(usuario, "infraestrutura"))) return NextResponse.json({ erro: "Sem permissão." }, { status: 403 });
   const corpo = (await request.json().catch(() => ({}))) as { etapa?: string; fatia?: number };
   const agora = Date.now();
   const hoje = diaSantarem(agora)!;
@@ -41,6 +42,8 @@ export async function POST(request: Request) {
     if (!r.ok) console.error(`operação: ocorrências falharam (${usuario.perfil}):`, r.erro);
     const ultima = Number(corpo.fatia) === 2;
     if (r.ok && ultima) {
+      const { marcarSetorInfraestrutura } = await import("@/lib/sgp/ocorrencias");
+      await marcarSetorInfraestrutura(janelaOsOperacao(agora).de, fatiaAtualizar(hoje, 0)!.ateExclusivo).catch(() => null);
       await criarClienteAdmin().rpc("mesclar_config", { p_sistema: "sgp", p_patch: { operacao_lida_em: new Date(agora).toISOString() } });
     }
     return NextResponse.json({ ok: r.ok, lidas: r.lidas, erro: r.erro, dias: DIAS_QUADRO }, { status: r.ok ? 200 : 502 });

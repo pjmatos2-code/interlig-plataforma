@@ -2,6 +2,7 @@ import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { forticsConta } from "./direcionamento";
 import {
+  ehInfraestrutura,
   DIAS_ENCERRADAS,
   DIAS_QUADRO,
   colunaDa,
@@ -69,6 +70,7 @@ type LinhaOc = {
   sgp_os_id: string | null;
   lido_em: string | null;
   responsavel: string | null;
+  setor_sgp: string | null;
 };
 type LinhaOs = {
   sgp_os_id: string;
@@ -110,7 +112,8 @@ async function paginado<T>(consulta: (de: number, ate: number) => PromiseLike<{ 
   return todas;
 }
 
-export async function dadosOperacao(agora = Date.now()): Promise<DadosOperacao> {
+/** setor "operacao": instalação, mudança e suporte de campo; "infraestrutura": só as ocorrências da infraestrutura da rede */
+export async function dadosOperacao(agora = Date.now(), setor: "operacao" | "infraestrutura" = "operacao"): Promise<DadosOperacao> {
   const admin = criarClienteAdmin();
   const desde = new Date(agora - DIAS_QUADRO * 86_400_000).toISOString();
   const desdeEncerradas = agora - DIAS_ENCERRADAS * 86_400_000;
@@ -119,12 +122,12 @@ export async function dadosOperacao(agora = Date.now()): Promise<DadosOperacao> 
     await paginado<LinhaOc>((de, ate) =>
       admin
         .from("ocorrencias_sgp")
-        .select("sgp_ocorrencia_id, sgp_contrato_id, sgp_cliente_id, tipo, status, criada_em, encerrada_em, usuario, pop, sgp_os_id, lido_em, responsavel")
+        .select("sgp_ocorrencia_id, sgp_contrato_id, sgp_cliente_id, tipo, status, criada_em, encerrada_em, usuario, pop, sgp_os_id, lido_em, responsavel, setor_sgp")
         .gte("criada_em", desde)
         .order("sgp_ocorrencia_id")
         .range(de, ate)
     )
-  ).filter((o) => tipoServico(o.tipo) !== null);
+  ).filter((o) => tipoServico(o.tipo) !== null || ehInfraestrutura({ sgpContratoId: o.sgp_contrato_id, tipo: o.tipo, setorSgp: o.setor_sgp }));
 
   const idsOs = [...new Set(ocorrencias.map((o) => o.sgp_os_id).filter((x): x is string => Boolean(x)))];
   const idsContrato = [...new Set(ocorrencias.map((o) => o.sgp_contrato_id).filter((x): x is string => Boolean(x)))];
@@ -165,6 +168,10 @@ export async function dadosOperacao(agora = Date.now()): Promise<DadosOperacao> 
   for (const oc of ocorrencias) {
     const o = oc.sgp_os_id ? os.get(oc.sgp_os_id) : undefined;
     if (!forticsConta(o?.motivo, oc.tipo, oc.responsavel)) continue;
+    const ctInfo = oc.sgp_contrato_id ? contratos.get(oc.sgp_contrato_id) : undefined;
+    const infra = ehInfraestrutura({ sgpContratoId: oc.sgp_contrato_id, cliente: ctInfo?.cliente, tipo: oc.tipo, setorSgp: oc.setor_sgp });
+    // a infraestrutura da rede tem módulo próprio (23/11/2026)
+    if ((setor === "infraestrutura") !== infra) continue;
     const coluna = colunaDa(oc, o);
     if (coluna === "encerrada" && !(oc.encerrada_em && Date.parse(oc.encerrada_em) >= desdeEncerradas)) continue;
     const ct = oc.sgp_contrato_id ? contratos.get(oc.sgp_contrato_id) : undefined;
@@ -172,7 +179,7 @@ export async function dadosOperacao(agora = Date.now()): Promise<DadosOperacao> 
       ocorrenciaId: oc.sgp_ocorrencia_id,
       osId: oc.sgp_os_id,
       coluna,
-      tipo: tipoServico(oc.tipo)!,
+      tipo: infra ? "infraestrutura" : tipoServico(oc.tipo)!,
       tipoSgp: oc.tipo ?? "",
       statusOcorrencia: oc.status,
       statusOs: o?.status ?? null,

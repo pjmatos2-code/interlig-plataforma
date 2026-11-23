@@ -6,10 +6,11 @@ import type { Perfil } from "@/lib/tipos";
  * (tabela usuario_modulos), e pode prender a pessoa a uma unidade. Função pura.
  */
 
-export type Modulo = "operacao" | "grr_tecnico" | "grr_comercial";
+export type Modulo = "operacao" | "infraestrutura" | "grr_tecnico" | "grr_comercial";
 
 export const MODULOS: { chave: Modulo; rotulo: string; descricao: string }[] = [
   { chave: "operacao", rotulo: "Operação Técnica", descricao: "Quadro de ocorrências, calendário e clientes deixados para trás." },
+  { chave: "infraestrutura", rotulo: "Infraestrutura", descricao: "Ocorrências da infraestrutura da rede: quadro e calendário." },
   { chave: "grr_tecnico", rotulo: "GRR Técnico", descricao: "Indicadores, reunião de terça e conferência do setor técnico." },
   { chave: "grr_comercial", rotulo: "GRR Comercial", descricao: "Indicadores, reuniões e planos de ação do setor comercial." },
 ];
@@ -17,6 +18,7 @@ export const MODULOS: { chave: Modulo; rotulo: string; descricao: string }[] = [
 /** quem tem o módulo sem ajuste nenhum */
 export const PADRAO_MODULO: Record<Modulo, Perfil[]> = {
   operacao: ["gestor", "gestor_tecnico", "direcao"],
+  infraestrutura: ["gestor", "direcao", "gestor_infraestrutura"],
   grr_tecnico: ["gestor", "gestor_tecnico", "direcao"],
   grr_comercial: ["gestor", "supervisor", "direcao"],
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { colunaDa, compararCartoes, diaSantarem, ehCorporativo, fatiaAtualizar, intervaloPeriodo, noPeriodo, tempoDesde, tipoServico, type CartaoOrdenavel } from "./regras";
+import { colunaDa, compararCartoes, diaSantarem, ehCorporativo, ehInfraestrutura, fatiaAtualizar, intervaloPeriodo, noPeriodo, tempoDesde, tipoServico, type CartaoOrdenavel } from "./regras";
 
 describe("tipoServico", () => {
   it("separa instalação, mudança de endereço e suporte", () => {
@@ -7,7 +7,7 @@ describe("tipoServico", () => {
     expect(tipoServico("Suporte - Mudança de Endereço")).toBe("mudanca");
     expect(tipoServico("Suporte - Link Loss")).toBe("suporte");
     expect(tipoServico("Suporte - Luz Alta - Cliente")).toBe("suporte");
-    expect(tipoServico("Infraestrutura - Rompimento")).toBe("suporte");
+    expect(tipoServico("Infraestrutura - Rompimento")).toBe("infraestrutura");
     expect(tipoServico("Chamado Fortics")).toBe("suporte");
   });
   it("deixa fora recolhimento, cobrança, financeiro e cancelamento", () => {
@@ -105,5 +105,15 @@ describe("período", () => {
       { de: "2026-10-21", ateExclusivo: "2026-11-02" },
       null,
     ]);
+  });
+});
+
+describe("infraestrutura", () => {
+  it("cliente interno, setor do SGP ou tipo; nunca pela responsável", () => {
+    expect(ehInfraestrutura({ sgpContratoId: "15139", tipo: "Suporte - Sem Acesso" })).toBe(true);
+    expect(ehInfraestrutura({ cliente: "SETOR INFRAESTUTURA", tipo: "Suporte - Luz Alta - CTO" })).toBe(true);
+    expect(ehInfraestrutura({ sgpContratoId: "22000", tipo: "Suporte - Sem Acesso", setorSgp: "Infraestrutura" })).toBe(true);
+    expect(ehInfraestrutura({ sgpContratoId: "22000", tipo: "Infraestrutura - Manutenção CTO" })).toBe(true);
+    expect(ehInfraestrutura({ sgpContratoId: "23047", tipo: "Operacional - Instalação equipamento" })).toBe(false);
   });
 });

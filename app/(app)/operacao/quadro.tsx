@@ -31,6 +31,7 @@ const COR_TIPO: Record<TipoServico, string> = {
   instalacao: "bg-sky-100 text-sky-800 ring-sky-200",
   mudanca: "bg-violet-100 text-violet-800 ring-violet-200",
   suporte: "bg-amber-100 text-amber-900 ring-amber-200",
+  infraestrutura: "bg-teal-100 text-teal-900 ring-teal-200",
 };
 const COR_COLUNA: Record<Coluna, string> = {
   aberta: "border-t-slate-400",
@@ -86,7 +87,7 @@ function Cartao({ c, agora, linkTemplate }: { c: CartaoOperacao; agora: number; 
         {c.unidade}
         {c.bairro ? ` · ${c.bairro}` : ""}
       </p>
-      {c.tipo === "suporte" && <p className="mt-1 text-xs text-muted-foreground">{c.tipoSgp.replace(/^Suporte\s*-\s*/i, "")}</p>}
+      {(c.tipo === "suporte" || c.tipo === "infraestrutura") && <p className="mt-1 text-xs text-muted-foreground">{c.tipoSgp.replace(/^(Suporte|Infraestrutura)\s*-\s*/i, "")}</p>}
       <p className={cn("mt-2 text-xs font-medium", c.coluna === "validar" || vencida(c, agora) ? "text-farol-vermelho" : "text-foreground")}>{textoTempo(c, agora)}</p>
       {equipe && (
         <p className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
@@ -114,9 +115,9 @@ function Cartao({ c, agora, linkTemplate }: { c: CartaoOperacao; agora: number; 
   );
 }
 
-export function QuadroOperacao({ dados, linkTemplate, agora, unidadeFixa = null }: { dados: DadosOperacao; linkTemplate: string | null; agora: number; unidadeFixa?: string | null }) {
+export function QuadroOperacao({ dados, linkTemplate, agora, unidadeFixa = null, setor = "operacao" }: { dados: DadosOperacao; linkTemplate: string | null; agora: number; unidadeFixa?: string | null; setor?: "operacao" | "infraestrutura" }) {
   const [unidade, setUnidade] = useState<string>("todas");
-  const [tipos, setTipos] = useState<TipoServico[]>(TIPOS);
+  const [tipos, setTipos] = useState<TipoServico[]>(setor === "infraestrutura" ? ["infraestrutura"] : TIPOS);
   const [soCorporativo, setSoCorporativo] = useState(false);
   const [busca, setBusca] = useState("");
   const [periodo, setPeriodo] = useState<Periodo>("30d");
@@ -245,6 +246,7 @@ export function QuadroOperacao({ dados, linkTemplate, agora, unidadeFixa = null 
         ))}
         <button
           type="button"
+          hidden={setor === "infraestrutura"}
           onClick={() => setSoCorporativo((v) => !v)}
           aria-pressed={soCorporativo}
           className={cn(
@@ -273,7 +275,7 @@ export function QuadroOperacao({ dados, linkTemplate, agora, unidadeFixa = null 
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tipo de serviço">
+        <div className={cn("flex flex-wrap gap-1.5", setor === "infraestrutura" && "hidden")} role="group" aria-label="Tipo de serviço">
           {TIPOS.map((t) => (
             <button
               key={t}

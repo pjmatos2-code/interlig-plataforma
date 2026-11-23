@@ -1,0 +1,22 @@
+import Link from "next/link";
+import { CalendarDays, KanbanSquare } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+/** Abas do módulo Infraestrutura: quadro de ocorrências e calendário. */
+export function AbasInfraestrutura({ ativa }: { ativa: "quadro" | "calendario" }) {
+  const aba = (chave: "quadro" | "calendario", href: string, rotulo: string, Icone: typeof KanbanSquare) => (
+    <Link
+      href={href}
+      aria-current={ativa === chave ? "page" : undefined}
+      className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium", ativa === chave ? "border-interlig-azul bg-interlig-azul text-white" : "bg-background hover:border-interlig-ceu")}
+    >
+      <Icone className="h-4 w-4" aria-hidden /> {rotulo}
+    </Link>
+  );
+  return (
+    <nav aria-label="Visões da Infraestrutura" className="mb-4 flex flex-wrap gap-2">
+      {aba("quadro", "/infraestrutura", "Quadro de ocorrências", KanbanSquare)}
+      {aba("calendario", "/infraestrutura/calendario", "Calendário", CalendarDays)}
+    </nav>
+  );
+}

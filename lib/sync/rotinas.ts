@@ -215,7 +215,12 @@ export async function rodarRotinas(orcamentoMs = 172_000) {
       restante() > 40_000
         ? await atualizarOcorrencias(fatia.de, fatia.ateExclusivo).catch((e) => ({ ok: false, lidas: 0, erro: String(e) }))
         : { ok: false, lidas: 0, erro: "sem tempo para as ocorrências" };
-    const erros = [os.ok ? null : `OS: ${os.erro ?? "falhou"}`, oc.ok ? null : `ocorrências: ${oc.erro ?? "falhou"}`].filter(Boolean);
+    // setor Infraestrutura dos últimos 31 dias (23/11/2026): poucas ocorrências, uma leitura rápida
+    const infra =
+      restante() > 25_000
+        ? await (await import("@/lib/sgp/ocorrencias")).marcarSetorInfraestrutura(janela.de, fatiaOcorrenciasOperacao(ini, 0).ateExclusivo).catch((e) => ({ ok: false, marcadas: 0, erro: String(e) }))
+        : { ok: true, marcadas: 0 };
+    const erros = [os.ok ? null : `OS: ${os.erro ?? "falhou"}`, oc.ok ? null : `ocorrências: ${oc.erro ?? "falhou"}`, infra.ok ? null : `setor infraestrutura: ${infra.erro ?? "falhou"}`].filter(Boolean);
     await registrar(admin, "operacao", ini, { ok: erros.length === 0, registros: os.lidas + oc.lidas, erro: erros.join("; ") || null });
     medir("operacao", ini);
 

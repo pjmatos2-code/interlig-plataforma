@@ -64,3 +64,36 @@ export async function atualizarOcorrencias(
     return { ok: false, lidas: 0, erro: e instanceof Error ? e.message : String(e) };
   }
 }
+
+/** id do setor "Infraestrutura" no SGP (lista de setores do relatório de ocorrências, 23/11/2026) */
+export const SETOR_INFRAESTRUTURA_SGP = "14";
+
+/**
+ * Marca as ocorrências do setor Infraestrutura (23/11/2026): o relatório do SGP
+ * não traz a coluna do setor, então lê só os ids filtrados pelo setor e grava
+ * setor_sgp. As que saíram do setor no intervalo voltam a ficar sem marca.
+ * Só leitura no SGP. de/ateExclusivo em aaaa-mm-dd (a data final não entra).
+ */
+export async function marcarSetorInfraestrutura(de: string, ateExclusivo: string): Promise<{ ok: boolean; marcadas: number; erro?: string }> {
+  const admin = criarClienteAdmin();
+  try {
+    const { data: cfgRow } = await admin.from("integracoes_config").select("config").eq("sistema", "sgp").maybeSingle();
+    const cfg = (cfgRow?.config ?? {}) as Record<string, string>;
+    if (!cfg.painel_usuario || !cfg.painel_senha) return { ok: false, marcadas: 0, erro: "credencial do painel do SGP não configurada" };
+    const painel = new PainelSgp(String(cfg.base_url ?? "").replace(/\/+$/, "").replace(/\/admin$/, ""), cfg.painel_usuario, cfg.painel_senha);
+    const ids = await painel.idsOcorrenciasDoSetor(SETOR_INFRAESTRUTURA_SGP, br(de), br(ateExclusivo));
+    const ini = `${de}T00:00:00-03:00`;
+    const fim = `${ateExclusivo}T00:00:00-03:00`;
+    // tira a marca de quem saiu do setor no intervalo
+    const { data: marcadas } = await admin.from("ocorrencias_sgp").select("sgp_ocorrencia_id").eq("setor_sgp", "Infraestrutura").gte("criada_em", ini).lt("criada_em", fim);
+    const sairam = (marcadas ?? []).map((m) => String(m.sgp_ocorrencia_id)).filter((id) => !ids.includes(id));
+    if (sairam.length) await admin.from("ocorrencias_sgp").update({ setor_sgp: null }).in("sgp_ocorrencia_id", sairam);
+    for (let i = 0; i < ids.length; i += 300) {
+      const { error } = await admin.from("ocorrencias_sgp").update({ setor_sgp: "Infraestrutura" }).in("sgp_ocorrencia_id", ids.slice(i, i + 300));
+      if (error) return { ok: false, marcadas: i, erro: error.message };
+    }
+    return { ok: true, marcadas: ids.length };
+  } catch (e) {
+    return { ok: false, marcadas: 0, erro: e instanceof Error ? e.message : String(e) };
+  }
+}

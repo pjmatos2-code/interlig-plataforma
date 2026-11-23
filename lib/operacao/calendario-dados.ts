@@ -1,7 +1,7 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { MOTIVOS_CALENDARIO, gradeDoMes, posicaoNoCalendario, tipoDoMotivo, type OsCalendario } from "./calendario";
-import { ehCorporativo } from "./regras";
+import { CONTRATO_INFRAESTRUTURA, ehCorporativo, ehInfraestrutura } from "./regras";
 import { forticsConta } from "./direcionamento";
 
 /**
@@ -34,7 +34,7 @@ const unidade = (pop: string | null | undefined) => {
   return pop?.trim() || "Sem unidade";
 };
 
-export async function dadosCalendario(mes: string, agora = Date.now()): Promise<{ itens: OsCalendario[]; atualizadoEm: string | null }> {
+export async function dadosCalendario(mes: string, agora = Date.now(), setor: "operacao" | "infraestrutura" = "operacao"): Promise<{ itens: OsCalendario[]; atualizadoEm: string | null }> {
   const admin = criarClienteAdmin();
   const { de, ate } = gradeDoMes(mes);
   const ini = `${de}T00:00:00-03:00`;
@@ -52,13 +52,23 @@ export async function dadosCalendario(mes: string, agora = Date.now()): Promise<
     linhas.push(...((data ?? []) as LinhaOs[]));
     if (!data || data.length < 1000) break;
   }
+  // OS do cliente interno da infraestrutura, com qualquer motivo
+  {
+    const vistas = new Set(linhas.map((l) => l.sgp_os_id));
+    const { data } = await admin
+      .from("os_tecnicas")
+      .select("sgp_os_id, sgp_contrato_id, cliente_nome, pop, bairro, motivo, status, agendamento, checkin, servico_prestado, encerrada_em, responsavel, importado_em")
+      .eq("sgp_contrato_id", CONTRATO_INFRAESTRUTURA)
+      .or(`and(agendamento.gte.${ini},agendamento.lte.${fim}),and(checkin.gte.${ini},checkin.lte.${fim}),and(encerrada_em.gte.${ini},encerrada_em.lte.${fim})`);
+    for (const l of (data ?? []) as LinhaOs[]) if (!vistas.has(l.sgp_os_id)) linhas.push(l);
+  }
 
-  // Fortics: só a OS cuja ocorrência foi para um gestor técnico
-  const fortics = linhas.filter((l) => /fortics/i.test(l.motivo ?? "")).map((l) => l.sgp_os_id);
-  const respFortics = new Map<string, { tipo: string | null; responsavel: string | null }>();
-  for (let i = 0; i < fortics.length; i += 300) {
-    const { data } = await admin.from("ocorrencias_sgp").select("sgp_os_id, tipo, responsavel").in("sgp_os_id", fortics.slice(i, i + 300));
-    for (const o of data ?? []) respFortics.set(String(o.sgp_os_id), { tipo: (o.tipo as string | null) ?? null, responsavel: (o.responsavel as string | null) ?? null });
+  // a ocorrência de cada OS: Fortics (só a que foi para um gestor técnico) e o setor de infraestrutura
+  const osIds = linhas.map((l) => l.sgp_os_id);
+  const respFortics = new Map<string, { tipo: string | null; responsavel: string | null; setor: string | null }>();
+  for (let i = 0; i < osIds.length; i += 300) {
+    const { data } = await admin.from("ocorrencias_sgp").select("sgp_os_id, tipo, responsavel, setor_sgp").in("sgp_os_id", osIds.slice(i, i + 300));
+    for (const o of data ?? []) respFortics.set(String(o.sgp_os_id), { tipo: (o.tipo as string | null) ?? null, responsavel: (o.responsavel as string | null) ?? null, setor: (o.setor_sgp as string | null) ?? null });
   }
   const ids = [...new Set(linhas.map((l) => l.sgp_contrato_id).filter((x): x is string => Boolean(x)))];
   const contratos = new Map<string, { cliente: string | null; documento: string | null; sgpClienteId: string | null; corporativo: boolean }>();
@@ -84,9 +94,11 @@ export async function dadosCalendario(mes: string, agora = Date.now()): Promise<
   let atualizadoEm: string | null = null;
   for (const l of linhas) {
     if (l.importado_em && (!atualizadoEm || l.importado_em > atualizadoEm)) atualizadoEm = l.importado_em;
-    const tipo = tipoDoMotivo(l.motivo);
     const oc = respFortics.get(l.sgp_os_id);
     if (!forticsConta(l.motivo, oc?.tipo, oc?.responsavel)) continue;
+    const infra = ehInfraestrutura({ sgpContratoId: l.sgp_contrato_id, tipo: oc?.tipo, setorSgp: oc?.setor });
+    if ((setor === "infraestrutura") !== infra) continue;
+    const tipo = infra ? ("infraestrutura" as const) : tipoDoMotivo(l.motivo);
     const pos = posicaoNoCalendario({ status: l.status, agendamento: l.agendamento, checkin: l.checkin, encerradaEm: l.encerrada_em, servicoPrestado: l.servico_prestado }, agora);
     if (!tipo || !pos || pos.dia < de || pos.dia > ate) continue;
     const ct = l.sgp_contrato_id ? contratos.get(l.sgp_contrato_id) : undefined;

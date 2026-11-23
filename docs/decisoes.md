@@ -1200,3 +1200,9 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 - O padrão continua vindo do perfil (`PADRAO_MODULO` em `lib/acessos.ts`); a tabela `usuario_modulos` (migração 0144) guarda os ajustes por pessoa: liberar, liberar só numa unidade ou bloquear. Vale para Operação Técnica, GRR Técnico e GRR Comercial: menu, escolha de setor, telas, apresentações e o botão "Atualizar agora". A administração ajusta em Administração › Acesso aos módulos (salva na hora).
 - Ajustes decididos pela gestão: Aline Moraes (Brasil Novo) e Railson (Vitória do Xingu) com os três módulos só da própria unidade — no GRR Comercial o Railson passa a ver a unidade inteira, não só a equipe que coordena; Rayssa, responsável pela baixa das ocorrências, só com a Operação Técnica de todas as unidades e sem o GRR Comercial.
 - Limite: no GRR Comercial, quem tem unidade ajustada vê o resumo e a apresentação da unidade inteira; reuniões, planos e histórico do comercial seguem a regra do perfil.
+
+### Infraestrutura separada da Operação Técnica (23/11/2026)
+
+- Módulo novo "Infraestrutura" (`/infraestrutura`, quadro e calendário) para a infraestrutura da rede, gestora Juliana Trevisan. É da Infraestrutura a ocorrência aberta no cliente interno "SETOR INFRAESTRUTURA" (contrato 15139), a direcionada ao setor Infraestrutura no SGP (id 14, marcado em `ocorrencias_sgp.setor_sgp` pela leitura da Operação a cada ~15 min) ou com tipo "Infraestrutura - ..." (`ehInfraestrutura` em `lib/operacao/regras.ts`). O nome da responsável não entra (ela também aparece em instalações de clientes).
+- Essas ocorrências saem do quadro e do calendário da Operação Técnica e das contas do GRR Técnico.
+- Perfil novo "Gestor de infraestrutura" (migração 0145): vê só o módulo Infraestrutura e o InterChat. O módulo entra no acesso por usuário (Administração › Acesso aos módulos); padrão: gestão, direção e o perfil novo.

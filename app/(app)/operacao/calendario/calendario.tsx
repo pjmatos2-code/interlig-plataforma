@@ -16,6 +16,7 @@ const COR_TIPO: Record<TipoServico, string> = {
   instalacao: "bg-sky-100 text-sky-800 ring-sky-200",
   mudanca: "bg-violet-100 text-violet-800 ring-violet-200",
   suporte: "bg-amber-100 text-amber-900 ring-amber-200",
+  infraestrutura: "bg-teal-100 text-teal-900 ring-teal-200",
 };
 const hora = (iso: string) => new Date(Date.parse(iso) - 3 * 3_600_000).toISOString().slice(11, 16);
 const diaLongo = (dia: string) => {
@@ -45,7 +46,7 @@ function Item({ o, linkTemplate }: { o: OsCalendario; linkTemplate: string | nul
       <p className="text-xs text-muted-foreground">
         {o.unidade}
         {o.bairro ? ` · ${o.bairro}` : ""}
-        {o.tipo === "suporte" ? ` · ${o.motivo}` : ""}
+        {o.tipo === "suporte" || o.tipo === "infraestrutura" ? ` · ${o.motivo}` : ""}
       </p>
       <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1">
@@ -65,6 +66,8 @@ function Item({ o, linkTemplate }: { o: OsCalendario; linkTemplate: string | nul
 
 export function CalendarioOperacao(p: {
   unidadeFixa?: string | null;
+  setor?: "operacao" | "infraestrutura";
+  base?: string;
   mes: string;
   rotulo: string;
   anterior: string;
@@ -76,7 +79,7 @@ export function CalendarioOperacao(p: {
   linkTemplate: string | null;
 }) {
   const [unidade, setUnidade] = useState("todas");
-  const [tipos, setTipos] = useState<TipoServico[]>(TIPOS);
+  const [tipos, setTipos] = useState<TipoServico[]>(p.setor === "infraestrutura" ? ["infraestrutura"] : TIPOS);
   const [soCorporativo, setSoCorporativo] = useState(false);
   const noMes = (dia: string) => dia.slice(0, 7) === p.mes;
   const [dia, setDia] = useState(noMes(p.hoje) ? p.hoje : `${p.mes}-01`);
@@ -107,15 +110,15 @@ export function CalendarioOperacao(p: {
       {/* mês e filtros */}
       <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-2">
-          <Link href={`/operacao/calendario?mes=${p.anterior}`} aria-label="Mês anterior" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border hover:border-interlig-ceu">
+          <Link href={`${p.base ?? "/operacao/calendario"}?mes=${p.anterior}`} aria-label="Mês anterior" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border hover:border-interlig-ceu">
             <ChevronLeft className="h-4 w-4" aria-hidden />
           </Link>
           <h2 className="min-w-40 text-center text-base font-semibold">{p.rotulo.charAt(0).toUpperCase() + p.rotulo.slice(1)}</h2>
-          <Link href={`/operacao/calendario?mes=${p.proximo}`} aria-label="Mês seguinte" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border hover:border-interlig-ceu">
+          <Link href={`${p.base ?? "/operacao/calendario"}?mes=${p.proximo}`} aria-label="Mês seguinte" className="inline-flex h-9 w-9 items-center justify-center rounded-lg border hover:border-interlig-ceu">
             <ChevronRight className="h-4 w-4" aria-hidden />
           </Link>
           {!noMes(p.hoje) && (
-            <Link href="/operacao/calendario" className="ml-1 rounded-full px-2.5 py-1 text-xs font-medium text-interlig-azul hover:bg-interlig-azul/10">
+            <Link href={p.base ?? "/operacao/calendario"} className="ml-1 rounded-full px-2.5 py-1 text-xs font-medium text-interlig-azul hover:bg-interlig-azul/10">
               Ir para hoje
             </Link>
           )}
@@ -127,7 +130,7 @@ export function CalendarioOperacao(p: {
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tipo de serviço">
+        <div className={cn("flex flex-wrap gap-1.5", p.setor === "infraestrutura" && "hidden")} role="group" aria-label="Tipo de serviço">
           {TIPOS.map((t) => (
             <button key={t} type="button" onClick={() => alternarTipo(t)} aria-pressed={tipos.includes(t)} className={cn("rounded-full px-3 py-1 text-xs font-semibold ring-1", tipos.includes(t) ? COR_TIPO[t] : "bg-background text-muted-foreground ring-border line-through")}>
               {ROTULO_TIPO[t]}

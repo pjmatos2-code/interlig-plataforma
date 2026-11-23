@@ -21,7 +21,7 @@ export const DIAS_QUADRO = 30;
 /** Encerradas aparecem só as recentes, para a coluna não engolir o quadro. */
 export const DIAS_ENCERRADAS = 7;
 
-export type TipoServico = "instalacao" | "mudanca" | "suporte";
+export type TipoServico = "instalacao" | "mudanca" | "suporte" | "infraestrutura";
 export type Coluna = "aberta" | "agendada" | "execucao" | "validar" | "encerrada";
 
 export const COLUNAS: { chave: Coluna; rotulo: string; ajuda: string }[] = [
@@ -36,13 +36,32 @@ export const ROTULO_TIPO: Record<TipoServico, string> = {
   instalacao: "Instalação",
   mudanca: "Mudança de endereço",
   suporte: "Suporte",
+  infraestrutura: "Infraestrutura",
 };
+
+/**
+ * Infraestrutura da rede (23/11/2026, gestora Juliana Trevisan): sai da
+ * Operação Técnica e vai para o módulo próprio. É da Infraestrutura a
+ * ocorrência aberta no cliente interno "SETOR INFRAESTRUTURA" (contrato 15139),
+ * a direcionada ao setor Infraestrutura no SGP, ou com tipo "Infraestrutura - ...".
+ * O nome da responsável não entra: ela também aparece em instalações de clientes.
+ */
+export const CONTRATO_INFRAESTRUTURA = "15139";
+export function ehInfraestrutura(x: { sgpContratoId?: string | null; cliente?: string | null; tipo?: string | null; setorSgp?: string | null }): boolean {
+  return (
+    String(x.sgpContratoId ?? "") === CONTRATO_INFRAESTRUTURA ||
+    /setor\s+infraest/i.test(x.cliente ?? "") ||
+    /^infraestrutura/i.test((x.setorSgp ?? "").trim()) ||
+    /^infraestrutura/i.test((x.tipo ?? "").trim())
+  );
+}
 
 /** Tipo da ocorrência do SGP → tipo de serviço de campo (null: fora do quadro). */
 export function tipoServico(tipo: string | null | undefined): TipoServico | null {
   const t = (tipo ?? "").trim();
   if (!t) return null;
   if (/mudan[cç]a de endere[cç]o/i.test(t)) return "mudanca";
+  if (/^infraestrutura/i.test(t)) return "infraestrutura";
   if (/^operacional\s*-\s*instala[cç][aã]o/i.test(t)) return "instalacao";
   if (/recolh|cancelamento|cobran[cç]a|financeiro|promessa|reten[cç][aã]o|downgrade|upgrade/i.test(t)) return null;
   if (/^(suporte|infraestrutura|operacional)\b/i.test(t) || /chamado fortics/i.test(t)) return "suporte";

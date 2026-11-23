@@ -233,6 +233,27 @@ export class PainelSgp {
     return todas;
   }
 
+  /** ids das ocorrências de um setor do SGP criadas no intervalo (relatório filtrado; a data final não entra) */
+  async idsOcorrenciasDoSetor(setorId: string, de: string, ate: string): Promise<string[]> {
+    if (!this.logado) await this.login();
+    const q = new URLSearchParams({ data_cadastro_inicial: de, data_cadastro_final: ate, paginate_by: "5000", page: "1", setor: setorId });
+    q.append("exibir_colunas", "id");
+    const res = await this.pegar(`/admin/atendimento/relatorios/ocorrencia/?${q}`, { signal: AbortSignal.timeout(120_000) });
+    if (res.status !== 200) throw new Error(`relatório de ocorrências do setor respondeu ${res.status}`);
+    const html = await res.text();
+    const limpa = (h: string) => h.replace(/<span class="sort">[^<]*<\/span>/g, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const cab = [...(html.match(/<thead[\s\S]*?<\/thead>/i)?.[0] ?? "").matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)].map((x) => limpa(x[1]));
+    const iId = cab.indexOf("ID");
+    if (iId < 0) throw new Error("relatório de ocorrências sem a coluna ID");
+    const tbody = html.match(/<tbody[\s\S]*?<\/tbody>/i)?.[0] ?? "";
+    const ids: string[] = [];
+    for (const tr of tbody.matchAll(/<tr[\s\S]*?<\/tr>/gi)) {
+      const tds = [...tr[0].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => limpa(m[1]));
+      if (/^\d+$/.test(tds[iId] ?? "")) ids.push(tds[iId]);
+    }
+    return ids;
+  }
+
   /**
    * Página de uma ocorrência (só leitura). Traz o registro de alterações — de
    * onde sai a hora em que o "Usuário responsável" foi preenchido.

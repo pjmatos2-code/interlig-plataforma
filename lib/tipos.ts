@@ -12,6 +12,8 @@ export type Perfil =
   | "agente_retencao"
   /** gestão da Equipe Técnica: vê SOMENTE o módulo técnico */
   | "gestor_tecnico"
+  /** gestão da Infraestrutura da rede (23/11/2026): vê SOMENTE o módulo Infraestrutura */
+  | "gestor_infraestrutura"
   /** direção: visualiza todos os módulos (exceto Administração), não edita nada */
   | "direcao";
 
@@ -55,6 +57,7 @@ export const ROTULO_PERFIL: Record<Perfil, string> = {
   agente_atendimento: "Agente de atendimento",
   agente_retencao: "Agente de retenção",
   gestor_tecnico: "Gestor técnico",
+  gestor_infraestrutura: "Gestor de infraestrutura",
   direcao: "Direção",
 };
 

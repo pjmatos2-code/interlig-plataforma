@@ -76,5 +76,6 @@ export function rotaInicial(perfil: Perfil): string {
   if (perfil === "agente_atendimento") return "/meu-painel";
   if (perfil === "agente_retencao") return "/retencao";
   if (perfil === "gestor_tecnico") return "/tecnica";
+  if (perfil === "gestor_infraestrutura") return "/infraestrutura";
   return "/dashboard";
 }

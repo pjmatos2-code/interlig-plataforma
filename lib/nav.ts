@@ -17,7 +17,7 @@ export type ItemNav = {
  * Fonte única: mudou a matriz, muda aqui — e a RLS acompanha em 0002_rls.sql.
  */
 export const ITENS_NAV: ItemNav[] = [
-  { href: "/interchat",     rotulo: "InterChat",   icone: "MessagesSquare",  perfis: ["gestor", "supervisor", "vendedora", "vendedora_externa", "agente_corporativo", "financeiro", "agente_atendimento", "agente_retencao", "gestor_tecnico", "direcao"] },
+  { href: "/interchat",     rotulo: "InterChat",   icone: "MessagesSquare",  perfis: ["gestor", "supervisor", "vendedora", "vendedora_externa", "agente_corporativo", "financeiro", "agente_atendimento", "agente_retencao", "gestor_tecnico", "gestor_infraestrutura", "direcao"] },
   { href: "/meu-dia/equipe", rotulo: "Meu Dia da equipe", icone: "Sunrise",     perfis: ["gestor"] },
   { href: "/meu-dia",       rotulo: "Meu dia",     icone: "Sunrise",         perfis: ["vendedora", "gestor"] },
   { href: "/meu-painel",    rotulo: "Meu painel",  icone: "LayoutDashboard", perfis: ["vendedora", "vendedora_externa", "agente_corporativo", "agente_atendimento", "supervisor"] },
@@ -39,6 +39,7 @@ export const ITENS_NAV: ItemNav[] = [
   { href: "/prevencao",     rotulo: "Prevenção de cancelamento", icone: "LifeBuoy", perfis: ["gestor", "agente_retencao", "agente_atendimento", "supervisor", "direcao"] },
   { href: "/retencao",      rotulo: "Retenção",    icone: "ShieldAlert",     perfis: ["gestor", "agente_retencao", "direcao"] },
   { href: "/operacao",      rotulo: "Operação Técnica", icone: "KanbanSquare", perfis: ["gestor", "gestor_tecnico", "direcao"] , modulos: ["operacao"] },
+  { href: "/infraestrutura", rotulo: "Infraestrutura", icone: "Network",       perfis: ["gestor", "direcao", "gestor_infraestrutura"], modulos: ["infraestrutura"] },
   { href: "/tecnica",       rotulo: "Equipe Técnica", icone: "Wrench",       perfis: ["gestor", "financeiro", "gestor_tecnico", "direcao"] },
   { href: "/financeiro",    rotulo: "Financeiro",  icone: "Receipt",         perfis: ["gestor", "financeiro", "direcao"] },
   { href: "/historico",     rotulo: "Histórico",   icone: "History",         perfis: ["gestor", "financeiro", "direcao"] },
