@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
-import { exigirPerfil } from "@/lib/auth";
+import { exigirModulo } from "@/lib/acessos-dados";
 import { carregarConferenciaTecnico } from "@/lib/grr/tecnico/conferencia-dados";
-import { PERFIS_GRR_TECNICO } from "@/lib/grr/tecnico/tela";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +15,7 @@ const ESTILO = {
 
 /** Conferência dos dados do GRR Técnico: o que pode deixar um número errado ou incompleto. Só leitura. */
 export default async function ConferenciaTecnicoPage() {
-  await exigirPerfil([...PERFIS_GRR_TECNICO]);
+  await exigirModulo("grr_tecnico");
   const itens = await carregarConferenciaTecnico();
   return (
     <div>

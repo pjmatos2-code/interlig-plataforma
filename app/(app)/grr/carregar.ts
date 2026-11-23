@@ -1,4 +1,6 @@
 import "server-only";
+import { exigirModulo } from "@/lib/acessos-dados";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { exigirPerfil } from "@/lib/auth";
 import { aplicarConfig } from "@/lib/grr/config";
 import { lerConfigGrr } from "@/lib/grr/config-dados";
@@ -34,19 +36,23 @@ export type Congelamento = {
  * própria unidade.
  */
 export async function carregarTelaGrr(params: ParametrosGrr) {
-  const usuario = await exigirPerfil([...PERFIS_GRR]);
+  const acesso = await exigirModulo("grr_comercial");
+  // ajuste por usuário com unidade (23/11/2026): a pessoa vê a unidade inteira dela,
+  // mesmo coordenando agentes; a leitura vai pelo servidor, já presa à unidade
+  const usuario = acesso.popId && acesso.usuario.perfil === "supervisor" ? { ...acesso.usuario, pop_id: acesso.popId } : acesso.usuario;
+  const unidadeInteira = Boolean(acesso.popId && acesso.usuario.perfil === "supervisor");
   const hoje = hojeSantarem();
   const semana = resolverSemana(params.semana, hoje);
   const [cadastro, config] = await Promise.all([carregarCadastroGrr(mesDeReferencia(semana).de), lerConfigGrr()]);
-  const time = usuario.perfil === "supervisor" ? cadastro.equipes.find((e) => e.coordenadorId === usuario.id)?.vendedorIds ?? null : null;
+  const time = usuario.perfil === "supervisor" && !unidadeInteira ? cadastro.equipes.find((e) => e.coordenadorId === usuario.id)?.vendedorIds ?? null : null;
   const escopo = resolverEscopo(usuario, time, { unidade: params.unidade, equipe: params.equipe, agente: params.agente }, cadastro);
   const chave = chaveDoEscopo(escopo, usuario.id);
 
   const completa = semana.fim < hoje;
-  const foto = config.disponivel && completa ? await lerFoto(semana, chave) : null;
+  const foto = config.disponivel && completa ? await lerFoto(semana, chave, unidadeInteira ? criarClienteAdmin() : undefined) : null;
   const aoVivo = !foto || params.vivo === "1";
   const dados = aoVivo
-    ? await carregarGrrComercial(semana, escopo, cadastro).then((d) => ({ ...d, cartoes: aplicarConfig(d.cartoes, config, chave, semana.inicio) }))
+    ? await carregarGrrComercial(semana, escopo, cadastro, unidadeInteira ? criarClienteAdmin() : undefined).then((d) => ({ ...d, cartoes: aplicarConfig(d.cartoes, config, chave, semana.inicio) }))
     : foto!.dados;
   const congelamento: Congelamento = {
     disponivel: config.disponivel,

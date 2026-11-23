@@ -12,8 +12,8 @@ import { montarGrr } from "./montar";
 const CAMPOS_FOTO = "id, periodo_inicio, periodo_fim, escopo_tipo, escopo_ref, escopo_rotulo, versao, motivo, origem, congelado_em, congelado_por";
 
 /** a foto mais recente (maior versão) de uma semana, no recorte dado; null se não há ou se as tabelas ainda não existem */
-export async function lerFoto(semana: Semana, chave: ChaveEscopo): Promise<FotoGrr | null> {
-  let consulta = criarClienteServidor()
+export async function lerFoto(semana: Semana, chave: ChaveEscopo, cliente?: SupabaseClient): Promise<FotoGrr | null> {
+  let consulta = (cliente ?? criarClienteServidor())
     .from("grr_fotos")
     .select(`${CAMPOS_FOTO}, dados`)
     .eq("empresa", EMPRESA_GRR)

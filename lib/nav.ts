@@ -1,4 +1,5 @@
 import type { Perfil } from "@/lib/tipos";
+import { acessoDoModulo, type AjusteModulo, type Modulo } from "@/lib/acessos";
 
 export type ItemNav = {
   href: string;
@@ -7,6 +8,8 @@ export type ItemNav = {
   perfis: Perfil[];
   /** começo de endereço que também marca o item como atual (o GRR abre na escolha do setor) */
   ativoEm?: string;
+  /** módulos com acesso por usuário: o item aparece se a pessoa tem algum deles (o perfil vira só o padrão) */
+  modulos?: Modulo[];
 };
 
 /**
@@ -20,7 +23,7 @@ export const ITENS_NAV: ItemNav[] = [
   { href: "/meu-painel",    rotulo: "Meu painel",  icone: "LayoutDashboard", perfis: ["vendedora", "vendedora_externa", "agente_corporativo", "agente_atendimento", "supervisor"] },
   { href: "/dashboard",     rotulo: "Dashboard",   icone: "LayoutDashboard", perfis: ["gestor", "supervisor", "direcao"] },
   { href: "/relatorios",    rotulo: "Relatório da diretoria", icone: "FileText", perfis: ["gestor", "direcao"] },
-  { href: "/grr/setores",   rotulo: "GRR, Gestão de Resultados", icone: "Gauge", perfis: ["gestor", "supervisor", "direcao", "gestor_tecnico"], ativoEm: "/grr" },
+  { href: "/grr/setores",   rotulo: "GRR, Gestão de Resultados", icone: "Gauge", perfis: ["gestor", "supervisor", "direcao", "gestor_tecnico"], ativoEm: "/grr", modulos: ["grr_comercial", "grr_tecnico"] },
   { href: "/vendedoras",    rotulo: "Vendedoras",  icone: "Users",           perfis: ["gestor", "supervisor", "direcao"] },
   { href: "/minhas-vendas", rotulo: "Minhas vendas", icone: "TrendingUp",    perfis: ["gestor", "vendedora", "vendedora_externa", "agente_corporativo"] },
   { href: "/minha-comissao", rotulo: "Minha comissão", icone: "Wallet",       perfis: ["vendedora", "vendedora_externa", "agente_corporativo", "agente_atendimento"] },
@@ -35,7 +38,7 @@ export const ITENS_NAV: ItemNav[] = [
   { href: "/fidelidade",    rotulo: "Fidelidade da base", icone: "HeartHandshake", perfis: ["gestor", "agente_atendimento", "supervisor", "direcao"] },
   { href: "/prevencao",     rotulo: "Prevenção de cancelamento", icone: "LifeBuoy", perfis: ["gestor", "agente_retencao", "agente_atendimento", "supervisor", "direcao"] },
   { href: "/retencao",      rotulo: "Retenção",    icone: "ShieldAlert",     perfis: ["gestor", "agente_retencao", "direcao"] },
-  { href: "/operacao",      rotulo: "Operação Técnica", icone: "KanbanSquare", perfis: ["gestor", "gestor_tecnico", "direcao"] },
+  { href: "/operacao",      rotulo: "Operação Técnica", icone: "KanbanSquare", perfis: ["gestor", "gestor_tecnico", "direcao"] , modulos: ["operacao"] },
   { href: "/tecnica",       rotulo: "Equipe Técnica", icone: "Wrench",       perfis: ["gestor", "financeiro", "gestor_tecnico", "direcao"] },
   { href: "/financeiro",    rotulo: "Financeiro",  icone: "Receipt",         perfis: ["gestor", "financeiro", "direcao"] },
   { href: "/historico",     rotulo: "Histórico",   icone: "History",         perfis: ["gestor", "financeiro", "direcao"] },
@@ -55,10 +58,10 @@ export const TELAS_DE_QUEM_REFIDELIZA = ["/fidelidade", "/prevencao"];
  * Menu da pessoa: o do perfil, mais as telas do Atendimento para quem vende e
  * ainda refideliza — na posição em que elas aparecem para o Atendimento.
  */
-export function navDoUsuario(perfil: Perfil, opcoes: { tambemRefideliza?: boolean } = {}): ItemNav[] {
+export function navDoUsuario(perfil: Perfil, opcoes: { tambemRefideliza?: boolean; ajustes?: AjusteModulo[] } = {}): ItemNav[] {
   return ITENS_NAV.filter(
     (item) =>
-      item.perfis.includes(perfil) ||
+      (item.modulos ? item.modulos.some((m) => acessoDoModulo(perfil, opcoes.ajustes ?? [], m).permitido) : item.perfis.includes(perfil)) ||
       (opcoes.tambemRefideliza === true && TELAS_DE_QUEM_REFIDELIZA.includes(item.href))
   );
 }

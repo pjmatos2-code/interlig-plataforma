@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { exigirModulo } from "@/lib/acessos-dados";
 import { ApresentacaoEquipe } from "@/components/grr/apresentacao/equipe";
 import { exigirPerfil } from "@/lib/auth";
 import { paraPainel } from "@/lib/grr/painel";
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
  * mesmas ações da página da reunião (perfil e recorte conferidos no servidor).
  */
 export default async function ApresentacaoReuniaoPage({ params }: { params: { id: string } }) {
-  const usuario = await exigirPerfil([...PERFIS_GRR]);
+  const { usuario } = await exigirModulo("grr_comercial");
   const completa = await lerReuniao(params.id);
   if (!completa) notFound();
   const { reuniao: r, compromissos, daAnterior } = completa;

@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { exigirPerfil } from "@/lib/auth";
+import { exigirModulo } from "@/lib/acessos-dados";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { EMPRESA_GRR } from "@/lib/grr/config-dados";
 import type { Participante } from "@/lib/grr/reunioes";
 import { SETOR_TECNICO } from "@/lib/grr/tecnico/catalogo";
 import { recortesTecnico } from "@/lib/grr/tecnico/dados";
-import { carregarTelaTecnico, PERFIS_GRR_TECNICO } from "@/lib/grr/tecnico/tela";
+import { carregarTelaTecnico } from "@/lib/grr/tecnico/tela";
 import { segundaDaSemana } from "@/lib/relatorio-semanal/periodo";
 
 /**
@@ -25,11 +25,11 @@ const ehId = (s: string) => /^[0-9a-f-]{36}$/.test(s);
 const somar = (dia: string, n: number) => new Date(Date.parse(`${dia}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
 export async function criarReuniaoTecnicoAcao(_e: EstadoReuniaoTecnico, dados: FormData): Promise<EstadoReuniaoTecnico> {
-  const usuario = await exigirPerfil([...PERFIS_GRR_TECNICO]);
+  const { usuario, unidade: unidadeFixa } = await exigirModulo("grr_tecnico");
   const data = texto(dados, "data");
   const semana = texto(dados, "semana");
   if (!ehData(data) || !ehData(semana)) return { erro: "Informe a data da reunião e a semana analisada." };
-  const recortes = await recortesTecnico();
+  const recortes = (await recortesTecnico()).filter((r) => !unidadeFixa || r.unidade === unidadeFixa);
   const recorte = recortes.find((r) => (r.chave.ref ?? "empresa") === texto(dados, "recorte")) ?? recortes[0];
   const inicio = segundaDaSemana(semana);
   const { data: criada, error } = await criarClienteAdmin()
@@ -57,7 +57,7 @@ export async function criarReuniaoTecnicoAcao(_e: EstadoReuniaoTecnico, dados: F
 }
 
 export async function salvarAtaTecnicoAcao(_e: EstadoReuniaoTecnico, dados: FormData): Promise<EstadoReuniaoTecnico> {
-  const usuario = await exigirPerfil([...PERFIS_GRR_TECNICO]);
+  const { usuario, unidade: unidadeFixa } = await exigirModulo("grr_tecnico");
   const id = texto(dados, "id");
   if (!ehId(id)) return { erro: "Reunião inválida." };
   const participantes: Participante[] = [];
@@ -79,7 +79,7 @@ export async function salvarAtaTecnicoAcao(_e: EstadoReuniaoTecnico, dados: Form
 }
 
 export async function incluirCompromissoTecnicoAcao(_e: EstadoReuniaoTecnico, dados: FormData): Promise<EstadoReuniaoTecnico> {
-  const usuario = await exigirPerfil([...PERFIS_GRR_TECNICO]);
+  const { usuario, unidade: unidadeFixa } = await exigirModulo("grr_tecnico");
   const id = texto(dados, "id");
   const descricao = texto(dados, "descricao", 500);
   const prazo = texto(dados, "prazo");
@@ -95,7 +95,7 @@ export async function incluirCompromissoTecnicoAcao(_e: EstadoReuniaoTecnico, da
 }
 
 export async function mudarCompromissoTecnicoAcao(_e: EstadoReuniaoTecnico, dados: FormData): Promise<EstadoReuniaoTecnico> {
-  const usuario = await exigirPerfil([...PERFIS_GRR_TECNICO]);
+  const { usuario, unidade: unidadeFixa } = await exigirModulo("grr_tecnico");
   const id = texto(dados, "compromisso");
   const reuniao = texto(dados, "reuniao");
   const situacao = texto(dados, "situacao");
@@ -108,7 +108,7 @@ export async function mudarCompromissoTecnicoAcao(_e: EstadoReuniaoTecnico, dado
 
 /** encerra: guarda os indicadores do período (foto do fechamento quando existe) e a reunião não muda mais */
 export async function encerrarReuniaoTecnicoAcao(_e: EstadoReuniaoTecnico, dados: FormData): Promise<EstadoReuniaoTecnico> {
-  const usuario = await exigirPerfil([...PERFIS_GRR_TECNICO]);
+  const { usuario, unidade: unidadeFixa } = await exigirModulo("grr_tecnico");
   const id = texto(dados, "id");
   if (!ehId(id)) return { erro: "Reunião inválida." };
   const admin = criarClienteAdmin();

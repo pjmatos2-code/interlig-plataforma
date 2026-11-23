@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { exigirModulo } from "@/lib/acessos-dados";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { AreasGrr } from "@/components/grr/areas";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +23,7 @@ const dataHora = (iso: string) => {
 
 /** Histórico do GRR: as semanas congeladas no recorte de quem abre, com as versões e os motivos. */
 export default async function GrrHistoricoPage() {
-  const usuario = await exigirPerfil([...PERFIS_GRR]);
+  const { usuario } = await exigirModulo("grr_comercial");
   const cadastro = await carregarCadastroGrr(mesDeReferencia(semanaAtual(hojeSantarem())).de);
   const time = usuario.perfil === "supervisor" ? cadastro.equipes.find((e) => e.coordenadorId === usuario.id)?.vendedorIds ?? null : null;
   const escopo = resolverEscopo(usuario, time, {}, cadastro);

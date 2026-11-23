@@ -1,4 +1,5 @@
 import { ApresentacaoGrr } from "@/components/grr/apresentacao/apresentacao";
+import { exigirModulo } from "@/lib/acessos-dados";
 import { GRUPOS_GRR } from "@/lib/grr/catalogo";
 import { alertasDoResumo, destaquesDoResumo, paraPainel, pontosDoGrafico, situacaoDosIndicadores } from "@/lib/grr/painel";
 import { lerReuniaoDaSemana } from "@/lib/grr/reuniao-dados";
@@ -23,7 +24,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function ApresentacaoGrrPage({ searchParams: pedido }: { searchParams: ParametrosGrr & { reuniao?: string } }) {
   // ?reuniao=<id>: a reunião de resultados registrada no GRR define a semana e a abrangência
-  await exigirPerfil([...PERFIS_GRR]);
+  await exigirModulo("grr_comercial");
   const lida = pedido.reuniao ? await lerReuniao(pedido.reuniao) : null;
   if (pedido.reuniao && (!lida || lida.reuniao.modalidade !== "diretoria")) notFound();
   const rg = lida?.reuniao ?? null;

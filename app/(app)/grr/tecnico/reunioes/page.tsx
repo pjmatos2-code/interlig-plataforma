@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { FormNovaReuniaoTecnico } from "@/components/grr/tecnico/reuniao-forms";
-import { exigirPerfil } from "@/lib/auth";
+import { exigirModulo } from "@/lib/acessos-dados";
 import { recortesTecnico } from "@/lib/grr/tecnico/dados";
 import { listarReunioesTecnico, proximaTerca } from "@/lib/grr/tecnico/reunioes";
-import { PERFIS_GRR_TECNICO } from "@/lib/grr/tecnico/tela";
 import { dataBr, hojeSantarem } from "@/lib/relatorio-semanal/periodo";
 import { cn } from "@/lib/utils";
 
@@ -12,10 +11,12 @@ export const dynamic = "force-dynamic";
 
 /** Reuniões operacionais do setor técnico (terças): abrir a da semana e ver as anteriores. */
 export default async function ReunioesTecnicoPage() {
-  await exigirPerfil([...PERFIS_GRR_TECNICO]);
+  const { unidade: unidadeFixa } = await exigirModulo("grr_tecnico");
   const hoje = hojeSantarem();
   const sugestao = proximaTerca(hoje);
-  const [{ disponivel, reunioes }, recortes] = await Promise.all([listarReunioesTecnico(), recortesTecnico()]);
+  const [{ disponivel, reunioes: todas }, todosRecortes] = await Promise.all([listarReunioesTecnico(), recortesTecnico()]);
+  const recortes = todosRecortes.filter((r) => !unidadeFixa || r.unidade === unidadeFixa);
+  const reunioes = unidadeFixa ? todas.filter((r) => r.escopo_rotulo === unidadeFixa) : todas;
   return (
     <div>
       <p className="mb-2 text-sm">

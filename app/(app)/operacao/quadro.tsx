@@ -114,7 +114,7 @@ function Cartao({ c, agora, linkTemplate }: { c: CartaoOperacao; agora: number; 
   );
 }
 
-export function QuadroOperacao({ dados, linkTemplate, agora }: { dados: DadosOperacao; linkTemplate: string | null; agora: number }) {
+export function QuadroOperacao({ dados, linkTemplate, agora, unidadeFixa = null }: { dados: DadosOperacao; linkTemplate: string | null; agora: number; unidadeFixa?: string | null }) {
   const [unidade, setUnidade] = useState<string>("todas");
   const [tipos, setTipos] = useState<TipoServico[]>(TIPOS);
   const [soCorporativo, setSoCorporativo] = useState(false);
@@ -260,7 +260,7 @@ export function QuadroOperacao({ dados, linkTemplate, agora }: { dados: DadosOpe
 
       {/* filtros */}
       <div className="flex flex-col gap-2 rounded-lg border bg-card p-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Unidade">
+        <div className={cn("flex flex-wrap gap-1.5", unidadeFixa && "hidden")} role="group" aria-label="Unidade">
           {["todas", ...UNIDADES].map((u) => (
             <button
               key={u}

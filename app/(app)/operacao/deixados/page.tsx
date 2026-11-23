@@ -1,6 +1,5 @@
-import { exigirPerfil } from "@/lib/auth";
+import { exigirModulo } from "@/lib/acessos-dados";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
-import { PERFIS_OPERACAO } from "@/lib/operacao/regras";
 import { listarDeixados } from "@/lib/operacao/deixados-dados";
 import { templateLinkSgp } from "@/lib/sgp/links-server";
 import { AbasOperacao } from "../abas";
@@ -13,9 +12,10 @@ export const dynamic = "force-dynamic";
  * GRR Técnico, para cobrar um por um. Meta zero. Só leitura do SGP.
  */
 export default async function DeixadosPage() {
-  await exigirPerfil(PERFIS_OPERACAO);
+  const { unidade } = await exigirModulo("operacao");
   const agora = Date.now();
-  const [{ lista, janela }, linkTemplate] = await Promise.all([listarDeixados(agora), templateLinkSgp()]);
+  const [{ lista: todos, janela }, linkTemplate] = await Promise.all([listarDeixados(agora), templateLinkSgp()]);
+  const lista = unidade ? todos.filter((c) => c.unidade === unidade) : todos;
   return (
     <div>
       <CabecalhoPagina
@@ -23,7 +23,7 @@ export default async function DeixadosPage() {
         descricao="Clientes com OS de instalação criada nas 8 semanas anteriores que ainda não viraram contrato ativo. Meta zero: ninguém pode ficar para trás."
       />
       <AbasOperacao ativa="deixados" />
-      <ListaDeixados lista={lista} janela={janela} linkTemplate={linkTemplate} agora={agora} />
+      <ListaDeixados lista={lista} janela={janela} linkTemplate={linkTemplate} agora={agora} unidadeFixa={unidade} />
     </div>
   );
 }

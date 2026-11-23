@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { exigirModulo } from "@/lib/acessos-dados";
 import { CalendarClock, FileText, Presentation, Users } from "lucide-react";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { AreasGrr } from "@/components/grr/areas";
@@ -22,7 +23,7 @@ export const dynamic = "force-dynamic";
  * recorte (permissão por linha do banco).
  */
 export default async function GrrReunioesPage() {
-  const usuario = await exigirPerfil([...PERFIS_GRR]);
+  const { usuario } = await exigirModulo("grr_comercial");
   const hoje = hojeSantarem();
   const atual = semanaAtual(hoje);
   const ultima = ultimaSemanaCompleta(hoje);

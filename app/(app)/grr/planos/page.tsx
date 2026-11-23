@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { exigirModulo } from "@/lib/acessos-dados";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { AreasGrr } from "@/components/grr/areas";
 import { FormAprovacaoPlano, FormPlano } from "@/components/grr/planos/formularios";
@@ -30,7 +31,7 @@ const FILTROS: { chave: SituacaoPlano | "atrasada" | "aprovacao" | "todos"; rotu
 
 /** Planos de ação do GRR (Etapa 3): fila da diretoria, situação de execução e proposta de plano */
 export default async function GrrPlanosPage({ searchParams }: { searchParams: { filtro?: string } }) {
-  const usuario = await exigirPerfil([...PERFIS_GRR]);
+  const { usuario } = await exigirModulo("grr_comercial");
   const hoje = hojeSantarem();
   const semana = semanaAtual(hoje);
   const diretoria = ehDiretoria(usuario.perfil);

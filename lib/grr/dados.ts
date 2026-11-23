@@ -108,7 +108,7 @@ export async function lerBaseGrr(semana: Semana, supabase: SupabaseClient = cria
 }
 
 /** tudo o que o resumo e o detalhe do GRR Comercial mostram, no recorte de quem abriu a tela */
-export async function carregarGrrComercial(semana: Semana, escopo: EscopoGrr, cadastro: CadastroGrr): Promise<DadosGrr> {
-  const { base, ehExpediente } = await lerBaseGrr(semana);
+export async function carregarGrrComercial(semana: Semana, escopo: EscopoGrr, cadastro: CadastroGrr, cliente?: SupabaseClient): Promise<DadosGrr> {
+  const { base, ehExpediente } = await lerBaseGrr(semana, cliente);
   return montarGrr(base, semana, escopo, cadastro, ehExpediente, hojeSantarem());
 }

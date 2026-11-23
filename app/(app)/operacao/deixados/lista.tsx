@@ -22,7 +22,7 @@ const dataBr = (iso: string) => {
   return `${d.slice(8, 10)}/${d.slice(5, 7)}`;
 };
 
-export function ListaDeixados({ lista, janela, linkTemplate, agora }: { lista: ClienteDeixado[]; janela: { de: string; ate: string }; linkTemplate: string | null; agora: number }) {
+export function ListaDeixados({ lista, janela, linkTemplate, agora, unidadeFixa = null }: { lista: ClienteDeixado[]; janela: { de: string; ate: string }; linkTemplate: string | null; agora: number; unidadeFixa?: string | null }) {
   const [grupo, setGrupo] = useState<"tecnico" | "assinatura">("tecnico");
   const [unidade, setUnidade] = useState("todas");
   const [situacao, setSituacao] = useState<SituacaoDeixado | "todas">("todas");
@@ -74,7 +74,7 @@ export function ListaDeixados({ lista, janela, linkTemplate, agora }: { lista: C
       </div>
 
       <div className="flex flex-col gap-2 rounded-lg border bg-card p-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Unidade">
+        <div className={cn("flex flex-wrap gap-1.5", unidadeFixa && "hidden")} role="group" aria-label="Unidade">
           {["todas", ...UNIDADES].map((u) => (
             <button key={u} type="button" onClick={() => setUnidade(u)} aria-pressed={unidade === u} className={cn("rounded-full border px-3 py-1 text-xs font-medium", unidade === u ? "border-interlig-azul bg-interlig-azul text-white" : "bg-background hover:bg-muted")}>
               {u === "todas" ? "Todas as unidades" : u}

@@ -33,11 +33,12 @@ export type TelaTecnico = {
  * (empresa ou unidade) e os cartões. Semana congelada usa a foto; as demais
  * são calculadas na hora, sem gravar nada.
  */
-export async function carregarTelaTecnico(params: { semana?: string; unidade?: string }): Promise<TelaTecnico> {
+export async function carregarTelaTecnico(params: { semana?: string; unidade?: string; unidadeFixa?: string | null }): Promise<TelaTecnico> {
   const hoje = hojeSantarem();
   const semana = resolverSemana(params.semana, hoje);
   const admin = criarClienteAdmin();
-  const recortes = await recortesTecnico(admin);
+  // quem fica preso a uma unidade vê só o recorte dela
+  const recortes = (await recortesTecnico(admin)).filter((r) => !params.unidadeFixa || r.unidade === params.unidadeFixa);
   const recorte = recortes.find((r) => r.unidade === params.unidade) ?? recortes[0];
 
   const fotos = await Promise.all(recortes.map((r) => lerFotoTecnico(semana, r, admin)));

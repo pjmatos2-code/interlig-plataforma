@@ -4,6 +4,7 @@ import { ArrowRight, BarChart3, Wrench } from "lucide-react";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { exigirUsuario } from "@/lib/auth";
 import { setoresDoPerfil } from "@/lib/grr/setores";
+import { ajustesDoUsuario } from "@/lib/acessos-dados";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ const ICONE = { comercial: BarChart3, tecnico: Wrench } as const;
  */
 export default async function SetoresGrrPage() {
   const usuario = await exigirUsuario();
-  const setores = setoresDoPerfil(usuario.perfil);
+  const setores = setoresDoPerfil(usuario.perfil, await ajustesDoUsuario(usuario.id));
   if (setores.length === 0) redirect("/sem-acesso");
   if (setores.length === 1) redirect(setores[0].href);
   return (

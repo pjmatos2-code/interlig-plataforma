@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { exigirModulo } from "@/lib/acessos-dados";
 import { notFound } from "next/navigation";
 import { Lock, Presentation } from "lucide-react";
 import { AreasGrr } from "@/components/grr/areas";
@@ -57,7 +58,7 @@ function LinhaCompromisso({ c, reuniaoId, podeEditar, diretoria, hoje }: { c: Co
 
 /** Reunião Semanal da Equipe Comercial: preparação, indicadores, compromissos e encerramento */
 export default async function GrrReuniaoPage({ params }: { params: { id: string } }) {
-  const usuario = await exigirPerfil([...PERFIS_GRR]);
+  const { usuario } = await exigirModulo("grr_comercial");
   const completa = await lerReuniao(params.id);
   if (!completa) notFound();
   const { reuniao: r, compromissos, anterior, daAnterior, registros } = completa;

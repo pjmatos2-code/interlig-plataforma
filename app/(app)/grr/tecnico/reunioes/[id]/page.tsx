@@ -4,10 +4,10 @@ import { MonitorPlay } from "lucide-react";
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { CartaoIndicador } from "@/components/grr/cartao-indicador";
 import { FormAtaTecnico, FormCompromissoTecnico, FormEncerrarTecnico, SituacaoCompromissoTecnico } from "@/components/grr/tecnico/reuniao-forms";
-import { exigirPerfil } from "@/lib/auth";
+import { exigirModulo } from "@/lib/acessos-dados";
 import { ROTULO_SITUACAO } from "@/lib/grr/reunioes";
 import { lerReuniaoTecnico } from "@/lib/grr/tecnico/reunioes";
-import { carregarTelaTecnico, PERFIS_GRR_TECNICO } from "@/lib/grr/tecnico/tela";
+import { carregarTelaTecnico } from "@/lib/grr/tecnico/tela";
 import { dataBr } from "@/lib/relatorio-semanal/periodo";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import type { Compromisso } from "@/lib/grr/reunioes";
@@ -22,9 +22,9 @@ const hora = (iso: string) => {
 
 /** Uma reunião operacional do setor técnico: números do período, ata, compromissos e encerramento. */
 export default async function ReuniaoTecnicoPage({ params }: { params: { id: string } }) {
-  await exigirPerfil([...PERFIS_GRR_TECNICO]);
+  const { unidade: unidadeFixa } = await exigirModulo("grr_tecnico");
   const lida = await lerReuniaoTecnico(params.id);
-  if (!lida) notFound();
+  if (!lida || (unidadeFixa && lida.reuniao.escopo_rotulo !== unidadeFixa)) notFound();
   const { reuniao: r, compromissos, pendentesAnteriores } = lida;
   const aberta = r.situacao === "aberta";
   const unidade = r.escopo_tipo === "unidade" ? r.escopo_rotulo : undefined;

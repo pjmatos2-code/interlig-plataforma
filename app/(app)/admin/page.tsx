@@ -9,6 +9,8 @@ import { CadastrosForaDoEscopo } from "./fora-do-escopo";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatarDataHora, haQuantoTempo } from "@/lib/format";
+import { AcessoModulos } from "@/components/admin/acesso-modulos";
+import type { Modulo } from "@/lib/acessos";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +59,8 @@ export default async function AdminPage() {
   ]);
 
   type Rel = { nome: string } | null;
+  // ajustes de acesso aos módulos (tabela da migração 0144; sem ela, lista vazia)
+  const { data: ajustesModulos } = await supabase.from("usuario_modulos").select("usuario_id, modulo, permitido, pop_id");
 
   return (
     <>
@@ -131,6 +135,22 @@ export default async function AdminPage() {
           <a href="/admin/integracoes" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
             Abrir módulo de integrações →
           </a>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Acesso aos módulos</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Por padrão, o acesso vem do perfil. Aqui você libera ou bloqueia cada módulo por pessoa e, se quiser, prende a pessoa a uma unidade (ela só vê aquela unidade). Cada mudança salva na hora e vale no próximo acesso da pessoa.
+          </p>
+          <AcessoModulos
+            usuarios={(usuarios ?? []).filter((u) => u.ativo).map((u) => ({ id: u.id, nome: u.nome, perfil: u.perfil }))}
+            pops={pops ?? []}
+            ajustes={(ajustesModulos ?? []).map((a) => ({ usuarioId: String(a.usuario_id), modulo: a.modulo as Modulo, permitido: Boolean(a.permitido), popId: (a.pop_id as string | null) ?? null }))}
+          />
         </CardContent>
       </Card>
 

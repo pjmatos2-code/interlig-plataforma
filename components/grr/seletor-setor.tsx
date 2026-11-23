@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LayoutGrid } from "lucide-react";
 import { usuarioAtual } from "@/lib/auth";
 import { setoresDoPerfil, type SetorGrr } from "@/lib/grr/setores";
+import { ajustesDoUsuario } from "@/lib/acessos-dados";
 import { cn } from "@/lib/utils";
 
 /**
@@ -10,7 +11,7 @@ import { cn } from "@/lib/utils";
  */
 export async function SeletorSetor({ atual }: { atual: SetorGrr["chave"] }) {
   const usuario = await usuarioAtual();
-  const setores = usuario ? setoresDoPerfil(usuario.perfil) : [];
+  const setores = usuario ? setoresDoPerfil(usuario.perfil, await ajustesDoUsuario(usuario.id)) : [];
   if (setores.length < 2) return null;
   return (
     <nav aria-label="Setor do GRR" className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border bg-card px-3 py-2">

@@ -64,6 +64,7 @@ function Item({ o, linkTemplate }: { o: OsCalendario; linkTemplate: string | nul
 }
 
 export function CalendarioOperacao(p: {
+  unidadeFixa?: string | null;
   mes: string;
   rotulo: string;
   anterior: string;
@@ -119,7 +120,7 @@ export function CalendarioOperacao(p: {
             </Link>
           )}
         </div>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Unidade">
+        <div className={cn("flex flex-wrap gap-1.5", p.unidadeFixa && "hidden")} role="group" aria-label="Unidade">
           {["todas", ...UNIDADES].map((u) => (
             <button key={u} type="button" onClick={() => setUnidade(u)} aria-pressed={unidade === u} className={cn("rounded-full border px-3 py-1 text-xs font-medium", unidade === u ? "border-interlig-azul bg-interlig-azul text-white" : "bg-background hover:bg-muted")}>
               {u === "todas" ? "Todas as unidades" : u}

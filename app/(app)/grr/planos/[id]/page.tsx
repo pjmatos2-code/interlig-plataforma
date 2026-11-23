@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { exigirModulo } from "@/lib/acessos-dados";
 import { notFound } from "next/navigation";
 import { AreasGrr } from "@/components/grr/areas";
 import { FormAprovacaoPlano, FormReenviarPlano, FormRegistroPlano, SeletorSituacaoPlano } from "@/components/grr/planos/formularios";
@@ -35,7 +36,7 @@ function descreverEvento(e: EventoPlano): string {
 
 /** um plano de ação: dados, aprovação, situação, evidências e histórico */
 export default async function GrrPlanoPage({ params }: { params: { id: string } }) {
-  const usuario = await exigirPerfil([...PERFIS_GRR]);
+  const { usuario } = await exigirModulo("grr_comercial");
   const lido = await lerPlano(params.id);
   if (!lido) notFound();
   const { plano: p, eventos, diagnostico } = lido;

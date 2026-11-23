@@ -1,4 +1,5 @@
 import type { Perfil } from "@/lib/tipos";
+import { acessoDoModulo, type AjusteModulo, type Modulo } from "@/lib/acessos";
 
 /**
  * Setores do GRR (21/11/2026): ao abrir o módulo, a pessoa escolhe o setor
@@ -14,6 +15,8 @@ export type SetorGrr = {
   /** começo do endereço das telas do setor (para marcar o setor atual) */
   prefixo: string;
   perfis: Perfil[];
+  /** módulo de acesso por usuário (lib/acessos.ts) */
+  modulo: Modulo;
 };
 
 export const SETORES_GRR: SetorGrr[] = [
@@ -25,6 +28,7 @@ export const SETORES_GRR: SetorGrr[] = [
     href: "/grr",
     prefixo: "/grr",
     perfis: ["gestor", "direcao", "supervisor"],
+    modulo: "grr_comercial",
   },
   {
     chave: "tecnico",
@@ -34,7 +38,8 @@ export const SETORES_GRR: SetorGrr[] = [
     href: "/grr/tecnico",
     prefixo: "/grr/tecnico",
     perfis: ["gestor", "direcao", "gestor_tecnico"],
+    modulo: "grr_tecnico",
   },
 ];
 
-export const setoresDoPerfil = (perfil: Perfil): SetorGrr[] => SETORES_GRR.filter((s) => s.perfis.includes(perfil));
+export const setoresDoPerfil = (perfil: Perfil, ajustes: AjusteModulo[] = []): SetorGrr[] => SETORES_GRR.filter((s) => acessoDoModulo(perfil, ajustes, s.modulo).permitido);

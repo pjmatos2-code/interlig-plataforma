@@ -1,4 +1,5 @@
 import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
+import { exigirModulo } from "@/lib/acessos-dados";
 import { AreasGrr } from "@/components/grr/areas";
 import { SeletorSemana } from "@/components/grr/painel/controles";
 import { CartaoRotina } from "@/components/grr/rotinas";
@@ -18,7 +19,7 @@ export const maxDuration = 60;
  * vê a própria rotina; a diretoria vê todas, com o histórico das semanas.
  */
 export default async function GrrRotinasPage({ searchParams }: { searchParams: { semana?: string } }) {
-  const usuario = await exigirPerfil([...PERFIS_GRR]);
+  const { usuario } = await exigirModulo("grr_comercial");
   const hoje = hojeSantarem();
   const semana = resolverSemana(searchParams.semana, hoje);
   const semanas = semanasAte(semana, 6);

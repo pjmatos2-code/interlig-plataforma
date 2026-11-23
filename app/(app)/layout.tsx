@@ -1,5 +1,6 @@
 import { exigirUsuario, tambemRefideliza } from "@/lib/auth";
 import { navDoUsuario } from "@/lib/nav";
+import { ajustesDoUsuario } from "@/lib/acessos-dados";
 import { AppShell } from "@/components/layout/app-shell";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { haQuantoTempo } from "@/lib/format";
@@ -29,7 +30,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   // Novo, Railson em Vitória do Xingu); a coordenação de Altamira cuida de
   // equipes (Marcelo Otávio, Rayssa) e não vê
   // quem vende e ainda refideliza mantém Fidelidade e Prevenção no menu
-  let itens = navDoUsuario(usuario.perfil, { tambemRefideliza: await tambemRefideliza(usuario).catch(() => false) });
+  let itens = navDoUsuario(usuario.perfil, { tambemRefideliza: await tambemRefideliza(usuario).catch(() => false), ajustes: await ajustesDoUsuario(usuario.id) });
   if (usuario.perfil === "supervisor") {
     const { data: pop } = usuario.pop_id
       ? await criarClienteAdmin().from("pops").select("nome").eq("id", usuario.pop_id).maybeSingle()

@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { CalendarCheck, ClipboardCheck, MonitorPlay, Settings, Snowflake } from "lucide-react";
-import { exigirPerfil } from "@/lib/auth";
+import { exigirModulo } from "@/lib/acessos-dados";
 import { SeletorSetor } from "@/components/grr/seletor-setor";
 import { CartaoIndicador } from "@/components/grr/cartao-indicador";
 import { SeletorSemana } from "@/components/grr/painel/controles";
 import { GRUPOS_TECNICO, INDICADORES_TECNICO } from "@/lib/grr/tecnico/catalogo";
-import { carregarTelaTecnico, PERFIS_GRR_TECNICO } from "@/lib/grr/tecnico/tela";
+import { carregarTelaTecnico } from "@/lib/grr/tecnico/tela";
 import { MINIMO_FAROL_TECNICO, type CartaoTecnico } from "@/lib/grr/tecnico/regras";
 import { cn } from "@/lib/utils";
 
@@ -25,8 +25,8 @@ const COR_STATUS: Record<CartaoTecnico["status"], string> = {
  * semana congelada mostra a foto do fechamento de segunda. Só leitura.
  */
 export default async function GrrTecnicoPage({ searchParams }: { searchParams: { semana?: string; unidade?: string } }) {
-  const usuario = await exigirPerfil([...PERFIS_GRR_TECNICO]);
-  const t = await carregarTelaTecnico(searchParams);
+  const { usuario, unidade: unidadeFixa } = await exigirModulo("grr_tecnico");
+  const t = await carregarTelaTecnico({ ...searchParams, unidadeFixa });
   const qs = (mudar: Record<string, string | null>) => {
     const p = new URLSearchParams();
     if (searchParams.semana) p.set("semana", searchParams.semana);

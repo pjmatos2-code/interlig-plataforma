@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { exigirUsuario } from "@/lib/auth";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
-import { DIAS_QUADRO, PERFIS_OPERACAO, diaSantarem, fatiaAtualizar } from "@/lib/operacao/regras";
+import { DIAS_QUADRO, diaSantarem, fatiaAtualizar } from "@/lib/operacao/regras";
+import { moduloDoUsuario } from "@/lib/acessos-dados";
 import { janelaOsOperacao } from "@/lib/sync/agenda";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,7 @@ export const maxDuration = 120;
  */
 export async function POST(request: Request) {
   const usuario = await exigirUsuario();
-  if (!PERFIS_OPERACAO.includes(usuario.perfil)) return NextResponse.json({ erro: "Sem permissão." }, { status: 403 });
+  if (!(await moduloDoUsuario(usuario, "operacao"))) return NextResponse.json({ erro: "Sem permissão." }, { status: 403 });
   const corpo = (await request.json().catch(() => ({}))) as { etapa?: string; fatia?: number };
   const agora = Date.now();
   const hoje = diaSantarem(agora)!;
