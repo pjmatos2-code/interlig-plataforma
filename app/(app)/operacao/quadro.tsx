@@ -120,7 +120,7 @@ export function QuadroOperacao({ dados, linkTemplate, agora, unidadeFixa = null,
   const [tipos, setTipos] = useState<TipoServico[]>(setor === "infraestrutura" ? ["infraestrutura"] : TIPOS);
   const [soCorporativo, setSoCorporativo] = useState(false);
   const [busca, setBusca] = useState("");
-  const [periodo, setPeriodo] = useState<Periodo>("30d");
+  const [periodo, setPeriodo] = useState<Periodo>("mes"); // abre em "Este mês" para todos (23/11/2026)
   const [base, setBase] = useState<BaseData>("abertura");
   const hoje = diaSantarem(agora)!;
   const minimo = diaSantarem(agora - DIAS_QUADRO * 86_400_000)!;

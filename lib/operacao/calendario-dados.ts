@@ -1,12 +1,12 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
-import { MOTIVOS_CALENDARIO, gradeDoMes, posicaoNoCalendario, tipoDoMotivo, type OsCalendario } from "./calendario";
+import { MOTIVOS_CALENDARIO, posicaoNoCalendario, tipoDoMotivo, type OsCalendario } from "./calendario";
 import { CONTRATO_INFRAESTRUTURA, ehCorporativo, ehInfraestrutura } from "./regras";
 import { forticsConta } from "./direcionamento";
 
 /**
  * Leitura do calendário da Operação Técnica (21/11/2026): as OS de campo com
- * agendamento ou encerramento dentro da grade do mês (de segunda a domingo).
+ * agendamento ou encerramento dentro do mês (só os dias do mês, 23/11/2026).
  * Lê o espelho do SGP; a página confere o perfil antes.
  */
 
@@ -36,47 +36,54 @@ const unidade = (pop: string | null | undefined) => {
 
 export async function dadosCalendario(mes: string, agora = Date.now(), setor: "operacao" | "infraestrutura" = "operacao"): Promise<{ itens: OsCalendario[]; atualizadoEm: string | null }> {
   const admin = criarClienteAdmin();
-  const { de, ate } = gradeDoMes(mes);
+  // só os dias do mês (23/11/2026): a grade mostra os dias vizinhos vazios
+  const de = `${mes}-01`;
+  const ate = new Date(Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0)).toISOString().slice(0, 10);
   const ini = `${de}T00:00:00-03:00`;
   const fim = `${ate}T23:59:59-03:00`;
+  const colunas = "sgp_os_id, sgp_contrato_id, cliente_nome, pop, bairro, motivo, status, agendamento, checkin, servico_prestado, encerrada_em, responsavel, importado_em";
+  const filtroData = `and(agendamento.gte.${ini},agendamento.lte.${fim}),and(checkin.gte.${ini},checkin.lte.${fim}),and(encerrada_em.gte.${ini},encerrada_em.lte.${fim})`;
+  const pagina = (i: number) => admin.from("os_tecnicas").select(colunas).in("motivo", MOTIVOS_CALENDARIO).or(filtroData).order("sgp_os_id").range(i, i + 999);
+  // páginas de 1.000 buscadas aos pares e junto com as OS da infraestrutura (o mês cabe em ~2 páginas)
+  const [pares, infra] = await Promise.all([
+    Promise.all([pagina(0), pagina(1000)]),
+    // OS do cliente interno da infraestrutura, com qualquer motivo
+    admin.from("os_tecnicas").select(colunas).eq("sgp_contrato_id", CONTRATO_INFRAESTRUTURA).or(filtroData),
+  ]);
   const linhas: LinhaOs[] = [];
-  for (let i = 0; ; i += 1000) {
-    const { data, error } = await admin
-      .from("os_tecnicas")
-      .select("sgp_os_id, sgp_contrato_id, cliente_nome, pop, bairro, motivo, status, agendamento, checkin, servico_prestado, encerrada_em, responsavel, importado_em")
-      .in("motivo", MOTIVOS_CALENDARIO)
-      .or(`and(agendamento.gte.${ini},agendamento.lte.${fim}),and(checkin.gte.${ini},checkin.lte.${fim}),and(encerrada_em.gte.${ini},encerrada_em.lte.${fim})`)
-      .order("sgp_os_id")
-      .range(i, i + 999);
+  for (const { data, error } of pares) {
+    if (error) throw new Error(error.message);
+    linhas.push(...((data ?? []) as LinhaOs[]));
+  }
+  for (let i = 2000; (pares[1].data?.length ?? 0) === 1000; i += 1000) {
+    const { data, error } = await pagina(i);
     if (error) throw new Error(error.message);
     linhas.push(...((data ?? []) as LinhaOs[]));
     if (!data || data.length < 1000) break;
   }
-  // OS do cliente interno da infraestrutura, com qualquer motivo
   {
     const vistas = new Set(linhas.map((l) => l.sgp_os_id));
-    const { data } = await admin
-      .from("os_tecnicas")
-      .select("sgp_os_id, sgp_contrato_id, cliente_nome, pop, bairro, motivo, status, agendamento, checkin, servico_prestado, encerrada_em, responsavel, importado_em")
-      .eq("sgp_contrato_id", CONTRATO_INFRAESTRUTURA)
-      .or(`and(agendamento.gte.${ini},agendamento.lte.${fim}),and(checkin.gte.${ini},checkin.lte.${fim}),and(encerrada_em.gte.${ini},encerrada_em.lte.${fim})`);
-    for (const l of (data ?? []) as LinhaOs[]) if (!vistas.has(l.sgp_os_id)) linhas.push(l);
+    for (const l of (infra.data ?? []) as LinhaOs[]) if (!vistas.has(l.sgp_os_id)) linhas.push(l);
   }
 
   // a ocorrência de cada OS: Fortics (só a que foi para um gestor técnico) e o setor de infraestrutura
   const osIds = linhas.map((l) => l.sgp_os_id);
-  const respFortics = new Map<string, { tipo: string | null; responsavel: string | null; setor: string | null }>();
-  for (let i = 0; i < osIds.length; i += 300) {
-    const { data } = await admin.from("ocorrencias_sgp").select("sgp_os_id, tipo, responsavel, setor_sgp").in("sgp_os_id", osIds.slice(i, i + 300));
-    for (const o of data ?? []) respFortics.set(String(o.sgp_os_id), { tipo: (o.tipo as string | null) ?? null, responsavel: (o.responsavel as string | null) ?? null, setor: (o.setor_sgp as string | null) ?? null });
-  }
+  // os lotes rodam em paralelo (23/11/2026): em série o calendário levava ~6 s só no banco
+  const lotes = <T,>(xs: T[], n = 300) => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
   const ids = [...new Set(linhas.map((l) => l.sgp_contrato_id).filter((x): x is string => Boolean(x)))];
+  const [respostasOc, respostasCt] = await Promise.all([
+    Promise.all(lotes(osIds).map((lote) => admin.from("ocorrencias_sgp").select("sgp_os_id, tipo, responsavel, setor_sgp").in("sgp_os_id", lote))),
+    Promise.all(
+      lotes(ids).map((lote) =>
+        admin.from("contratos").select("sgp_contrato_id, clientes(nome, cpf, sgp_cliente_id), planos(nome, setor_corporativo)").in("sgp_contrato_id", lote)
+      )
+    ),
+  ]);
+  const respFortics = new Map<string, { tipo: string | null; responsavel: string | null; setor: string | null }>();
+  for (const { data } of respostasOc)
+    for (const o of data ?? []) respFortics.set(String(o.sgp_os_id), { tipo: (o.tipo as string | null) ?? null, responsavel: (o.responsavel as string | null) ?? null, setor: (o.setor_sgp as string | null) ?? null });
   const contratos = new Map<string, { cliente: string | null; documento: string | null; sgpClienteId: string | null; corporativo: boolean }>();
-  for (let i = 0; i < ids.length; i += 300) {
-    const { data, error } = await admin
-      .from("contratos")
-      .select("sgp_contrato_id, clientes(nome, cpf, sgp_cliente_id), planos(nome, setor_corporativo)")
-      .in("sgp_contrato_id", ids.slice(i, i + 300));
+  for (const { data, error } of respostasCt) {
     if (error) throw new Error(error.message);
     for (const c of data ?? []) {
       const cli = c.clientes as unknown as { nome: string | null; cpf: string | null; sgp_cliente_id: string | null } | null;
