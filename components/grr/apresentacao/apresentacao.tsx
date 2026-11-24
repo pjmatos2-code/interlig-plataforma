@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { AlertTriangle, Table2 } from "lucide-react";
 import { encerrarReuniaoAcao, type EstadoGrr } from "@/app/(app)/grr/acoes";
@@ -21,6 +21,8 @@ import { CartaoRotina } from "@/components/grr/rotinas";
 import { GraficoEvolucaoVendas } from "@/components/grr/painel/grafico-evolucao";
 import { ROTULO_STATUS, SELO_STATUS } from "@/components/grr/painel/icones";
 import { RoscaSituacao } from "@/components/grr/painel/rosca";
+import type { Panorama } from "@/lib/grr/panorama";
+import { AgentesPanorama, PontosPanorama, ResumoPanorama, UnidadesPanorama } from "@/components/grr/reunioes/panorama";
 import { Moldura, Sobreposicao, useSecao } from "./moldura";
 import { Barras, Caixa, CartaoGrande, dataBr, dataHora, n0, Numero, pct, reais, TabelaAgentes, Titulo } from "./pecas";
 
@@ -52,11 +54,16 @@ type Props = {
   rotinas: RotinaLider[];
   reuniaoGrr: { id: string; data: string; participantes: string[]; aberta: boolean; encerradaEm: string | null; ata: AtaDiretoria } | null;
   hrefVoltar: string;
+  /** só na reunião de resultados registrada no GRR */
+  panorama: Panorama | null;
 };
 
-const SECOES = [
+const TODAS_SECOES = [
   { chave: "abertura", titulo: "Abertura" },
   { chave: "resumo", titulo: "Resumo executivo" },
+  { chave: "projecao", titulo: "Projeção do mês" },
+  { chave: "unidades", titulo: "Unidades" },
+  { chave: "agentes", titulo: "Agentes" },
   { chave: "vendas", titulo: "Vendas e ativações" },
   { chave: "conversao", titulo: "Leads e conversão" },
   { chave: "receita", titulo: "Receita" },
@@ -65,6 +72,7 @@ const SECOES = [
   { chave: "rotinas", titulo: "Rotinas das lideranças" },
   { chave: "encerramento", titulo: "Encerramento" },
 ] as const;
+const SO_COM_PANORAMA: string[] = ["projecao", "unidades", "agentes"];
 
 function ListaAcoes({ acoes, vazio }: { acoes: AcaoCombinada[]; vazio: string }) {
   if (!acoes.length) return <p className="text-slate-500">{vazio}</p>;
@@ -111,6 +119,8 @@ function Enviar() {
 
 export function ApresentacaoGrr(p: Props) {
   const { dados, reuniao } = p;
+  const pan = p.panorama;
+  const SECOES = useMemo(() => TODAS_SECOES.filter((s) => pan || !SO_COM_PANORAMA.includes(s.chave)), [pan]);
   const { atual, ir } = useSecao(SECOES);
   const [detalhe, setDetalhe] = useState<null | "agentes">(null);
   const foto = p.congelamento.foto && !p.congelamento.aoVivo ? p.congelamento.foto : null;
@@ -182,6 +192,30 @@ export function ApresentacaoGrr(p: Props) {
         )}
       </Caixa>
     </div>,
+
+    // Panorama do mês: projeção, unidades e agentes (só na reunião de resultados)
+    ...(pan
+      ? [
+          <div key="projecao" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
+            <Titulo sub={`${pan.diasUteis.decorridos} de ${pan.diasUteis.total} dias úteis${pan.fechado ? "" : `, ${pan.diasUteis.restantes} pela frente contando hoje`}.`}>{pan.fechado ? "Como fechou o mês" : "Como o mês deve fechar"}</Titulo>
+            <ResumoPanorama p={pan} tv />
+            <Caixa titulo="Com quem se preocupar">
+              <PontosPanorama pontos={pan.pontos} tv />
+            </Caixa>
+          </div>,
+          <div key="unidades" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
+            <Titulo sub="Vendas dos 6 meses fechados e do mês atual. Parte clara: projeção. Linha tracejada: média.">Unidades</Titulo>
+            <UnidadesPanorama p={pan} tv />
+          </div>,
+          <div key="agentes" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">
+            <Titulo sub="Histórico de 6 meses, projeção do mês e ticket médio contra o histórico.">Agentes</Titulo>
+            <Caixa>
+              <AgentesPanorama p={pan} tv />
+              <p className="mt-2 text-[0.8em] text-slate-500">Precisa/dia: vendas por dia útil para bater a meta. Faz/dia: ritmo dos últimos 7 dias úteis. x típico: ticket contra a mediana dos 6 meses. *Outros: sem agente, coordenação e quem não está mais na equipe.</p>
+            </Caixa>
+          </div>,
+        ]
+      : []),
 
     // 3. Vendas e ativações
     <div key="vendas" className="flex flex-col gap-[clamp(0.7rem,1.4vh,1.75rem)]">

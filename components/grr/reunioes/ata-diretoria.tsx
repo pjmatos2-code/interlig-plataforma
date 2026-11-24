@@ -6,6 +6,7 @@ import { PAUTA_DIRETORIA, type ItemPauta } from "@/lib/grr/reunioes";
 import type { FotoReuniaoDiretoria } from "@/lib/grr/reunioes-dados";
 import { ROTULO_STATUS } from "@/components/grr/painel/icones";
 import { paraPainel } from "@/lib/grr/painel";
+import { PanoramaDoMes } from "./panorama";
 import { ROTULO_STATUS_ROTINA } from "@/lib/grr/rotinas";
 
 /**
@@ -90,6 +91,7 @@ export function AtaDiretoria({
 
   return (
     <div className="space-y-4">
+      {foto.panorama && <PanoramaDoMes p={foto.panorama} />}
       <Item n={1} titulo={n(0).titulo} nota={foto.ata.pauta.indicadores} slot={slots.indicadores}>
         <table className="w-full text-sm">
           <thead>

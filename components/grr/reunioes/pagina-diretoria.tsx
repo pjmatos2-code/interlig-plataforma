@@ -21,7 +21,7 @@ export async function PaginaReuniaoDiretoria({ r, registros, usuario }: { r: Reu
   const hoje = hojeSantarem();
   const aberta = r.situacao === "aberta";
   const diretoria = usuario.perfil === "gestor" || usuario.perfil === "direcao";
-  const [pauta, possiveis] = await Promise.all([pautaDaReuniao(r, usuario.id), diretoria && aberta ? participantesPossiveisDiretoria() : Promise.resolve([])]);
+  const [pauta, possiveis] = await Promise.all([pautaDaReuniao(r, usuario.id, diretoria), diretoria && aberta ? participantesPossiveisDiretoria() : Promise.resolve([])]);
   const semDiagnostico = desviosSemDiagnostico(pauta.indicadores.cartoes, pauta.diagnosticos).length;
   const aguardando = pauta.planos.filter((p) => p.aprovacao === "aguardando");
   const podeEditar = aberta && diretoria;

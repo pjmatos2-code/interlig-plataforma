@@ -7,8 +7,11 @@ import { carregarCadastroGrr, carregarGrrComercial } from "./dados";
 import type { CadastroGrr } from "./escopo";
 import { chaveDoEscopo, paraFoto } from "./fotos";
 import type { DadosGrr } from "./montar";
+import type { Perfil } from "@/lib/tipos";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { lerFoto } from "./fotos-dados";
+import type { Panorama } from "./panorama";
+import { carregarPanorama } from "./panorama-dados";
 import { diagnosticosAtuais, type Diagnostico, type Plano } from "./planos";
 import { diagnosticosDaSemana, listarPlanos } from "./planos-dados";
 import type { RotinaLider } from "./rotinas";
@@ -118,6 +121,8 @@ export type FotoReuniaoDiretoria = {
   ata: AtaDiretoria;
   /** rotinas das lideranças da semana, guardadas no encerramento */
   rotinas?: RotinaLider[];
+  /** projeção, histórico e pontos de atenção do mês (reuniões encerradas antes de 24/11/2026 não têm) */
+  panorama?: Panorama | null;
 };
 
 /** quem pode participar: diretoria e coordenação ativas */
@@ -131,7 +136,7 @@ export async function participantesPossiveisDiretoria(): Promise<{ id: string; n
  * semana congelada (se houver) ou os números de agora, com os diagnósticos da
  * semana e os planos visíveis.
  */
-export async function pautaDaReuniao(r: ReuniaoGrr, usuarioId: string): Promise<FotoReuniaoDiretoria & { congelados: boolean; cadastro: CadastroGrr }> {
+export async function pautaDaReuniao(r: ReuniaoGrr, usuarioId: string, comPanorama = true): Promise<FotoReuniaoDiretoria & { congelados: boolean; cadastro: CadastroGrr }> {
   const hoje = hojeSantarem();
   const semana = resolverSemana(r.periodo_inicio, hoje);
   const cadastro = await carregarCadastroGrr(mesDeReferencia(semana).de);
@@ -141,7 +146,12 @@ export async function pautaDaReuniao(r: ReuniaoGrr, usuarioId: string): Promise<
   }
   const escopo = escopoDaReuniao(r, cadastro);
   const chave = chaveDoEscopo(escopo, usuarioId);
-  const [config, diagnosticos, planos] = await Promise.all([lerConfigGrr(), diagnosticosDaSemana(semana.inicio), listarPlanos()]);
+  const [config, diagnosticos, planos, panorama] = await Promise.all([
+    lerConfigGrr(),
+    diagnosticosDaSemana(semana.inicio),
+    listarPlanos(),
+    comPanorama ? panoramaDaReuniao(r, "gestor", cadastro) : null,
+  ]);
   const foto = config.disponivel && semana.fim < hoje ? await lerFoto(semana, chave) : null;
   const indicadores = foto
     ? foto.dados
@@ -153,9 +163,25 @@ export async function pautaDaReuniao(r: ReuniaoGrr, usuarioId: string): Promise<
     planos: planos.planos.filter((p) => p.aprovacao !== "rejeitado"),
     participantes: r.participantes,
     ata: lerAta(r.ata),
+    panorama,
     congelados: false,
     cadastro,
   };
+}
+
+/**
+ * Panorama do mês: na reunião encerrada, o guardado; na aberta, os números de
+ * agora (projeção só serve atualizada) do mês em que a semana termina. Só a
+ * diretoria lê todas as vendas (permissão por linha): para a coordenação, com
+ * recorte parcial, as contas sairiam erradas, então só vê depois do encerramento.
+ */
+export async function panoramaDaReuniao(r: ReuniaoGrr, perfil: Perfil, cadastroPronto?: CadastroGrr): Promise<Panorama | null> {
+  if (r.situacao === "encerrada") return (r.dados as FotoReuniaoDiretoria | null)?.panorama ?? null;
+  if (perfil !== "gestor" && perfil !== "direcao") return null;
+  const hoje = hojeSantarem();
+  const mes = r.periodo_fim <= hoje ? r.periodo_fim.slice(0, 7) : hoje.slice(0, 7);
+  const cadastro = cadastroPronto ?? (await carregarCadastroGrr(`${mes}-01`));
+  return carregarPanorama(mes, r.escopo_tipo === "unidade" ? r.escopo_ref : null, cadastro);
 }
 
 /** leitura sem sessão, para a página de impressão do PDF (o link é assinado) */

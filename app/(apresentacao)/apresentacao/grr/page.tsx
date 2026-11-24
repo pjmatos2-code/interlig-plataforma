@@ -10,7 +10,7 @@ import { carregarRotinas } from "@/lib/grr/rotinas-dados";
 import { notFound } from "next/navigation";
 import { exigirPerfil } from "@/lib/auth";
 import { lerAta } from "@/lib/grr/reunioes";
-import { lerReuniao } from "@/lib/grr/reunioes-dados";
+import { lerReuniao, panoramaDaReuniao } from "@/lib/grr/reunioes-dados";
 import { carregarTelaGrr, parametrosDaTela, PERFIS_GRR, type ParametrosGrr } from "@/app/(app)/grr/carregar";
 
 export const dynamic = "force-dynamic";
@@ -30,11 +30,12 @@ export default async function ApresentacaoGrrPage({ searchParams: pedido }: { se
   const rg = lida?.reuniao ?? null;
   const searchParams: ParametrosGrr = rg ? { semana: rg.periodo_inicio, unidade: rg.escopo_tipo === "unidade" ? rg.escopo_ref ?? undefined : undefined } : pedido;
   const { usuario, semana, rotuloDaSemana, escopo, dados, congelamento } = await carregarTelaGrr(searchParams);
-  const [reuniao, diagnosticos, planos, rotinas] = await Promise.all([
+  const [reuniao, diagnosticos, planos, rotinas, panorama] = await Promise.all([
     lerReuniaoDaSemana(semana.inicio, usuario.perfil),
     diagnosticosDaSemana(semana.inicio),
     listarPlanos(),
     carregarRotinas([semana], usuario, semana).then((r) => r[0]?.lideres ?? []).catch(() => []),
+    rg ? panoramaDaReuniao(rg, usuario.perfil) : null,
   ]);
   // a lista de tickets não vai para a tela de apresentação (nomes de clientes)
   const { tickets: _tickets, ...semTickets } = dados;
@@ -60,6 +61,7 @@ export default async function ApresentacaoGrrPage({ searchParams: pedido }: { se
       planos={planos.planos.filter((x) => x.aprovacao !== "rejeitado" && x.situacao !== "cancelada")}
       hoje={hojeSantarem()}
       rotinas={rotinas}
+      panorama={panorama}
       diretoria={usuario.perfil === "gestor" || usuario.perfil === "direcao"}
       hrefVoltar={rg ? `/grr/reunioes/${rg.id}` : `/grr${parametrosDaTela(searchParams)}`}
       reuniaoGrr={

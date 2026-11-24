@@ -138,6 +138,7 @@ export async function encerrarReuniaoDiretoriaAcao(_e: EstadoDiretoria, f: FormD
     diagnosticos: pauta.diagnosticos,
     planos: pauta.planos,
     participantes: c.r.participantes,
+    panorama: pauta.panorama ?? null,
     ata: lerAta(c.r.ata),
     rotinas: await carregarRotinas([semana], c.usuario, semana).then((r) => r[0]?.lideres ?? []).catch(() => []),
   };
