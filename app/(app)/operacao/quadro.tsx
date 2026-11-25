@@ -72,6 +72,7 @@ export function QuadroOperacao({
   titulo,
   descricao,
   abas,
+  podeAtualizar = true,
 }: {
   dados: DadosOperacao;
   linkTemplate: string | null;
@@ -82,6 +83,8 @@ export function QuadroOperacao({
   titulo: string;
   descricao: string;
   abas: React.ReactNode;
+  /** perfil só de consulta não vê o botão Atualizar */
+  podeAtualizar?: boolean;
 }) {
   const { e, f, mudar, limpar, minimo, tipos } = useFiltros(agora, setor);
   const [limites, setLimites] = useState<Record<Coluna | "lista", number>>({ aberta: POR_COLUNA, agendada: POR_COLUNA, execucao: POR_COLUNA, validar: POR_COLUNA, encerrada: POR_COLUNA, lista: 100 });
@@ -130,7 +133,7 @@ export function QuadroOperacao({
           <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-start">
             {!unidadeFixa && <SeletorUnidade valor={e.unidade} mudar={(u) => mudar({ unidade: u })} />}
             <SeletorPeriodo e={e} f={f} mudar={mudar} minimo={minimo} />
-            <AtualizarOperacao compacto />
+            {podeAtualizar && <AtualizarOperacao compacto />}
           </div>
           <p className="text-xs text-muted-foreground 2xl:text-right">
             Ocorrências lidas do SGP {haQuantoTempo(dados.atualizadoEm)}; OS {haQuantoTempo(dados.osAtualizadasEm)}. Leitura automática a cada ~15 min.

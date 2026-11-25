@@ -1,4 +1,4 @@
-import { exigirUsuario, tambemRefideliza } from "@/lib/auth";
+import { exigirUsuario, PERFIS_RESTRITOS, tambemRefideliza } from "@/lib/auth";
 import { navDoUsuario } from "@/lib/nav";
 import { ajustesDoUsuario } from "@/lib/acessos-dados";
 import { AppShell } from "@/components/layout/app-shell";
@@ -16,7 +16,7 @@ import { chavePublicaPush } from "@/lib/interchat/push";
 export const dynamic = "force-dynamic";
 
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
-  const usuario = await exigirUsuario();
+  const usuario = await exigirUsuario({ restritos: true });
 
   // Selo "atualizado há X min" exigido na seção 11 do PRD.
   const supabase = criarClienteServidor();
@@ -44,6 +44,15 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   // Meu Dia: só para quem está no piloto; o gestor usa a visão da equipe
   const noMeuDia = usuario.perfil === "gestor" ? null : await vendedorDoMeuDia(usuario.id).catch(() => null);
   itens = itens.filter((i) => i.href !== "/meu-dia" || Boolean(noMeuDia));
+
+  // perfis restritos (Qualidade): sem InterChat e sem avisos internos
+  if (PERFIS_RESTRITOS.includes(usuario.perfil)) {
+    return (
+      <AppShell usuario={usuario} itens={itens} atualizadoEm={`SGP atualizado ${haQuantoTempo(sync?.finalizado_em ?? null)}`}>
+        {children}
+      </AppShell>
+    );
+  }
 
   // InterChat: foto da pessoa (cadastro de vendedoras ou do próprio usuário) e chave dos avisos
   const [{ data: vendFoto }, chavePush] = await Promise.all([

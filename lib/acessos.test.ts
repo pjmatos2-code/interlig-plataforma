@@ -14,6 +14,11 @@ describe("acesso aos módulos por usuário", () => {
     const rayssa = [{ modulo: "grr_comercial" as const, permitido: false, popId: null }, { modulo: "operacao" as const, permitido: true, popId: null }];
     expect(acessoDoModulo("supervisor", rayssa, "grr_comercial").permitido).toBe(false);
   });
+  it("Qualidade: só a Operação Técnica, sem InterChat", () => {
+    expect(navDoUsuario("qualidade").map((i) => i.href)).toEqual(["/operacao"]);
+    expect(acessoDoModulo("qualidade", [], "operacao")).toEqual({ permitido: true, popId: null, ajustado: false });
+    for (const m of ["infraestrutura", "grr_tecnico", "grr_comercial"] as const) expect(acessoDoModulo("qualidade", [], m).permitido).toBe(false);
+  });
   it("menu segue os módulos", () => {
     const rayssa = [{ modulo: "grr_comercial" as const, permitido: false, popId: null }, { modulo: "operacao" as const, permitido: true, popId: null }];
     const menu = navDoUsuario("supervisor", { ajustes: rayssa }).map((i) => i.href);

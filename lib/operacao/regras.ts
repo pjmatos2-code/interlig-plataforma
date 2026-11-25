@@ -14,8 +14,8 @@
 
 import type { Perfil } from "@/lib/tipos";
 
-/** Quem vê a Operação Técnica: coordenação técnica, gestão e diretoria. */
-export const PERFIS_OPERACAO: Perfil[] = ["gestor", "gestor_tecnico", "direcao"];
+/** Quem vê a Operação Técnica: coordenação técnica, gestão, diretoria e Qualidade. */
+export const PERFIS_OPERACAO: Perfil[] = ["gestor", "gestor_tecnico", "direcao", "qualidade"];
 
 export const DIAS_QUADRO = 30;
 /** Encerradas aparecem só as recentes, para a coluna não engolir o quadro. */

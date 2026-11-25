@@ -21,7 +21,9 @@ function Carregando() {
   );
 }
 
-async function Leitura({ unidade, visao }: { unidade: string | null; visao: "geral" | "quadro" }) {
+type Entrada = { unidade: string | null; visao: "geral" | "quadro"; podeAtualizar: boolean };
+
+async function Leitura({ unidade, visao, podeAtualizar }: Entrada) {
   const [todos, linkTemplate] = await Promise.all([dadosOperacao(), templateLinkSgp()]);
   // quem fica preso a uma unidade vê só ela
   const dados = unidade ? { ...todos, cartoes: todos.cartoes.filter((c) => c.unidade === unidade), historico: todos.historico.filter((c) => c.unidade === unidade) } : todos;
@@ -31,6 +33,7 @@ async function Leitura({ unidade, visao }: { unidade: string | null; visao: "ger
       linkTemplate={linkTemplate}
       agora={Date.now()}
       unidadeFixa={unidade}
+      podeAtualizar={podeAtualizar}
       visao={visao}
       titulo="Operação Técnica"
       descricao={`Ocorrências de instalação, mudança de endereço e suporte abertas nos últimos ${DIAS_QUADRO} dias, lidas do SGP.`}
@@ -40,7 +43,7 @@ async function Leitura({ unidade, visao }: { unidade: string | null; visao: "ger
 }
 
 /** Visão Geral e Quadro: a mesma leitura e a mesma tela, com ou sem os gráficos. */
-export function ConteudoOperacao(p: { unidade: string | null; visao: "geral" | "quadro" }) {
+export function ConteudoOperacao(p: Entrada) {
   return (
     <Suspense fallback={<Carregando />}>
       <Leitura {...p} />

@@ -17,7 +17,7 @@ export const MODULOS: { chave: Modulo; rotulo: string; descricao: string }[] = [
 
 /** quem tem o módulo sem ajuste nenhum */
 export const PADRAO_MODULO: Record<Modulo, Perfil[]> = {
-  operacao: ["gestor", "gestor_tecnico", "direcao"],
+  operacao: ["gestor", "gestor_tecnico", "direcao", "qualidade"],
   infraestrutura: ["gestor", "direcao", "gestor_infraestrutura"],
   grr_tecnico: ["gestor", "gestor_tecnico", "direcao"],
   grr_comercial: ["gestor", "supervisor", "direcao"],

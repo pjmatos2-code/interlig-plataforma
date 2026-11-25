@@ -19,6 +19,7 @@ const PERFIS: Perfil[] = [
   "financeiro",
   "gestor_tecnico",
   "gestor_infraestrutura",
+  "qualidade",
   "direcao",
   "gestor",
 ];

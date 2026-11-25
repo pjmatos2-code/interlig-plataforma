@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { exigirUsuario } from "@/lib/auth";
+import { exigirUsuario, PERFIS_RESTRITOS } from "@/lib/auth";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { DIAS_QUADRO, diaSantarem, fatiaAtualizar } from "@/lib/operacao/regras";
 import { moduloDoUsuario } from "@/lib/acessos-dados";
@@ -19,7 +19,8 @@ export const maxDuration = 120;
  * mesma leitura logo em seguida.
  */
 export async function POST(request: Request) {
-  const usuario = await exigirUsuario();
+  const usuario = await exigirUsuario({ restritos: true });
+  if (PERFIS_RESTRITOS.includes(usuario.perfil)) return NextResponse.json({ erro: "Perfil só de consulta." }, { status: 403 });
   // o mesmo botão serve à Operação Técnica e à Infraestrutura (mesma leitura do SGP)
   if (!(await moduloDoUsuario(usuario, "operacao")) && !(await moduloDoUsuario(usuario, "infraestrutura"))) return NextResponse.json({ erro: "Sem permissão." }, { status: 403 });
   const corpo = (await request.json().catch(() => ({}))) as { etapa?: string; fatia?: number };

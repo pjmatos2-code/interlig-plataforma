@@ -21,11 +21,19 @@ export async function usuarioAtual(): Promise<Usuario | null> {
   return (data as Usuario | null) ?? null;
 }
 
+/**
+ * Perfis bloqueados por padrão (25/11/2026): só entram onde a chamada diz
+ * `{ restritos: true }` (os módulos com acesso por usuário e a estrutura da
+ * página). Tela, ação ou rota nova já nasce fechada para eles.
+ */
+export const PERFIS_RESTRITOS: Perfil[] = ["qualidade"];
+
 /** Exige sessão válida e cadastro ativo. Sem autocadastro (PRD seção 2). */
-export async function exigirUsuario(): Promise<Usuario> {
+export async function exigirUsuario(opcoes: { restritos?: boolean } = {}): Promise<Usuario> {
   const usuario = await usuarioAtual();
   if (!usuario) redirect("/login");
   if (!usuario.ativo) redirect("/sem-acesso?motivo=inativo");
+  if (!opcoes.restritos && PERFIS_RESTRITOS.includes(usuario.perfil)) redirect("/sem-acesso");
   return usuario;
 }
 
@@ -77,5 +85,6 @@ export function rotaInicial(perfil: Perfil): string {
   if (perfil === "agente_retencao") return "/retencao";
   if (perfil === "gestor_tecnico") return "/tecnica";
   if (perfil === "gestor_infraestrutura") return "/infraestrutura";
+  if (perfil === "qualidade") return "/operacao";
   return "/dashboard";
 }

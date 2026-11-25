@@ -38,7 +38,7 @@ export const ITENS_NAV: ItemNav[] = [
   { href: "/fidelidade",    rotulo: "Fidelidade da base", icone: "HeartHandshake", perfis: ["gestor", "agente_atendimento", "supervisor", "direcao"] },
   { href: "/prevencao",     rotulo: "Prevenção de cancelamento", icone: "LifeBuoy", perfis: ["gestor", "agente_retencao", "agente_atendimento", "supervisor", "direcao"] },
   { href: "/retencao",      rotulo: "Retenção",    icone: "ShieldAlert",     perfis: ["gestor", "agente_retencao", "direcao"] },
-  { href: "/operacao",      rotulo: "Operação Técnica", icone: "KanbanSquare", perfis: ["gestor", "gestor_tecnico", "direcao"] , modulos: ["operacao"] },
+  { href: "/operacao",      rotulo: "Operação Técnica", icone: "KanbanSquare", perfis: ["gestor", "gestor_tecnico", "direcao", "qualidade"] , modulos: ["operacao"] },
   { href: "/infraestrutura", rotulo: "Infraestrutura", icone: "Network",       perfis: ["gestor", "direcao", "gestor_infraestrutura"], modulos: ["infraestrutura"] },
   { href: "/tecnica",       rotulo: "Equipe Técnica", icone: "Wrench",       perfis: ["gestor", "financeiro", "gestor_tecnico", "direcao"] },
   { href: "/financeiro",    rotulo: "Financeiro",  icone: "Receipt",         perfis: ["gestor", "financeiro", "direcao"] },

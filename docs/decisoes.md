@@ -1215,3 +1215,8 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 - Limites do histórico: o SGP guarda só a última data de cada evento, então reabertura, passagem por pendente e troca de check-in não aparecem; ocorrências com mais de 30 dias não são relidas, por isso o estoque total antigo não é reconstruído.
 - Proposta (não aplicada): tabela `operacao_transicoes (sgp_ocorrencia_id, coluna, desde, lido_em)`, gravada pela rotina de leitura só quando a coluna muda. Daria o tempo em cada etapa e o estoque diário real.
 - Nada muda em OS, ocorrência ou comissão: a tela só lê.
+
+### Perfil Qualidade (25/11/2026)
+
+- Perfil "Qualidade (consulta)" (migração 0147) para o setor de Qualidade do call center: só a Operação Técnica completa (Visão Geral, Quadro, Calendário e Deixados), as três unidades, com link do SGP; sem botão Atualizar, InterChat e avisos internos. Um usuário para o setor.
+- Bloqueado por padrão: `exigirUsuario` barra `PERFIS_RESTRITOS` em toda tela, ação e rota, e só os módulos com acesso por usuário e a estrutura da página liberam (`{ restritos: true }`). No banco, política restritiva nas tabelas que qualquer pessoa logada lê.

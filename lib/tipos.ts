@@ -14,6 +14,8 @@ export type Perfil =
   | "gestor_tecnico"
   /** gestão da Infraestrutura da rede (23/11/2026): vê SOMENTE o módulo Infraestrutura */
   | "gestor_infraestrutura"
+  /** Qualidade do call center (25/11/2026): vê SOMENTE a Operação Técnica, sem alterar nada */
+  | "qualidade"
   /** direção: visualiza todos os módulos (exceto Administração), não edita nada */
   | "direcao";
 
@@ -58,6 +60,7 @@ export const ROTULO_PERFIL: Record<Perfil, string> = {
   agente_retencao: "Agente de retenção",
   gestor_tecnico: "Gestor técnico",
   gestor_infraestrutura: "Gestor de infraestrutura",
+  qualidade: "Qualidade (consulta)",
   direcao: "Direção",
 };
 

@@ -20,7 +20,7 @@ const ADIAR_MIN = 10;
 
 /** Últimas notificações do usuário logado + contador de não lidas (RLS escopa). */
 export async function listarNotificacoes(): Promise<{ itens: Notificacao[]; naoLidas: number; aConfirmar: AvisoConfirmar[] }> {
-  await exigirUsuario();
+  await exigirUsuario({ restritos: true });
   // lembretes de ações agendadas: dispara os vencidos (barato: índice parcial)
   const { despacharLembretes } = await import("@/lib/notificacoes/lembretes");
   await despacharLembretes().catch(() => 0);
@@ -53,7 +53,7 @@ export async function listarNotificacoes(): Promise<{ itens: Notificacao[]; naoL
 
 /** Marca as notificações como lidas (todas as não lidas do usuário). */
 export async function marcarLidas(): Promise<{ ok: boolean }> {
-  await exigirUsuario();
+  await exigirUsuario({ restritos: true });
   const supabase = criarClienteServidor();
   await supabase.from("notificacoes").update({ lida: true }).eq("lida", false);
   return { ok: true };
@@ -65,7 +65,7 @@ export async function marcarLidas(): Promise<{ ok: boolean }> {
  * pela RLS — só a própria pessoa confirma o seu aviso.
  */
 export async function confirmarAviso(id: string): Promise<{ ok: boolean }> {
-  const usuario = await exigirUsuario();
+  const usuario = await exigirUsuario({ restritos: true });
   const supabase = criarClienteServidor();
   const agora = new Date().toISOString();
   const { data } = await supabase
@@ -89,7 +89,7 @@ export async function confirmarAviso(id: string): Promise<{ ok: boolean }> {
 
 /** "Lembrar em 10 min": o aviso some e volta depois, ainda sem confirmar. */
 export async function adiarAviso(id: string): Promise<{ ok: boolean }> {
-  await exigirUsuario();
+  await exigirUsuario({ restritos: true });
   const supabase = criarClienteServidor();
   const { error } = await supabase
     .from("notificacoes")

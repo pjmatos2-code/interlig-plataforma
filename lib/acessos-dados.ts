@@ -23,7 +23,7 @@ const nomeDoPop = cache(async (popId: string): Promise<string | null> => {
  * unidade a que ela fica presa no módulo (popId e nome), quando houver.
  */
 export async function exigirModulo(modulo: Modulo): Promise<{ usuario: Usuario; popId: string | null; unidade: string | null }> {
-  const usuario = await exigirUsuario();
+  const usuario = await exigirUsuario({ restritos: true });
   const acesso = acessoDoModulo(usuario.perfil, await ajustesDoUsuario(usuario.id), modulo);
   if (!acesso.permitido) redirect("/sem-acesso");
   return { usuario, popId: acesso.popId, unidade: acesso.popId ? await nomeDoPop(acesso.popId) : null };
