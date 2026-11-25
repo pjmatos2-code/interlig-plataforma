@@ -1,5 +1,4 @@
 import { exigirModulo } from "@/lib/acessos-dados";
-import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
 import { dadosOperacao } from "@/lib/operacao/dados";
 import { DIAS_QUADRO } from "@/lib/operacao/regras";
 import { templateLinkSgp } from "@/lib/sgp/links-server";
@@ -16,15 +15,17 @@ export const dynamic = "force-dynamic";
 export default async function InfraestruturaPage() {
   const { unidade } = await exigirModulo("infraestrutura");
   const [todos, linkTemplate] = await Promise.all([dadosOperacao(Date.now(), "infraestrutura"), templateLinkSgp()]);
-  const dados = unidade ? { ...todos, cartoes: todos.cartoes.filter((c) => c.unidade === unidade) } : todos;
+  const dados = unidade ? { ...todos, cartoes: todos.cartoes.filter((c) => c.unidade === unidade), historico: todos.historico.filter((c) => c.unidade === unidade) } : todos;
   return (
-    <div>
-      <CabecalhoPagina
-        titulo="Infraestrutura"
-        descricao={`Ocorrências da infraestrutura da rede (CTO, rompimento, sinal, sem acesso em massa) abertas nos últimos ${DIAS_QUADRO} dias, lidas do SGP. Agendar, executar e fechar continuam no SGP.`}
-      />
-      <AbasInfraestrutura ativa="quadro" />
-      <QuadroOperacao dados={dados} linkTemplate={linkTemplate} agora={Date.now()} unidadeFixa={unidade} setor="infraestrutura" />
-    </div>
+    <QuadroOperacao
+      dados={dados}
+      linkTemplate={linkTemplate}
+      agora={Date.now()}
+      unidadeFixa={unidade}
+      setor="infraestrutura"
+      titulo="Infraestrutura"
+      descricao={`Ocorrências da infraestrutura da rede (CTO, rompimento, sinal, sem acesso em massa) abertas nos últimos ${DIAS_QUADRO} dias, lidas do SGP. Agendar, executar e fechar continuam no SGP.`}
+      abas={<AbasInfraestrutura ativa="quadro" />}
+    />
   );
 }

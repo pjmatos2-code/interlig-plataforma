@@ -1206,3 +1206,12 @@ O histórico bate com isso. Das 93 rodadas, 91 foram de segunda a sábado entre 
 - Módulo novo "Infraestrutura" (`/infraestrutura`, quadro e calendário) para a infraestrutura da rede, gestora Juliana Trevisan. É da Infraestrutura a ocorrência aberta no cliente interno "SETOR INFRAESTRUTURA" (contrato 15139), a direcionada ao setor Infraestrutura no SGP (id 14, marcado em `ocorrencias_sgp.setor_sgp` pela leitura da Operação a cada ~15 min) ou com tipo "Infraestrutura - ..." (`ehInfraestrutura` em `lib/operacao/regras.ts`). O nome da responsável não entra (ela também aparece em instalações de clientes).
 - Essas ocorrências saem do quadro e do calendário da Operação Técnica e das contas do GRR Técnico.
 - Perfil novo "Gestor de infraestrutura" (migração 0145): vê só o módulo Infraestrutura e o InterChat. O módulo entra no acesso por usuário (Administração › Acesso aos módulos); padrão: gestão, direção e o perfil novo.
+
+### Operação Técnica: redesign (25/11/2026)
+
+- Abas: Visão Geral (`/operacao`: indicadores, três gráficos, bloco de atenção e quadro), Quadro de Ocorrências (`/operacao/quadro`), Calendário e Deixados. Visão Geral e Quadro usam a mesma leitura e a mesma tela (`quadro.tsx`); o módulo Infraestrutura também usa esse quadro.
+- "Falta validar" tem uma definição só, a coluna `validar` de sempre (`servicoFeito` + ocorrência aberta), no cartão, no gráfico, no bloco, no quadro e na lista. A tela separa "OS encerrada" de "OS ainda sem baixa". Prazo: 24 h, o mesmo do GRR Técnico. As pendências abertas antes do período escolhido aparecem à parte.
+- Evolução (`lib/operacao/painel.ts`): Em aberto e Falta validar são estoque no fim do dia; Encerradas é fluxo acumulado no período. Refeita pelas datas do SGP e só com as ocorrências do período escolhido; hoje bate com os cartões. A espera começa no check-in (sem check-in, na baixa da OS). Encerrada sem data no SGP fica fora.
+- Limites do histórico: o SGP guarda só a última data de cada evento, então reabertura, passagem por pendente e troca de check-in não aparecem; ocorrências com mais de 30 dias não são relidas, por isso o estoque total antigo não é reconstruído.
+- Proposta (não aplicada): tabela `operacao_transicoes (sgp_ocorrencia_id, coluna, desde, lido_em)`, gravada pela rotina de leitura só quando a coluna muda. Daria o tempo em cada etapa e o estoque diário real.
+- Nada muda em OS, ocorrência ou comissão: a tela só lê.

@@ -1,5 +1,5 @@
 import { exigirModulo } from "@/lib/acessos-dados";
-import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
+import { CabecalhoOperacao } from "../cabecalho";
 import { listarDeixados } from "@/lib/operacao/deixados-dados";
 import { templateLinkSgp } from "@/lib/sgp/links-server";
 import { AbasOperacao } from "../abas";
@@ -18,8 +18,7 @@ export default async function DeixadosPage() {
   const lista = unidade ? todos.filter((c) => c.unidade === unidade) : todos;
   return (
     <div>
-      <CabecalhoPagina
-        titulo="Operação Técnica"
+      <CabecalhoOperacao
         descricao="Clientes com OS de instalação criada nas 8 semanas anteriores que ainda não viraram contrato ativo. Meta zero: ninguém pode ficar para trás."
       />
       <AbasOperacao ativa="deixados" />

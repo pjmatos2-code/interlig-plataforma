@@ -18,7 +18,8 @@ const PASSOS: { corpo: { etapa: string; fatia?: number }; texto: string }[] = [
  * Botão "Atualizar" da Operação Técnica: lê do SGP em quatro passos curtos
  * (/api/operacao/atualizar) e recarrega o quadro. Leva cerca de 1 minuto.
  */
-export function AtualizarOperacao() {
+/** `compacto`: só o botão no cabeçalho; a mensagem aparece embaixo e nunca empurra a linha de filtros. */
+export function AtualizarOperacao({ compacto = false }: { compacto?: boolean }) {
   const router = useRouter();
   const [fase, setFase] = useState<Fase>({ tipo: "ocioso" });
   const lendo = fase.tipo === "lendo";
@@ -47,20 +48,21 @@ export function AtualizarOperacao() {
   }
 
   return (
-    <div className="flex flex-col items-start gap-1 sm:items-end">
+    <div className={cn("flex flex-col items-start gap-1 sm:items-end", compacto && "gap-0")}>
       <button
         type="button"
         onClick={atualizar}
         disabled={lendo}
         className={cn(
-          "inline-flex h-9 items-center gap-2 rounded-md bg-interlig-azul px-4 text-sm font-medium text-white shadow-sm transition hover:bg-interlig-azul/90 disabled:opacity-70",
+          compacto ? "h-11 rounded-xl px-5" : "h-9 rounded-md px-4",
+          "inline-flex items-center gap-2 bg-interlig-azul text-sm font-medium text-white shadow-sm transition hover:bg-interlig-azul/90 disabled:opacity-70",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-interlig-ceu focus-visible:ring-offset-2"
         )}
       >
         {lendo ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}
         {lendo ? `Atualizando (${fase.passo + 1}/${PASSOS.length})` : "Atualizar agora"}
       </button>
-      <p aria-live="polite" className="min-h-4 text-xs text-muted-foreground">
+      <p aria-live="polite" className={cn("text-xs text-muted-foreground", !compacto && "min-h-4", compacto && fase.tipo !== "ocioso" && "mt-1")}>
         {fase.tipo === "lendo" && fase.texto}
         {fase.tipo === "pronto" && (
           <span className="inline-flex items-center gap-1 text-farol-verde">

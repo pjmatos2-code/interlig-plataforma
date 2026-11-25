@@ -1,6 +1,7 @@
 import "server-only";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { forticsConta } from "./direcionamento";
+import { feitoEm, type ItemHistorico } from "./painel";
 import {
   ehInfraestrutura,
   DIAS_ENCERRADAS,
@@ -52,6 +53,8 @@ export type CartaoOperacao = {
 
 export type DadosOperacao = {
   cartoes: CartaoOperacao[];
+  /** todas as ocorrências da janela (também as encerradas há mais de 7 dias), só o que o gráfico de evolução usa */
+  historico: ItemHistorico[];
   desde: string;
   atualizadoEm: string | null;
   osAtualizadasEm: string | null;
@@ -124,6 +127,8 @@ export async function dadosOperacao(agora = Date.now(), setor: "operacao" | "inf
         .from("ocorrencias_sgp")
         .select("sgp_ocorrencia_id, sgp_contrato_id, sgp_cliente_id, tipo, status, criada_em, encerrada_em, usuario, pop, sgp_os_id, lido_em, responsavel, setor_sgp")
         .gte("criada_em", desde)
+        // pela data: usa o índice (pela chave, o banco varria a tabela e às vezes estourava o tempo)
+        .order("criada_em")
         .order("sgp_ocorrencia_id")
         .range(de, ate)
     )
@@ -132,22 +137,31 @@ export async function dadosOperacao(agora = Date.now(), setor: "operacao" | "inf
   const idsOs = [...new Set(ocorrencias.map((o) => o.sgp_os_id).filter((x): x is string => Boolean(x)))];
   const idsContrato = [...new Set(ocorrencias.map((o) => o.sgp_contrato_id).filter((x): x is string => Boolean(x)))];
 
+  // os lotes rodam em paralelo (25/11/2026): em série o quadro levava ~10 s só no banco
+  const lotes = <T,>(xs: T[], n = 300) => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
+  const [respostasOs, respostasCt] = await Promise.all([
+    Promise.all(
+      lotes(idsOs).map((lote) =>
+        admin
+          .from("os_tecnicas")
+          .select("sgp_os_id, motivo, cliente_nome, bairro, pop, status, agendamento, checkin, encerrada_em, responsavel, auxiliares, servico_prestado, importado_em")
+          .in("sgp_os_id", lote)
+      )
+    ),
+    Promise.all(
+      lotes(idsContrato).map((lote) =>
+        admin.from("contratos").select("sgp_contrato_id, clientes(nome, cpf, bairro, sgp_cliente_id), planos(nome, setor_corporativo), pops(nome)").in("sgp_contrato_id", lote)
+      )
+    ),
+  ]);
   const os = new Map<string, LinhaOs>();
-  for (let i = 0; i < idsOs.length; i += 300) {
-    const { data, error } = await admin
-      .from("os_tecnicas")
-      .select("sgp_os_id, motivo, cliente_nome, bairro, pop, status, agendamento, checkin, encerrada_em, responsavel, auxiliares, servico_prestado, importado_em")
-      .in("sgp_os_id", idsOs.slice(i, i + 300));
+  for (const { data, error } of respostasOs) {
     if (error) throw new Error(error.message);
     for (const o of (data ?? []) as LinhaOs[]) os.set(o.sgp_os_id, o);
   }
 
   const contratos = new Map<string, InfoContrato>();
-  for (let i = 0; i < idsContrato.length; i += 300) {
-    const { data, error } = await admin
-      .from("contratos")
-      .select("sgp_contrato_id, clientes(nome, cpf, bairro, sgp_cliente_id), planos(nome, setor_corporativo), pops(nome)")
-      .in("sgp_contrato_id", idsContrato.slice(i, i + 300));
+  for (const { data, error } of respostasCt) {
     if (error) throw new Error(error.message);
     for (const c of data ?? []) {
       const cli = c.clientes as unknown as { nome: string | null; cpf: string | null; bairro: string | null; sgp_cliente_id: string | null } | null;
@@ -165,6 +179,7 @@ export async function dadosOperacao(agora = Date.now(), setor: "operacao" | "inf
   }
 
   const cartoes: CartaoOperacao[] = [];
+  const historico: ItemHistorico[] = [];
   for (const oc of ocorrencias) {
     const o = oc.sgp_os_id ? os.get(oc.sgp_os_id) : undefined;
     if (!forticsConta(o?.motivo, oc.tipo, oc.responsavel)) continue;
@@ -173,6 +188,15 @@ export async function dadosOperacao(agora = Date.now(), setor: "operacao" | "inf
     // a infraestrutura da rede tem módulo próprio (23/11/2026)
     if ((setor === "infraestrutura") !== infra) continue;
     const coluna = colunaDa(oc, o);
+    historico.push({
+      criadaEm: oc.criada_em,
+      agendamento: o?.agendamento ?? null,
+      feitoEm: feitoEm(o),
+      encerrada: coluna === "encerrada",
+      encerradaEm: oc.encerrada_em,
+      unidade: nomeUnidade(ctInfo?.unidade, oc.pop, o?.pop),
+      tipo: infra ? "infraestrutura" : tipoServico(oc.tipo)!,
+    });
     if (coluna === "encerrada" && !(oc.encerrada_em && Date.parse(oc.encerrada_em) >= desdeEncerradas)) continue;
     const ct = oc.sgp_contrato_id ? contratos.get(oc.sgp_contrato_id) : undefined;
     cartoes.push({
@@ -209,6 +233,7 @@ export async function dadosOperacao(agora = Date.now(), setor: "operacao" | "inf
   const maior = (xs: (string | null | undefined)[]) => xs.reduce<string | null>((m, x) => (x && (!m || x > m) ? x : m), null);
   return {
     cartoes,
+    historico,
     desde,
     atualizadoEm: maior(ocorrencias.map((o) => o.lido_em)),
     osAtualizadasEm: maior([...os.values()].map((o) => o.importado_em)),

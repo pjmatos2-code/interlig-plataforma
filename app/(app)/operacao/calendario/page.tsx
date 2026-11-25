@@ -1,5 +1,5 @@
 import { exigirModulo } from "@/lib/acessos-dados";
-import { CabecalhoPagina } from "@/components/layout/cabecalho-pagina";
+import { CabecalhoOperacao } from "../cabecalho";
 import { gradeDoMes, mesVizinho, resolverMes, rotuloMes } from "@/lib/operacao/calendario";
 import { dadosCalendario } from "@/lib/operacao/calendario-dados";
 import { templateLinkSgp } from "@/lib/sgp/links-server";
@@ -21,8 +21,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: {
   const itens = unidade ? todos.filter((o) => o.unidade === unidade) : todos;
   return (
     <div>
-      <CabecalhoPagina
-        titulo="Operação Técnica"
+      <CabecalhoOperacao
         descricao="Agenda de instalações, mudanças de endereço e suporte: o que está agendado e o que foi concluído em cada dia, lido do SGP."
       />
       <AbasOperacao ativa="calendario" />
