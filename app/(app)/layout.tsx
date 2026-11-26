@@ -8,6 +8,7 @@ import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { avisosPendentes } from "@/lib/avisos/dados";
 import { PopupAvisos } from "@/components/avisos/popup-avisos";
 import { vendedorDoMeuDia } from "@/lib/meu-dia/dados";
+import { MEU_DIA_ATIVO } from "@/lib/meu-dia/regras";
 import { AbrirMeuDia } from "@/components/meu-dia/abrir-meu-dia";
 import { ProvedorInterChat } from "@/components/interchat/provedor";
 import { DockInterChat } from "@/components/interchat/dock";
@@ -42,7 +43,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   }
 
   // Meu Dia: só para quem está no piloto; o gestor usa a visão da equipe
-  const noMeuDia = usuario.perfil === "gestor" ? null : await vendedorDoMeuDia(usuario.id).catch(() => null);
+  const noMeuDia = !MEU_DIA_ATIVO || usuario.perfil === "gestor" ? null : await vendedorDoMeuDia(usuario.id).catch(() => null);
   itens = itens.filter((i) => i.href !== "/meu-dia" || Boolean(noMeuDia));
 
   // perfis restritos (Qualidade): sem InterChat e sem avisos internos

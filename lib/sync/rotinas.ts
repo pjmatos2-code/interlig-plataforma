@@ -1,4 +1,5 @@
 import "server-only";
+import { MEU_DIA_ATIVO } from "@/lib/meu-dia/regras";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { mesAtras } from "@/lib/datas";
 import {
@@ -127,6 +128,7 @@ export async function rodarRotinas(orcamentoMs = 172_000) {
   // Meu Dia (14/10/2026): pós-venda dos ativados ontem e pendentes 90+ —
   // uma vez por dia, a partir das 00h05 de Santarém
   meuDia: {
+    if (!MEU_DIA_ATIVO) break meuDia; // arquivado em 26/11/2026
     if (restante() < 30_000) break meuDia;
     const hojeStm = relogioSantarem(Date.now()).dia;
     const { data: ja } = await admin

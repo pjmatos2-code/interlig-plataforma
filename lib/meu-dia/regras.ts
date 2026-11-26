@@ -1,4 +1,11 @@
 /**
+ * Meu Dia ARQUIVADO (26/11/2026, pedido da gestão): fora dos menus, as telas
+ * mandam para o início, a tela não abre sozinha no primeiro acesso do dia e a
+ * rotina das 00h05 não roda. Código e banco intactos — reativar é pôr true.
+ */
+export const MEU_DIA_ATIVO = false;
+
+/**
  * Meu Dia — regras puras (14/10/2026). Recebem dados, devolvem a fila/missão.
  * Cada uma tem teste em regras.test.ts. A tela e a visão do gestor só
  * consomem o que sai daqui.

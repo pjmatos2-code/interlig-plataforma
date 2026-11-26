@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { MEU_DIA_ATIVO } from "@/lib/meu-dia/regras";
 import Link from "next/link";
 import { exigirPerfil } from "@/lib/auth";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
@@ -12,6 +14,7 @@ export const dynamic = "force-dynamic";
  * em cada bloco, o que foi concluído hoje e a meta do dia × realizado.
  */
 export default async function MeuDiaEquipePage({ searchParams }: { searchParams: { pop?: string } }) {
+  if (!MEU_DIA_ATIVO) redirect("/"); // arquivado em 26/11/2026
   await exigirPerfil(["gestor"]);
   const { data: popsPiloto } = await criarClienteAdmin()
     .from("vendedores")

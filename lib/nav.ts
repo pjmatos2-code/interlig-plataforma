@@ -1,5 +1,6 @@
 import type { Perfil } from "@/lib/tipos";
 import { acessoDoModulo, type AjusteModulo, type Modulo } from "@/lib/acessos";
+import { MEU_DIA_ATIVO } from "@/lib/meu-dia/regras";
 
 export type ItemNav = {
   href: string;
@@ -18,8 +19,13 @@ export type ItemNav = {
  */
 export const ITENS_NAV: ItemNav[] = [
   { href: "/interchat",     rotulo: "InterChat",   icone: "MessagesSquare",  perfis: ["gestor", "supervisor", "vendedora", "vendedora_externa", "agente_corporativo", "financeiro", "agente_atendimento", "agente_retencao", "gestor_tecnico", "gestor_infraestrutura", "direcao"] },
-  { href: "/meu-dia/equipe", rotulo: "Meu Dia da equipe", icone: "Sunrise",     perfis: ["gestor"] },
-  { href: "/meu-dia",       rotulo: "Meu dia",     icone: "Sunrise",         perfis: ["vendedora", "gestor"] },
+  // Meu Dia arquivado em 26/11/2026 (MEU_DIA_ATIVO em lib/meu-dia/regras.ts)
+  ...(MEU_DIA_ATIVO
+    ? ([
+        { href: "/meu-dia/equipe", rotulo: "Meu Dia da equipe", icone: "Sunrise", perfis: ["gestor"] },
+        { href: "/meu-dia", rotulo: "Meu dia", icone: "Sunrise", perfis: ["vendedora", "gestor"] },
+      ] as ItemNav[])
+    : []),
   { href: "/meu-painel",    rotulo: "Meu painel",  icone: "LayoutDashboard", perfis: ["vendedora", "vendedora_externa", "agente_corporativo", "agente_atendimento", "supervisor"] },
   { href: "/dashboard",     rotulo: "Dashboard",   icone: "LayoutDashboard", perfis: ["gestor", "supervisor", "direcao"] },
   { href: "/relatorios",    rotulo: "Relatório da diretoria", icone: "FileText", perfis: ["gestor", "direcao"] },

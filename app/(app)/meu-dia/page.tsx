@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { MEU_DIA_ATIVO } from "@/lib/meu-dia/regras";
 import Link from "next/link";
 import {
   AlarmClock, CalendarClock, CheckCircle2, ChevronRight, ClipboardList, Flame, HandCoins, Hourglass,
@@ -37,6 +39,7 @@ const ICONE_SUBFILA: Record<SubFila, React.ReactNode> = {
  * quando o CRM/SGP registra o que foi feito; só o pós-venda é marcado à mão.
  */
 export default async function MeuDiaPage({ searchParams }: { searchParams: { vendedor?: string } }) {
+  if (!MEU_DIA_ATIVO) redirect("/"); // arquivado em 26/11/2026
   const usuario = await exigirUsuario();
   let vendedor: { id: string; nome: string } | null = null;
   if (usuario.perfil === "gestor" && searchParams.vendedor) {
