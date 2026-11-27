@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { BarChart3, CalendarCheck2, TrendingDown, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -198,11 +199,16 @@ export function EvolucaoVendas({
     <div>
       {/* cabeçalho */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h3 className="text-base font-medium leading-6">{dados.titulo}</h3>
-          <p className="text-[13px] text-muted-foreground">{dados.subtitulo}</p>
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <BarChart3 className="h-5 w-5" />
+          </span>
+          <div>
+            <h3 className="text-lg font-semibold leading-tight">{dados.titulo}</h3>
+            <p className="text-sm text-muted-foreground">{dados.subtitulo}</p>
+          </div>
         </div>
-        <div className="flex self-start rounded-lg bg-muted p-0.5 text-[13px]">
+        <div className="flex self-start rounded-lg border bg-muted/40 p-0.5 text-sm">
           {([["diario", "Diário"], ["semanal", "Semanal"], ["mensal", "Mensal"]] as const).map(([v, r]) => (
             <button
               key={v}
@@ -210,8 +216,8 @@ export function EvolucaoVendas({
               onClick={() => trocar(v)}
               aria-pressed={visao === v}
               className={cn(
-                "h-8 rounded-md px-3 transition-colors",
-                visao === v ? "bg-card font-medium text-foreground shadow-sm ring-1 ring-border" : "text-muted-foreground hover:text-foreground"
+                "rounded-md px-3 py-1.5 font-medium transition-colors",
+                visao === v ? "bg-interlig-marinho text-white shadow-sm" : "text-muted-foreground hover:bg-background"
               )}
             >
               {r}
@@ -222,22 +228,22 @@ export function EvolucaoVendas({
 
       {/* legenda */}
       <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-sm bg-primary" /> {dados.meta !== null ? "Bateu a meta" : "Vendas realizadas"}
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> Vendas realizadas
         </span>
         {dados.meta !== null && (
-          <span className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-sm bg-slate-300" /> Abaixo da meta
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-5 border-t-2 border-dashed border-slate-400" /> {dados.rotuloMeta}
           </span>
         )}
         {dados.meta !== null && (
-          <span className="inline-flex items-center gap-2">
-            <span className="w-4 border-t-2 border-dashed border-slate-400" /> {dados.rotuloMeta}
+          <span className="inline-flex items-center gap-1.5">
+            número em <span className="font-semibold text-emerald-600">verde</span> = bateu a meta
           </span>
         )}
         {visao === "diario" && (
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-muted ring-1 ring-border" /> Domingo
+            <span className="h-2.5 w-2.5 rounded-sm bg-muted" /> domingo
           </span>
         )}
       </div>
@@ -246,7 +252,7 @@ export function EvolucaoVendas({
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
         <div className="flex pt-2" style={{ minWidth: dados.barras.length * dados.larguraMin + 44 }}>
           {/* eixo Y */}
-          <div className="relative mr-2 h-56 w-9 shrink-0 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
+          <div className="relative mr-2 h-56 w-9 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
             {linhas
               .filter((v) => dados.meta === null || Math.abs(pct(v) - pct(dados.meta)) > 6)
               .map((v) => (
@@ -302,9 +308,9 @@ export function EvolucaoVendas({
                         <>
                           <span
                             className={cn(
-                              "mb-1 font-mono text-[11px] tabular-nums leading-none",
-                              bateu || dados.meta === null ? "text-foreground" : "text-muted-foreground",
-                              b.destaque && "font-semibold"
+                              "mb-0.5 text-[10px] font-semibold tabular-nums leading-none",
+                              bateu ? "text-emerald-600" : "text-slate-600",
+                              b.destaque && "text-[11px] font-bold"
                             )}
                           >
                             {b.valor}
@@ -312,8 +318,7 @@ export function EvolucaoVendas({
                           <span
                             className={cn(
                               "w-[72%] max-w-9 rounded-t-[3px] transition-colors",
-                              bateu || dados.meta === null ? "bg-primary" : "bg-slate-300",
-                              ativo && "opacity-80"
+                              b.destaque ? "bg-interlig-marinho" : ativo ? "bg-blue-500" : "bg-blue-600"
                             )}
                             style={{ height: `${Math.max(b.valor > 0 ? 1.5 : 0, pct(b.valor))}%` }}
                           />
@@ -345,7 +350,7 @@ export function EvolucaoVendas({
                       </p>
                       {dados.meta !== null && dados.meta > 0 && (
                         <p className={cn("mt-0.5 font-medium", barraSel.valor >= dados.meta ? "text-emerald-600" : "text-rose-600")}>
-                          {num(Math.abs((barraSel.valor / dados.meta - 1) * 100))}%{" "}
+                          {barraSel.valor >= dados.meta ? "▲" : "▼"} {num(Math.abs((barraSel.valor / dados.meta - 1) * 100))}%{" "}
                           {barraSel.valor >= dados.meta ? "acima" : "abaixo"} da meta
                         </p>
                       )}
@@ -361,15 +366,11 @@ export function EvolucaoVendas({
                 <span
                   key={b.chave}
                   className={cn(
-                    "flex-1 text-center font-mono text-[11px] tabular-nums leading-4",
-                    b.valor === null ? "text-muted-foreground/50" : "text-muted-foreground"
+                    "flex-1 text-center text-[10px] tabular-nums leading-tight",
+                    b.destaque ? "font-bold text-interlig-marinho" : b.valor === null ? "text-muted-foreground/50" : "text-muted-foreground"
                   )}
                 >
-                  {b.destaque ? (
-                    <span className="rounded bg-primary px-1 py-0.5 font-medium text-primary-foreground">{b.rotulo}</span>
-                  ) : (
-                    b.rotulo
-                  )}
+                  {b.rotulo}
                 </span>
               ))}
             </div>
@@ -378,36 +379,47 @@ export function EvolucaoVendas({
       </div>
 
       {/* destaques */}
-      <dl className="mt-5 grid grid-cols-2 gap-4 border-t pt-4 lg:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border lg:grid-cols-4">
         {[
           {
+            icone: <TrendingUp className="h-4 w-4" />,
+            cor: "bg-emerald-500/10 text-emerald-600",
             rotulo: `Melhor ${dados.unidade}`,
-            valor: melhor ? `${melhor.valor} ${melhor.valor === 1 ? "venda" : "vendas"}` : "—",
+            valor: melhor ? `${melhor.valor} vendas` : "—",
             sub: melhor?.titulo ?? "",
           },
           {
+            icone: <TrendingDown className="h-4 w-4" />,
+            cor: "bg-rose-500/10 text-rose-600",
             rotulo: `Pior ${dados.unidade}`,
-            valor: pior ? `${pior.valor} ${pior.valor === 1 ? "venda" : "vendas"}` : "—",
+            valor: pior ? `${pior.valor} vendas` : "—",
             sub: pior ? pior.titulo : `nenhum ${dados.unidade} encerrado ainda`,
           },
           {
+            icone: <BarChart3 className="h-4 w-4" />,
+            cor: "bg-blue-500/10 text-blue-600",
             rotulo: visao === "diario" ? "Média por dia trabalhado" : `Média por ${dados.unidade}`,
             valor: comValor.length ? `${num(media, 1)} vendas` : "—",
-            sub: visao === "diario" ? "segunda a sábado, até hoje" : `em ${comValor.length} ${visao === "semanal" ? "semanas" : "meses"}`,
+            sub: visao === "diario" ? "seg. a sáb. até hoje" : `em ${comValor.length} ${visao === "semanal" ? "semanas" : "meses"}`,
           },
           {
+            icone: <CalendarCheck2 className="h-4 w-4" />,
+            cor: "bg-amber-500/10 text-amber-600",
             rotulo: visao === "mensal" ? "Meses acima da meta" : visao === "diario" ? "Dias na meta" : "Semanas na meta",
             valor: naMeta === null ? "sem meta" : `${naMeta} de ${comValor.length}`,
             sub: dados.rotuloMeta,
           },
         ].map((c) => (
-          <div key={c.rotulo} className="min-w-0">
-            <dt className="text-xs leading-4 text-muted-foreground">{c.rotulo}</dt>
-            <dd className="mt-1 text-sm font-medium tabular-nums">{c.valor}</dd>
-            {c.sub && <dd className="truncate text-xs leading-4 text-muted-foreground">{c.sub}</dd>}
+          <div key={c.rotulo} className="flex items-start gap-2.5 bg-card p-3">
+            <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", c.cor)}>{c.icone}</span>
+            <div className="min-w-0">
+              <p className="text-[11px] text-muted-foreground">{c.rotulo}</p>
+              <p className="text-sm font-semibold leading-tight">{c.valor}</p>
+              {c.sub && <p className="truncate text-[11px] text-muted-foreground">{c.sub}</p>}
+            </div>
           </div>
         ))}
-      </dl>
+      </div>
     </div>
   );
 }

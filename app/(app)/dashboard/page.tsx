@@ -1,5 +1,17 @@
 import Link from "next/link";
-import { Plus, ListChecks, Receipt, RefreshCw, Tv } from "lucide-react";
+import {
+  ShoppingCart,
+  CircleDollarSign,
+  Tag,
+  Target,
+  Clock3,
+  AlertTriangle,
+  Zap,
+  Plus,
+  ListChecks,
+  Receipt,
+  RefreshCw,
+} from "lucide-react";
 import { exigirPerfil } from "@/lib/auth";
 import { EvolucaoVendas } from "@/components/dashboard/evolucao-vendas";
 import { hojeIso, primeiroDiaDoMes, resolverPeriodo } from "@/lib/datas";
@@ -18,10 +30,8 @@ import { ROTULO_ORIGEM } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
 
-/** Dashboard geral — visual revisto em 26/11/2026 (proposta aprovada pelo
- * gestor): números do período numa faixa só, sem ícone nem borda colorida ·
- * meta do ano como único bloco escuro, em régua dividida por unidade ·
- * base das unidades em tabela · alertas com ponto de gravidade. */
+/** Dashboard geral — layout aprovado pelo gestor (01/09): KPIs com ícone e
+ * sparkline · alertas e ações rápidas no trilho lateral · gráficos. */
 
 const ROTULO_PERIODO = {
   hoje: "hoje",
@@ -30,50 +40,78 @@ const ROTULO_PERIODO = {
   personalizado: "no período",
 } as const;
 
-function Kpi({
-  rotulo,
-  valor,
-  children,
-  className = "",
-}: {
-  rotulo: string;
-  valor: string;
-  children?: React.ReactNode;
-  className?: string;
-}) {
+function Sparkline({ serie }: { serie: number[] }) {
+  if (serie.length < 2) return null;
+  const max = Math.max(1, ...serie);
+  const pts = serie
+    .map((v, i) => `${(i / (serie.length - 1)) * 100},${28 - (v / max) * 24}`)
+    .join(" ");
   return (
-    <div className={`flex min-w-0 flex-col gap-1.5 bg-card p-4 sm:px-5 ${className}`}>
-      <p className="truncate text-[13px] leading-5 text-muted-foreground">{rotulo}</p>
-      <p className="whitespace-nowrap text-2xl font-medium tabular-nums leading-8 tracking-tight">{valor}</p>
-      <p className="min-h-4 text-xs leading-4 text-muted-foreground">{children}</p>
-    </div>
+    <svg viewBox="0 0 100 30" className="h-7 w-20 shrink-0" preserveAspectRatio="none">
+      <polyline points={pts} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
   );
 }
 
-/** linha de evolução dos ativos (6 meses), com o último mês marcado */
-function LinhaAtivos({ valores, titulo }: { valores: number[]; titulo: string }) {
-  if (valores.length < 2) return <span className="text-muted-foreground">—</span>;
-  const min = Math.min(...valores);
-  const max = Math.max(...valores);
-  const pontos = valores.map((v, i) => {
-    const x = 4 + (i / (valores.length - 1)) * 88;
-    const y = max === min ? 12 : 20 - ((v - min) / (max - min)) * 16;
-    return [x, y] as const;
-  });
-  const [ux, uy] = pontos[pontos.length - 1];
+function Kpi({
+  icone,
+  cor,
+  rotulo,
+  valor,
+  delta,
+  sub,
+  barraPct,
+  serie,
+  tom,
+  className = "",
+}: {
+  icone: React.ReactNode;
+  cor: string;
+  rotulo: string;
+  valor: string;
+  delta?: { texto: string; sobe: boolean } | null;
+  sub?: string;
+  barraPct?: number | null;
+  serie?: number[];
+  tom?: "verde" | "amarelo" | "vermelho" | null;
+  className?: string;
+}) {
+  const corBorda =
+    tom === "vermelho"
+      ? "border-l-4 border-l-rose-500"
+      : tom === "amarelo"
+        ? "border-l-4 border-l-amber-500"
+        : tom === "verde"
+          ? "border-l-4 border-l-emerald-500"
+          : "";
   return (
-    <svg width="96" height="24" viewBox="0 0 96 24" className="ml-auto block" role="img" aria-label={titulo}>
-      <title>{titulo}</title>
-      <polyline
-        points={pontos.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ")}
-        fill="none"
-        stroke="#64748b"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      <circle cx={ux} cy={uy} r="3" className="fill-primary" />
-    </svg>
+    <div className={`rounded-xl border bg-card p-3.5 ${corBorda} ${className}`}>
+      <div className="flex items-start justify-between gap-2">
+        <span
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+          style={{ backgroundColor: `${cor}18`, color: cor }}
+        >
+          {icone}
+        </span>
+        {serie && <Sparkline serie={serie} />}
+      </div>
+      <p className="mt-2 truncate text-xs text-muted-foreground">{rotulo}</p>
+      <p className="text-2xl font-bold tabular-nums leading-tight">{valor}</p>
+      {delta && (
+        <p className={`text-[11px] font-medium ${delta.sobe ? "text-emerald-700" : "text-rose-700"}`}>
+          {delta.sobe ? "▲" : "▼"} {delta.texto}
+        </p>
+      )}
+      {barraPct !== undefined && barraPct !== null && (
+        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full"
+            style={{ width: `${Math.min(100, barraPct)}%`, backgroundColor: cor }}
+          />
+        </div>
+      )}
+      {sub && <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{sub}</p>}
+    </div>
   );
 }
 
@@ -309,16 +347,6 @@ export default async function DashboardPage({
     .sort()
     .at(-1);
 
-  // ritmo para a meta do ano: ativos que faltam ÷ dias até 31/12
-  const faltamAtivos = Math.max(0, META_ATIVOS_2026 - ativosTotal);
-  const diasAteFimDoAno = Math.round(
-    (Date.parse("2026-12-31T00:00:00Z") - Date.parse(`${hojeStm}T00:00:00Z`)) / 86_400_000
-  );
-  const ritmoMetaAno = faltamAtivos > 0 && diasAteFimDoAno > 0 ? Math.ceil(faltamAtivos / diasAteFimDoAno) : null;
-  const escalaMetaAno = Math.max(META_ATIVOS_2026, ativosTotal);
-  const COR_UNIDADE = ["bg-white", "bg-[#9db8ff]", "bg-[#5b82e6]"];
-  const FAROL_PONTO = { verde: "bg-emerald-600", amarelo: "bg-amber-500", vermelho: "bg-rose-600" } as const;
-
   const deltaVendas =
     d.vendasPeriodoAnterior === 0
       ? null
@@ -326,36 +354,40 @@ export default async function DashboardPage({
 
   const alertas = [
     {
+      icone: "🕐",
       titulo: "Ativações paradas",
-      sub: "Há mais de 7 dias sem andamento",
+      sub: `${d.ativacoesPendentes.emAlerta} há mais de 7 dias sem andamento.`,
       qtd: d.ativacoesPendentes.emAlerta,
       href: "/esteira",
-      ponto: "bg-rose-600",
+      cor: "text-rose-700",
     },
     {
+      icone: "📝",
       titulo: "Assinaturas pendentes",
-      sub: "Contratos há 48h ou mais sem assinatura",
+      sub: `${d.pendentesAssinatura.emAlerta} contrato(s) há 48h ou mais aguardando assinatura.`,
       qtd: d.pendentesAssinatura.emAlerta,
       href: "/esteira",
-      ponto: "bg-amber-500",
+      cor: "text-amber-700",
     },
     {
+      icone: "📉",
       titulo: "POPs abaixo da meta",
       sub: popsAbaixo.length
-        ? `${popsAbaixo.map((p) => p.pop).join(", ")} abaixo de 70% da meta mensal`
-        : "Todas as POPs no ritmo",
+        ? `${popsAbaixo.map((p) => p.pop).join(", ")} abaixo de 70% da meta mensal.`
+        : "Todas as POPs no ritmo.",
       qtd: popsAbaixo.length,
       href: "/vendedoras",
-      ponto: "bg-amber-500",
+      cor: "text-amber-700",
     },
     ...(ehGestor
       ? [
           {
+            icone: "✅",
             titulo: "Vendas aguardando decisão",
-            sub: "Pendentes de liberação da Administração",
+            sub: "Pendentes de liberação da Administração.",
             qtd: aguardandoDecisao,
             href: "/metas/aprovacoes",
-            ponto: "bg-amber-500",
+            cor: "text-sky-700",
           },
         ]
       : []),
@@ -377,9 +409,9 @@ export default async function DashboardPage({
           href="/tv/comercial"
           target="_blank"
           rel="noopener noreferrer"
-          className="mb-5 inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-[13px] font-medium transition-colors hover:bg-muted"
+          className="mb-5 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-interlig-azul to-interlig-ceu px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02]"
         >
-          <Tv className="h-4 w-4" /> Modo TV
+          📺 Ver no modo TV →
         </a>
       </div>
 
@@ -390,108 +422,113 @@ export default async function DashboardPage({
       <div className={popSupervisor || timeIds ? "grid gap-4" : "grid gap-4 xl:grid-cols-[minmax(0,1fr)_19rem]"}>
         {/* coluna principal */}
         <div className="space-y-4">
-          {/* números do período numa faixa só; o 5º ocupa a sobra até caberem 5 colunas */}
-          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border shadow-sm sm:grid-cols-3 2xl:grid-cols-5">
-            <Kpi rotulo={`Vendas ${ROTULO_PERIODO[periodo.tipo]}`} valor={formatarNumero(d.vendasPeriodo)}>
-              {deltaVendas !== null && (
-                <>
-                  <span className={deltaVendas >= 0 ? "font-medium text-emerald-700" : "font-medium text-rose-700"}>
-                    {deltaVendas >= 0 ? "+" : "−"}
-                    {formatarPercentual(Math.abs(deltaVendas), 0)}
-                  </span>{" "}
-                  vs período anterior
-                </>
-              )}
-            </Kpi>
-            <Kpi rotulo="Receita contratada" valor={formatarMoedaKpi(d.receitaPeriodo)}>
-              em {formatarNumero(d.vendasPeriodo)} {d.vendasPeriodo === 1 ? "venda" : "vendas"}
-            </Kpi>
-            <Kpi rotulo="Ticket médio" valor={formatarMoeda(d.ticketMedioPeriodo)}>
-              por venda
-            </Kpi>
-            <Kpi rotulo="Meta do mês" valor={d.metaMensal ? formatarPercentual(d.percentualMeta, 0) : "—"}>
-              {d.metaMensal ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${FAROL_PONTO[d.farol] ?? "bg-slate-400"}`} />
-                  {d.paceNecessario > 0
-                    ? `${d.paceNecessario.toFixed(1).replace(".", ",")} por dia útil para a meta de ${formatarNumero(d.metaMensal)}`
-                    : `Meta de ${formatarNumero(d.metaMensal)} batida`}
-                </span>
-              ) : (
-                "sem meta cadastrada"
-              )}
-            </Kpi>
+          {/* KPIs */}
+          {/* 5 cartões sem buraco: md = 6 colunas (3 de span-2 + 2 de span-3); xl = 5 iguais */}
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-6 xl:grid-cols-5">
             <Kpi
-              className="col-span-2 2xl:col-span-1"
+              className="md:col-span-2 xl:col-span-1"
+              icone={<ShoppingCart className="h-4 w-4" />}
+              cor="#2563eb"
+              rotulo={`Vendas ${ROTULO_PERIODO[periodo.tipo]}`}
+              valor={formatarNumero(d.vendasPeriodo)}
+              delta={
+                deltaVendas === null
+                  ? null
+                  : {
+                      texto: `${formatarPercentual(Math.abs(deltaVendas), 0)} vs anterior`,
+                      sobe: deltaVendas >= 0,
+                    }
+              }
+              serie={d.vendasDiarias.map((v) => v.vendas)}
+            />
+            <Kpi
+              className="md:col-span-2 xl:col-span-1"
+              icone={<CircleDollarSign className="h-4 w-4" />}
+              cor="#059669"
+              rotulo="Receita contratada"
+              valor={formatarMoedaKpi(d.receitaPeriodo)}
+            />
+            <Kpi
+              className="md:col-span-2 xl:col-span-1"
+              icone={<Tag className="h-4 w-4" />}
+              cor="#7c3aed"
+              rotulo="Ticket médio"
+              valor={formatarMoeda(d.ticketMedioPeriodo)}
+            />
+            <Kpi
+              className="md:col-span-3 xl:col-span-1"
+              icone={<Target className="h-4 w-4" />}
+              cor="#0284c7"
+              rotulo="Meta do mês"
+              valor={d.metaMensal ? formatarPercentual(d.percentualMeta, 0) : "—"}
+              barraPct={d.metaMensal ? d.percentualMeta * 100 : null}
+              sub={
+                d.metaMensal
+                  ? d.paceNecessario > 0
+                    ? `pace: ${d.paceNecessario.toFixed(1).replace(".", ",")}/dia útil · meta ${d.metaMensal}`
+                    : "meta batida 🎉"
+                  : "sem meta cadastrada"
+              }
+              tom={d.metaMensal ? d.farol : null}
+            />
+            <Kpi
+              className="md:col-span-3 xl:col-span-1"
+              icone={<Clock3 className="h-4 w-4" />}
+              cor="#d97706"
               rotulo="Ativações pendentes"
               valor={formatarNumero(d.ativacoesPendentes.total)}
-            >
-              {d.ativacoesPendentes.foraDoPeriodo > 0 ? (
-                `mais ${formatarNumero(d.ativacoesPendentes.foraDoPeriodo)} de vendas anteriores ao período`
-              ) : d.ativacoesPendentes.emAlerta > 0 ? (
-                <span className="font-medium text-rose-700">{d.ativacoesPendentes.emAlerta} em alerta</span>
-              ) : (
-                "nenhuma em alerta"
-              )}
-            </Kpi>
+              sub={
+                d.ativacoesPendentes.foraDoPeriodo > 0
+                  ? `+${d.ativacoesPendentes.foraDoPeriodo} de antes`
+                  : d.ativacoesPendentes.emAlerta > 0
+                    ? `${d.ativacoesPendentes.emAlerta} em alerta`
+                    : "nenhuma em alerta"
+              }
+              tom={d.ativacoesPendentes.emAlerta > 0 ? "vermelho" : null}
+            />
           </div>
 
-          {/* META GERAL 2026: 10.000 ativos (soma das 3 bases, 1x/dia) — único bloco escuro da tela */}
+          {/* META GERAL 2026: 10.000 ativos (soma das 3 bases, 1x/dia) */}
           {ativosTotal > 0 && (
-            <section className="rounded-xl bg-interlig-marinho p-5 text-white sm:p-6" aria-label="Meta de 2026">
-              <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-                <div>
-                  <p className="text-[13px] leading-5 text-sky-100/80">
-                    Meta de 2026, fechar o ano com {META_ATIVOS_2026.toLocaleString("pt-BR")} ativos
-                  </p>
-                  <p className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <span className="text-4xl font-medium tabular-nums tracking-tight sm:text-5xl">
+            <Card className="border-none bg-gradient-to-r from-[#0B1B45] to-[#16305e] text-white">
+              <CardContent className="py-4">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-bold tracking-widest text-sky-300">
+                      🎯 META GERAL 2026 · FECHAR O ANO COM {META_ATIVOS_2026.toLocaleString("pt-BR")} ATIVOS
+                    </p>
+                    <p className="mt-1 text-3xl font-black tabular-nums">
                       {ativosTotal.toLocaleString("pt-BR")}
-                    </span>
-                    <span className="text-sm text-sky-100/80">
-                      ativos hoje, {((ativosTotal / META_ATIVOS_2026) * 100).toFixed(1).replace(".", ",")}% da meta
-                    </span>
-                  </p>
+                      <span className="ml-2 text-sm font-semibold text-sky-200">
+                        ativos hoje · {((ativosTotal / META_ATIVOS_2026) * 100).toFixed(1).replace(".", ",")}% da meta
+                      </span>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-black tabular-nums text-amber-300">
+                      faltam {Math.max(0, META_ATIVOS_2026 - ativosTotal).toLocaleString("pt-BR")}
+                    </p>
+                    <p className="text-[11px] text-sky-200">
+                      até 31/12/2026
+                      {atualizadoEm ? ` · atualizado ${new Date(atualizadoEm).toLocaleDateString("pt-BR", { timeZone: "America/Santarem", day: "2-digit", month: "2-digit" })}` : ""}
+                    </p>
+                  </div>
                 </div>
-                <div className="sm:text-right">
-                  <p className="text-2xl font-medium tabular-nums leading-7">
-                    {faltamAtivos > 0 ? `Faltam ${faltamAtivos.toLocaleString("pt-BR")}` : "Meta batida"}
-                  </p>
-                  <p className="text-[13px] leading-5 text-sky-100/80">
-                    até 31/12/2026
-                    {ritmoMetaAno ? `, cerca de ${ritmoMetaAno.toLocaleString("pt-BR")} por dia` : ""}
-                    {atualizadoEm ? ` · atualizado ${new Date(atualizadoEm).toLocaleDateString("pt-BR", { timeZone: "America/Santarem", day: "2-digit", month: "2-digit" })}` : ""}
-                  </p>
-                </div>
-              </div>
-              <div
-                className="mt-5 flex h-3 gap-0.5 overflow-hidden rounded bg-white/15"
-                role="img"
-                aria-label={`${ativosTotal.toLocaleString("pt-BR")} de ${META_ATIVOS_2026.toLocaleString("pt-BR")} ativos`}
-              >
-                {baseAtualPorUnidade.map((u, i) => (
-                  <span
-                    key={u.unidade}
-                    className={`h-full ${COR_UNIDADE[i % COR_UNIDADE.length]}`}
-                    style={{ width: `${(u.ativos / escalaMetaAno) * 100}%` }}
+                <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/15">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-sky-400 to-emerald-400"
+                    style={{ width: `${Math.min(100, (ativosTotal / META_ATIVOS_2026) * 100)}%` }}
                   />
-                ))}
-              </div>
-              <div className="mt-2 flex justify-between font-mono text-[11px] leading-4 tabular-nums text-sky-100/70">
-                {[0, 0.25, 0.5, 0.75, 1].map((f) => (
-                  <span key={f}>{Math.round(escalaMetaAno * f).toLocaleString("pt-BR")}</span>
-                ))}
-              </div>
-              <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-[13px] text-sky-100/80">
-                {baseAtualPorUnidade.map((u, i) => (
-                  <span key={u.unidade} className="inline-flex items-center gap-2">
-                    <span className={`h-2 w-2 rounded-sm ${COR_UNIDADE[i % COR_UNIDADE.length]}`} />
-                    {u.unidade}
-                    <span className="font-medium tabular-nums text-white">{u.ativos.toLocaleString("pt-BR")}</span>
-                  </span>
-                ))}
-              </div>
-            </section>
+                </div>
+                <div className="mt-2.5 flex flex-wrap gap-2">
+                  {baseAtualPorUnidade.map((u) => (
+                    <span key={u.unidade} className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-sky-100">
+                      {u.unidade}: <span className="tabular-nums text-white">{u.ativos.toLocaleString("pt-BR")}</span>
+                    </span>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* evolução de vendas — modelo do mock 04/09 (diário/semanal/mensal) */}
@@ -508,68 +545,65 @@ export default async function DashboardPage({
             </CardContent>
           </Card>
 
-          {/* base das unidades — Relatórios > Crescimento do SGP (1x/dia); tabela em vez de três gráficos iguais */}
+                    {/* base das 3 unidades — Relatórios > Crescimento do SGP (1x/dia), modelo do mock 04/09 */}
           {unidadesBase.length > 0 && (
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle>Base das unidades</CardTitle>
-                <p className="text-[13px] text-muted-foreground">
-                  Residencial e corporativo, últimos 6 meses. Fonte: SGP, relatório Crescimento, atualizado diariamente
+              <CardHeader className="pb-2">
+                <CardTitle>Base das unidades, últimos 6 meses</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Fonte: SGP (Relatórios &gt; Contratos &gt; Crescimento) · residencial + corporativo · atualizado diariamente
                 </p>
               </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[40rem] border-collapse text-sm tabular-nums">
-                    <thead>
-                      <tr className="text-xs text-muted-foreground">
-                        <th className="pb-2 pr-4 text-left font-normal">Unidade</th>
-                        <th className="pb-2 pr-4 text-right font-normal">Ativos</th>
-                        <th className="pb-2 pr-4 text-right font-normal">Cancelados</th>
-                        <th className="pb-2 pr-4 text-right font-normal">Suspensos</th>
-                        <th className="pb-2 pr-4 text-right font-normal">Parte da base</th>
-                        <th className="pb-2 text-right font-normal">
-                          Ativos, {MES_CURTO[Number(unidadesBase[0].serie[0].mes.slice(5, 7)) - 1].toLowerCase()} a{" "}
-                          {MES_CURTO[Number(unidadesBase[0].serie[unidadesBase[0].serie.length - 1].mes.slice(5, 7)) - 1].toLowerCase()}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {unidadesBase.map(({ unidade, serie }) => {
-                        const atual = serie[serie.length - 1];
-                        const parte = ativosTotal > 0 ? (Number(atual.ativos) / ativosTotal) * 100 : 0;
-                        return (
-                          <tr key={unidade} className="border-t">
-                            <td className="whitespace-nowrap py-3 pr-4 font-medium">{unidade}</td>
-                            <td className="py-3 pr-4 text-right">{atual.ativos.toLocaleString("pt-BR")}</td>
-                            <td
-                              className="py-3 pr-4 text-right"
-                              title={`${atual.cancelados_mes} no mês`}
-                            >
-                              {atual.cancelados_acum.toLocaleString("pt-BR")}
-                            </td>
-                            <td className="py-3 pr-4 text-right">{atual.suspensos.toLocaleString("pt-BR")}</td>
-                            <td className="w-[26%] py-3 pr-4">
-                              <div className="flex items-center justify-end gap-3">
-                                <span className="h-1 min-w-12 flex-1 overflow-hidden rounded-full bg-muted">
-                                  <span className="block h-full rounded-full bg-slate-500" style={{ width: `${Math.min(100, parte)}%` }} />
-                                </span>
-                                <span className="w-12 text-right">{parte.toFixed(1).replace(".", ",")}%</span>
-                              </div>
-                            </td>
-                            <td className="py-3">
-                              <LinhaAtivos
-                                valores={serie.map((b) => Number(b.ativos))}
-                                titulo={serie
-                                  .map((b) => `${MES_CURTO[Number(b.mes.slice(5, 7)) - 1]}: ${Number(b.ativos).toLocaleString("pt-BR")}`)
-                                  .join(" · ")}
-                              />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+              <CardContent className="grid gap-4 lg:grid-cols-3">
+                {unidadesBase.map(({ unidade, serie }) => {
+                  const atual = serie[serie.length - 1];
+                  const maxU = Math.max(...serie.map((b) => Math.max(b.ativos, b.cancelados_acum, b.suspensos)), 1);
+                  const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+                  return (
+                    <div key={unidade} className="rounded-lg border p-3">
+                      <p className="text-sm font-semibold">{unidade}</p>
+                      <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+                        <div className="rounded-md border px-1 py-1.5">
+                          <p className="text-[10px] font-medium text-[#2563eb]">Ativos</p>
+                          <p className="text-sm font-bold tabular-nums text-[#2563eb]">{atual.ativos.toLocaleString("pt-BR")}</p>
+                        </div>
+                        <div className="rounded-md border px-1 py-1.5">
+                          <p className="text-[10px] font-medium text-slate-700">Cancelados</p>
+                          <p className="text-sm font-bold tabular-nums text-slate-800">{atual.cancelados_acum.toLocaleString("pt-BR")}</p>
+                        </div>
+                        <div className="rounded-md border px-1 py-1.5">
+                          <p className="text-[10px] font-medium text-orange-600">Suspensos</p>
+                          <p className="text-sm font-bold tabular-nums text-orange-600">{atual.suspensos.toLocaleString("pt-BR")}</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex h-28 items-end justify-around gap-1 border-b pb-0.5">
+                        {serie.map((b) => (
+                          <div
+                            key={b.mes}
+                            className="flex h-full w-full items-end justify-center gap-0.5"
+                            title={`${MESES[Number(b.mes.slice(5, 7)) - 1]}/${b.mes.slice(0, 4)} — Ativos: ${b.ativos.toLocaleString("pt-BR")} · Cancelados: ${b.cancelados_acum.toLocaleString("pt-BR")} (${b.cancelados_mes} no mês) · Suspensos: ${b.suspensos.toLocaleString("pt-BR")}`}
+                          >
+                            <div className="w-1/3 max-w-3 rounded-t-sm bg-[#2563eb]" style={{ height: `${Math.max(3, (b.ativos / maxU) * 100)}%` }} />
+                            <div className="w-1/3 max-w-3 rounded-t-sm bg-slate-800" style={{ height: `${Math.max(2, (b.cancelados_acum / maxU) * 100)}%` }} />
+                            <div className="w-1/3 max-w-3 rounded-t-sm bg-orange-500" style={{ height: `${Math.max(2, (b.suspensos / maxU) * 100)}%` }} />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-around pt-0.5">
+                        {serie.map((b) => (
+                          <span key={b.mes} className="w-full text-center text-[9px] text-muted-foreground">
+                            {MESES[Number(b.mes.slice(5, 7)) - 1]}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-center gap-3 text-[10px] text-muted-foreground">
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-[#2563eb]" /> Ativos</span>
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-slate-800" /> Cancelados</span>
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-orange-500" /> Suspensos</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </CardContent>
             </Card>
           )}
@@ -642,27 +676,31 @@ export default async function DashboardPage({
         {!popSupervisor && !timeIds && (
         <div className="space-y-4">
           <Card>
-            <CardHeader className="pb-1">
+            <CardHeader className="pb-2">
               <div className="flex items-baseline justify-between">
-                <CardTitle className="text-sm">Alertas e prioridades</CardTitle>
-                <span className="font-mono text-xs tabular-nums text-muted-foreground">{totalAlertas}</span>
+                <CardTitle className="flex items-center gap-1.5 text-sm">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" /> Alertas e prioridades
+                </CardTitle>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold tabular-nums">
+                  {totalAlertas}
+                </span>
               </div>
             </CardHeader>
-            <CardContent className="divide-y">
+            <CardContent className="space-y-3">
               {alertas.map((a) => (
                 <Link
                   key={a.titulo}
                   href={a.href}
-                  className="-mx-2 flex items-start gap-3 rounded-lg px-2 py-3 transition-colors last:pb-1 hover:bg-muted/60"
+                  className="flex items-start gap-2.5 rounded-lg p-1 transition hover:bg-muted/60"
                 >
-                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${a.qtd > 0 ? a.ponto : "bg-emerald-600"}`} />
+                  <span className="text-base leading-6">{a.icone}</span>
                   <span className="min-w-0 flex-1">
-                    <span className={`block text-[13px] font-medium leading-5 ${a.qtd > 0 ? "" : "text-muted-foreground"}`}>
+                    <span className={`block text-xs font-semibold ${a.qtd > 0 ? a.cor : "text-muted-foreground"}`}>
                       {a.titulo}
                     </span>
-                    <span className="block text-xs leading-4 text-muted-foreground">{a.sub}</span>
+                    <span className="block text-[11px] leading-snug text-muted-foreground">{a.sub}</span>
                   </span>
-                  <span className={`text-xl font-medium tabular-nums leading-6 ${a.qtd > 0 ? "" : "text-muted-foreground"}`}>
+                  <span className={`text-lg font-bold tabular-nums ${a.qtd > 0 ? "" : "text-muted-foreground"}`}>
                     {a.qtd}
                   </span>
                 </Link>
@@ -671,44 +709,46 @@ export default async function DashboardPage({
           </Card>
 
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Ações rápidas</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-1.5 text-sm">
+                <Zap className="h-4 w-4 text-sky-600" /> Ações rápidas
+              </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-2">
               <Link
                 href="/crm/novo"
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-primary px-2 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground"
               >
-                <Plus className="h-4 w-4" /> Novo ticket
+                <Plus className="h-3.5 w-3.5" /> Novo ticket
               </Link>
               {ehGestor ? (
                 <Link
                   href="/metas/aprovacoes"
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border px-2 text-[13px] font-medium transition-colors hover:bg-muted"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-2.5 text-xs font-semibold hover:bg-muted"
                 >
-                  <ListChecks className="h-4 w-4" /> Pendências
+                  <ListChecks className="h-3.5 w-3.5" /> Ver pendências
                 </Link>
               ) : (
                 <Link
                   href="/esteira"
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border px-2 text-[13px] font-medium transition-colors hover:bg-muted"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-2.5 text-xs font-semibold hover:bg-muted"
                 >
-                  <ListChecks className="h-4 w-4" /> Esteira
+                  <ListChecks className="h-3.5 w-3.5" /> Esteira
                 </Link>
               )}
               {ehGestor && (
                 <Link
                   href="/financeiro"
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border px-2 text-[13px] font-medium transition-colors hover:bg-muted"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-2.5 text-xs font-semibold hover:bg-muted"
                 >
-                  <Receipt className="h-4 w-4" /> Financeiro
+                  <Receipt className="h-3.5 w-3.5" /> Financeiro
                 </Link>
               )}
               <Link
                 href={`/dashboard?periodo=${periodo.tipo}${popFiltro ? `&pop=${popFiltro}` : ""}`}
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border px-2 text-[13px] font-medium transition-colors hover:bg-muted"
+                className="inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-2.5 text-xs font-semibold hover:bg-muted"
               >
-                <RefreshCw className="h-4 w-4" /> Atualizar
+                <RefreshCw className="h-3.5 w-3.5" /> Atualizar dados
               </Link>
             </CardContent>
           </Card>
