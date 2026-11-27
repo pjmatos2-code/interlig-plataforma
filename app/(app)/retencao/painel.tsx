@@ -346,6 +346,7 @@ function Detalhe({
           <select value={desfecho} onChange={(e) => setDesfecho(e.target.value)}
             className="h-8 rounded-md border border-input bg-background px-2 text-xs">
             <option value="">{c.desfecho ? "reclassificar…" : "encerrar caso como…"}</option>
+            {ehGestor && <option value="retido">Retido (decisão da gestão)</option>}
             <option value="irreversivel">Irreversível (não penaliza)</option>
             <option value="perdido">Perdido (negociação encerrada)</option>
             <option value="transferido">Transferido</option>
@@ -415,7 +416,9 @@ function Detalhe({
         <p className="text-[11px] text-muted-foreground">
           {c.desfechoAuto && (c.desfecho === "retido" || c.desfecho === "perdido")
             ? `“${STATUS[c.desfecho]?.t}” foi validado no SGP — a tratativa segue editável e você pode reclassificar.`
-            : "Retido e Perdido são validados automaticamente pelo status do contrato no SGP."}
+            : c.desfecho === "retido"
+              ? "Retido marcado pela gestão — a auditoria não muda para em risco; só volta a perdido se o contrato for cancelado no SGP."
+              : "Retido e Perdido são validados automaticamente pelo status do contrato no SGP."}
         </p>
 
         {/* análise da conversa (IA) */}

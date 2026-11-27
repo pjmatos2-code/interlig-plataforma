@@ -31,7 +31,7 @@ export async function auditarRetencao(): Promise<ResultadoAuditoria> {
 
   const { data: casos, error } = await admin
     .from("casos_retencao")
-    .select("id, sgp_contrato_id, protocolo_sz, desfecho, desfecho_em, criado_em, clawback_em")
+    .select("id, sgp_contrato_id, protocolo_sz, desfecho, desfecho_auto, desfecho_em, criado_em, clawback_em")
     .not("sgp_contrato_id", "is", null)
     .in("etapa", ["novo", "negociacao", "validacao", "fechado"])
     .limit(5000);
@@ -77,6 +77,14 @@ export async function auditarRetencao(): Promise<ResultadoAuditoria> {
 
     // irreversível e transferido são decisões humanas: a auditoria não mexe
     if (atual === "irreversivel" || atual === "transferido") continue;
+
+    // retido marcado pelo administrador (27/11/2026): a auditoria respeita —
+    // suspensão (com ou sem débito) não vira em risco. Cancelamento no SGP
+    // continua derrubando para perdido (com clawback), como no retido automático.
+    if (atual === "retido" && caso.desfecho_auto === false && x.s !== "cancelado") {
+      retidos++;
+      continue;
+    }
 
     // contrato cancelado ANTES da conversa = vínculo errado (contrato antigo
     // do mesmo cliente), não churn — a auditoria não julga por ele (caso real

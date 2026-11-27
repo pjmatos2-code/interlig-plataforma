@@ -174,7 +174,7 @@ export async function atualizarCaso(
     motivoDeclarado?: string;
     alcadaUsada?: string;
     resumo?: string;
-    desfecho?: "irreversivel" | "perdido" | "transferido" | "sem_resposta" | "";
+    desfecho?: "retido" | "irreversivel" | "perdido" | "transferido" | "sem_resposta" | "";
     irreversivelMotivo?: string;
   }
 ): Promise<Resultado> {
@@ -182,6 +182,9 @@ export async function atualizarCaso(
   if (!["gestor", "agente_retencao"].includes(usuario.perfil))
     return { erro: "Sem permissão." };
 
+  // retido à mão é decisão do administrador (27/11/2026): a agente não marca
+  if (campos.desfecho === "retido" && usuario.perfil !== "gestor")
+    return { erro: "Só o administrador marca como retido." };
   if (campos.desfecho === "irreversivel" && !campos.irreversivelMotivo?.trim())
     return { erro: "Irreversível exige o motivo (mudança sem cobertura, inviabilidade...)." };
   // perdido manual (negociação encerrada): exige a tratativa registrada, para
