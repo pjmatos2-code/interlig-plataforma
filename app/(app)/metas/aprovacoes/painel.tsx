@@ -52,6 +52,12 @@ const ROTULO_DESFECHO: Record<Desfecho["tipo"], string> = {
   nao_comissiona: "Não comissiona",
 };
 
+/** o motivo gravado começa pelo nome da opção; na tela mostra só a observação */
+function observacaoDoDesfecho(d: Desfecho): string {
+  const rotulo = ROTULO_DESFECHO[d.tipo];
+  return d.motivo.startsWith(rotulo) ? d.motivo.slice(rotulo.length).replace(/^:\s*/, "") : d.motivo;
+}
+
 function Linha({
   item,
   competencia,
@@ -67,7 +73,6 @@ function Linha({
 }) {
   const router = useRouter();
   const [modo, setModo] = useState<Modo>(null);
-  const [tipo, setTipo] = useState<Desfecho["tipo"]>(item.ativado ? "nao_comissiona" : "desistencia");
   const [motivo, setMotivo] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -131,28 +136,36 @@ function Linha({
   } else if (modo === "dispensar") {
     acoes = campoMotivo("cortesia, licitação, evento…", () => executar(() => dispensarAssinatura(item.contratoId, motivo)), "Dispensar");
   } else if (modo === "desfecho") {
+    // um clique (27/11/2026): a opção já é o motivo; o texto é só observação
     acoes = (
-      <div className="flex flex-col items-end gap-1.5">
-        <div className="flex gap-1" role="radiogroup" aria-label="Desfecho">
+      <div className="flex flex-col items-end gap-1">
+        <div className="flex items-center gap-1">
           {(["desistencia", "nao_comissiona"] as const).map((op) => {
             const bloqueada = op === "desistencia" && item.ativado;
             return (
               <button
                 key={op}
                 type="button"
-                role="radio"
-                aria-checked={tipo === op}
-                disabled={bloqueada}
-                title={bloqueada ? "Este contrato já foi ativado" : undefined}
-                onClick={() => setTipo(op)}
-                className={`${botao} border ${tipo === op ? "border-primary bg-primary/10 text-primary" : "bg-background hover:bg-muted"} disabled:cursor-not-allowed`}
+                disabled={ocupado || bloqueada}
+                title={bloqueada ? "Este contrato já foi ativado" : "Encerra a venda sem comissão"}
+                onClick={() => executar(() => encerrarSemComissao(item.contratoId, competencia, op, motivo))}
+                className={`${contorno} disabled:cursor-not-allowed`}
               >
                 {ROTULO_DESFECHO[op]}
               </button>
             );
           })}
+          <button type="button" onClick={fechar} aria-label="Cancelar" className={`${botao} border hover:bg-muted`}>
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
-        {campoMotivo("motivo do desfecho", () => executar(() => encerrarSemComissao(item.contratoId, competencia, tipo, motivo)), "Encerrar")}
+        <input
+          autoFocus
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          placeholder="observação (opcional), antes de clicar"
+          className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+        />
       </div>
     );
   } else {
@@ -234,7 +247,8 @@ function Linha({
         {secao === "encerrada" && item.desfecho && (
           <p className="mt-1 text-xs text-muted-foreground">
             <span className="font-medium text-foreground">{ROTULO_DESFECHO[item.desfecho.tipo]}</span>
-            {item.desfecho.definidoPor ? ` · ${item.desfecho.definidoPor}` : ""}: {item.desfecho.motivo}
+            {item.desfecho.definidoPor ? ` · ${item.desfecho.definidoPor}` : ""}
+            {observacaoDoDesfecho(item.desfecho) ? `: ${observacaoDoDesfecho(item.desfecho)}` : ""}
           </p>
         )}
         {erro && <p className="mt-1 text-xs text-farol-vermelho">{erro}</p>}

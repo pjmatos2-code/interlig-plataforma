@@ -212,9 +212,11 @@ export async function encerrarSemComissao(
   motivo: string
 ): Promise<Resultado> {
   const usuario = await exigirPerfil(["gestor"]);
-  const texto = motivo.trim();
   if (!contratoId || !competencia) return { erro: "Contrato ou competência ausente." };
-  if (texto.length < 5) return { erro: "Descreva o motivo (mín. 5 caracteres)." };
+  // a opção escolhida já é o motivo; a observação, se houver, vai junto
+  const rotulo = tipo === "desistencia" ? "Cliente desistiu da instalação" : "Não comissiona";
+  const obs = motivo.trim();
+  const texto = obs ? `${rotulo}: ${obs}` : rotulo;
 
   const admin = criarClienteAdmin();
   if (tipo === "desistencia") {
