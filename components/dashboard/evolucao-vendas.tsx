@@ -217,7 +217,7 @@ export function EvolucaoVendas({
               aria-pressed={visao === v}
               className={cn(
                 "rounded-md px-3 py-1.5 font-medium transition-colors",
-                visao === v ? "bg-interlig-marinho text-white shadow-sm" : "text-muted-foreground hover:bg-background"
+                visao === v ? "bg-interlig-marinho text-white shadow-sm dark:bg-[#2563A8]" : "text-muted-foreground hover:bg-background"
               )}
             >
               {r}
@@ -229,7 +229,7 @@ export function EvolucaoVendas({
       {/* legenda */}
       <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> Vendas realizadas
+          <span className="h-2.5 w-2.5 rounded-full bg-blue-600 dark:bg-[#2F6CAB]" /> Vendas realizadas
         </span>
         {dados.meta !== null && (
           <span className="inline-flex items-center gap-1.5">
@@ -318,7 +318,7 @@ export function EvolucaoVendas({
                           <span
                             className={cn(
                               "w-[72%] max-w-9 rounded-t-[3px] transition-colors",
-                              b.destaque ? "bg-interlig-marinho" : ativo ? "bg-blue-500" : "bg-blue-600"
+                              b.destaque ? "bg-interlig-marinho dark:bg-[#91BEE6]" : ativo ? "bg-blue-500 dark:bg-[#3D7DBF]" : "bg-blue-600 dark:bg-[#2F6CAB]"
                             )}
                             style={{ height: `${Math.max(b.valor > 0 ? 1.5 : 0, pct(b.valor))}%` }}
                           />

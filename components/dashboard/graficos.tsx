@@ -431,7 +431,7 @@ export function GraficoProjecao({
       </ResponsiveContainer>
       <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-0.5 w-4" style={{ background: "#043792" }} />
+          <span className="inline-block h-0.5 w-4 bg-[#043792] dark:bg-[#95BCE2]" />
           realizado
         </span>
         <span className="flex items-center gap-1.5">

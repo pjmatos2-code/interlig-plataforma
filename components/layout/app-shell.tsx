@@ -16,6 +16,7 @@ import { ROTULO_PERFIL, type Usuario } from "@/lib/tipos";
 import { LogoInterlig } from "@/components/marca/logo-interlig";
 import { SinoNotificacoes } from "@/components/layout/sino-notificacoes";
 import { BotaoInstalarApp } from "@/components/pwa/botao-instalar";
+import { InterruptorTema } from "@/components/layout/interruptor-tema";
 
 const ICONES: Record<string, LucideIcon> = {
   Gauge, KanbanSquare, Network, LayoutDashboard, Users, TrendingUp, ListChecks, MessagesSquare, Target, Settings, Trophy, Map, Footprints, Receipt, RefreshCw, Wallet, ShieldAlert, History, Crown, Wrench, BadgeDollarSign, HeartHandshake, LifeBuoy, Megaphone, Sunrise, FileText,
@@ -65,7 +66,7 @@ export function AppShell({
               "flex items-center gap-3 rounded-md py-2.5 text-sm font-medium transition-colors",
               compacto ? "justify-center px-0" : "px-3",
               ativo
-                ? "bg-primary text-primary-foreground"
+                ? "tema-menu-ativo bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-accent hover:text-foreground"
             )}
           >
@@ -78,9 +79,9 @@ export function AppShell({
   );
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="tema-app min-h-screen bg-muted/30">
       {/* Barra superior — mobile-first (CLAUDE.md), no marinho da marca */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-white/10 bg-interlig-marinho px-3 text-white sm:gap-3 sm:px-4 lg:px-6">
+      <header className="tema-topo sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-white/10 bg-interlig-marinho px-3 text-white sm:gap-3 sm:px-4 lg:px-6">
         <Button
           variant="ghost"
           size="icon"
@@ -100,6 +101,7 @@ export function AppShell({
           <span className="hidden text-xs text-white/60 sm:inline">{atualizadoEm}</span>
           <BotaoInstalarApp />
           <SinoNotificacoes />
+          <InterruptorTema />
           <Badge className="hidden border-transparent bg-interlig-ceu/25 text-interlig-claro sm:inline-flex">
             {ROTULO_PERFIL[usuario.perfil]}
           </Badge>
@@ -122,7 +124,7 @@ export function AppShell({
         {/* Menu lateral — desktop (recolhível) */}
         <aside
           className={cn(
-            "hidden shrink-0 border-r bg-background p-3 transition-[width] duration-200 lg:block",
+            "tema-menu hidden shrink-0 border-r bg-background p-3 transition-[width] duration-200 lg:block",
             recolhido ? "w-16" : "w-60"
           )}
         >
@@ -151,7 +153,7 @@ export function AppShell({
         {aberto && (
           <div className="fixed inset-0 z-20 lg:hidden">
             <div className="absolute inset-0 bg-black/40" onClick={() => setAberto(false)} />
-            <aside className="absolute left-0 top-14 h-full w-64 border-r bg-background p-3">
+            <aside className="tema-menu absolute left-0 top-14 h-full w-64 border-r bg-background p-3">
               <div className="mb-4 px-3 pt-2">
                 <p className="truncate text-sm font-medium">{usuario.nome}</p>
                 <p className="truncate text-xs text-muted-foreground">{usuario.email}</p>

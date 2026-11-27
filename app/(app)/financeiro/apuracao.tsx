@@ -184,7 +184,7 @@ function Memoria({ l, onFechar }: { l: LinhaApuracao; onFechar: () => void }) {
               style={{
                 background: total
                   ? `conic-gradient(#2563eb 0deg ${(l.vendasLiberadas / total) * 360}deg, #f59e0b ${(l.vendasLiberadas / total) * 360}deg 360deg)`
-                  : "#e5e7eb",
+                  : "var(--vazio, #e5e7eb)",
               }}
             >
               <div className="grid h-10 w-10 place-items-center rounded-full bg-card text-[10px] font-semibold tabular-nums">{total}</div>

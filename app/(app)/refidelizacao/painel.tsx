@@ -96,7 +96,7 @@ function Donut({ fatias }: { fatias: { rotulo: string; qtd: number; cor: string 
     <div className="flex items-center gap-4">
       <div
         className="grid h-24 w-24 shrink-0 place-items-center rounded-full"
-        style={{ background: total ? `conic-gradient(${stops})` : "#e5e7eb" }}
+        style={{ background: total ? `conic-gradient(${stops})` : "var(--vazio, #e5e7eb)" }}
       >
         <div className="grid h-14 w-14 place-items-center rounded-full bg-card text-sm font-semibold tabular-nums">
           {total}

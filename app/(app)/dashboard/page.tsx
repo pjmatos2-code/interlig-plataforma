@@ -48,7 +48,7 @@ function Sparkline({ serie }: { serie: number[] }) {
     .join(" ");
   return (
     <svg viewBox="0 0 100 30" className="h-7 w-20 shrink-0" preserveAspectRatio="none">
-      <polyline points={pts} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" />
+      <polyline points={pts} fill="none" strokeWidth="2" strokeLinejoin="round" className="stroke-[#2563eb] dark:stroke-[#91BEE6]" />
     </svg>
   );
 }
@@ -138,7 +138,7 @@ function Donut({
     <div className="flex items-center gap-4">
       <div
         className="grid h-28 w-28 shrink-0 place-items-center rounded-full"
-        style={{ background: stops ? `conic-gradient(${stops})` : "#e5e7eb" }}
+        style={{ background: stops ? `conic-gradient(${stops})` : "var(--vazio, #e5e7eb)" }}
       >
         <div className="grid h-[4.4rem] w-[4.4rem] place-items-center rounded-full bg-card text-center">
           <span>
@@ -490,7 +490,7 @@ export default async function DashboardPage({
 
           {/* META GERAL 2026: 10.000 ativos (soma das 3 bases, 1x/dia) */}
           {ativosTotal > 0 && (
-            <Card className="border-none bg-gradient-to-r from-[#0B1B45] to-[#16305e] text-white">
+            <Card className="border-none bg-gradient-to-r from-[#0B1B45] to-[#16305e] text-white dark:bg-[#16283E] dark:bg-none">
               <CardContent className="py-4">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
@@ -514,15 +514,15 @@ export default async function DashboardPage({
                     </p>
                   </div>
                 </div>
-                <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/15">
+                <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/15 dark:bg-[#263950]">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-sky-400 to-emerald-400"
+                    className="h-full rounded-full bg-gradient-to-r from-sky-400 to-emerald-400 dark:bg-[#4A8BCB] dark:bg-none"
                     style={{ width: `${Math.min(100, (ativosTotal / META_ATIVOS_2026) * 100)}%` }}
                   />
                 </div>
                 <div className="mt-2.5 flex flex-wrap gap-2">
                   {baseAtualPorUnidade.map((u) => (
-                    <span key={u.unidade} className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-sky-100">
+                    <span key={u.unidade} className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-sky-100 dark:bg-[#263950]">
                       {u.unidade}: <span className="tabular-nums text-white">{u.ativos.toLocaleString("pt-BR")}</span>
                     </span>
                   ))}
@@ -563,15 +563,15 @@ export default async function DashboardPage({
                     <div key={unidade} className="rounded-lg border p-3">
                       <p className="text-sm font-semibold">{unidade}</p>
                       <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
-                        <div className="rounded-md border px-1 py-1.5">
-                          <p className="text-[10px] font-medium text-[#2563eb]">Ativos</p>
-                          <p className="text-sm font-bold tabular-nums text-[#2563eb]">{atual.ativos.toLocaleString("pt-BR")}</p>
+                        <div className="rounded-md border px-1 py-1.5 dark:bg-[#293B51]">
+                          <p className="text-[10px] font-medium text-[#2563eb] dark:text-[#95BCE2]">Ativos</p>
+                          <p className="text-sm font-bold tabular-nums text-[#2563eb] dark:text-[#95BCE2]">{atual.ativos.toLocaleString("pt-BR")}</p>
                         </div>
-                        <div className="rounded-md border px-1 py-1.5">
+                        <div className="rounded-md border px-1 py-1.5 dark:bg-[#293B51]">
                           <p className="text-[10px] font-medium text-slate-700">Cancelados</p>
                           <p className="text-sm font-bold tabular-nums text-slate-800">{atual.cancelados_acum.toLocaleString("pt-BR")}</p>
                         </div>
-                        <div className="rounded-md border px-1 py-1.5">
+                        <div className="rounded-md border px-1 py-1.5 dark:bg-[#293B51]">
                           <p className="text-[10px] font-medium text-orange-600">Suspensos</p>
                           <p className="text-sm font-bold tabular-nums text-orange-600">{atual.suspensos.toLocaleString("pt-BR")}</p>
                         </div>
@@ -583,8 +583,8 @@ export default async function DashboardPage({
                             className="flex h-full w-full items-end justify-center gap-0.5"
                             title={`${MESES[Number(b.mes.slice(5, 7)) - 1]}/${b.mes.slice(0, 4)} — Ativos: ${b.ativos.toLocaleString("pt-BR")} · Cancelados: ${b.cancelados_acum.toLocaleString("pt-BR")} (${b.cancelados_mes} no mês) · Suspensos: ${b.suspensos.toLocaleString("pt-BR")}`}
                           >
-                            <div className="w-1/3 max-w-3 rounded-t-sm bg-[#2563eb]" style={{ height: `${Math.max(3, (b.ativos / maxU) * 100)}%` }} />
-                            <div className="w-1/3 max-w-3 rounded-t-sm bg-slate-800" style={{ height: `${Math.max(2, (b.cancelados_acum / maxU) * 100)}%` }} />
+                            <div className="w-1/3 max-w-3 rounded-t-sm bg-[#2563eb] dark:bg-[#2F6CAB]" style={{ height: `${Math.max(3, (b.ativos / maxU) * 100)}%` }} />
+                            <div className="w-1/3 max-w-3 rounded-t-sm bg-slate-800 dark:bg-slate-400" style={{ height: `${Math.max(2, (b.cancelados_acum / maxU) * 100)}%` }} />
                             <div className="w-1/3 max-w-3 rounded-t-sm bg-orange-500" style={{ height: `${Math.max(2, (b.suspensos / maxU) * 100)}%` }} />
                           </div>
                         ))}
@@ -597,8 +597,8 @@ export default async function DashboardPage({
                         ))}
                       </div>
                       <div className="mt-1.5 flex items-center justify-center gap-3 text-[10px] text-muted-foreground">
-                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-[#2563eb]" /> Ativos</span>
-                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-slate-800" /> Cancelados</span>
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-[#2563eb] dark:bg-[#2F6CAB]" /> Ativos</span>
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-slate-800 dark:bg-slate-400" /> Cancelados</span>
                         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-orange-500" /> Suspensos</span>
                       </div>
                     </div>

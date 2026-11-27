@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "./tema-escuro.css";
 import { RegistrarServiceWorker } from "@/components/pwa/registrar-sw";
+import { SCRIPT_TEMA } from "@/components/layout/interruptor-tema";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,6 +25,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${inter.className} antialiased`}>
+        {/* tema escolhido aplicado antes da primeira pintura (sem piscar) */}
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
         {children}
         <RegistrarServiceWorker />
       </body>

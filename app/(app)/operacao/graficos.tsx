@@ -118,7 +118,7 @@ export function GraficoEvolucao({ pontos, semData }: { pontos: PontoEvolucao[]; 
             ["Falta validar", ultimo.validar, "bg-orange-50", COR_SERIE.validar],
           ].map(([t, v, bg, cor]) => (
             <div key={String(t)} className={cn("rounded-xl px-2 py-1.5 text-center", String(bg))}>
-              <dd className="text-lg font-bold tabular-nums" style={{ color: String(cor) }}>{n0(Number(v))}</dd>
+              <dd className="text-lg font-bold tabular-nums dark:brightness-[1.7]" style={{ color: String(cor) }}>{n0(Number(v))}</dd>
               <dt className="text-[11px] text-slate-700">{t}</dt>
             </div>
           ))}

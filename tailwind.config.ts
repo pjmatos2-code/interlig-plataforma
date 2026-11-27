@@ -1,7 +1,8 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: ["class"],
+  // modo escuro: <html data-tema="escuro"> + AppShell (.tema-app); ver app/tema-escuro.css
+  darkMode: ["variant", '[data-tema="escuro"] .tema-app &'],
   content: [
     "./app/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
