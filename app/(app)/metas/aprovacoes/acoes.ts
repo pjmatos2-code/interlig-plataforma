@@ -196,3 +196,83 @@ export async function definirDebitoCompetencia(
       : "Competência fechará sem débito de inadimplentes.",
   };
 }
+
+/**
+ * Desfecho da fila (27/11/2026): encerra a venda sem comissão e tira da fila.
+ * - "desistencia": cliente desistiu antes de ativar — a mesma desistência da
+ *   Esteira (sai também das pendências da vendedora). Só para contrato nunca
+ *   ativado.
+ * - "nao_comissiona": qualquer outro caso (suspenso depois, venda que não
+ *   vale). Só organiza a fila; não mexe no contrato nem em outro número.
+ */
+export async function encerrarSemComissao(
+  contratoId: string,
+  competencia: string,
+  tipo: "desistencia" | "nao_comissiona",
+  motivo: string
+): Promise<Resultado> {
+  const usuario = await exigirPerfil(["gestor"]);
+  const texto = motivo.trim();
+  if (!contratoId || !competencia) return { erro: "Contrato ou competência ausente." };
+  if (texto.length < 5) return { erro: "Descreva o motivo (mín. 5 caracteres)." };
+
+  const admin = criarClienteAdmin();
+  if (tipo === "desistencia") {
+    const { data, error } = await admin
+      .from("contratos")
+      .update({ desistencia_em: new Date().toISOString(), desistencia_por: usuario.id, desistencia_motivo: texto })
+      .eq("id", contratoId)
+      .is("data_ativacao", null)
+      .select("id");
+    if (error) return { erro: error.message };
+    if (!data?.length) return { erro: "Este contrato já foi ativado — use \"Não comissiona\"." };
+    revalidatePath("/esteira");
+    revalidatePath("/dashboard");
+  } else {
+    const { error } = await admin.from("comissao_desfechos").upsert(
+      {
+        contrato_id: contratoId,
+        competencia,
+        motivo: texto,
+        definido_por: usuario.id,
+        definido_em: new Date().toISOString(),
+        desfeito_em: null,
+        desfeito_por: null,
+      },
+      { onConflict: "contrato_id,competencia" }
+    );
+    if (error) return { erro: error.message };
+  }
+  revalidar();
+  return { ok: "Venda encerrada sem comissão — saiu da fila." };
+}
+
+/** Desfaz o desfecho — a venda volta para "Aguardando decisão". */
+export async function desfazerDesfecho(
+  contratoId: string,
+  competencia: string,
+  tipo: "desistencia" | "nao_comissiona"
+): Promise<Resultado> {
+  const usuario = await exigirPerfil(["gestor"]);
+  if (!contratoId || !competencia) return { erro: "Contrato ou competência ausente." };
+  const admin = criarClienteAdmin();
+  const { error } =
+    tipo === "desistencia"
+      ? await admin
+          .from("contratos")
+          .update({ desistencia_em: null, desistencia_por: null, desistencia_motivo: null })
+          .eq("id", contratoId)
+      : await admin
+          .from("comissao_desfechos")
+          .update({ desfeito_em: new Date().toISOString(), desfeito_por: usuario.id })
+          .eq("contrato_id", contratoId)
+          .eq("competencia", competencia)
+          .is("desfeito_em", null);
+  if (error) return { erro: error.message };
+  if (tipo === "desistencia") {
+    revalidatePath("/esteira");
+    revalidatePath("/dashboard");
+  }
+  revalidar();
+  return { ok: "Desfecho desfeito — a venda voltou para a fila." };
+}

@@ -51,6 +51,7 @@ export default async function AprovacoesPage({
     ...fila,
     pendentes: fila.pendentes.filter(daAgente),
     aprovados: fila.aprovados.filter(daAgente),
+    encerradas: fila.encerradas.filter(daAgente),
   };
   const porAgente = new Map<string, { nome: string; n: number }>();
   for (const i of fila.pendentes) {

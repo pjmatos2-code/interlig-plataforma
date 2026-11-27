@@ -6,12 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatarData, formatarMoeda } from "@/lib/format";
 import { aplicarLinkSgp } from "@/lib/sgp/links";
-import type { FilaAprovacao, ItemAprovacao } from "@/lib/comissao/aprovacoes";
+import { Lock, Undo2, X } from "lucide-react";
+import type { Desfecho, FilaAprovacao, ItemAprovacao } from "@/lib/comissao/aprovacoes";
 import {
   aprovarVenda,
   revogarAprovacao,
   atribuirVendedoraContrato,
   dispensarAssinatura,
+  encerrarSemComissao,
+  desfazerDesfecho,
 } from "./acoes";
 
 /**
@@ -42,22 +45,29 @@ function LinkSgp({
   );
 }
 
+type Modo = null | "aprovar" | "desfecho" | "dispensar";
+
+const ROTULO_DESFECHO: Record<Desfecho["tipo"], string> = {
+  desistencia: "Cliente desistiu da instalação",
+  nao_comissiona: "Não comissiona",
+};
+
 function Linha({
   item,
   competencia,
   vendedoras,
   template,
-  aprovado,
+  secao,
 }: {
   item: ItemAprovacao;
   competencia: string;
   vendedoras: { id: string; nome: string }[];
   template: string | null;
-  aprovado: boolean;
+  secao: "pendente" | "aprovada" | "encerrada";
 }) {
   const router = useRouter();
-  const [abrindo, setAbrindo] = useState(false);
-  const [dispensando, setDispensando] = useState(false);
+  const [modo, setModo] = useState<Modo>(null);
+  const [tipo, setTipo] = useState<Desfecho["tipo"]>(item.ativado ? "nao_comissiona" : "desistencia");
   const [motivo, setMotivo] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -68,10 +78,100 @@ function Linha({
     const r = await fn();
     setOcupado(false);
     if (r.erro) return setErro(r.erro);
-    setAbrindo(false);
-    setDispensando(false);
+    setModo(null);
     setMotivo("");
     router.refresh();
+  }
+  const fechar = () => {
+    setModo(null);
+    setMotivo("");
+    setErro(null);
+  };
+
+  const botao = "rounded-md px-2.5 py-1 text-xs font-medium disabled:opacity-50";
+  const primario = `${botao} bg-primary text-primary-foreground hover:bg-primary/90`;
+  const contorno = `${botao} border bg-background hover:bg-muted`;
+
+  const campoMotivo = (placeholder: string, confirmar: () => void, rotulo: string) => (
+    <div className="flex items-center justify-end gap-1">
+      <input
+        autoFocus
+        value={motivo}
+        onChange={(e) => setMotivo(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && confirmar()}
+        placeholder={placeholder}
+        className="h-8 w-48 rounded-md border border-input bg-background px-2 text-xs"
+      />
+      <button type="button" disabled={ocupado} onClick={confirmar} className={primario}>
+        {rotulo}
+      </button>
+      <button type="button" onClick={fechar} aria-label="Cancelar" className={`${botao} border hover:bg-muted`}>
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+
+  let acoes: React.ReactNode;
+  if (secao === "aprovada") {
+    acoes = (
+      <button type="button" disabled={ocupado} onClick={() => executar(() => revogarAprovacao(item.contratoId, competencia))} className={contorno}>
+        Revogar
+      </button>
+    );
+  } else if (secao === "encerrada" && item.desfecho) {
+    const t = item.desfecho.tipo;
+    acoes = (
+      <button type="button" disabled={ocupado} onClick={() => executar(() => desfazerDesfecho(item.contratoId, competencia, t))} className={contorno}>
+        <Undo2 className="mr-1 inline h-3.5 w-3.5" />
+        Desfazer
+      </button>
+    );
+  } else if (modo === "aprovar") {
+    acoes = campoMotivo("motivo da liberação", () => executar(() => aprovarVenda(item.contratoId, competencia, motivo, item.pendencias)), "Confirmar");
+  } else if (modo === "dispensar") {
+    acoes = campoMotivo("cortesia, licitação, evento…", () => executar(() => dispensarAssinatura(item.contratoId, motivo)), "Dispensar");
+  } else if (modo === "desfecho") {
+    acoes = (
+      <div className="flex flex-col items-end gap-1.5">
+        <div className="flex gap-1" role="radiogroup" aria-label="Desfecho">
+          {(["desistencia", "nao_comissiona"] as const).map((op) => {
+            const bloqueada = op === "desistencia" && item.ativado;
+            return (
+              <button
+                key={op}
+                type="button"
+                role="radio"
+                aria-checked={tipo === op}
+                disabled={bloqueada}
+                title={bloqueada ? "Este contrato já foi ativado" : undefined}
+                onClick={() => setTipo(op)}
+                className={`${botao} border ${tipo === op ? "border-primary bg-primary/10 text-primary" : "bg-background hover:bg-muted"} disabled:cursor-not-allowed`}
+              >
+                {ROTULO_DESFECHO[op]}
+              </button>
+            );
+          })}
+        </div>
+        {campoMotivo("motivo do desfecho", () => executar(() => encerrarSemComissao(item.contratoId, competencia, tipo, motivo)), "Encerrar")}
+      </div>
+    );
+  } else {
+    acoes = (
+      <div className="flex items-center justify-end gap-1">
+        {item.bloqueioAbsoluto ? (
+          <button type="button" onClick={() => setModo("dispensar")} className={contorno} title="Só para contratos que por natureza não têm Termo/Fidelidade">
+            Dispensar assinatura
+          </button>
+        ) : (
+          <button type="button" onClick={() => setModo("aprovar")} className={primario}>
+            Aprovar
+          </button>
+        )}
+        <button type="button" onClick={() => setModo("desfecho")} className={contorno}>
+          Desfecho
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -92,21 +192,25 @@ function Linha({
         {formatarMoeda(item.valor)}
       </td>
       <td className="px-3 py-2">
-        <select
-          defaultValue={item.vendedorId ?? ""}
-          disabled={ocupado}
-          onChange={(e) =>
-            e.target.value && executar(() => atribuirVendedoraContrato(item.contratoId, e.target.value))
-          }
-          className="h-8 max-w-[11rem] rounded-md border border-input bg-background px-2 text-xs"
-        >
-          <option value="">— não atribuída —</option>
-          {vendedoras.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.nome}
-            </option>
-          ))}
-        </select>
+        {secao === "pendente" ? (
+          <select
+            defaultValue={item.vendedorId ?? ""}
+            disabled={ocupado}
+            onChange={(e) =>
+              e.target.value && executar(() => atribuirVendedoraContrato(item.contratoId, e.target.value))
+            }
+            className="h-8 max-w-[11rem] rounded-md border border-input bg-background px-2 text-xs"
+          >
+            <option value="">— não atribuída —</option>
+            {vendedoras.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.nome}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="text-xs">{item.vendedora}</span>
+        )}
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap gap-1">
@@ -115,107 +219,27 @@ function Linha({
               {p}
             </Badge>
           ))}
+          {secao === "pendente" && item.bloqueioAbsoluto && (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" title="Política: venda sem Termo e Fidelidade não comissiona">
+              <Lock className="h-3 w-3" />
+              sem Termo/Fidelidade
+            </span>
+          )}
         </div>
-        {aprovado && item.aprovacao && (
+        {secao === "aprovada" && item.aprovacao && (
           <p className="mt-1 text-xs text-farol-verde">
             liberada por {item.aprovacao.aprovadoPor ?? "gestão"}: {item.aprovacao.motivo}
           </p>
         )}
+        {secao === "encerrada" && item.desfecho && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">{ROTULO_DESFECHO[item.desfecho.tipo]}</span>
+            {item.desfecho.definidoPor ? ` · ${item.desfecho.definidoPor}` : ""}: {item.desfecho.motivo}
+          </p>
+        )}
         {erro && <p className="mt-1 text-xs text-farol-vermelho">{erro}</p>}
       </td>
-      <td className="whitespace-nowrap px-3 py-2 text-right">
-        {aprovado ? (
-          <button
-            type="button"
-            disabled={ocupado}
-            onClick={() => executar(() => revogarAprovacao(item.contratoId, competencia))}
-            className="rounded-md border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
-          >
-            Revogar
-          </button>
-        ) : item.bloqueioAbsoluto ? (
-          dispensando ? (
-            <div className="flex items-center justify-end gap-1">
-              <input
-                autoFocus
-                value={motivo}
-                onChange={(e) => setMotivo(e.target.value)}
-                placeholder="cortesia, licitação, aditivo…"
-                className="h-8 w-52 rounded-md border border-input bg-background px-2 text-xs"
-              />
-              <button
-                type="button"
-                disabled={ocupado}
-                onClick={() => executar(() => dispensarAssinatura(item.contratoId, motivo))}
-                className="rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
-              >
-                Dispensar
-              </button>
-              <button
-                type="button"
-                onClick={() => setDispensando(false)}
-                className="rounded-md border px-2 py-1 text-xs hover:bg-muted"
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-end gap-1">
-              <span
-                className="text-xs text-muted-foreground"
-                title="Política da empresa: venda sem assinatura não comissiona"
-              >
-                🔒 exige assinatura
-              </span>
-              <button
-                type="button"
-                onClick={() => setDispensando(true)}
-                className="text-[11px] text-muted-foreground underline hover:text-foreground"
-                title="Só para contratos que por natureza não têm assinatura"
-              >
-                não requer assinatura
-              </button>
-            </div>
-          )
-        ) : abrindo ? (
-          <div className="flex items-center justify-end gap-1">
-            <input
-              autoFocus
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              placeholder="motivo da liberação"
-              className="h-8 w-52 rounded-md border border-input bg-background px-2 text-xs"
-            />
-            <button
-              type="button"
-              disabled={ocupado}
-              onClick={() =>
-                executar(() =>
-                  aprovarVenda(item.contratoId, competencia, motivo, item.pendencias)
-                )
-              }
-              className="rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
-            >
-              Confirmar
-            </button>
-            <button
-              type="button"
-              onClick={() => setAbrindo(false)}
-              className="rounded-md border px-2 py-1 text-xs hover:bg-muted"
-            >
-              ✕
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setAbrindo(true)}
-            className="rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground"
-          >
-            Aprovar
-          </button>
-        )}
-      </td>
+      <td className="whitespace-nowrap px-3 py-2 text-right">{acoes}</td>
     </tr>
   );
 }
@@ -229,7 +253,7 @@ export function PainelAprovacoes({
   fila: FilaAprovacao;
   template: string | null;
 }) {
-  const tabela = (itens: ItemAprovacao[], aprovado: boolean) => (
+  const tabela = (itens: ItemAprovacao[], secao: "pendente" | "aprovada" | "encerrada") => (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[54rem] text-sm">
         <thead>
@@ -249,7 +273,7 @@ export function PainelAprovacoes({
               competencia={fila.competencia}
               vendedoras={fila.vendedoras}
               template={template}
-              aprovado={aprovado}
+              secao={secao}
             />
           ))}
         </tbody>
@@ -266,7 +290,7 @@ export function PainelAprovacoes({
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Vendas que a regra automática não liberou. Aprovar faz a venda contar na comissão
-            do mês — o motivo fica registrado no seu nome.
+            do mês; Desfecho encerra sem comissão e tira da fila. O motivo fica registrado no seu nome.
           </p>
         </CardHeader>
         <CardContent className="p-0 pb-3">
@@ -275,7 +299,7 @@ export function PainelAprovacoes({
               ✓ Nenhuma venda pendente de decisão nesta competência.
             </p>
           ) : (
-            tabela(fila.pendentes, false)
+            tabela(fila.pendentes, "pendente")
           )}
         </CardContent>
       </Card>
@@ -288,7 +312,22 @@ export function PainelAprovacoes({
               Já entram na comissão. Revogar devolve a venda para a fila acima.
             </p>
           </CardHeader>
-          <CardContent className="p-0 pb-3">{tabela(fila.aprovados, true)}</CardContent>
+          <CardContent className="p-0 pb-3">{tabela(fila.aprovados, "aprovada")}</CardContent>
+        </Card>
+      )}
+
+      {fila.encerradas.length > 0 && (
+        <Card>
+          <details>
+            <summary className="cursor-pointer list-none px-6 py-4 [&::-webkit-details-marker]:hidden">
+              <span className="text-base font-semibold">Encerradas sem comissão ({fila.encerradas.length})</span>
+              <span className="ml-2 text-sm text-muted-foreground">ver ▾</span>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Saíram da fila com desfecho. Não entram na comissão; Desfazer devolve a venda para a fila.
+              </p>
+            </summary>
+            <CardContent className="p-0 pb-3">{tabela(fila.encerradas, "encerrada")}</CardContent>
+          </details>
         </Card>
       )}
     </div>
