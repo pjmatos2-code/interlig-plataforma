@@ -64,11 +64,12 @@ export function FiltrosDashboard({
         pendente && "pointer-events-none opacity-60"
       )}
     >
-      <div className="flex rounded-md border bg-background p-0.5">
+      <div className="flex rounded-lg bg-muted p-0.5">
         {PERIODOS.map((p) => (
           <button
             key={p.valor}
             type="button"
+            aria-pressed={periodoAtivo === p.valor}
             onClick={() =>
               aplicar(
                 p.valor === "personalizado"
@@ -77,9 +78,9 @@ export function FiltrosDashboard({
               )
             }
             className={cn(
-              "rounded px-3 py-1.5 text-sm font-medium transition-colors",
+              "h-8 rounded-md px-3 text-[13px] transition-colors",
               periodoAtivo === p.valor
-                ? "bg-primary text-primary-foreground"
+                ? "bg-card font-medium text-foreground shadow-sm ring-1 ring-border"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -125,7 +126,7 @@ export function FiltrosDashboard({
             )}
             title="Aplicar o período selecionado"
           >
-            {pendente ? "Buscando…" : "🔎 Buscar"}
+            {pendente ? "Buscando…" : "Buscar"}
           </button>
           {invalido && (
             <span className="text-xs text-destructive">
