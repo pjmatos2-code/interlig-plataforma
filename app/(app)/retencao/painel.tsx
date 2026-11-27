@@ -373,7 +373,10 @@ function Detalhe({
           )}
           {desfecho && (
             <button type="button" disabled={ocupado}
-              onClick={() => executar(() => atualizarCaso(c.id, {
+              onClick={() => executar(() => desfecho === "retido"
+                // retido da gestão (27/11/2026): só o status, sem tratativa nem motivo
+                ? atualizarCaso(c.id, { desfecho: "retido" })
+                : atualizarCaso(c.id, {
                 desfecho: desfecho as never,
                 irreversivelMotivo: irrevMotivo,
                 trilha,
@@ -381,9 +384,11 @@ function Detalhe({
                   desfecho === "perdido" && motivoPerda && motivoPerda !== "outro" ? motivoPerda : motivo,
                 alcadaUsada: alcada,
                 resumo,
-              }), "Caso encerrado.")}
-              className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50">
-              🚩 Confirmar encerramento
+              }), desfecho === "retido" ? "Marcado como retido." : "Caso encerrado.")}
+              className={desfecho === "retido"
+                ? "rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                : "rounded-md border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:opacity-50"}>
+              {desfecho === "retido" ? "✓ Marcar como retido" : "🚩 Confirmar encerramento"}
             </button>
           )}
         </div>
