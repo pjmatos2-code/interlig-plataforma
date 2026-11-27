@@ -417,7 +417,7 @@ function Detalhe({
           {c.desfechoAuto && (c.desfecho === "retido" || c.desfecho === "perdido")
             ? `“${STATUS[c.desfecho]?.t}” foi validado no SGP — a tratativa segue editável e você pode reclassificar.`
             : c.desfecho === "retido"
-              ? "Retido marcado pela gestão — a auditoria não muda para em risco; só volta a perdido se o contrato for cancelado no SGP."
+              ? "Retido marcado pela gestão — a auditoria não altera; só o administrador reclassifica."
               : "Retido e Perdido são validados automaticamente pelo status do contrato no SGP."}
         </p>
 

@@ -78,10 +78,10 @@ export async function auditarRetencao(): Promise<ResultadoAuditoria> {
     // irreversível e transferido são decisões humanas: a auditoria não mexe
     if (atual === "irreversivel" || atual === "transferido") continue;
 
-    // retido marcado pelo administrador (27/11/2026): a auditoria respeita —
-    // suspensão (com ou sem débito) não vira em risco. Cancelamento no SGP
-    // continua derrubando para perdido (com clawback), como no retido automático.
-    if (atual === "retido" && caso.desfecho_auto === false && x.s !== "cancelado") {
+    // retido marcado pelo administrador (27/11/2026): decisão final, vale para
+    // qualquer caso (inclusive perdido com contrato cancelado). A auditoria não
+    // muda para em risco nem para perdido; só o administrador reclassifica.
+    if (atual === "retido" && caso.desfecho_auto === false) {
       retidos++;
       continue;
     }
