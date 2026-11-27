@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   cancelamentosNaVez,
   cursorOcorrencias,
+  crescimentoNaVez,
   fidelidadeNaVez,
   janelaCancelamentosRecentes,
   meuDiaNaVez,
@@ -106,6 +107,22 @@ describe("relatórios do SGP", () => {
     expect(fidelidadeNaVez(NOITE, antes(NOITE, 19 * HORA))).toBe(false);
     expect(fidelidadeNaVez(NOITE, antes(NOITE, 20 * HORA))).toBe(true);
     expect(fidelidadeNaVez(NOITE, undefined)).toBe(true);
+  });
+});
+
+describe("base das unidades (relatório Crescimento)", () => {
+  const hoje = relogioSantarem(MANHA).dia;
+  const ontem = relogioSantarem(MANHA - 24 * HORA).dia;
+
+  it("uma leitura completa por dia", () => {
+    expect(crescimentoNaVez(MANHA, hoje, antes(MANHA, 5 * HORA))).toBe(false);
+    expect(crescimentoNaVez(MANHA, ontem, undefined)).toBe(true);
+    expect(crescimentoNaVez(MANHA, undefined, undefined)).toBe(true);
+  });
+
+  it("dia ainda incompleto: nova tentativa só depois de 30 min", () => {
+    expect(crescimentoNaVez(MANHA, ontem, antes(MANHA, 10 * 60_000))).toBe(false);
+    expect(crescimentoNaVez(MANHA, ontem, antes(MANHA, 30 * 60_000))).toBe(true);
   });
 });
 

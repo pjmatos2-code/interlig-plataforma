@@ -4,6 +4,7 @@ import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { mesAtras } from "@/lib/datas";
 import {
   cancelamentosNaVez,
+  crescimentoNaVez,
   fidelidadeNaVez,
   meuDiaNaVez,
   noExpediente,
@@ -237,6 +238,31 @@ export async function rodarRotinas(orcamentoMs = 172_000) {
       if (d.abertas > 0 || !d.ok) await registrar(admin, "direcionamento", iniD, { ok: d.ok, registros: d.gravadas, erro: d.ok ? null : d.erro ?? "falhou" });
       medir("direcionamento", iniD);
     }
+  }
+
+  // base das unidades (27/11/2026): relatório Crescimento do SGP, 1x/dia —
+  // ~50 s para as três unidades. Veio do fim do /api/sync, onde morria no teto
+  // da função (ver lib/sgp/crescimento.ts). Chave nova: a antiga
+  // (crescimento_v2_em) pode ter ficado marcada por um ciclo que não terminou
+  crescimento: {
+    if (restante() < 75_000) break crescimento;
+    const { data: cfgSgpRow } = await admin.from("integracoes_config").select("config").eq("sistema", "sgp").maybeSingle();
+    const cfgSgp = (cfgSgpRow?.config ?? {}) as Record<string, unknown>;
+    if (!crescimentoNaVez(Date.now(), cfgSgp.crescimento_dia_completo as string | undefined, cfgSgp.crescimento_tentativa_em as string | undefined)) break crescimento;
+    const ini = Date.now();
+    // marca a tentativa ANTES de rodar: não empilha nem repete a cada disparo
+    await admin.rpc("mesclar_config", { p_sistema: "sgp", p_patch: { crescimento_tentativa_em: new Date(ini).toISOString() } });
+    const { atualizarCrescimentoBase } = await import("@/lib/sgp/crescimento");
+    const c = await atualizarCrescimentoBase(restante() - 15_000);
+    if (c.ok && c.completo) {
+      await admin.rpc("mesclar_config", { p_sistema: "sgp", p_patch: { crescimento_dia_completo: relogioSantarem(ini).dia } });
+    }
+    await registrar(admin, "crescimento_base", ini, {
+      ok: c.ok,
+      registros: c.gravados,
+      erro: c.ok ? (c.completo ? null : `parcial: leu ${c.unidades.join(", ") || "nenhuma unidade"}`) : c.erro ?? "falhou",
+    });
+    medir("crescimento", ini);
   }
 
   // fidelidade da base (01/10/2026): relatório pesado no SGP (~70s para as

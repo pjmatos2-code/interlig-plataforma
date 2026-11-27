@@ -134,6 +134,20 @@ export function janelaCancelamentosRecentes(
   return { de: de < piso ? piso : de, ate: hoje };
 }
 
+/**
+ * Base das unidades (relatório Crescimento do SGP): uma leitura completa por
+ * dia de Santarém. Enquanto o dia não fecha (faltou tempo ou deu erro), tenta
+ * de novo no máximo a cada 30 min — nunca a cada ciclo.
+ */
+export function crescimentoNaVez(
+  agora: number,
+  diaCompleto: string | null | undefined,
+  tentativaIso: string | null | undefined
+): boolean {
+  if (typeof diaCompleto === "string" && diaCompleto >= relogioSantarem(agora).dia) return false;
+  return desde(agora, tentativaIso) >= 30 * MIN;
+}
+
 /** Fidelidade da base: fora do expediente, quando a faixa mais antiga tem 20 h ou mais. */
 export function fidelidadeNaVez(agora: number, maisAntigaIso: string | null | undefined): boolean {
   return !noExpediente(agora) && desde(agora, maisAntigaIso) >= 20 * HORA;
