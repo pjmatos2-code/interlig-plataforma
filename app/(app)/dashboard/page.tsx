@@ -28,7 +28,6 @@ import {
 } from "@/components/dashboard/graficos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatarData, formatarMoeda, formatarMoedaKpi, formatarNumero, formatarPercentual } from "@/lib/format";
-import { ROTULO_ORIGEM } from "@/lib/tipos";
 
 export const dynamic = "force-dynamic";
 
@@ -553,7 +552,7 @@ export default async function DashboardPage({
           {unidadesBase.length > 0 && <BaseUnidades unidades={unidadesBase} />}
 
           {/* linha inferior */}
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Card>
               <CardHeader className="pb-2">
                 <div className="flex items-baseline justify-between">
@@ -586,22 +585,11 @@ export default async function DashboardPage({
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Origem de cadastro</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Donut
-                  total={d.vendasPeriodo}
-                  fatias={d.origemDistribuicao.map((o) => ({
-                    rotulo: ROTULO_ORIGEM[o.origem],
-                    valor: o.vendas,
-                  }))}
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
+            {/* "Origem de cadastro" saiu em 27/11/2026: a origem ainda não é
+                preenchida no cadastro, então o quadro mostrava quase tudo como
+                "Outro". Volta quando o campo for implantado (d.origemDistribuicao
+                continua sendo calculado). */}
+            <Card className="md:col-span-2 xl:col-span-1">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Projeção de fechamento</CardTitle>
               </CardHeader>
