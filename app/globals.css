@@ -22,6 +22,14 @@
     --input: 214 32% 91%;
     --ring: 207 96% 44%;         /* azul-céu oficial #047CDD */
     --radius: 0.6rem;
+
+    /* séries e gráficos (Base das unidades): mesmas cores que a seção já usava */
+    --serie-ativos: #2563eb;
+    --serie-cancelados: #1e293b;
+    --serie-suspensos: #f97316;
+    --grafico-grade: #e2e8f0;
+    --grafico-eixo: #64748b;
+    --grafico-rotulo: #0f172a;
   }
 
   * {

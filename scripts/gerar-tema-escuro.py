@@ -187,6 +187,12 @@ html[data-tema="escuro"]:has(.tema-app) body {{
   --input: 212 27% 29%;
   --ring: 210 55% 54%;
   --vazio: {ELEVADO}; /* anel de gráfico sem dados */
+  --serie-ativos: {AZUL_CLARO};
+  --serie-cancelados: #94A3B8;
+  --serie-suspensos: #FB923C;
+  --grafico-grade: {BORDA};
+  --grafico-eixo: {TEXTO2};
+  --grafico-rotulo: {TEXTO};
   background-color: {FUNDO};
   color: {TEXTO};
   color-scheme: dark;
@@ -210,7 +216,7 @@ html[data-tema="escuro"]:has(.tema-app) body {{
 [data-tema="escuro"] .tema-app .recharts-cartesian-axis-tick-line {{ stroke: #4A607A; }}
 [data-tema="escuro"] .tema-app .recharts-text,
 [data-tema="escuro"] .tema-app .recharts-label,
-[data-tema="escuro"] .tema-app .recharts-label-list text {{ fill: {TEXTO2} !important; }}
+[data-tema="escuro"] .tema-app .recharts-label-list text:not(.rotulo-tema) {{ fill: {TEXTO2} !important; }}
 [data-tema="escuro"] .tema-app .recharts-wrapper [stroke="#043792"] {{ stroke: {AZUL_CLARO}; }}
 [data-tema="escuro"] .tema-app .recharts-wrapper [fill="#043792"],
 [data-tema="escuro"] .tema-app .recharts-wrapper [fill="#047CDD"],

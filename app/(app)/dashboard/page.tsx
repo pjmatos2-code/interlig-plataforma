@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { exigirPerfil } from "@/lib/auth";
 import { EvolucaoVendas } from "@/components/dashboard/evolucao-vendas";
+import { BaseUnidades } from "@/components/dashboard/base-unidades";
+import { montarBaseDaUnidade } from "@/lib/dashboard/base-unidades";
 import { hojeIso, primeiroDiaDoMes, resolverPeriodo } from "@/lib/datas";
 import { carregarDashboard } from "@/lib/dashboard/dados";
 import { criarClienteAdmin } from "@/lib/supabase/admin";
@@ -329,10 +331,12 @@ export default async function DashboardPage({
   const unidadesBase = (timeIds ? [] : ["Altamira", "Vitória do Xingu", "Brasil Novo"])
     .filter((u) => !nomePopSupervisor || u === nomePopSupervisor)
     .map((unidade) => {
-      const serie = (baseUnidades ?? []).filter((b) => b.unidade === unidade).slice(-6);
-      return { unidade, serie };
+      const linhas = (baseUnidades ?? []).filter((b) => b.unidade === unidade);
+      // comparações só com meses encerrados; o mês em andamento vai à parte, como parcial
+      return { unidade, linhas: linhas.length, base: montarBaseDaUnidade(linhas, hojeStm.slice(0, 7)) };
     })
-    .filter((u) => u.serie.length > 0);
+    .filter((u) => u.linhas > 0)
+    .map(({ unidade, base }) => ({ unidade, base }));
   const MES_CURTO = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
   const baseAtualPorUnidade = ["Altamira", "Vitória do Xingu", "Brasil Novo"]
     .map((unidade) => {
@@ -545,68 +549,8 @@ export default async function DashboardPage({
             </CardContent>
           </Card>
 
-                    {/* base das 3 unidades — Relatórios > Crescimento do SGP (1x/dia), modelo do mock 04/09 */}
-          {unidadesBase.length > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle>Base das unidades, últimos 6 meses</CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  Fonte: SGP (Relatórios &gt; Contratos &gt; Crescimento) · residencial + corporativo · atualizado diariamente
-                </p>
-              </CardHeader>
-              <CardContent className="grid gap-4 lg:grid-cols-3">
-                {unidadesBase.map(({ unidade, serie }) => {
-                  const atual = serie[serie.length - 1];
-                  const maxU = Math.max(...serie.map((b) => Math.max(b.ativos, b.cancelados_acum, b.suspensos)), 1);
-                  const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-                  return (
-                    <div key={unidade} className="rounded-lg border p-3">
-                      <p className="text-sm font-semibold">{unidade}</p>
-                      <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
-                        <div className="rounded-md border px-1 py-1.5 dark:bg-[#293B51]">
-                          <p className="text-[10px] font-medium text-[#2563eb] dark:text-[#95BCE2]">Ativos</p>
-                          <p className="text-sm font-bold tabular-nums text-[#2563eb] dark:text-[#95BCE2]">{atual.ativos.toLocaleString("pt-BR")}</p>
-                        </div>
-                        <div className="rounded-md border px-1 py-1.5 dark:bg-[#293B51]">
-                          <p className="text-[10px] font-medium text-slate-700">Cancelados</p>
-                          <p className="text-sm font-bold tabular-nums text-slate-800">{atual.cancelados_acum.toLocaleString("pt-BR")}</p>
-                        </div>
-                        <div className="rounded-md border px-1 py-1.5 dark:bg-[#293B51]">
-                          <p className="text-[10px] font-medium text-orange-600">Suspensos</p>
-                          <p className="text-sm font-bold tabular-nums text-orange-600">{atual.suspensos.toLocaleString("pt-BR")}</p>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex h-28 items-end justify-around gap-1 border-b pb-0.5">
-                        {serie.map((b) => (
-                          <div
-                            key={b.mes}
-                            className="flex h-full w-full items-end justify-center gap-0.5"
-                            title={`${MESES[Number(b.mes.slice(5, 7)) - 1]}/${b.mes.slice(0, 4)} — Ativos: ${b.ativos.toLocaleString("pt-BR")} · Cancelados: ${b.cancelados_acum.toLocaleString("pt-BR")} (${b.cancelados_mes} no mês) · Suspensos: ${b.suspensos.toLocaleString("pt-BR")}`}
-                          >
-                            <div className="w-1/3 max-w-3 rounded-t-sm bg-[#2563eb] dark:bg-[#2F6CAB]" style={{ height: `${Math.max(3, (b.ativos / maxU) * 100)}%` }} />
-                            <div className="w-1/3 max-w-3 rounded-t-sm bg-slate-800 dark:bg-slate-400" style={{ height: `${Math.max(2, (b.cancelados_acum / maxU) * 100)}%` }} />
-                            <div className="w-1/3 max-w-3 rounded-t-sm bg-orange-500" style={{ height: `${Math.max(2, (b.suspensos / maxU) * 100)}%` }} />
-                          </div>
-                        ))}
-                      </div>
-                      <div className="flex justify-around pt-0.5">
-                        {serie.map((b) => (
-                          <span key={b.mes} className="w-full text-center text-[9px] text-muted-foreground">
-                            {MESES[Number(b.mes.slice(5, 7)) - 1]}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="mt-1.5 flex items-center justify-center gap-3 text-[10px] text-muted-foreground">
-                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-[#2563eb] dark:bg-[#2F6CAB]" /> Ativos</span>
-                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-slate-800 dark:bg-slate-400" /> Cancelados</span>
-                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-orange-500" /> Suspensos</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          )}
+          {/* base das unidades — três gráficos por unidade (modelo aprovado em 27/11/2026) */}
+          {unidadesBase.length > 0 && <BaseUnidades unidades={unidadesBase} />}
 
           {/* linha inferior */}
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
