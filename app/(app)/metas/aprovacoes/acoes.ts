@@ -36,12 +36,15 @@ export async function aprovarVenda(
   // servidor porque esconder o botão na tela não é controle de verdade.
   const { data: contrato } = await admin
     .from("contratos")
-    .select("termo_adesao_assinado, fidelidade_assinada")
+    // a dispensa da gestão e o plano sem documento contam aqui também
+    // (27/11/2026): sem eles a tela recusava o Confirmar de contrato dispensado
+    .select("termo_adesao_assinado, fidelidade_assinada, assinatura_dispensada, planos(exige_assinatura)")
     .eq("id", contratoId)
     .maybeSingle();
   if (!contrato) return { erro: "Contrato não encontrado." };
   const { temPendenciaDeAssinatura } = await import("@/lib/comissao/liberacao");
-  if (temPendenciaDeAssinatura({ id: contratoId, status: "", ...contrato })) {
+  const plano = contrato.planos as unknown as { exige_assinatura: boolean | null } | null;
+  if (temPendenciaDeAssinatura({ id: contratoId, status: "", ...contrato, planos: plano })) {
     return {
       erro: "Contrato sem Termo de Adesão ou Fidelidade assinado — a política não permite liberar.",
     };
