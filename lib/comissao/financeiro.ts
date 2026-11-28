@@ -167,7 +167,7 @@ export async function apuracaoEmAndamento(mesIso: string): Promise<ApuracaoAndam
   const admin = criarClienteAdmin();
   const { refidelizacaoDoMes } = await import("@/lib/refidelizacao/dados");
   const { faixaDe: faixaRefid, META_REFIDELIZACAO } = await import("@/lib/refidelizacao/regras");
-  const { retencaoDoMes, faixaRetencao, PISO_ELEGIVEIS } = await import("@/lib/retencao/dados");
+  const { retencaoDoMes, faixaRetencao, PISO_ELEGIVEIS, INICIO_TAXA_SEM_EM_RISCO } = await import("@/lib/retencao/dados");
   const [comissoes, debito, { data: vends }, refid, retencao] = await Promise.all([
     comissoesDoMes(mesIso, { ignorarRls: true }),
     debitoPorCoorte(mesIso),
@@ -242,8 +242,11 @@ export async function apuracaoEmAndamento(mesIso: string): Promise<ApuracaoAndam
       .filter((l) => l.desfecho === "em_risco")
       .reduce((s2, l) => s2 + l.valorMensal, 0);
     const retidosSe = m.retidos + m.emRisco;
-    const taxaSe = m.elegiveis > 0 ? (retidosSe / m.elegiveis) * 100 : 0;
-    const faixaSe = m.elegiveis < PISO_ELEGIVEIS ? 0 : faixaRetencao(taxaSe);
+    // de novembro/2026 em diante o em risco não está no denominador: se ele
+    // virar retido, entra nos dois lados da conta
+    const elegSe = m.competencia >= INICIO_TAXA_SEM_EM_RISCO ? m.elegiveis + m.emRisco : m.elegiveis;
+    const taxaSe = elegSe > 0 ? (retidosSe / elegSe) * 100 : 0;
+    const faixaSe = elegSe < PISO_ELEGIVEIS ? 0 : faixaRetencao(taxaSe);
     linhas.push({
       vendedorId: idPorLogin.get(m.agente) ?? m.agente,
       vendedora: m.nomeAgente ?? m.agente,
