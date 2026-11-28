@@ -21,6 +21,9 @@ export const FAIXAS_RETENCAO = [
 
 export const PISO_ELEGIVEIS = 15;
 
+/** primeira competência em que o "em risco" não pesa na taxa (decisão 27/11/2026) */
+export const INICIO_TAXA_SEM_EM_RISCO = "2026-11-01";
+
 export function faixaRetencao(taxaPct: number): number {
   // mesma regra da refidelização: o atingimento arredonda antes de comparar
   // com o piso da faixa (64,5%+ conta como 65) — decisão do gestor em 31/08.
@@ -147,7 +150,11 @@ export async function retencaoDoMes(
     const irreversiveisPendentes = linhas.filter(
       (l) => l.desfecho === "irreversivel" && l.irreversivelStatus !== "aprovado"
     ).length;
-    const elegiveis = retidos + perdidos + emRisco;
+    // decisão do gestor (27/11/2026): a partir de novembro/2026 o EM RISCO
+    // também sai do denominador — elegíveis = retidos + perdidos. O caso em
+    // risco entra quando a auditoria resolve (retido ou perdido). Meses
+    // anteriores seguem a regra de 30/09 (com o em risco).
+    const elegiveis = retidos + perdidos + (mes >= INICIO_TAXA_SEM_EM_RISCO ? 0 : emRisco);
     const taxaPct = elegiveis > 0 ? (retidos / elegiveis) * 100 : 0;
     const abaixoDoPiso = elegiveis < PISO_ELEGIVEIS;
     const faixaPct = abaixoDoPiso ? 0 : faixaRetencao(taxaPct);
